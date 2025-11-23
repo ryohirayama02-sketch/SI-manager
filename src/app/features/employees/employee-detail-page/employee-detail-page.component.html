@@ -20,6 +20,24 @@
     ※ 短時間労働者は勤務実績に応じて社保加入が必要になるケースがあります。
   </div>
 
+  <div *ngIf="employee.maternityLeaveStart || employee.maternityLeaveEnd" style="margin-top: 1rem;">
+    <h3>産休情報</h3>
+    <p *ngIf="employee.maternityLeaveStart"><strong>産休開始日:</strong> {{ employee.maternityLeaveStart }}</p>
+    <p *ngIf="employee.maternityLeaveEnd"><strong>産休終了日:</strong> {{ employee.maternityLeaveEnd }}</p>
+  </div>
+
+  <div *ngIf="employee.childcareLeaveStart || employee.childcareLeaveEnd" style="margin-top: 1rem;">
+    <h3>育休情報</h3>
+    <p *ngIf="employee.childcareLeaveStart"><strong>育休開始日:</strong> {{ employee.childcareLeaveStart }}</p>
+    <p *ngIf="employee.childcareLeaveEnd"><strong>育休終了日:</strong> {{ employee.childcareLeaveEnd }}</p>
+    <p *ngIf="employee.childcareNotificationSubmitted !== undefined">
+      <strong>育児休業取得届の提出済:</strong> {{ employee.childcareNotificationSubmitted ? 'はい' : 'いいえ' }}
+    </p>
+    <p *ngIf="employee.childcareLivingTogether !== undefined">
+      <strong>子と同居している（養育している）:</strong> {{ employee.childcareLivingTogether ? 'はい' : 'いいえ' }}
+    </p>
+  </div>
+
   <div style="margin-top: 1rem;">
     <button [routerLink]="['/employees', id, 'edit']" style="padding: 0.5rem 1rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
       編集する

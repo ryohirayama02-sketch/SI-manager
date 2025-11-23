@@ -1,0 +1,262 @@
+.bonus-form {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 8px;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.submit-btn {
+  background: #007bff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+}
+
+.submit-btn:hover {
+  background: #0056b3;
+}
+
+.calculation-card {
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calculation-card h3 {
+  margin: 0;
+  padding: 20px 20px 16px 20px;
+  font-size: 1.3rem;
+  font-weight: bold;
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  background: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+}
+
+.calculation-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.calculation-item:last-child {
+  border-bottom: none;
+}
+
+.calculation-item .label {
+  font-weight: 500;
+  color: #555;
+  flex: 1;
+}
+
+.calculation-item .value {
+  color: #333;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+}
+
+.calculation-item .value.highlight {
+  font-weight: bold;
+  color: #007bff;
+  font-size: 1.05em;
+}
+
+.info-section {
+  margin: 0;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.info-section:first-of-type {
+  border-top: none;
+}
+
+.info-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.special-notes {
+  margin: 0;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #fffbf0;
+}
+
+.special-notes h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #d9534f;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ffcccc;
+}
+
+.warning-card {
+  margin: 8px 0;
+  padding: 12px 16px;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  background-color: #fffbf0;
+}
+
+.warning-card:first-child {
+  margin-top: 0;
+}
+
+.warning-card:last-child {
+  margin-bottom: 0;
+}
+
+.warning-card .warning-text {
+  display: block;
+  color: #856404;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.reason-card {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #eef7ff;
+  border-left: 4px solid #007bff;
+  border-radius: 6px;
+}
+
+.reason-card h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #007bff;
+  font-weight: bold;
+}
+
+.reason-card ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.reason-card li {
+  margin: 0.3rem 0;
+  color: #333;
+}
+
+.no-report {
+  color: #666;
+  font-weight: bold;
+}
+
+.need-report {
+  color: #d9534f;
+  font-weight: bold;
+}
+
+.report-section {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-left: 4px solid #444;
+  background: #f9f9f9;
+  border-radius: 6px;
+}
+
+.report-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  color: #444;
+  font-weight: bold;
+}
+
+.report-section p {
+  margin: 0.5rem 0;
+  color: #333;
+}
+
+.error-box {
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 16px;
+  background: #f8d7da;
+  border: 2px solid #dc3545;
+  border-radius: 8px;
+  color: #721c24;
+}
+
+.error-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #721c24;
+}
+
+.error-box ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.error-box li {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+.warning-box {
+  max-width: 600px;
+  margin: 1rem auto;
+  padding: 16px;
+  background: #fff3cd;
+  border: 2px solid #ffc107;
+  border-radius: 8px;
+  color: #856404;
+}
+
+.warning-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #856404;
+}
+
+.warning-box ul {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.warning-box li {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+

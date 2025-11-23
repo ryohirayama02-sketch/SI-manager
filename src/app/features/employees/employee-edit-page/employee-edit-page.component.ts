@@ -26,6 +26,12 @@ export class EmployeeEditPageComponent implements OnInit {
       birthDate: ['', Validators.required],
       hireDate: ['', Validators.required],
       shortTimeWorker: [false],
+      maternityLeaveStart: [''],
+      maternityLeaveEnd: [''],
+      childcareLeaveStart: [''],
+      childcareLeaveEnd: [''],
+      childcareNotificationSubmitted: [false],
+      childcareLivingTogether: [false],
     });
   }
 
@@ -39,7 +45,13 @@ export class EmployeeEditPageComponent implements OnInit {
         name: data.name || '',
         birthDate: data.birthDate || '',
         hireDate: data.hireDate || '',
-        shortTimeWorker: data.shortTimeWorker || false
+        shortTimeWorker: data.shortTimeWorker || false,
+        maternityLeaveStart: data.maternityLeaveStart || '',
+        maternityLeaveEnd: data.maternityLeaveEnd || '',
+        childcareLeaveStart: data.childcareLeaveStart || '',
+        childcareLeaveEnd: data.childcareLeaveEnd || '',
+        childcareNotificationSubmitted: data.childcareNotificationSubmitted || false,
+        childcareLivingTogether: data.childcareLivingTogether || false
       });
     }
   }

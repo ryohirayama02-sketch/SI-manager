@@ -54,6 +54,23 @@
   </tbody>
 </table>
 
+<!-- エラー・警告メッセージ -->
+<div *ngFor="let emp of employees">
+  <div *ngIf="errorMessages[emp.id] && errorMessages[emp.id].length > 0" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let error of errorMessages[emp.id]">{{ error }}</li>
+    </ul>
+  </div>
+  
+  <div *ngIf="warningMessages[emp.id] && warningMessages[emp.id].length > 0" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let warning of warningMessages[emp.id]">{{ warning }}</li>
+    </ul>
+  </div>
+</div>
+
 <ng-container *ngFor="let emp of employees">
   <div class="result-card" *ngIf="getCalculatedInfo(emp) as info">
     <h4>{{ emp.name }} の計算結果</h4>

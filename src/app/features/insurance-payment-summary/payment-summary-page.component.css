@@ -1,0 +1,95 @@
+.summary-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 20px;
+}
+
+.payment-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.payment-table thead {
+  background: #007bff;
+  color: white;
+}
+
+.payment-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.payment-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.payment-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.payment-table tbody tr:last-child {
+  border-bottom: 2px solid #007bff;
+}
+
+.payment-table td {
+  padding: 10px 16px;
+  text-align: left;
+}
+
+.month-cell {
+  font-weight: 500;
+  color: #333;
+  width: 80px;
+}
+
+.amount-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  color: #333;
+}
+
+.amount-cell.total-cell {
+  font-weight: bold;
+  color: #007bff;
+}
+
+.payment-table tfoot {
+  background: #f8f9fa;
+  border-top: 2px solid #007bff;
+}
+
+.payment-table tfoot .total-row {
+  font-weight: bold;
+}
+
+.payment-table tfoot .total-row td {
+  padding: 14px 16px;
+  font-size: 1.05em;
+}
+
+.payment-table tfoot .total-cell {
+  color: #007bff;
+  font-size: 1.1em;
+}
+
+.no-data-message {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #666;
+}
+
+.no-data-message p {
+  margin: 0;
+  font-size: 1.1rem;
+}

@@ -1,0 +1,40 @@
+<h2>{{ year }}年 社会保険料 振込額一覧</h2>
+
+<!-- TODO: 過去年度の集計にも対応できるように year セレクタを追加する -->
+
+<div *ngIf="employees.length === 0" class="no-data-message">
+  <p>データがありません</p>
+</div>
+
+<div class="summary-container" *ngIf="employees.length > 0">
+  <table class="payment-table">
+    <thead>
+      <tr>
+        <th>月</th>
+        <th>健康保険</th>
+        <th>介護保険</th>
+        <th>厚生年金</th>
+        <th>合計</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let month of months">
+        <td class="month-cell">{{ month }}月</td>
+        <td class="amount-cell">{{ monthlyTotals[month]?.health | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ monthlyTotals[month]?.care | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ monthlyTotals[month]?.pension | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ monthlyTotals[month]?.total | number:'1.0-0' }}円</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td class="month-cell">年間合計</td>
+        <td class="amount-cell total-cell">{{ getTotalHealth() | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ getTotalCare() | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ getTotalPension() | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ getTotalForYear() | number:'1.0-0' }}円</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+

@@ -57,6 +57,10 @@ export class MonthlySalariesPageComponent implements OnInit {
     gradeDiff: number;
     applyMonth: number;
   }> = [];
+  
+  // エラー・警告メッセージ（従業員IDをキーとする）
+  errorMessages: { [employeeId: string]: string[] } = {};
+  warningMessages: { [employeeId: string]: string[] } = {};
 
   constructor(
     private employeeService: EmployeeService,
@@ -66,6 +70,12 @@ export class MonthlySalariesPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
+    
+    // エラー・警告メッセージを初期化
+    for (const emp of this.employees) {
+      this.errorMessages[emp.id] = [];
+      this.warningMessages[emp.id] = [];
+    }
     
     // 都道府県別料率を読み込む
     this.rates = await this.settingsService.getRates(this.year, this.prefecture);
@@ -136,6 +146,22 @@ export class MonthlySalariesPageComponent implements OnInit {
       // 固定的賃金の変動を検出（前月と異なり、かつ今月が0より大きい）
       if (prev !== cur && cur > 0) {
         this.calculateSuijiKettei(employeeId, month);
+      }
+      
+      // 3. 極端に不自然な固定的賃金の変動チェック（前月比50%以上）
+      if (prev > 0 && cur > 0) {
+        const changeRate = Math.abs((cur - prev) / prev);
+        if (changeRate >= 0.5) {
+          if (!this.warningMessages[employeeId]) {
+            this.warningMessages[employeeId] = [];
+          }
+          const emp = this.employees.find(e => e.id === employeeId);
+          const empName = emp?.name || '';
+          const warningMsg = `${empName}の${month}月：固定的賃金が前月から極端に変動しています（前月: ${prev.toLocaleString()}円 → 今月: ${cur.toLocaleString()}円）`;
+          if (!this.warningMessages[employeeId].includes(warningMsg)) {
+            this.warningMessages[employeeId].push(warningMsg);
+          }
+        }
       }
     }
     
@@ -329,12 +355,37 @@ export class MonthlySalariesPageComponent implements OnInit {
     const premiums =
       standard !== null ? this.calculateInsurancePremiums(standard, age) : null;
 
+    // エラーチェック
+    this.checkEmployeeErrors(emp, age, premiums);
+
     return {
       avg,
       standard,
       rank,
       premiums
     };
+  }
+
+  checkEmployeeErrors(emp: any, age: number, premiums: any): void {
+    if (!this.errorMessages[emp.id]) {
+      this.errorMessages[emp.id] = [];
+    }
+
+    // 4. 70歳以上なのに厚生年金の保険料が計算されている
+    if (age >= 70 && premiums && premiums.pension_employee > 0) {
+      const errorMsg = `${emp.name}：70歳以上は厚生年金保険料は発生しません`;
+      if (!this.errorMessages[emp.id].includes(errorMsg)) {
+        this.errorMessages[emp.id].push(errorMsg);
+      }
+    }
+
+    // 5. 75歳以上なのに健康保険・介護保険が計算されている
+    if (age >= 75 && premiums && (premiums.health_employee > 0 || premiums.care_employee > 0)) {
+      const errorMsg = `${emp.name}：75歳以上は健康保険・介護保険は発生しません`;
+      if (!this.errorMessages[emp.id].includes(errorMsg)) {
+        this.errorMessages[emp.id].push(errorMsg);
+      }
+    }
   }
 
   // 定時決定ロジック

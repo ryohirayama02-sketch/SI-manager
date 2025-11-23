@@ -1,0 +1,161 @@
+.employee-result-card {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.employee-result-card h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 0.5rem;
+}
+
+.monthly-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.monthly-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #555;
+}
+
+.bonus-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: #f0f7ff;
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+}
+
+.bonus-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #007bff;
+}
+
+.premium-group {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.premium-group h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.calculation-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.calculation-item:last-child {
+  border-bottom: none;
+}
+
+.calculation-item .label {
+  font-weight: 500;
+  color: #555;
+  flex: 1;
+}
+
+.calculation-item .value {
+  color: #333;
+  font-weight: 500;
+  text-align: right;
+  flex: 1;
+}
+
+.calculation-item .value.highlight {
+  font-weight: bold;
+  color: #007bff;
+  font-size: 1.05em;
+}
+
+.special-notes {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: #fffbf0;
+  border-radius: 4px;
+}
+
+.special-notes h5 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.95rem;
+  font-weight: bold;
+  color: #d9534f;
+}
+
+.warning-card {
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: #fff3cd;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+}
+
+.warning-card:first-child {
+  margin-top: 0;
+}
+
+.warning-card:last-child {
+  margin-bottom: 0;
+}
+
+.warning-card .warning-text {
+  display: block;
+  color: #856404;
+  font-weight: 500;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.total-section {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-top: 2px solid #007bff;
+  border-radius: 4px;
+}
+
+.total-section h4 {
+  margin: 0 0 1rem 0;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #333;
+}
+
+.no-data-message {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  color: #666;
+}
+
+.no-data-message p {
+  margin: 0;
+  font-size: 1.1rem;
+}

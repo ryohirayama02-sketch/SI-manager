@@ -1,0 +1,181 @@
+<h2>賞与入力</h2>
+
+<form (ngSubmit)="onSubmit()" class="bonus-form">
+  <div class="form-group">
+    <label for="employee">従業員</label>
+    <select
+      id="employee"
+      [(ngModel)]="selectedEmployeeId"
+      (change)="onInputChange()"
+      name="employee"
+      required
+    >
+      <option value="">選択してください</option>
+      <option *ngFor="let emp of employees" [value]="emp.id">
+        {{ emp.name }}
+      </option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="bonusAmount">賞与額</label>
+    <input
+      id="bonusAmount"
+      type="number"
+      [(ngModel)]="bonusAmount"
+      (input)="onInputChange()"
+      name="bonusAmount"
+      placeholder="賞与額を入力"
+      required
+    />
+  </div>
+
+  <div class="form-group">
+    <label for="paymentDate">支給日</label>
+    <input
+      id="paymentDate"
+      type="date"
+      [(ngModel)]="paymentDate"
+      (change)="onInputChange()"
+      name="paymentDate"
+      required
+    />
+  </div>
+
+  <button type="submit" class="submit-btn">登録（ダミー）</button>
+</form>
+
+<!-- エラー・警告メッセージ -->
+<div *ngIf="calculationResult && calculationResult.errorMessages && calculationResult.errorMessages.length > 0" class="error-box">
+  <h4>エラー</h4>
+  <ul>
+    <li *ngFor="let error of calculationResult.errorMessages">{{ error }}</li>
+  </ul>
+</div>
+
+<div *ngIf="calculationResult && calculationResult.warningMessages && calculationResult.warningMessages.length > 0" class="warning-box">
+  <h4>警告</h4>
+  <ul>
+    <li *ngFor="let warning of calculationResult.warningMessages">{{ warning }}</li>
+  </ul>
+</div>
+
+<div *ngIf="calculationResult as cr" class="calculation-card">
+  <h3>保険料計算結果</h3>
+
+  <!-- 1. 標準賞与額・上限調整結果 -->
+  <div class="info-section">
+    <h4>標準賞与額・上限調整結果</h4>
+    <div class="calculation-item">
+      <span class="label">標準賞与額：</span>
+      <span class="value highlight">{{ cr.standardBonus | number : "1.0-0" }}円</span>
+    </div>
+    <div
+      class="calculation-item"
+      *ngIf="cr.cappedBonusHealth !== cr.standardBonus"
+    >
+      <span class="label">健保・介保上限適用後：</span>
+      <span class="value">{{ cr.cappedBonusHealth | number : "1.0-0" }}円</span>
+    </div>
+    <div
+      class="calculation-item"
+      *ngIf="cr.cappedBonusPension !== cr.standardBonus"
+    >
+      <span class="label">厚年上限適用後：</span>
+      <span class="value">{{ cr.cappedBonusPension | number : "1.0-0" }}円</span>
+    </div>
+  </div>
+
+  <!-- 2. 保険料一覧 -->
+  <div class="info-section">
+    <h4>保険料一覧</h4>
+    <div class="calculation-item">
+      <span class="label">健康保険（本人）：</span>
+      <span class="value">{{ cr.healthEmployee | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">健康保険（会社）：</span>
+      <span class="value">{{ cr.healthEmployer | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">介護保険（本人）：</span>
+      <span class="value">{{ cr.careEmployee | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">介護保険（会社）：</span>
+      <span class="value">{{ cr.careEmployer | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">厚生年金（本人）：</span>
+      <span class="value">{{ cr.pensionEmployee | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">厚生年金（会社）：</span>
+      <span class="value">{{ cr.pensionEmployer | number : "1.0-0" }}円</span>
+    </div>
+  </div>
+
+  <!-- 3. 特記事項 -->
+  <div
+    class="special-notes"
+    *ngIf="
+      cr.isExempted || cr.isRetiredNoLastDay || cr.isOverAge70 || cr.isOverAge75 || cr.exemptReason || cr.isSalaryInsteadOfBonus
+    "
+  >
+    <h4>特記事項</h4>
+    <div class="warning-card" *ngIf="cr.exemptReason">
+      <span class="warning-text">{{ cr.exemptReason }}</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isSalaryInsteadOfBonus">
+      <span class="warning-text">{{ cr.reason_bonus_to_salary_text }}</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isRetiredNoLastDay">
+      <span class="warning-text">月末在籍がないため健保・介保保険料0円</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isOverAge70">
+      <span class="warning-text">70歳到達月のため厚生年金保険料停止</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isOverAge75">
+      <span class="warning-text">75歳到達月のため健保・介保保険料停止</span>
+    </div>
+  </div>
+
+  <div class="info-section">
+    <h4>届出情報</h4>
+    <div class="calculation-item">
+      <span class="label">賞与支払届が必要：</span>
+      <span class="value">{{ cr.needsNotification ? "はい" : "いいえ" }}</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">提出期限：</span>
+      <span class="value">{{ cr.deadline }}</span>
+    </div>
+  </div>
+</div>
+
+<ng-container *ngIf="calculationResult as cr">
+  <ng-container *ngIf="cr.reasons as reasons">
+    <div class="reason-card" *ngIf="reasons.length > 0">
+      <h4>適用された実務ルール</h4>
+      <ul>
+        <li *ngFor="let r of reasons">{{ r }}</li>
+      </ul>
+    </div>
+  </ng-container>
+</ng-container>
+
+<div class="report-section" *ngIf="calculationResult as cr">
+  <h4>賞与支払届の提出</h4>
+
+  <div *ngIf="cr.requireReport; else noReport">
+    <p class="need-report">提出が必要です</p>
+    <p>理由：{{ cr.reportReason }}</p>
+    <p>提出期限：{{ cr.reportDeadline }}</p>
+  </div>
+
+  <ng-template #noReport>
+    <p class="no-report">提出は不要です</p>
+    <p>理由：{{ cr.reportReason }}</p>
+  </ng-template>
+</div>
+
