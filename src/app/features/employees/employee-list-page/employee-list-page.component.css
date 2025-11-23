@@ -1,6 +1,31 @@
 /* グローバルスタイルを使用 */
 
-ul li:hover {
+.btn-create {
+  margin-bottom: 1rem;
+}
+
+.employee-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.employee-item {
+  cursor: pointer;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: #fff;
+  transition: background-color 0.2s;
+}
+
+.employee-item:hover {
   background-color: #f0f0f0;
+}
+
+.employee-standard {
+  color: #666;
+  font-size: 0.9rem;
 }
 

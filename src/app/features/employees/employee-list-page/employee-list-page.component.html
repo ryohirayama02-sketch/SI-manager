@@ -1,13 +1,15 @@
 <h2>従業員一覧</h2>
 
-<button (click)="goCreate()" class="btn-primary" style="margin-bottom: 1rem;">
+<button (click)="goCreate()" class="btn-primary btn-create">
   ＋ 新規登録
 </button>
 
-<ul style="list-style: none; padding: 0;">
-  <li *ngFor="let emp of employees" (click)="goDetail(emp.id)" style="cursor: pointer; padding: 0.75rem; margin: 0.5rem 0; border: 1px solid #ddd; border-radius: 4px; background: #fff; transition: background-color 0.2s;">
-    {{ emp.name }}<span *ngIf="emp.standardMonthlyRemuneration" style="color: #666; font-size: 0.9rem;">（標準報酬月額：{{ emp.standardMonthlyRemuneration | number:'1.0-0' }}円）</span>
-  </li>
-</ul>
+<div class="card">
+  <ul class="employee-list">
+    <li *ngFor="let emp of employees" (click)="goDetail(emp.id)" class="employee-item">
+      {{ emp.name }}<span *ngIf="emp.standardMonthlyRemuneration" class="employee-standard">（標準報酬月額：{{ emp.standardMonthlyRemuneration | number:'1.0-0' }}円）</span>
+    </li>
+  </ul>
+</div>
 
 

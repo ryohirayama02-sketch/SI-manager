@@ -106,12 +106,54 @@ table thead th:first-child {
 .salary-table {
   border-collapse: collapse;
   overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+  display: block;
 }
 
-.salary-table th,
-.salary-table td {
+.salary-table thead,
+.salary-table tbody,
+.salary-table tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.salary-table thead {
+  width: calc(100% - 1em);
+}
+
+.salary-table th {
+  min-width: 120px;
+  text-align: center;
+  font-weight: bold;
+  background: #f8f8f8;
   border: 1px solid #ccc;
   padding: 4px;
+}
+
+.salary-table td {
+  min-width: 120px;
+  text-align: center;
+  border: 1px solid #ccc;
+  padding: 4px;
+}
+
+.salary-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  font-weight: bold;
+  z-index: 10;
+  min-width: 150px;
+}
+
+.salary-table th:first-child {
+  position: sticky;
+  left: 0;
+  background: #f8f8f8;
+  z-index: 11;
+  min-width: 150px;
 }
 
 .suiji-title {

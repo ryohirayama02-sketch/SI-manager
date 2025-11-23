@@ -7,3 +7,4 @@ export interface SettlementBasis {
   decidedGrade?: number | null;  // 標準報酬月額の等級
 }
 
+
