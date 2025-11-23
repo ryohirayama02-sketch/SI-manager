@@ -1,62 +1,77 @@
 <h2>従業員情報の編集</h2>
 
-<form [formGroup]="form" (ngSubmit)="updateEmployee()">
-  <div style="margin-bottom: 1rem;">
-    <label for="name">氏名</label>
-    <input id="name" formControlName="name" type="text" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
+<div class="card">
+  <form [formGroup]="form" (ngSubmit)="updateEmployee()">
+    <div class="form-group">
+      <label for="name">氏名 <span class="required">*</span></label>
+      <input id="name" formControlName="name" type="text" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label for="birthDate">生年月日 <span class="required">*</span></label>
+      <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label for="hireDate">入社日 <span class="required">*</span></label>
+      <input id="hireDate" formControlName="hireDate" type="date" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="shortTimeWorker">
+        短時間労働者
+      </label>
+    </div>
+
+    <h3>産休情報</h3>
+    <div class="form-group">
+      <label for="maternityLeaveStart">産休開始日</label>
+      <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" class="form-control" (change)="validateDates()">
+    </div>
+    <div class="form-group">
+      <label for="maternityLeaveEnd">産休終了日</label>
+      <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" class="form-control" (change)="validateDates()">
+    </div>
+
+    <h3>育休情報</h3>
+    <div class="form-group">
+      <label for="childcareLeaveStart">育休開始日</label>
+      <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" class="form-control" (change)="validateDates()">
+    </div>
+    <div class="form-group">
+      <label for="childcareLeaveEnd">育休終了日</label>
+      <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" class="form-control" (change)="validateDates()">
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="childcareNotificationSubmitted">
+        育児休業取得届の提出済
+      </label>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="childcareLivingTogether">
+        子と同居している（養育している）
+      </label>
+    </div>
+
+    <button type="submit" [disabled]="form.invalid" class="btn-primary">更新する</button>
+  </form>
+
+  <!-- エラー・警告メッセージ -->
+  <div *ngIf="errorMessages?.length" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let err of errorMessages">{{ err }}</li>
+    </ul>
   </div>
 
-  <div style="margin-bottom: 1rem;">
-    <label for="birthDate">生年月日</label>
-    <input id="birthDate" formControlName="birthDate" type="date" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
+  <div *ngIf="warningMessages?.length" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let w of warningMessages">{{ w }}</li>
+    </ul>
   </div>
-
-  <div style="margin-bottom: 1rem;">
-    <label for="hireDate">入社日</label>
-    <input id="hireDate" formControlName="hireDate" type="date" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
-  </div>
-
-  <div style="margin-bottom: 1rem;">
-    <label>
-      <input type="checkbox" formControlName="shortTimeWorker">
-      短時間労働者
-    </label>
-  </div>
-
-  <h3 style="margin-top: 2rem; margin-bottom: 1rem;">産休情報</h3>
-  <div style="margin-bottom: 1rem;">
-    <label for="maternityLeaveStart">産休開始日</label>
-    <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
-  </div>
-  <div style="margin-bottom: 1rem;">
-    <label for="maternityLeaveEnd">産休終了日</label>
-    <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
-  </div>
-
-  <h3 style="margin-top: 2rem; margin-bottom: 1rem;">育休情報</h3>
-  <div style="margin-bottom: 1rem;">
-    <label for="childcareLeaveStart">育休開始日</label>
-    <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
-  </div>
-  <div style="margin-bottom: 1rem;">
-    <label for="childcareLeaveEnd">育休終了日</label>
-    <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
-  </div>
-  <div style="margin-bottom: 1rem;">
-    <label>
-      <input type="checkbox" formControlName="childcareNotificationSubmitted">
-      育児休業取得届の提出済
-    </label>
-  </div>
-  <div style="margin-bottom: 1rem;">
-    <label>
-      <input type="checkbox" formControlName="childcareLivingTogether">
-      子と同居している（養育している）
-    </label>
-  </div>
-
-  <button type="submit" [disabled]="form.invalid" style="padding: 0.5rem 1rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-    更新する
-  </button>
-</form>
+</div>
 

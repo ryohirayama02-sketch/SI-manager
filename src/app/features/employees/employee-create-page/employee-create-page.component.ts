@@ -13,6 +13,8 @@ import { EmployeeService } from '../../../services/employee.service';
 })
 export class EmployeeCreatePageComponent {
   form: FormGroup;
+  errorMessages: string[] = [];
+  warningMessages: string[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -27,7 +29,27 @@ export class EmployeeCreatePageComponent {
     });
   }
 
+  validate(): void {
+    this.errorMessages = [];
+    this.warningMessages = [];
+
+    const value = this.form.value;
+
+    // 入社日が生年月日より後かチェック
+    if (value.birthDate && value.joinDate) {
+      const birth = new Date(value.birthDate);
+      const join = new Date(value.joinDate);
+      if (join < birth) {
+        this.errorMessages.push('入社日は生年月日より後である必要があります');
+      }
+    }
+  }
+
   async onSubmit(): Promise<void> {
+    this.validate();
+    if (this.errorMessages.length > 0) {
+      return;
+    }
     if (!this.form.valid) return;
 
     const value = this.form.value;

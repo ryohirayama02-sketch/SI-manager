@@ -1,11 +1,30 @@
 <h2>社会保険料計算結果</h2>
 
+<div class="info-label">
+  免除・給与扱いは自動判定されます。70歳以上は厚生年金、75歳以上は健康保険・介護保険が停止されます。
+</div>
+
 <div *ngIf="employees.length === 0" class="no-data-message">
   <p>データがありません</p>
 </div>
 
-<div *ngFor="let emp of employees" class="employee-result-card">
+<div *ngFor="let emp of employees" class="card">
   <h3>{{ emp.name }} の年間保険料</h3>
+
+  <!-- エラー・警告メッセージ -->
+  <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let err of errorMessages[emp.id]">{{ err }}</li>
+    </ul>
+  </div>
+
+  <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let w of warningMessages[emp.id]">{{ w }}</li>
+    </ul>
+  </div>
 
   <!-- 月次保険料（既存の表示があればここに） -->
   <div class="monthly-section">

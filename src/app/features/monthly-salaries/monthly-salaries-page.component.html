@@ -1,12 +1,18 @@
 <h2>月次給与・報酬入力</h2>
 
-<div style="margin-bottom: 1rem;">
-  <label>都道府県：</label>
-  <select [(ngModel)]="prefecture" (change)="reloadRates()" name="prefecture">
-    <option value="tokyo">東京都</option>
-    <option value="hokkaido">北海道</option>
-    <option value="osaka">大阪府</option>
-  </select>
+<div class="info-label">
+  <strong>重要:</strong> 4〜6月の値は算定基礎届の判定に使用されます。固定的賃金と非固定的賃金の合計が総支給と一致するように入力してください。
+</div>
+
+<div class="card" style="max-width: 400px;">
+  <div class="form-group">
+    <label>都道府県：</label>
+    <select [(ngModel)]="prefecture" (change)="reloadRates()" name="prefecture" class="form-control">
+      <option value="tokyo">東京都</option>
+      <option value="hokkaido">北海道</option>
+      <option value="osaka">大阪府</option>
+    </select>
+  </div>
 </div>
 
 <div class="legend">
@@ -30,23 +36,29 @@
             [(ngModel)]="salaries[getSalaryKey(emp.id, m)].total"
             (input)="onSalaryChange(emp.id, m)"
             placeholder="総支給"
-            style="width: 80px;"
+            class="form-control"
             name="total_{{emp.id}}_{{m}}"
+            min="0"
+            step="1"
           />
           <input
             type="number"
             [(ngModel)]="salaries[getSalaryKey(emp.id, m)].fixed"
             placeholder="固定"
             (input)="onFixedChange(emp.id, m)"
-            style="width: 80px;"
+            class="form-control"
             name="fixed_{{emp.id}}_{{m}}"
+            min="0"
+            step="1"
           />
           <input
             type="number"
             [(ngModel)]="salaries[getSalaryKey(emp.id, m)].variable"
             placeholder="非固定"
-            style="width: 80px;"
+            class="form-control"
             name="variable_{{emp.id}}_{{m}}"
+            min="0"
+            step="1"
           />
         </div>
       </td>
@@ -56,17 +68,17 @@
 
 <!-- エラー・警告メッセージ -->
 <div *ngFor="let emp of employees">
-  <div *ngIf="errorMessages[emp.id] && errorMessages[emp.id].length > 0" class="error-box">
-    <h4>エラー</h4>
+  <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
+    <h4>エラー（{{ emp.name }}）</h4>
     <ul>
-      <li *ngFor="let error of errorMessages[emp.id]">{{ error }}</li>
+      <li *ngFor="let err of errorMessages[emp.id]">{{ err }}</li>
     </ul>
   </div>
   
-  <div *ngIf="warningMessages[emp.id] && warningMessages[emp.id].length > 0" class="warning-box">
-    <h4>警告</h4>
+  <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
+    <h4>警告（{{ emp.name }}）</h4>
     <ul>
-      <li *ngFor="let warning of warningMessages[emp.id]">{{ warning }}</li>
+      <li *ngFor="let w of warningMessages[emp.id]">{{ w }}</li>
     </ul>
   </div>
 </div>
@@ -112,7 +124,7 @@
   </div>
 </ng-container>
 
-<button (click)="saveAllSalaries()" style="margin-top: 1rem; padding: 0.5rem 1rem; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+<button (click)="saveAllSalaries()" class="btn-success" style="margin-top: 1rem;">
   保存する
 </button>
 

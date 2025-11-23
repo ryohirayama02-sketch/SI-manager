@@ -1,13 +1,18 @@
 <h2>賞与入力</h2>
 
-<form (ngSubmit)="onSubmit()" class="bonus-form">
+<div class="info-label">
+  <strong>重要:</strong> 支給額は必ず総支給額を入力してください。標準賞与額は自動的に千円未満が切り捨てられます。
+</div>
+
+<form (ngSubmit)="onSubmit()" class="bonus-form card">
   <div class="form-group">
-    <label for="employee">従業員</label>
+    <label for="employee">従業員 <span class="required">*</span></label>
     <select
       id="employee"
       [(ngModel)]="selectedEmployeeId"
       (change)="onInputChange()"
       name="employee"
+      class="form-control"
       required
     >
       <option value="">選択してください</option>
@@ -18,7 +23,7 @@
   </div>
 
   <div class="form-group">
-    <label for="bonusAmount">賞与額</label>
+    <label for="bonusAmount">賞与額 <span class="required">*</span></label>
     <input
       id="bonusAmount"
       type="number"
@@ -26,41 +31,43 @@
       (input)="onInputChange()"
       name="bonusAmount"
       placeholder="賞与額を入力"
+      class="form-control"
+      min="0"
       required
     />
   </div>
 
   <div class="form-group">
-    <label for="paymentDate">支給日</label>
+    <label for="paymentDate">支給日 <span class="required">*</span></label>
     <input
       id="paymentDate"
       type="date"
       [(ngModel)]="paymentDate"
       (change)="onInputChange()"
       name="paymentDate"
+      class="form-control"
       required
     />
   </div>
 
-  <button type="submit" class="submit-btn">登録（ダミー）</button>
+  <button type="submit" class="btn-primary">登録（ダミー）</button>
 </form>
 
-<!-- エラー・警告メッセージ -->
-<div *ngIf="calculationResult && calculationResult.errorMessages && calculationResult.errorMessages.length > 0" class="error-box">
-  <h4>エラー</h4>
-  <ul>
-    <li *ngFor="let error of calculationResult.errorMessages">{{ error }}</li>
-  </ul>
-</div>
+<div *ngIf="calculationResult as cr" class="calculation-card card">
+  <!-- エラー・警告メッセージ -->
+  <div *ngIf="calculationResult?.errorMessages?.length" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let err of calculationResult?.errorMessages">{{ err }}</li>
+    </ul>
+  </div>
 
-<div *ngIf="calculationResult && calculationResult.warningMessages && calculationResult.warningMessages.length > 0" class="warning-box">
-  <h4>警告</h4>
-  <ul>
-    <li *ngFor="let warning of calculationResult.warningMessages">{{ warning }}</li>
-  </ul>
-</div>
-
-<div *ngIf="calculationResult as cr" class="calculation-card">
+  <div *ngIf="calculationResult?.warningMessages?.length" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let w of calculationResult?.warningMessages">{{ w }}</li>
+    </ul>
+  </div>
   <h3>保険料計算結果</h3>
 
   <!-- 1. 標準賞与額・上限調整結果 -->

@@ -4,6 +4,7 @@ import { EmployeeService } from '../../services/employee.service';
 import { BonusService } from '../../services/bonus.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SettingsService } from '../../services/settings.service';
+import { InsuranceCalculationService } from '../../services/insurance-calculation.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 
@@ -29,12 +30,15 @@ export class PaymentSummaryPageComponent implements OnInit {
   } } = {};
 
   months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  errorMessages: { [employeeId: string]: string[] } = {};
+  warningMessages: { [employeeId: string]: string[] } = {};
 
   constructor(
     private employeeService: EmployeeService,
     private bonusService: BonusService,
     private monthlySalaryService: MonthlySalaryService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private insuranceCalculationService: InsuranceCalculationService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -48,8 +52,15 @@ export class PaymentSummaryPageComponent implements OnInit {
 
   async calculateMonthlyTotals(): Promise<void> {
     // 月ごとの集計を初期化
+    const allMonthlyTotals: { [month: number]: {
+      health: number;
+      care: number;
+      pension: number;
+      total: number;
+    } } = {};
+
     for (let month = 1; month <= 12; month++) {
-      this.monthlyTotals[month] = {
+      allMonthlyTotals[month] = {
         health: 0,
         care: 0,
         pension: 0,
@@ -58,112 +69,100 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
 
     if (!this.employees || this.employees.length === 0) {
+      this.monthlyTotals = allMonthlyTotals;
       return;
     }
 
     // 全従業員をループ
     for (const emp of this.employees) {
-      // A. 月次給与の保険料を集計
+      this.errorMessages[emp.id] = [];
+      this.warningMessages[emp.id] = [];
+      
+      // A. 月次給与の保険料を取得
       const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+      let monthlyPremiums: { [month: number]: {
+        healthEmployee: number;
+        healthEmployer: number;
+        careEmployee: number;
+        careEmployer: number;
+        pensionEmployee: number;
+        pensionEmployer: number;
+      } } = {};
+
       if (salaryData && salaryData.standardMonthlyRemuneration) {
-        const age = this.calculateAge(emp.birthDate);
-        const monthlyPremiums = await this.monthlySalaryService.getMonthlyPremiums(
+        const age = this.insuranceCalculationService.getAge(emp.birthDate);
+        monthlyPremiums = await this.monthlySalaryService.getMonthlyPremiums(
           emp.id,
           this.year,
           salaryData.standardMonthlyRemuneration,
           age,
           this.rates
         );
-
-        // 各月の保険料を加算
-        for (let month = 1; month <= 12; month++) {
-          const premiums = monthlyPremiums[month];
-          if (premiums) {
-            this.monthlyTotals[month].health += premiums.healthEmployee + premiums.healthEmployer;
-            this.monthlyTotals[month].care += premiums.careEmployee + premiums.careEmployer;
-            this.monthlyTotals[month].pension += premiums.pensionEmployee + premiums.pensionEmployer;
-          }
-        }
+        
+        // 年齢関連の矛盾チェック
+        this.validateAgeRelatedErrors(emp, monthlyPremiums);
       }
 
-      // B. 賞与の保険料を集計
+      // B. 賞与の保険料を取得
       const bonuses = await this.bonusService.getBonusesForResult(emp.id, this.year);
-      for (const bonus of bonuses) {
-        // 免除が true の場合は 0 円
-        if (bonus.isExempted) {
-          continue;
-        }
 
-        // 給与扱いの場合も 0 円
-        if (bonus.isSalaryInsteadOfBonus) {
-          continue;
-        }
+      // サービスを使用して月次会社負担を計算
+      const employeeMonthlyTotals = this.insuranceCalculationService.getMonthlyCompanyBurden(
+        emp,
+        monthlyPremiums,
+        bonuses
+      );
 
-        // 支給月を取得
-        const payDate = new Date(bonus.payDate);
-        const payMonth = payDate.getMonth() + 1;
-
-        // 賞与保険料を加算
-        const healthTotal = (bonus.healthEmployee || 0) + (bonus.healthEmployer || 0);
-        const careTotal = (bonus.careEmployee || 0) + (bonus.careEmployer || 0);
-        const pensionTotal = (bonus.pensionEmployee || 0) + (bonus.pensionEmployer || 0);
-
-        this.monthlyTotals[payMonth].health += healthTotal;
-        this.monthlyTotals[payMonth].care += careTotal;
-        this.monthlyTotals[payMonth].pension += pensionTotal;
+      // 全従業員分を合計
+      for (let month = 1; month <= 12; month++) {
+        allMonthlyTotals[month].health += employeeMonthlyTotals[month]?.health || 0;
+        allMonthlyTotals[month].care += employeeMonthlyTotals[month]?.care || 0;
+        allMonthlyTotals[month].pension += employeeMonthlyTotals[month]?.pension || 0;
+        allMonthlyTotals[month].total += employeeMonthlyTotals[month]?.total || 0;
       }
     }
 
-    // 各月の合計を計算
-    for (let month = 1; month <= 12; month++) {
-      this.monthlyTotals[month].total = 
-        this.monthlyTotals[month].health + 
-        this.monthlyTotals[month].care + 
-        this.monthlyTotals[month].pension;
-    }
+    this.monthlyTotals = allMonthlyTotals;
   }
 
-  calculateAge(birthDate: string): number {
-    const today = new Date();
-    const birth = new Date(birthDate);
-    let age = today.getFullYear() - birth.getFullYear();
-    const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--;
+  validateAgeRelatedErrors(emp: Employee, monthlyPremiums: { [month: number]: {
+    healthEmployee: number;
+    healthEmployer: number;
+    careEmployee: number;
+    careEmployer: number;
+    pensionEmployee: number;
+    pensionEmployer: number;
+  } }): void {
+    const age = this.insuranceCalculationService.getAge(emp.birthDate);
+    
+    // 70歳以上なのに厚生年金の保険料が計算されている
+    for (let month = 1; month <= 12; month++) {
+      const premiums = monthlyPremiums[month];
+      if (premiums && age >= 70 && premiums.pensionEmployee > 0) {
+        this.errorMessages[emp.id].push(`${month}月：70歳以上は厚生年金保険料は発生しません`);
+      }
+      
+      // 75歳以上なのに健康保険・介護保険が計算されている
+      if (premiums && age >= 75 && (premiums.healthEmployee > 0 || premiums.careEmployee > 0)) {
+        this.errorMessages[emp.id].push(`${month}月：75歳以上は健康保険・介護保険は発生しません`);
+      }
     }
-    return age;
   }
 
   getTotalForYear(): number {
-    let total = 0;
-    for (let month = 1; month <= 12; month++) {
-      total += this.monthlyTotals[month].total;
-    }
-    return total;
+    return this.insuranceCalculationService.getTotalForYear(this.monthlyTotals);
   }
 
   getTotalHealth(): number {
-    let total = 0;
-    for (let month = 1; month <= 12; month++) {
-      total += this.monthlyTotals[month].health;
-    }
-    return total;
+    return this.insuranceCalculationService.getTotalHealth(this.monthlyTotals);
   }
 
   getTotalCare(): number {
-    let total = 0;
-    for (let month = 1; month <= 12; month++) {
-      total += this.monthlyTotals[month].care;
-    }
-    return total;
+    return this.insuranceCalculationService.getTotalCare(this.monthlyTotals);
   }
 
   getTotalPension(): number {
-    let total = 0;
-    for (let month = 1; month <= 12; month++) {
-      total += this.monthlyTotals[month].pension;
-    }
-    return total;
+    return this.insuranceCalculationService.getTotalPension(this.monthlyTotals);
   }
 }
 

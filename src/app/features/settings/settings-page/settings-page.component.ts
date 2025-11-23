@@ -16,6 +16,8 @@ export class SettingsPageComponent implements OnInit {
   form: any;
   standardTable: FormArray;
   standardTableForm: any;
+  errorMessages: string[] = [];
+  warningMessages: string[] = [];
 
   constructor(
     private fb: FormBuilder,
@@ -50,7 +52,42 @@ export class SettingsPageComponent implements OnInit {
     rows.forEach(r => this.standardTable.push(this.createRow(r)));
   }
 
+  validateStandardTable(): void {
+    this.errorMessages = [];
+    this.warningMessages = [];
+
+    for (let i = 0; i < this.standardTable.length; i++) {
+      const row = this.standardTable.at(i);
+      const lower = row.get('lower')?.value;
+      const upper = row.get('upper')?.value;
+      const standard = row.get('standard')?.value;
+      const rank = row.get('rank')?.value;
+
+      if (lower !== null && upper !== null && lower >= upper) {
+        this.errorMessages.push(`等級${rank}: 下限は上限より小さくする必要があります`);
+      }
+
+      if (standard !== null && (standard < lower || standard >= upper)) {
+        this.warningMessages.push(`等級${rank}: 標準報酬月額が範囲外です（下限: ${lower}, 上限: ${upper}）`);
+      }
+
+      // テーブルが昇順になっているかのチェック（前の等級の上限 = 次の等級の下限）
+      if (i > 0) {
+        const prevRow = this.standardTable.at(i - 1);
+        const prevUpper = prevRow.get('upper')?.value;
+        if (prevUpper !== null && lower !== null && prevUpper !== lower) {
+          this.errorMessages.push(`等級${prevRow.get('rank')?.value}と等級${rank}の範囲に不整合があります（前等級の上限: ${prevUpper}, 当等級の下限: ${lower}）`);
+        }
+      }
+    }
+  }
+
   async saveStandardTable(): Promise<void> {
+    this.validateStandardTable();
+    if (this.errorMessages.length > 0) {
+      alert('エラーがあります。修正してください。');
+      return;
+    }
     await this.settingsService.saveStandardTable(this.year, this.standardTable.value);
     alert('標準報酬月額テーブルを保存しました');
   }
@@ -61,7 +98,26 @@ export class SettingsPageComponent implements OnInit {
     await this.loadStandardTable();
   }
 
+  validateRates(): void {
+    this.errorMessages = [];
+    this.warningMessages = [];
+
+    const values = this.form.value;
+    const rateFields = ['health_employee', 'health_employer', 'care_employee', 'care_employer', 'pension_employee', 'pension_employer'];
+
+    for (const field of rateFields) {
+      const value = values[field];
+      if (value < 0 || value > 1) {
+        this.errorMessages.push(`${field}: 料率は0以上1以下である必要があります`);
+      }
+    }
+  }
+
   async save(): Promise<void> {
+    this.validateRates();
+    if (this.errorMessages.length > 0) {
+      return;
+    }
     await this.settingsService.saveRates(this.year, this.prefecture, this.form.value);
     alert('設定を保存しました');
   }

@@ -1,25 +1,20 @@
-.summary-container {
-  max-width: 800px;
-  margin: 2rem auto;
-  padding: 20px;
+/* グローバルスタイルを使用 */
+
+.card {
+  overflow-x: auto;
 }
 
 .payment-table {
   width: 100%;
   border-collapse: collapse;
-  background: #ffffff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  overflow: hidden;
 }
 
 .payment-table thead {
-  background: #007bff;
-  color: white;
+  background: #f8f8f8;
 }
 
 .payment-table th {
-  padding: 12px 16px;
+  padding: 8px;
   text-align: left;
   font-weight: bold;
   font-size: 1rem;
@@ -38,7 +33,7 @@
 }
 
 .payment-table td {
-  padding: 10px 16px;
+  padding: 8px;
   text-align: left;
 }
 

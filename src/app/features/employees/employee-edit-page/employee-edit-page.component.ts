@@ -14,6 +14,8 @@ import { EmployeeService } from '../../../services/employee.service';
 export class EmployeeEditPageComponent implements OnInit {
   employeeId: string | null = null;
   form: any;
+  errorMessages: string[] = [];
+  warningMessages: string[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -56,7 +58,76 @@ export class EmployeeEditPageComponent implements OnInit {
     }
   }
 
+  validateDates(): void {
+    this.errorMessages = [];
+    this.warningMessages = [];
+
+    const birthDate = this.form.get('birthDate')?.value;
+    const hireDate = this.form.get('hireDate')?.value;
+    const maternityLeaveStart = this.form.get('maternityLeaveStart')?.value;
+    const maternityLeaveEnd = this.form.get('maternityLeaveEnd')?.value;
+    const childcareLeaveStart = this.form.get('childcareLeaveStart')?.value;
+    const childcareLeaveEnd = this.form.get('childcareLeaveEnd')?.value;
+    const childcareNotificationSubmitted = this.form.get('childcareNotificationSubmitted')?.value;
+    const childcareLivingTogether = this.form.get('childcareLivingTogether')?.value;
+
+    // 入社日が生年月日より後かチェック
+    if (birthDate && hireDate) {
+      const birth = new Date(birthDate);
+      const hire = new Date(hireDate);
+      if (hire < birth) {
+        this.errorMessages.push('入社日は生年月日より後である必要があります');
+      }
+    }
+
+    // 産休・育休の日付整合性チェック
+    if (maternityLeaveStart && maternityLeaveEnd && childcareLeaveStart && childcareLeaveEnd) {
+      const matStart = new Date(maternityLeaveStart);
+      const matEnd = new Date(maternityLeaveEnd);
+      const childStart = new Date(childcareLeaveStart);
+      const childEnd = new Date(childcareLeaveEnd);
+
+      if (matStart <= childEnd && matEnd >= childStart) {
+        const daysBetween = (childStart.getTime() - matEnd.getTime()) / (1000 * 60 * 60 * 24);
+        if (daysBetween > 30) {
+          this.errorMessages.push('産休・育休の設定が矛盾しています');
+        }
+      }
+    }
+
+    // 産休開始日 < 終了日
+    if (maternityLeaveStart && maternityLeaveEnd) {
+      const start = new Date(maternityLeaveStart);
+      const end = new Date(maternityLeaveEnd);
+      if (end < start) {
+        this.errorMessages.push('産休終了日は開始日より後である必要があります');
+      }
+    }
+
+    // 育休開始日 < 終了日
+    if (childcareLeaveStart && childcareLeaveEnd) {
+      const start = new Date(childcareLeaveStart);
+      const end = new Date(childcareLeaveEnd);
+      if (end < start) {
+        this.errorMessages.push('育休終了日は開始日より後である必要があります');
+      }
+    }
+
+    // 育休期間中なのに届出未提出または子と同居していない場合の警告
+    if (childcareLeaveStart && childcareLeaveEnd) {
+      const isNotificationSubmitted = childcareNotificationSubmitted === true;
+      const isLivingTogether = childcareLivingTogether === true;
+      if (!isNotificationSubmitted || !isLivingTogether) {
+        this.warningMessages.push('育休期間が設定されていますが、届出未提出または子と同居していない場合、保険料免除の対象外となります');
+      }
+    }
+  }
+
   async updateEmployee(): Promise<void> {
+    this.validateDates();
+    if (this.errorMessages.length > 0) {
+      return;
+    }
     if (!this.employeeId || !this.form.valid) return;
     await this.employeeService.updateEmployee(this.employeeId, this.form.value);
     this.router.navigate([`/employees/${this.employeeId}`]);

@@ -1,7 +1,13 @@
+/* グローバルスタイルを使用 */
+
+.button-group {
+  margin-top: 1rem;
+}
+
 .row-card {
   border: 1px solid #ddd;
-  padding: 12px;
-  margin-bottom: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
   border-radius: 8px;
   background: #fafafa;
 }

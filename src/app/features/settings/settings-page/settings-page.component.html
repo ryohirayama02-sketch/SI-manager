@@ -1,51 +1,114 @@
 <h2>保険料率の設定（{{ year }}年）</h2>
 
-<form [formGroup]="form" (ngSubmit)="save()">
-  <label>都道府県：</label>
-  <select [(ngModel)]="prefecture" name="prefecture">
-    <option value="tokyo">東京都</option>
-    <option value="hokkaido">北海道</option>
-    <option value="osaka">大阪府</option>
-  </select>
-  <br><br>
-  <h3>健康保険</h3>
-  本人料率：<input type="number" formControlName="health_employee"> <br>
-  事業主料率：<input type="number" formControlName="health_employer"> <br>
+<div class="card">
+  <div class="info-label">
+    各保険の料率を0以上1以下の範囲で入力してください。
+  </div>
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <div class="form-group">
+      <label>都道府県：</label>
+      <select [(ngModel)]="prefecture" name="prefecture" class="form-control">
+        <option value="tokyo">東京都</option>
+        <option value="hokkaido">北海道</option>
+        <option value="osaka">大阪府</option>
+      </select>
+    </div>
 
-  <h3>介護保険</h3>
-  本人料率：<input type="number" formControlName="care_employee"> <br>
-  事業主料率：<input type="number" formControlName="care_employer"> <br>
+    <h3>健康保険</h3>
+    <div class="form-group">
+      <label>本人料率：</label>
+      <input type="number" formControlName="health_employee" class="form-control" min="0" max="1" step="0.0001">
+    </div>
+    <div class="form-group">
+      <label>事業主料率：</label>
+      <input type="number" formControlName="health_employer" class="form-control" min="0" max="1" step="0.0001">
+    </div>
 
-  <h3>厚生年金</h3>
-  本人料率：<input type="number" formControlName="pension_employee"> <br>
-  事業主料率：<input type="number" formControlName="pension_employer"> <br>
+    <h3>介護保険</h3>
+    <div class="form-group">
+      <label>本人料率：</label>
+      <input type="number" formControlName="care_employee" class="form-control" min="0" max="1" step="0.0001">
+    </div>
+    <div class="form-group">
+      <label>事業主料率：</label>
+      <input type="number" formControlName="care_employer" class="form-control" min="0" max="1" step="0.0001">
+    </div>
 
-  <button type="submit">保存する</button>
-</form>
+    <h3>厚生年金</h3>
+    <div class="form-group">
+      <label>本人料率：</label>
+      <input type="number" formControlName="pension_employee" class="form-control" min="0" max="1" step="0.0001">
+    </div>
+    <div class="form-group">
+      <label>事業主料率：</label>
+      <input type="number" formControlName="pension_employer" class="form-control" min="0" max="1" step="0.0001">
+    </div>
 
-<button (click)="seedTokyo()" style="margin-top: 1rem; background:#444; color:white; padding:8px 16px; border:none; border-radius:6px; cursor:pointer;">
-  東京都の料率（2025）を初期投入する
-</button>
+    <button type="submit" class="btn-primary">保存する</button>
+  </form>
 
-<button (click)="seedAllPrefectures()" style="margin-top:1rem; padding:8px 16px; background:#333; color:#fff; border:none; border-radius:6px; cursor:pointer;">
-  47都道府県の料率（2025）を初期投入する
-</button>
+  <!-- エラー・警告メッセージ -->
+  <div *ngIf="errorMessages?.length" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let err of errorMessages">{{ err }}</li>
+    </ul>
+  </div>
+
+  <div *ngIf="warningMessages?.length" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let w of warningMessages">{{ w }}</li>
+    </ul>
+  </div>
+
+  <div class="button-group">
+    <button (click)="seedTokyo()" class="btn-secondary">東京都の料率（2025）を初期投入する</button>
+    <button (click)="seedAllPrefectures()" class="btn-secondary">47都道府県の料率（2025）を初期投入する</button>
+  </div>
+</div>
 
 <h2>標準報酬月額テーブル（{{ year }}年）</h2>
 
-<form [formGroup]="standardTableForm">
-  <div formArrayName="standardTable">
-    <div *ngFor="let row of standardTable.controls; let i = index" [formGroupName]="i" class="row-card">
-      <strong>等級 {{ row.get('rank')?.value }}</strong><br>
-
-      下限：<input type="number" formControlName="lower"> 円<br>
-      上限：<input type="number" formControlName="upper"> 円<br>
-      標準報酬月額：<input type="number" formControlName="standard"> 円<br>
-    </div>
+<div class="card">
+  <div class="info-label">
+    標準報酬月額テーブルは上限＝次の等級の下限になるように編集してください。等級が連続していない場合はエラーが表示されます。
   </div>
-</form>
+  <form [formGroup]="standardTableForm">
+    <div formArrayName="standardTable">
+      <div *ngFor="let row of standardTable.controls; let i = index" [formGroupName]="i" class="row-card">
+        <h4>等級 {{ row.get('rank')?.value }}</h4>
+        <div class="form-group">
+          <label>下限：</label>
+          <input type="number" formControlName="lower" class="form-control" min="0" step="1" (change)="validateStandardTable()"> 円
+        </div>
+        <div class="form-group">
+          <label>上限：</label>
+          <input type="number" formControlName="upper" class="form-control" min="0" step="1" (change)="validateStandardTable()"> 円
+        </div>
+        <div class="form-group">
+          <label>標準報酬月額：</label>
+          <input type="number" formControlName="standard" class="form-control" min="0" step="1" (change)="validateStandardTable()"> 円
+        </div>
+      </div>
+    </div>
+  </form>
 
-<button (click)="saveStandardTable()" style="margin-top: 1rem; padding: 0.5rem 1rem; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
-  標準報酬月額テーブルを保存する
-</button>
+  <!-- エラー・警告メッセージ -->
+  <div *ngIf="errorMessages?.length" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let err of errorMessages">{{ err }}</li>
+    </ul>
+  </div>
+
+  <div *ngIf="warningMessages?.length" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let w of warningMessages">{{ w }}</li>
+    </ul>
+  </div>
+
+  <button (click)="saveStandardTable()" class="btn-success" style="margin-top: 1rem;">標準報酬月額テーブルを保存する</button>
+</div>
 

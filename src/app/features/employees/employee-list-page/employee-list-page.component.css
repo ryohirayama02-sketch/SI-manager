@@ -1,0 +1,6 @@
+/* グローバルスタイルを使用 */
+
+ul li:hover {
+  background-color: #f0f0f0;
+}
+
