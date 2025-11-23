@@ -25,6 +25,7 @@ export class MonthlySalariesPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
+    await this.loadExistingSalaries();
   }
 
   getSalaryKey(employeeId: string, month: number): string {
@@ -169,6 +170,37 @@ export class MonthlySalariesPageComponent implements OnInit {
 
       await this.monthlySalaryService.saveEmployeeSalary(emp.id, 2025, payload);
     }
+  }
+
+  async loadExistingSalaries(): Promise<void> {
+    for (const emp of this.employees) {
+      const data = await this.monthlySalaryService.getEmployeeSalary(emp.id, 2025);
+      if (!data || !data.salaries) continue;
+
+      for (const month of this.months) {
+        const value = data.salaries[month] ?? null;
+        const key = `${emp.id}-${month}`;
+        this.salaryData[key] = value;
+      }
+    }
+  }
+
+  getCalculatedInfo(emp: any) {
+    const avg = this.getAverageForAprToJun(emp.salaries);
+    const stdResult = avg !== null ? this.getStandardMonthlyRemuneration(avg) : null;
+    const standard = stdResult ? stdResult.standard : null;
+    const rank = stdResult ? stdResult.rank : null;
+
+    const age = this.calculateAge(emp.birthDate);
+    const premiums =
+      standard !== null ? this.calculateInsurancePremiums(standard, age) : null;
+
+    return {
+      avg,
+      standard,
+      rank,
+      premiums
+    };
   }
 }
 

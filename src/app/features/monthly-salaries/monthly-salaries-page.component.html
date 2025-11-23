@@ -8,18 +8,50 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let emp of employees">
-      <td>{{ emp.name }}</td>
-      <td *ngFor="let month of months">
-        <input
-          type="number"
-          [value]="getSalaryValue(emp.id, month)"
-          (input)="onSalaryInput(emp.id, month, $event)"
-          placeholder="0"
-          style="width: 100%; padding: 0.25rem;"
-        />
-      </td>
-    </tr>
+    <ng-container *ngFor="let emp of getEmployeeMonthlySalaries()">
+      <tr>
+        <td>{{ emp.name }}</td>
+        <td *ngFor="let month of months">
+          <input
+            type="number"
+            [value]="getSalaryValue(emp.id, month)"
+            (input)="onSalaryInput(emp.id, month, $event)"
+            placeholder="0"
+            style="width: 100%; padding: 0.25rem;"
+          />
+        </td>
+      </tr>
+      <tr class="calc-row">
+        <td colspan="13">
+          <ng-container *ngIf="getCalculatedInfo(emp) as info">
+            <div>
+              <strong>4〜6月平均:</strong>
+              {{ info.avg ?? '---' }}
+            </div>
+
+            <div>
+              <strong>標準報酬月額:</strong>
+              {{ info.standard ?? '---' }}
+              （等級: {{ info.rank ?? '---' }}）
+            </div>
+
+            <div *ngIf="info.premiums">
+              <strong>健康保険料:</strong>
+              本人 {{ info.premiums.health_employee }} /
+              事業主 {{ info.premiums.health_employer }}<br>
+
+              <strong>介護保険料:</strong>
+              本人 {{ info.premiums.care_employee }} /
+              事業主 {{ info.premiums.care_employer }}<br>
+
+              <strong>厚生年金:</strong>
+              本人 {{ info.premiums.pension_employee }} /
+              事業主 {{ info.premiums.pension_employer }}
+            </div>
+          </ng-container>
+        </td>
+      </tr>
+    </ng-container>
   </tbody>
 </table>
 
