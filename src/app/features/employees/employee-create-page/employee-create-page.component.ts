@@ -28,19 +28,20 @@ export class EmployeeCreatePageComponent {
   }
 
   async onSubmit(): Promise<void> {
-    if (this.form.valid) {
-      const formValue = this.form.value;
-      const employeeData = {
-        id: '', // 仮のID（後でFirestoreが生成）
-        name: formValue.name,
-        birthDate: formValue.birthDate,
-        joinDate: formValue.joinDate,
-        isShortTime: formValue.isShortTime
-      };
-      
-      await this.employeeService.createEmployee(employeeData);
-      this.router.navigate(['/employees']);
-    }
+    if (!this.form.valid) return;
+
+    const value = this.form.value;
+
+    const employee = {
+      name: value.name,
+      birthDate: value.birthDate,
+      hireDate: value.joinDate,
+      shortTimeWorker: value.isShortTime ?? false
+    };
+
+    await this.employeeService.addEmployee(employee);
+
+    this.router.navigate(['/employees']);
   }
 }
 

@@ -1,2 +1,23 @@
-<h1>従業員詳細ページ（ID: {{ employeeId }}）</h1>
+<div *ngIf="employee">
+  <h2>従業員詳細</h2>
+
+  <p><strong>名前:</strong> {{ employee.name }}</p>
+  <p><strong>生年月日:</strong> {{ employee.birthDate }}</p>
+  <p><strong>年齢:</strong> {{ getAge(employee.birthDate) }} 歳</p>
+  <p><strong>入社日:</strong> {{ employee.hireDate }}</p>
+
+  <p>
+    <strong>介護保険対象:</strong>
+    {{ isCareInsuranceTarget() ? '対象（40〜64歳）' : '対象外' }}
+  </p>
+
+  <p>
+    <strong>短時間労働者:</strong>
+    {{ employee.shortTimeWorker ? 'はい' : 'いいえ' }}
+  </p>
+
+  <div *ngIf="employee.shortTimeWorker" style="color: #d9534f;">
+    ※ 短時間労働者は勤務実績に応じて社保加入が必要になるケースがあります。
+  </div>
+</div>
 

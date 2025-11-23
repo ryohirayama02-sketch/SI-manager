@@ -1,36 +1,33 @@
 import { Injectable } from '@angular/core';
+import { Firestore, collection, addDoc, doc, getDoc, getDocs } from '@angular/fire/firestore';
 import { Employee } from '../models/employee.model';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeService {
 
-  constructor() {}
+  constructor(private firestore: Firestore) {}
 
-  // 全従業員を取得（後で Firestore 実装）
-  async getAllEmployees(): Promise<Employee[]> {
-    return Promise.resolve([
-      {
-        id: 'emp1',
-        name: '田中 太郎',
-        birthDate: '1985-04-12',
-        joinDate: '2020-01-01',
-        isShortTime: false,
-        standardMonthlyRemuneration: 300000
-      },
-      {
-        id: 'emp2',
-        name: '佐藤 花子',
-        birthDate: '1990-11-03',
-        joinDate: '2021-04-10',
-        isShortTime: true,
-        standardMonthlyRemuneration: 200000
-      }
-    ]);
+  async addEmployee(employee: any): Promise<void> {
+    const col = collection(this.firestore, 'employees');
+    await addDoc(col, employee);
+  }
+
+  // 全従業員を取得
+  async getAllEmployees(): Promise<any[]> {
+    const colRef = collection(this.firestore, 'employees');
+    const snap = await getDocs(colRef);
+
+    return snap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
   }
 
   // IDで従業員を取得
-  async getEmployeeById(id: string): Promise<Employee | null> {
-    return Promise.resolve(null);
+  async getEmployeeById(id: string): Promise<any | null> {
+    const ref = doc(this.firestore, `employees/${id}`);
+    const snap = await getDoc(ref);
+    return snap.exists() ? snap.data() : null;
   }
 
   // 新規作成（UC1）
