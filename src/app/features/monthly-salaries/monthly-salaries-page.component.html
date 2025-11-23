@@ -1,6 +1,7 @@
-<h2>月次給与入力</h2>
+<h2>月次給与・報酬入力</h2>
 
-<table>
+<div class="table-wrapper">
+  <table>
   <thead>
     <tr>
       <th>従業員名</th>
@@ -21,39 +22,37 @@
           />
         </td>
       </tr>
-      <tr class="calc-row">
-        <td colspan="13">
-          <ng-container *ngIf="getCalculatedInfo(emp) as info">
-            <div>
-              <strong>4〜6月平均:</strong>
-              {{ info.avg ?? '---' }}
-            </div>
-
-            <div>
-              <strong>標準報酬月額:</strong>
-              {{ info.standard ?? '---' }}
-              （等級: {{ info.rank ?? '---' }}）
-            </div>
-
-            <div *ngIf="info.premiums">
-              <strong>健康保険料:</strong>
-              本人 {{ info.premiums.health_employee }} /
-              事業主 {{ info.premiums.health_employer }}<br>
-
-              <strong>介護保険料:</strong>
-              本人 {{ info.premiums.care_employee }} /
-              事業主 {{ info.premiums.care_employer }}<br>
-
-              <strong>厚生年金:</strong>
-              本人 {{ info.premiums.pension_employee }} /
-              事業主 {{ info.premiums.pension_employer }}
-            </div>
-          </ng-container>
-        </td>
-      </tr>
     </ng-container>
   </tbody>
-</table>
+  </table>
+</div>
+
+<ng-container *ngFor="let emp of getEmployeeMonthlySalaries()">
+  <div class="result-card" *ngIf="getCalculatedInfo(emp) as info">
+    <h4>{{ emp.name }} の計算結果</h4>
+
+    <p><strong>4〜6月の平均報酬:</strong> {{ info.avg | number:'1.0-0' }} 円</p>
+    <p><strong>標準報酬月額:</strong> {{ info.standard | number:'1.0-0' }} 円（等級: {{ info.rank }}）</p>
+
+    <div class="premium-group" *ngIf="info.premiums">
+      <h5>健康保険</h5>
+      <p>本人: {{ info.premiums.health_employee | number:'1.0-0' }} 円</p>
+      <p>事業主: {{ info.premiums.health_employer | number:'1.0-0' }} 円</p>
+    </div>
+
+    <div class="premium-group" *ngIf="info.premiums && info.premiums.care_employee !== null && info.premiums.care_employee !== 0">
+      <h5>介護保険</h5>
+      <p>本人: {{ info.premiums.care_employee | number:'1.0-0' }} 円</p>
+      <p>事業主: {{ info.premiums.care_employer | number:'1.0-0' }} 円</p>
+    </div>
+
+    <div class="premium-group" *ngIf="info.premiums">
+      <h5>厚生年金</h5>
+      <p>本人: {{ info.premiums.pension_employee | number:'1.0-0' }} 円</p>
+      <p>事業主: {{ info.premiums.pension_employer | number:'1.0-0' }} 円</p>
+    </div>
+  </div>
+</ng-container>
 
 <button (click)="saveAllSalaries()" style="margin-top: 1rem; padding: 0.5rem 1rem; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
   保存する

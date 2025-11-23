@@ -1,3 +1,8 @@
+.table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -30,5 +35,81 @@ input[type="number"] {
 input[type="number"]:focus {
   outline: none;
   border-color: #007bff;
+}
+
+/* セル共通 */
+table td,
+table th {
+  padding: 6px;
+  border: 1px solid #ddd;
+  white-space: nowrap;
+  font-size: 0.9rem;
+}
+
+/* input のサイズ統一 */
+table input[type="number"] {
+  width: 80px;
+  padding: 4px;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+
+/* ヘッダー背景色強調 */
+table thead th {
+  position: sticky;
+  top: 0;
+  background: #f3f3f3;
+  font-weight: bold;
+  z-index: 12;
+}
+
+/* 偶数行・奇数行の背景色（striped） */
+table tbody tr:nth-child(even) td {
+  background: #fcfcfc;
+}
+
+table tbody tr:nth-child(odd) td {
+  background: #ffffff;
+}
+
+/* 左端列を少し目立たせる */
+table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  background: #f9f9f9;
+  font-weight: bold;
+  z-index: 12;
+}
+
+table thead th:first-child {
+  position: sticky;
+  left: 0;
+  background: #f0f0f0;
+  z-index: 13;
+}
+
+.result-card {
+  border: 1px solid #ddd;
+  background: #fafafa;
+  padding: 12px 16px;
+  margin: 12px 0;
+  border-radius: 8px;
+}
+
+.result-card h4 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+}
+
+.premium-group {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #eee;
+}
+
+.premium-group h5 {
+  margin: 6px 0 4px 0;
+  font-size: 1rem;
+  font-weight: bold;
 }
 

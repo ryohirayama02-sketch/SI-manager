@@ -6,7 +6,7 @@
 
 <ul>
   <li *ngFor="let emp of employees" (click)="goDetail(emp.id)" style="cursor: pointer; padding: 0.5rem; margin: 0.25rem 0; border: 1px solid #ddd; border-radius: 4px;">
-    {{ emp.name }}（標準報酬：{{ emp.standardMonthlyRemuneration }}円）
+    {{ emp.name }}<span *ngIf="emp.standardMonthlyRemuneration">（標準報酬月額：{{ emp.standardMonthlyRemuneration | number:'1.0-0' }}円）</span>
   </li>
 </ul>
 

@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink, Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
 
 @Component({
   selector: 'app-employee-detail-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './employee-detail-page.component.html',
   styleUrl: './employee-detail-page.component.css'
 })
@@ -16,7 +16,8 @@ export class EmployeeDetailPageComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private employeeService: EmployeeService
+    private employeeService: EmployeeService,
+    private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -39,6 +40,16 @@ export class EmployeeDetailPageComponent implements OnInit {
   isCareInsuranceTarget(): boolean {
     const age = this.getAge(this.employee?.birthDate);
     return age !== null && age >= 40 && age <= 64;
+  }
+
+  async deleteEmployee(): Promise<void> {
+    if (!this.id) return;
+
+    const ok = confirm('本当に削除しますか？');
+    if (!ok) return;
+
+    await this.employeeService.deleteEmployee(this.id);
+    this.router.navigate(['/employees']);
   }
 }
 

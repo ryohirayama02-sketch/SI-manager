@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, addDoc, doc, getDoc, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc } from '@angular/fire/firestore';
 import { Employee } from '../models/employee.model';
 
 @Injectable({ providedIn: 'root' })
@@ -33,6 +33,16 @@ export class EmployeeService {
   // 新規作成（UC1）
   async createEmployee(data: Employee): Promise<void> {
     return Promise.resolve();
+  }
+
+  async updateEmployee(id: string, data: any): Promise<void> {
+    const ref = doc(this.firestore, `employees/${id}`);
+    await updateDoc(ref, data);
+  }
+
+  async deleteEmployee(id: string): Promise<void> {
+    const ref = doc(this.firestore, `employees/${id}`);
+    await deleteDoc(ref);
   }
 }
 
