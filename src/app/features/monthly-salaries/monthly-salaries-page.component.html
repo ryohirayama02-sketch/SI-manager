@@ -1,0 +1,29 @@
+<h2>月次給与入力</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>従業員名</th>
+      <th *ngFor="let month of months">{{ month }}月</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let emp of employees">
+      <td>{{ emp.name }}</td>
+      <td *ngFor="let month of months">
+        <input
+          type="number"
+          [value]="getSalaryValue(emp.id, month)"
+          (input)="onSalaryInput(emp.id, month, $event)"
+          placeholder="0"
+          style="width: 100%; padding: 0.25rem;"
+        />
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<button (click)="saveAllSalaries()" style="margin-top: 1rem; padding: 0.5rem 1rem; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
+  保存する
+</button>
+

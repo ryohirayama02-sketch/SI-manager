@@ -1,0 +1,30 @@
+<h2>従業員を新規登録</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSubmit()">
+  <div style="margin-bottom: 1rem;">
+    <label for="name">氏名</label>
+    <input id="name" type="text" formControlName="name" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <label for="birthDate">生年月日</label>
+    <input id="birthDate" type="date" formControlName="birthDate" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <label for="joinDate">入社日</label>
+    <input id="joinDate" type="date" formControlName="joinDate" style="width: 100%; padding: 0.5rem; margin-top: 0.25rem;">
+  </div>
+
+  <div style="margin-bottom: 1rem;">
+    <label>
+      <input type="checkbox" formControlName="isShortTime">
+      短時間労働者
+    </label>
+  </div>
+
+  <button type="submit" [disabled]="form.invalid" style="padding: 0.5rem 1rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+    登録
+  </button>
+</form>
+
