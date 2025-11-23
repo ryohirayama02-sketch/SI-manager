@@ -124,3 +124,121 @@ table thead th:first-child {
   padding: 4px;
 }
 
+.suiji-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.suiji-card {
+  background: #fff;
+  border: 1px solid #dde;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.suiji-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 12px;
+}
+
+.col-left .name {
+  font-size: 1.1rem;
+  font-weight: bold;
+  margin: 0 0 8px 0;
+  color: #333;
+}
+
+.col-left .small {
+  font-size: 0.9rem;
+  margin: 4px 0;
+  color: #666;
+}
+
+.col-right p {
+  margin: 4px 0;
+  font-size: 0.95rem;
+}
+
+.suiji-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: bold;
+  background: #007bff;
+  color: white;
+}
+
+.suiji-badge.bad {
+  background: #dc3545;
+}
+
+.notice {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.notice p {
+  margin: 4px 0;
+}
+
+.suiji-excluded {
+  background: #fee;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  border-left: 3px solid #dc3545;
+}
+
+.suiji-excluded p {
+  margin: 4px 0;
+}
+
+.suiji-excluded p:first-child {
+  font-weight: bold;
+  color: #333;
+}
+
+.rehab-section {
+  margin-top: 2rem;
+}
+
+.rehab-card {
+  background: #f5f0ff;
+  border-left: 3px solid #6a0dad;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+}
+
+.rehab-card .name {
+  font-weight: bold;
+  margin: 0 0 4px 0;
+}
+
+.rehab-card p {
+  margin: 4px 0;
+  font-size: 0.95rem;
+}
+
+.rehab-highlight {
+  background: #f3e8ff !important;
+}
+
+.legend {
+  background: #f3e8ff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+}
+

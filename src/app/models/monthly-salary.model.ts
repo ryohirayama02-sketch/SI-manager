@@ -3,6 +3,8 @@ export interface MonthlySalary {
   employeeId: string;
   year: number;
   month: number;
-  amount: number;        // 月収（総支給）
+  total: number;         // 総支給
+  fixed: number;         // 固定的賃金
+  variable: number;      // 非固定的賃金
 }
 

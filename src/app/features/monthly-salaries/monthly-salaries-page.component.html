@@ -9,6 +9,10 @@
   </select>
 </div>
 
+<div class="legend">
+  ■ 復職後3ヶ月の期間（随時改定が発生しやすい期間）
+</div>
+
 <table class="salary-table">
   <thead>
     <tr>
@@ -19,13 +23,32 @@
   <tbody>
     <tr *ngFor="let emp of employees">
       <td>{{ emp.name }}</td>
-      <td *ngFor="let m of months">
-        <input
-          type="number"
-          [value]="salaries[getSalaryKey(emp.id, m)] || ''"
-          (input)="onSalaryChange(emp.id, m, $any($event.target).value)"
-          style="width: 80px;"
-        />
+      <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m) }">
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <input
+            type="number"
+            [(ngModel)]="salaries[getSalaryKey(emp.id, m)].total"
+            (input)="onSalaryChange(emp.id, m)"
+            placeholder="総支給"
+            style="width: 80px;"
+            name="total_{{emp.id}}_{{m}}"
+          />
+          <input
+            type="number"
+            [(ngModel)]="salaries[getSalaryKey(emp.id, m)].fixed"
+            placeholder="固定"
+            (input)="onFixedChange(emp.id, m)"
+            style="width: 80px;"
+            name="fixed_{{emp.id}}_{{m}}"
+          />
+          <input
+            type="number"
+            [(ngModel)]="salaries[getSalaryKey(emp.id, m)].variable"
+            placeholder="非固定"
+            style="width: 80px;"
+            name="variable_{{emp.id}}_{{m}}"
+          />
+        </div>
       </td>
     </tr>
   </tbody>
@@ -35,6 +58,20 @@
   <div class="result-card" *ngIf="getCalculatedInfo(emp) as info">
     <h4>{{ emp.name }} の計算結果</h4>
 
+    <!-- 定時決定結果 -->
+    <div *ngIf="results[emp.id]" style="margin-bottom: 1rem; padding: 8px; background: #f0f0f0; border-radius: 4px;">
+      <h5 style="margin-top: 0;">定時決定（4〜6月の算定基礎）</h5>
+      <p><strong>4〜6月の平均報酬:</strong> {{ results[emp.id].average46 | number:'1.0-0' }} 円</p>
+      <p *ngIf="results[emp.id].excludedMonths.length > 0">
+        <strong>算定除外月:</strong> {{ results[emp.id].excludedMonths.join(', ') }}月
+      </p>
+      <p *ngIf="results[emp.id].excludedMonths.length === 0">
+        <strong>算定除外月:</strong> なし
+      </p>
+      <p><strong>標準報酬月額:</strong> {{ results[emp.id].standardMonthlyRemuneration | number:'1.0-0' }} 円（等級: {{ results[emp.id].grade }}）</p>
+    </div>
+
+    <!-- 既存の計算結果（後方互換性のため残す） -->
     <p><strong>4〜6月の平均報酬:</strong> {{ info.avg | number:'1.0-0' }} 円</p>
     <p><strong>標準報酬月額:</strong> {{ info.standard | number:'1.0-0' }} 円（等級: {{ info.rank }}）</p>
 
@@ -61,4 +98,56 @@
 <button (click)="saveAllSalaries()" style="margin-top: 1rem; padding: 0.5rem 1rem; background-color: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">
   保存する
 </button>
+
+<div *ngIf="suijiCandidates.length > 0" style="margin-top: 2rem;">
+  <h4 class="suiji-title">随時改定候補（固定的賃金の変動）</h4>
+  
+  <div class="suiji-card" *ngFor="let item of suijiCandidates">
+    <div class="suiji-row">
+      <div class="col-left">
+        <p class="name">{{ item.name }}</p>
+        <p class="small">変動月：{{ item.changedMonth }}月</p>
+        <p class="small" *ngIf="item.excludedMonths.length > 0">
+          算定除外月：{{ item.excludedMonths.join(', ') }}月
+        </p>
+      </div>
+
+      <div class="col-right">
+        <p>平均固定：{{ item.avgFixed | number:'1.0-0' }}円</p>
+        <p>
+          等級差：
+          <span class="suiji-badge" [class.bad]="item.gradeDiff >= 2">
+            {{ item.currentGrade }} → {{ item.newGrade }}（差：{{ item.gradeDiff }}）
+          </span>
+        </p>
+        <p>適用開始月：{{ item.applyMonth }}月</p>
+      </div>
+    </div>
+
+    <div class="notice">
+      <p *ngIf="item.gradeDiff >= 2">→ 月額変更届の提出が必要な可能性があります</p>
+      <p *ngIf="item.gradeDiff < 2">→ 今回は等級差が基準未満のため、提出不要</p>
+    </div>
+  </div>
+</div>
+
+<div *ngIf="excludedSuijiReasons.length > 0" style="margin-top: 2rem;">
+  <h4>随時改定が適用されないケース</h4>
+  <div class="suiji-excluded" *ngFor="let ex of excludedSuijiReasons">
+    <p><strong>{{ ex.name }}</strong></p>
+    <p>{{ ex.reason }}</p>
+  </div>
+</div>
+
+<div *ngIf="rehabSuijiCandidates.length > 0" class="rehab-section">
+  <h4>復職関連の随時改定候補</h4>
+  <div class="rehab-card" *ngFor="let item of rehabSuijiCandidates">
+    <p class="name">{{ item.name }}</p>
+    <p>判定対象月：{{ item.changedMonth }}月</p>
+    <p>固定的賃金３ヶ月平均：{{ item.avgFixed | number:'1.0-0' }}円</p>
+    <p>等級差：{{ item.currentGrade }} → {{ item.newGrade }}（差：{{ item.gradeDiff }}）</p>
+    <p>適用開始月：{{ item.applyMonth }}月</p>
+    <p>復職に伴う賃金変動により、随時改定の対象となる可能性があります。</p>
+  </div>
+</div>
 

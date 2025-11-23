@@ -5,5 +5,6 @@ export interface Employee {
   joinDate: string;           // 入社日
   isShortTime: boolean;       // 短時間労働者か
   standardMonthlyRemuneration?: number;  // 標準報酬月額（算定後）
+  returnFromLeaveDate?: string;  // 復職日（YYYY-MM-DD）
 }
 
