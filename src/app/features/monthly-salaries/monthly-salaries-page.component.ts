@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
+import { SettingsService } from '../../services/settings.service';
 import { Employee } from '../../models/employee.model';
 
 @Component({
@@ -17,28 +18,58 @@ export class MonthlySalariesPageComponent implements OnInit {
   months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   // 各従業員×各月の給与データを保持（employeeId-month をキーにする）
   salaryData: { [key: string]: number | null } = {};
+  salaries: { [key: string]: number } = {};
+  prefecture = 'tokyo';
+  year = '2025';
+  rates: any = null;
 
   constructor(
     private employeeService: EmployeeService,
-    private monthlySalaryService: MonthlySalaryService
+    private monthlySalaryService: MonthlySalaryService,
+    private settingsService: SettingsService
   ) {}
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
+    
+    // 都道府県別料率を読み込む
+    this.rates = await this.settingsService.getRates(this.year, this.prefecture);
+    
     await this.loadExistingSalaries();
   }
 
+  async reloadRates(): Promise<void> {
+    this.rates = await this.settingsService.getRates(this.year, this.prefecture);
+  }
+
   getSalaryKey(employeeId: string, month: number): string {
+    return `${employeeId}_${month}`;
+  }
+
+  async onSalaryChange(employeeId: string, month: number, value: string | number): Promise<void> {
+    const numValue = typeof value === 'string' ? Number(value) : value;
+    const key = this.getSalaryKey(employeeId, month);
+    this.salaries[key] = numValue;
+    console.log('入力変更', employeeId, month, numValue);
+    this.calculateInsurancePremiumsForEmployee(employeeId, month); // 仮でOK
+  }
+
+  calculateInsurancePremiumsForEmployee(employeeId: string, month: number): void {
+    // 仮実装：後で実装
+    console.log('保険料計算', employeeId, month);
+  }
+
+  getSalaryDataKey(employeeId: string, month: number): string {
     return `${employeeId}-${month}`;
   }
 
   getSalaryValue(employeeId: string, month: number): number | null {
-    const key = this.getSalaryKey(employeeId, month);
+    const key = this.getSalaryDataKey(employeeId, month);
     return this.salaryData[key] || null;
   }
 
   setSalaryValue(employeeId: string, month: number, value: number | null): void {
-    const key = this.getSalaryKey(employeeId, month);
+    const key = this.getSalaryDataKey(employeeId, month);
     this.salaryData[key] = value;
   }
 
@@ -54,7 +85,7 @@ export class MonthlySalariesPageComponent implements OnInit {
       const salaries: { [month: number]: number | null } = {};
 
       for (const month of this.months) {
-        const key = `${emp.id}-${month}`;
+        const key = this.getSalaryDataKey(emp.id, month);
         salaries[month] = this.salaryData[key] ?? null;
       }
 
@@ -112,29 +143,27 @@ export class MonthlySalariesPageComponent implements OnInit {
     standard: number,
     age: number
   ) {
-    // 料率（協会けんぽ・東京都一般）
-    const HEALTH_RATE = 0.04905;
-    const CARE_RATE = 0.00785;   // 介護保険（40〜64歳のみ）
-    const PENSION_RATE = 0.0915;
+    if (!this.rates) return null;
 
-    const isCare = age >= 40 && age <= 64;
+    const r = this.rates;
 
-    const health_employee = Math.floor(standard * HEALTH_RATE);
-    const health_employer = Math.floor(standard * HEALTH_RATE);
+    const health_employee = r.health_employee;
+    const health_employer = r.health_employer;
 
-    const care_employee = isCare ? Math.floor(standard * CARE_RATE) : 0;
-    const care_employer = isCare ? Math.floor(standard * CARE_RATE) : 0;
+    const care_employee = age >= 40 && age <= 64 ? r.care_employee : 0;
+    const care_employer = age >= 40 && age <= 64 ? r.care_employer : 0;
 
-    const pension_employee = Math.floor(standard * PENSION_RATE);
-    const pension_employer = Math.floor(standard * PENSION_RATE);
+    // 厚生年金は全国共通（都道府県に依存しない）
+    const pension_employee = r.pension_employee;
+    const pension_employer = r.pension_employer;
 
     return {
-      health_employee,
-      health_employer,
-      care_employee,
-      care_employer,
-      pension_employee,
-      pension_employer
+      health_employee: Math.floor(standard * health_employee),
+      health_employer: Math.floor(standard * health_employer),
+      care_employee: Math.floor(standard * care_employee),
+      care_employer: Math.floor(standard * care_employer),
+      pension_employee: Math.floor(standard * pension_employee),
+      pension_employer: Math.floor(standard * pension_employer),
     };
   }
 
@@ -179,14 +208,26 @@ export class MonthlySalariesPageComponent implements OnInit {
 
       for (const month of this.months) {
         const value = data.salaries[month] ?? null;
-        const key = `${emp.id}-${month}`;
+        const key = this.getSalaryDataKey(emp.id, month);
         this.salaryData[key] = value;
+        // 新しいテーブル用にも読み込む
+        const newKey = this.getSalaryKey(emp.id, month);
+        if (value !== null) {
+          this.salaries[newKey] = value;
+        }
       }
     }
   }
 
   getCalculatedInfo(emp: any) {
-    const avg = this.getAverageForAprToJun(emp.salaries);
+    // 新しいテーブル用：salaries オブジェクトから値を取得
+    const salaries: { [month: number]: number | null } = {};
+    for (const month of this.months) {
+      const key = this.getSalaryKey(emp.id, month);
+      salaries[month] = this.salaries[key] || null;
+    }
+
+    const avg = this.getAverageForAprToJun(salaries);
     const stdResult = avg !== null ? this.getStandardMonthlyRemuneration(avg) : null;
     const standard = stdResult ? stdResult.standard : null;
     const rank = stdResult ? stdResult.rank : null;

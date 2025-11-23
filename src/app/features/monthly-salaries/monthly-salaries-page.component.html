@@ -1,33 +1,37 @@
 <h2>月次給与・報酬入力</h2>
 
-<div class="table-wrapper">
-  <table>
+<div style="margin-bottom: 1rem;">
+  <label>都道府県：</label>
+  <select [(ngModel)]="prefecture" (change)="reloadRates()" name="prefecture">
+    <option value="tokyo">東京都</option>
+    <option value="hokkaido">北海道</option>
+    <option value="osaka">大阪府</option>
+  </select>
+</div>
+
+<table class="salary-table">
   <thead>
     <tr>
-      <th>従業員名</th>
-      <th *ngFor="let month of months">{{ month }}月</th>
+      <th>従業員</th>
+      <th *ngFor="let m of months">{{ m }}月</th>
     </tr>
   </thead>
   <tbody>
-    <ng-container *ngFor="let emp of getEmployeeMonthlySalaries()">
-      <tr>
-        <td>{{ emp.name }}</td>
-        <td *ngFor="let month of months">
-          <input
-            type="number"
-            [value]="getSalaryValue(emp.id, month)"
-            (input)="onSalaryInput(emp.id, month, $event)"
-            placeholder="0"
-            style="width: 100%; padding: 0.25rem;"
-          />
-        </td>
-      </tr>
-    </ng-container>
+    <tr *ngFor="let emp of employees">
+      <td>{{ emp.name }}</td>
+      <td *ngFor="let m of months">
+        <input
+          type="number"
+          [value]="salaries[getSalaryKey(emp.id, m)] || ''"
+          (input)="onSalaryChange(emp.id, m, $any($event.target).value)"
+          style="width: 80px;"
+        />
+      </td>
+    </tr>
   </tbody>
-  </table>
-</div>
+</table>
 
-<ng-container *ngFor="let emp of getEmployeeMonthlySalaries()">
+<ng-container *ngFor="let emp of employees">
   <div class="result-card" *ngIf="getCalculatedInfo(emp) as info">
     <h4>{{ emp.name }} の計算結果</h4>
 
