@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 import { Employee } from '../models/employee.model';
 import { MonthlySalaryService } from './monthly-salary.service';
+import { MonthHelperService } from './month-helper.service';
+import { MaternityLeaveService } from './maternity-leave.service';
+import { EmployeeEligibilityService } from './employee-eligibility.service';
 
 export interface SalaryData {
   total: number;
@@ -61,6 +64,26 @@ export interface FixedSalaryChangeSuijiResult {
   reasons: string[];              // 判定理由
 }
 
+export interface SuijiKouhoResult {
+  employeeId: string;
+  changeMonth: number;          // 固定給が変動した月（1〜12）
+  averageSalary: number;        // 3ヶ月平均
+  currentGrade: number;         // 現行等級
+  newGrade: number;             // 判定後の等級
+  diff: number;                 // 等級差
+  applyStartMonth: number;      // 適用開始月（変動月の4ヶ月後）
+  reasons: string[];            // 変動理由（固定給◯→◯など）
+  isEligible: boolean;          // 随時改定の成立可否
+}
+
+export interface ShikakuShutokuResult {
+  baseSalary: number;           // 資格取得時決定に使用した給与
+  grade: number;                // 等級
+  standardMonthlyRemuneration: number; // 標準報酬月額
+  usedMonth: number;            // どの月の給与を使ったか（1〜12）
+  reasons: string[];            // 判断根拠
+}
+
 export interface MonthlyPremiums {
   health_employee: number;
   health_employer: number;
@@ -72,7 +95,12 @@ export interface MonthlyPremiums {
 
 @Injectable({ providedIn: 'root' })
 export class SalaryCalculationService {
-  constructor(private monthlySalaryService: MonthlySalaryService) {}
+  constructor(
+    private monthlySalaryService: MonthlySalaryService,
+    private monthHelper: MonthHelperService,
+    private maternityLeaveService: MaternityLeaveService,
+    private employeeEligibilityService: EmployeeEligibilityService
+  ) {}
   
   // 協会けんぽ（一般）標準報酬月額テーブル（簡略化版）
   private readonly STANDARD_TABLE = [
@@ -95,6 +123,32 @@ export class SalaryCalculationService {
     return `${employeeId}_${month}`;
   }
 
+  /**
+   * 給与データから固定的賃金を取得（後方互換性対応）
+   */
+  private getFixedSalary(salaryData: SalaryData | undefined): number {
+    if (!salaryData) return 0;
+    return (salaryData as any).fixedSalary ?? salaryData.fixed ?? 0;
+  }
+
+  /**
+   * 給与データから非固定的賃金を取得（後方互換性対応）
+   */
+  private getVariableSalary(salaryData: SalaryData | undefined): number {
+    if (!salaryData) return 0;
+    return (salaryData as any).variableSalary ?? salaryData.variable ?? 0;
+  }
+
+  /**
+   * 給与データから総支給を取得（後方互換性対応）
+   */
+  private getTotalSalary(salaryData: SalaryData | undefined): number {
+    if (!salaryData) return 0;
+    const fixed = this.getFixedSalary(salaryData);
+    const variable = this.getVariableSalary(salaryData);
+    return (salaryData as any).totalSalary ?? salaryData.total ?? (fixed + variable);
+  }
+
   calculateAge(birthDate: string): number {
     const today = new Date();
     const birth = new Date(birthDate);
@@ -112,9 +166,9 @@ export class SalaryCalculationService {
     for (const month of [4, 5, 6]) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const fixed = salaryData?.fixed || 0;
-      const variable = salaryData?.variable || 0;
-      const total = fixed + variable; // fixed + nonFixed を合算
+      const fixed = this.getFixedSalary(salaryData);
+      const variable = this.getVariableSalary(salaryData);
+      const total = this.getTotalSalary(salaryData); // totalSalary を優先、なければ fixed + variable
       values.push({ total, fixed, variable });
     }
     return values;
@@ -132,9 +186,9 @@ export class SalaryCalculationService {
     if (values[0].total > 0) {
       const key3 = this.getSalaryKey(employeeId, 3);
       const salaryData3 = salaries[key3];
-      const prevFixed = salaryData3?.fixed || 0;
-      const prevVariable = salaryData3?.variable || 0;
-      const prevTotal = prevFixed + prevVariable; // fixed + nonFixed を合算
+      const prevFixed = this.getFixedSalary(salaryData3);
+      const prevVariable = this.getVariableSalary(salaryData3);
+      const prevTotal = this.getTotalSalary(salaryData3); // totalSalary を優先、なければ fixed + variable
       
       if (prevTotal > 0 && values[0].total < prevTotal * 0.8) {
         excluded.push(4);
@@ -312,7 +366,7 @@ export class SalaryCalculationService {
       if (month > 12) break;
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const value = salaryData?.fixed || 0;
+      const value = this.getFixedSalary(salaryData); // fixedSalary を優先
       values.push(value);
     }
     return values;
@@ -325,8 +379,8 @@ export class SalaryCalculationService {
       const month = months[i];
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const fixed = salaryData?.fixed || 0;
-      const total = salaryData?.total || 0;
+      const fixed = this.getFixedSalary(salaryData); // fixedSalary を優先
+      const total = this.getTotalSalary(salaryData); // totalSalary を優先
       
       // 1. 無給月（total 0）
       if (total === 0) {
@@ -339,7 +393,7 @@ export class SalaryCalculationService {
         const prevMonth = months[i - 1];
         const prevKey = this.getSalaryKey(employeeId, prevMonth);
         const prevSalaryData = salaries[prevKey];
-        const prevFixed = prevSalaryData?.fixed || 0;
+        const prevFixed = this.getFixedSalary(prevSalaryData); // fixedSalary を優先
         
         if (prevFixed > 0 && fixed < prevFixed * 0.8) {
           excluded.push(month);
@@ -393,7 +447,7 @@ export class SalaryCalculationService {
     for (let month = 1; month <= 12; month++) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const currentFixed = salaryData?.fixed || 0;
+      const currentFixed = this.getFixedSalary(salaryData); // fixedSalary を優先
       
       // 前月と比較して変動があったか判定
       if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
@@ -454,9 +508,7 @@ export class SalaryCalculationService {
     for (const month of targetMonths) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const fixed = salaryData?.fixed || 0;
-      const variable = salaryData?.variable || 0;
-      const total = fixed + variable; // fixed + variable の総額
+      const total = this.getTotalSalary(salaryData); // totalSalary を優先（fixed + variable の総額）
       salaryValues.push(total);
     }
     
@@ -534,8 +586,8 @@ export class SalaryCalculationService {
     if (!emp || !emp.joinDate) return false;
     
     const joinDate = new Date(emp.joinDate);
-    const joinYear = joinDate.getFullYear();
-    const joinMonth = joinDate.getMonth() + 1;
+    const joinYear = this.monthHelper.getPayYear(joinDate);
+    const joinMonth = this.monthHelper.getPayMonth(joinDate);
     
     // 変動月が入社年と同じ場合のみ判定
     if (parseInt(year) === joinYear) {
@@ -637,6 +689,16 @@ export class SalaryCalculationService {
     return { candidate: null, excludedReason: null };
   }
 
+  /**
+   * 復職（産休・育休終了）に伴う固定的賃金の変動を検出し、随時改定候補を判定する
+   * @param employeeId 従業員ID
+   * @param salaries 給与データ
+   * @param gradeTable 標準報酬月額テーブル
+   * @param employees 従業員リスト
+   * @param year 年
+   * @param currentResults 現行の定時決定結果
+   * @returns 随時改定候補結果のリスト
+   */
   checkRehabSuiji(
     employeeId: string,
     salaries: { [key: string]: SalaryData },
@@ -644,96 +706,314 @@ export class SalaryCalculationService {
     employees: Employee[],
     year: string,
     currentResults: { [employeeId: string]: TeijiKetteiResult }
-  ): RehabSuijiCandidate[] {
+  ): SuijiKouhoResult[] {
     const emp = employees.find(e => e.id === employeeId);
-    if (!emp || !emp.returnFromLeaveDate) return [];
+    if (!emp) return [];
     
-    const returnDate = new Date(emp.returnFromLeaveDate);
-    const returnYear = returnDate.getFullYear();
-    const returnMonth = returnDate.getMonth() + 1;
+    // 復職月判定（産休・育休終了日から）
+    let returnMonth: number | null = null;
+    let returnYear: number | null = null;
+    
+    // 産休終了日または育休終了日から復職月を取得
+    if (emp.maternityLeaveEnd) {
+      const matEndDate = new Date(emp.maternityLeaveEnd);
+      returnMonth = this.monthHelper.getPayMonth(matEndDate);
+      returnYear = this.monthHelper.getPayYear(matEndDate);
+    } else if (emp.childcareLeaveEnd) {
+      const childEndDate = new Date(emp.childcareLeaveEnd);
+      returnMonth = this.monthHelper.getPayMonth(childEndDate);
+      returnYear = this.monthHelper.getPayYear(childEndDate);
+    } else if (emp.returnFromLeaveDate) {
+      const returnDate = new Date(emp.returnFromLeaveDate);
+      returnMonth = this.monthHelper.getPayMonth(returnDate);
+      returnYear = this.monthHelper.getPayYear(returnDate);
+    }
+    
+    // 復職情報がない場合はスキップ
+    if (!returnMonth || !returnYear) return [];
     
     // 復職年が現在の年と異なる場合はスキップ
     if (parseInt(year) !== returnYear) return [];
     
-    const candidates: RehabSuijiCandidate[] = [];
+    const results: SuijiKouhoResult[] = [];
     
     // 復職月・翌月・翌々月を監視対象とする
     const targetMonths = [returnMonth, returnMonth + 1, returnMonth + 2].filter(m => m <= 12);
     
+    // 各監視対象月で固定的賃金の変動を検出
     for (const month of targetMonths) {
-      // 変動月を含む3ヶ月のfixedを取得
-      const fixedValues = this.getFixed3Months(employeeId, month, salaries);
-      if (fixedValues.length < 3) continue;
+      const result = this.checkFixedSalaryChangeForMonth(
+        employeeId,
+        month,
+        salaries,
+        gradeTable,
+        employees,
+        year,
+        currentResults
+      );
       
-      // 3ヶ月平均を計算
-      const total = fixedValues.reduce((sum, v) => sum + v, 0);
-      const avgFixed = Math.round(total / 3);
-      if (avgFixed === 0) continue;
-      
-      // 現行等級と新等級の比較
-      const currentResult = currentResults[employeeId];
-      const currentGrade = currentResult?.grade || 0;
-      
-      const newGradeResult = this.findGrade(gradeTable, avgFixed);
-      if (!newGradeResult) continue;
-      
-      const newGrade = newGradeResult.grade;
-      const gradeDiff = Math.abs(newGrade - currentGrade);
-      
-      // 2等級以上なら復職関連の随時改定候補に追加
-      if (gradeDiff >= 2) {
-        const name = emp.name || '';
-        
-        // 適用開始月＝変動月 + 4ヶ月
-        let applyMonth = month + 4;
-        if (applyMonth > 12) {
-          applyMonth = applyMonth - 12;
-        }
-        
-        candidates.push({
-          employeeId,
-          name,
-          changedMonth: month,
-          fixedValues,
-          avgFixed,
-          currentGrade,
-          newGrade,
-          gradeDiff,
-          applyMonth
-        });
+      if (result && result.isEligible) {
+        results.push(result);
       }
     }
     
-    return candidates;
+    return results;
   }
 
+  /**
+   * 特定の月における固定的賃金の変動を検出し、随時改定候補を判定する
+   */
+  private checkFixedSalaryChangeForMonth(
+    employeeId: string,
+    month: number,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[],
+    employees: Employee[],
+    year: string,
+    currentResults: { [employeeId: string]: TeijiKetteiResult }
+  ): SuijiKouhoResult | null {
+    const reasons: string[] = [];
+    
+    // 入社後3ヶ月以内の場合は随時改定不可
+    if (this.isWithin3MonthsAfterJoin(employeeId, month, employees, year)) {
+      reasons.push('資格取得後3か月以内のため随時改定不可');
+      return {
+        employeeId,
+        changeMonth: month,
+        averageSalary: 0,
+        currentGrade: 0,
+        newGrade: 0,
+        diff: 0,
+        applyStartMonth: 0,
+        reasons,
+        isEligible: false
+      };
+    }
+    
+    // 前月の固定的賃金を取得
+    const prevMonth = month > 1 ? month - 1 : null;
+    let prevFixed = 0;
+    if (prevMonth) {
+      const prevKey = this.getSalaryKey(employeeId, prevMonth);
+      const prevSalaryData = salaries[prevKey];
+      prevFixed = this.getFixedSalary(prevSalaryData); // fixedSalary を優先
+    }
+    
+    // 当月の固定的賃金を取得
+    const currentKey = this.getSalaryKey(employeeId, month);
+    const currentSalaryData = salaries[currentKey];
+    const currentFixed = this.getFixedSalary(currentSalaryData); // fixedSalary を優先
+    
+    // 固定的賃金の変動がない場合はスキップ
+    if (prevFixed === 0 || currentFixed === prevFixed) {
+      return null;
+    }
+    
+    // 変動理由を記録
+    reasons.push(`固定的賃金が${prevFixed.toLocaleString()}円 → ${currentFixed.toLocaleString()}円に変動`);
+    
+    // 変動月を含む3ヶ月（変動月・翌月・翌々月）で平均報酬を取得
+    const targetMonths: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      const targetMonth = month + i;
+      if (targetMonth > 12) {
+        reasons.push(`${month}月の変動では、3ヶ月分のデータが揃わない（${targetMonth}月が存在しない）`);
+        return {
+          employeeId,
+          changeMonth: month,
+          averageSalary: 0,
+          currentGrade: 0,
+          newGrade: 0,
+          diff: 0,
+          applyStartMonth: 0,
+          reasons,
+          isEligible: false
+        };
+      }
+      targetMonths.push(targetMonth);
+    }
+    
+    // 3ヶ月分の給与データを取得（fixed + variable の総支給）
+    const salaryValues: number[] = [];
+    for (const targetMonth of targetMonths) {
+      const key = this.getSalaryKey(employeeId, targetMonth);
+      const salaryData = salaries[key];
+      const total = this.getTotalSalary(salaryData); // totalSalary を優先（fixed + variable の総支給）
+      salaryValues.push(total);
+    }
+    
+    // 3ヶ月平均を計算
+    const total = salaryValues.reduce((sum, v) => sum + v, 0);
+    const averageSalary = Math.round(total / salaryValues.length);
+    reasons.push(`${targetMonths.join('・')}月の平均報酬: ${averageSalary.toLocaleString()}円`);
+    
+    // 現行等級を取得
+    const currentResult = currentResults[employeeId];
+    const currentGrade = currentResult?.grade || 0;
+    
+    // 新等級を判定
+    const gradeResult = this.findGrade(gradeTable, averageSalary);
+    if (!gradeResult) {
+      reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
+      return {
+        employeeId,
+        changeMonth: month,
+        averageSalary,
+        currentGrade,
+        newGrade: 0,
+        diff: 0,
+        applyStartMonth: 0,
+        reasons,
+        isEligible: false
+      };
+    }
+    
+    const newGrade = gradeResult.grade;
+    const diff = Math.abs(newGrade - currentGrade);
+    
+    // 2等級以上の差 → 随時改定成立
+    const isEligible = diff >= 2;
+    if (isEligible) {
+      reasons.push(`現行等級${currentGrade} → 新等級${newGrade}（${diff}等級差）により随時改定成立`);
+    } else {
+      reasons.push(`現行等級${currentGrade} → 新等級${newGrade}（${diff}等級差）により随時改定不成立（2等級以上差が必要）`);
+    }
+    
+    // 適用開始月は「変動月の4ヶ月後」
+    let applyStartMonth = month + 4;
+    if (applyStartMonth > 12) {
+      applyStartMonth = applyStartMonth - 12;
+    }
+    reasons.push(`適用開始月: ${applyStartMonth}月（変動月${month}月の4ヶ月後）`);
+    
+    return {
+      employeeId,
+      changeMonth: month,
+      averageSalary,
+      currentGrade,
+      newGrade,
+      diff,
+      applyStartMonth,
+      reasons,
+      isEligible
+    };
+  }
+
+  /**
+   * 月次給与の保険料を計算（産休・育休免除・年齢到達・標準報酬月額を統合）
+   * @param employee 従業員情報
+   * @param year 年
+   * @param month 月（1〜12）
+   * @param fixedSalary 固定的賃金
+   * @param variableSalary 非固定的賃金
+   * @param gradeTable 標準報酬月額テーブル
+   * @param rates 保険料率
+   * @returns 月次保険料
+   */
   calculateMonthlyPremiums(
     employee: Employee,
-    standardMonthlyRemuneration: number | null,
+    year: number,
+    month: number,
+    fixedSalary: number,
+    variableSalary: number,
+    gradeTable: any[],
     rates: any
-  ): MonthlyPremiums | null {
-    if (!rates || standardMonthlyRemuneration === null) return null;
+  ): MonthlyPremiums & { reasons: string[] } {
+    const reasons: string[] = [];
+    
+    // ① 産休・育休免除判定（最優先）
+    const exemptResult = this.maternityLeaveService.isExemptForSalary(year, month, employee);
+    
+    if (exemptResult.exempt) {
+      // 産休・育休中は本人分・事業主負担ともに0円
+      reasons.push(exemptResult.reason);
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons
+      };
+    }
 
-    const age = this.calculateAge(employee.birthDate);
+    // ② 標準報酬月額の計算（fixedSalary + variableSalary）
+    const totalSalary = fixedSalary + variableSalary;
+    if (totalSalary <= 0) {
+      reasons.push('給与が0円のため保険料は0円');
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons
+      };
+    }
+
+    // 標準報酬月額テーブルから等級を検索
+    const gradeResult = this.findGrade(gradeTable, totalSalary);
+    if (!gradeResult) {
+      reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons
+      };
+    }
+
+    const standardMonthlyRemuneration = gradeResult.remuneration;
+    reasons.push(`等級${gradeResult.grade}（標準報酬月額${standardMonthlyRemuneration.toLocaleString()}円）`);
+
+    // ③ 年齢到達のチェック（70/75）
+    const checkDate = new Date(year, month - 1, 1);
+    const eligibilityResult = this.employeeEligibilityService.checkEligibility(employee, undefined, checkDate);
+    const ageFlags = eligibilityResult.ageFlags;
+    
+    // 年齢到達による停止理由を追加
+    if (ageFlags.isNoHealth) {
+      reasons.push('75歳以上のため健康保険・介護保険は停止');
+    }
+    if (ageFlags.isNoPension) {
+      reasons.push('70歳以上のため厚生年金は停止');
+    }
+    if (ageFlags.isCare1) {
+      reasons.push('65歳以上のため介護保険は第1号被保険者（健保から除外）');
+    }
+
+    // ④ 通常の保険料計算（年齢到達を考慮）
     const r = rates;
+    
+    // 健康保険（75歳以上は0円）
+    const healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
+    const health_employee = Math.floor(healthBase * r.health_employee);
+    const health_employer = Math.floor(healthBase * r.health_employer);
 
-    const health_employee = r.health_employee;
-    const health_employer = r.health_employer;
+    // 介護保険（40〜64歳のみ、75歳以上は0円）
+    const isCareEligible = ageFlags.isCare2 && !ageFlags.isNoHealth;
+    const careBase = isCareEligible ? standardMonthlyRemuneration : 0;
+    const care_employee = Math.floor(careBase * r.care_employee);
+    const care_employer = Math.floor(careBase * r.care_employer);
 
-    const care_employee = age >= 40 && age <= 64 ? r.care_employee : 0;
-    const care_employer = age >= 40 && age <= 64 ? r.care_employer : 0;
-
-    // 厚生年金は全国共通（都道府県に依存しない）
-    const pension_employee = r.pension_employee;
-    const pension_employer = r.pension_employer;
+    // 厚生年金（70歳以上は0円）
+    const pensionBase = ageFlags.isNoPension ? 0 : standardMonthlyRemuneration;
+    const pension_employee = Math.floor(pensionBase * r.pension_employee);
+    const pension_employer = Math.floor(pensionBase * r.pension_employer);
 
     return {
-      health_employee: Math.floor(standardMonthlyRemuneration * health_employee),
-      health_employer: Math.floor(standardMonthlyRemuneration * health_employer),
-      care_employee: Math.floor(standardMonthlyRemuneration * care_employee),
-      care_employer: Math.floor(standardMonthlyRemuneration * care_employer),
-      pension_employee: Math.floor(standardMonthlyRemuneration * pension_employee),
-      pension_employer: Math.floor(standardMonthlyRemuneration * pension_employer),
+      health_employee,
+      health_employer,
+      care_employee,
+      care_employer,
+      pension_employee,
+      pension_employer,
+      reasons
     };
   }
 
@@ -741,8 +1021,8 @@ export class SalaryCalculationService {
     if (!employee.returnFromLeaveDate) return [];
     
     const returnDate = new Date(employee.returnFromLeaveDate);
-    const returnYear = returnDate.getFullYear();
-    const returnMonth = returnDate.getMonth() + 1;
+    const returnYear = this.monthHelper.getPayYear(returnDate);
+    const returnMonth = this.monthHelper.getPayMonth(returnDate);
     
     // 復職年が現在の年と異なる場合は空配列
     if (parseInt(year) !== returnYear) return [];
@@ -779,8 +1059,12 @@ export class SalaryCalculationService {
       const newData: any = {};
       const monthKey = month.toString();
       newData[monthKey] = {
+        fixedSalary: 0,
+        variableSalary: standardBonus,
+        totalSalary: standardBonus,
+        // 後方互換性のため既存属性も設定
         fixed: 0,
-        variable: 0,
+        variable: standardBonus,
         total: standardBonus
       };
       await this.monthlySalaryService.saveEmployeeSalary(employeeId, year, newData);
@@ -789,16 +1073,22 @@ export class SalaryCalculationService {
     
     // 該当月のデータを取得
     const monthKey = month.toString();
-    const monthData = salaryData[monthKey] || { fixed: 0, variable: 0, total: 0 };
+    const monthData = salaryData[monthKey] || { fixedSalary: 0, variableSalary: 0, totalSalary: 0 };
     
-    // fixed + variable の報酬合計に standardBonus を加算
-    const currentTotal = (monthData.fixed || 0) + (monthData.variable || 0);
+    // fixedSalary + variableSalary の報酬合計に standardBonus を加算
+    const currentFixed = (monthData as any).fixedSalary ?? monthData.fixed ?? 0;
+    const currentVariable = (monthData as any).variableSalary ?? monthData.variable ?? 0;
+    const currentTotal = currentFixed + currentVariable;
     const newTotal = currentTotal + standardBonus;
     
-    // variable に加算（給与扱いの賞与は変動給として扱う）
+    // variableSalary に加算（給与扱いの賞与は変動給として扱う）
     const updatedMonthData = {
-      fixed: monthData.fixed || 0,
-      variable: (monthData.variable || 0) + standardBonus,
+      fixedSalary: currentFixed,
+      variableSalary: currentVariable + standardBonus,
+      totalSalary: newTotal,
+      // 後方互換性のため既存属性も設定
+      fixed: currentFixed,
+      variable: currentVariable + standardBonus,
       total: newTotal
     };
     
@@ -810,5 +1100,115 @@ export class SalaryCalculationService {
     
     await this.monthlySalaryService.saveEmployeeSalary(employeeId, year, updatedData);
   }
+
+  /**
+   * 資格取得時決定（入社月の標準報酬決定）を計算する
+   * @param employee 従業員情報
+   * @param year 年
+   * @param salaries 給与データ（{ [key: string]: SalaryData }形式）
+   * @param gradeTable 標準報酬月額テーブル
+   * @returns 資格取得時決定結果
+   */
+  calculateShikakuShutoku(
+    employee: Employee,
+    year: number,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[]
+  ): ShikakuShutokuResult | null {
+    const reasons: string[] = [];
+    
+    // 入社日の取得
+    if (!employee.joinDate) {
+      reasons.push('入社日が設定されていないため資格取得時決定不可');
+      return {
+        baseSalary: 0,
+        grade: 0,
+        standardMonthlyRemuneration: 0,
+        usedMonth: 0,
+        reasons
+      };
+    }
+    
+    const joinDate = new Date(employee.joinDate);
+    const joinYear = this.monthHelper.getPayYear(joinDate);
+    const joinMonth = this.monthHelper.getPayMonth(joinDate);
+    
+    // 入社年が対象年と異なる場合はスキップ
+    if (joinYear !== year) {
+      reasons.push(`入社年（${joinYear}年）が対象年（${year}年）と異なるため資格取得時決定不可`);
+      return null;
+    }
+    
+    // 入社月に給与支給があるか確認
+    const joinMonthKey = this.getSalaryKey(employee.id, joinMonth);
+    const joinMonthSalary = salaries[joinMonthKey];
+    const joinMonthTotal = this.getTotalSalary(joinMonthSalary);
+    
+    let usedMonth: number;
+    let baseSalary: number;
+    
+    if (joinMonthTotal > 0) {
+      // 入社月に給与支給がある → その給与を使用
+      usedMonth = joinMonth;
+      baseSalary = joinMonthTotal;
+      reasons.push(`${joinMonth}月（入社月）の給与${baseSalary.toLocaleString()}円を使用`);
+    } else {
+      // 入社月に給与支給がない → 2ヶ月目の最初の給与を使用
+      const nextMonth = joinMonth + 1;
+      if (nextMonth > 12) {
+        reasons.push(`入社月（${joinMonth}月）に給与支給がなく、翌月が存在しないため資格取得時決定不可`);
+        return {
+          baseSalary: 0,
+          grade: 0,
+          standardMonthlyRemuneration: 0,
+          usedMonth: 0,
+          reasons
+        };
+      }
+      
+      const nextMonthKey = this.getSalaryKey(employee.id, nextMonth);
+      const nextMonthSalary = salaries[nextMonthKey];
+      const nextMonthTotal = this.getTotalSalary(nextMonthSalary);
+      
+      if (nextMonthTotal > 0) {
+        usedMonth = nextMonth;
+        baseSalary = nextMonthTotal;
+        reasons.push(`入社月（${joinMonth}月）に給与支給がないため、${nextMonth}月の給与${baseSalary.toLocaleString()}円を使用`);
+      } else {
+        reasons.push(`入社月（${joinMonth}月）および翌月（${nextMonth}月）に給与支給がないため資格取得時決定不可`);
+        return {
+          baseSalary: 0,
+          grade: 0,
+          standardMonthlyRemuneration: 0,
+          usedMonth: 0,
+          reasons
+        };
+      }
+    }
+    
+    // 等級を判定
+    const gradeResult = this.findGrade(gradeTable, baseSalary);
+    if (!gradeResult) {
+      reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
+      return {
+        baseSalary,
+        grade: 0,
+        standardMonthlyRemuneration: 0,
+        usedMonth,
+        reasons
+      };
+    }
+    
+    reasons.push(`資格取得時決定により等級${gradeResult.grade}（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）を決定`);
+    
+    return {
+      baseSalary,
+      grade: gradeResult.grade,
+      standardMonthlyRemuneration: gradeResult.remuneration,
+      usedMonth,
+      reasons
+    };
+  }
+
 }
 

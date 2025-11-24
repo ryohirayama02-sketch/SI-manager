@@ -2,6 +2,37 @@
 
 <!-- TODO: 過去年度の集計にも対応できるように year セレクタを追加する -->
 
+<!-- 会社全体の年間保険料合計（本人分＋会社負担分） -->
+<div class="card" *ngIf="employees.length > 0 && companyMonthlyTotals.length > 0">
+  <h3>年間保険料合計（{{ year }}年度）</h3>
+  <table class="payment-table annual-summary-table">
+    <thead>
+      <tr>
+        <th>項目</th>
+        <th>金額</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="label-cell">健康保険</td>
+        <td class="amount-cell">{{ getAnnualTotalHealth() | number:'1.0-0' }}円</td>
+      </tr>
+      <tr>
+        <td class="label-cell">介護保険</td>
+        <td class="amount-cell">{{ getAnnualTotalCare() | number:'1.0-0' }}円</td>
+      </tr>
+      <tr>
+        <td class="label-cell">厚生年金</td>
+        <td class="amount-cell">{{ getAnnualTotalPension() | number:'1.0-0' }}円</td>
+      </tr>
+      <tr class="total-row">
+        <td class="label-cell total-cell">会社全体合計</td>
+        <td class="amount-cell total-cell">{{ getAnnualTotal() | number:'1.0-0' }}円</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
 <div *ngIf="employees.length === 0" class="no-data-message">
   <p>データがありません</p>
 </div>
@@ -24,6 +55,7 @@
 </div>
 
 <div class="card" *ngIf="employees.length > 0">
+  <h3>会社全体の月次合計（{{ year }}年度）</h3>
   <table class="payment-table">
     <thead>
       <tr>
@@ -53,5 +85,82 @@
       </tr>
     </tfoot>
   </table>
+</div>
+
+<!-- 会社全体の月次保険料合計（本人分＋会社負担分） -->
+<div class="card" *ngIf="employees.length > 0 && companyMonthlyTotals.length > 0">
+  <h3>会社全体の月次保険料合計（本人分＋会社負担分）（{{ year }}年度）</h3>
+  <table class="payment-table">
+    <thead>
+      <tr>
+        <th>月</th>
+        <th>健康保険</th>
+        <th>介護保険</th>
+        <th>厚生年金</th>
+        <th>合計</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let total of companyMonthlyTotals">
+        <td class="month-cell">{{ total.month }}月</td>
+        <td class="amount-cell">{{ total.healthTotal | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ total.careTotal | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ total.pensionTotal | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ total.total | number:'1.0-0' }}円</td>
+      </tr>
+    </tbody>
+    <tfoot>
+      <tr class="total-row">
+        <td class="month-cell">年間合計</td>
+        <td class="amount-cell total-cell">{{ getCompanyTotalHealth() | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ getCompanyTotalCare() | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ getCompanyTotalPension() | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ getCompanyTotal() | number:'1.0-0' }}円</td>
+      </tr>
+    </tfoot>
+  </table>
+</div>
+
+<!-- 従業員ごとの月次報酬保険料 -->
+<div *ngFor="let emp of employees" class="card monthly-section">
+  <h4>月次報酬保険料（{{ emp.name }} - {{ year }}年度）</h4>
+  
+  <table class="monthly-table" *ngIf="monthlyPremiumsByEmployee[emp.id]?.length">
+    <thead>
+      <tr>
+        <th>月</th>
+        <th>健保（本人）</th>
+        <th>健保（会社）</th>
+        <th>介保（本人）</th>
+        <th>介保（会社）</th>
+        <th>厚年（本人）</th>
+        <th>厚年（会社）</th>
+        <th>ステータス</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of monthlyPremiumsByEmployee[emp.id]">
+        <td>{{ row.month }}月</td>
+        <td>{{ row.healthEmployee | number:'1.0-0' }}円</td>
+        <td>{{ row.healthEmployer | number:'1.0-0' }}円</td>
+        <td>{{ row.careEmployee | number:'1.0-0' }}円</td>
+        <td>{{ row.careEmployer | number:'1.0-0' }}円</td>
+        <td>{{ row.pensionEmployee | number:'1.0-0' }}円</td>
+        <td>{{ row.pensionEmployer | number:'1.0-0' }}円</td>
+        <td>
+          <span *ngIf="row.exempt" class="badge-exempt">免除</span>
+          <span *ngIf="!row.exempt && row.notes?.length" class="badge-warning">注意</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="!monthlyPremiumsByEmployee[emp.id]?.length">
+    月次給与データが未登録のため、保険料を計算できません。
+  </p>
+
+  <div class="info-label" *ngIf="hasNotesForEmployee(emp.id)">
+    <span>※ 詳細な免除理由・注意事項は各月の notes を参照</span>
+  </div>
 </div>
 

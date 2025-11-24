@@ -10,9 +10,62 @@ export class MonthlySalaryService {
     year: number,
     payload: any
   ): Promise<void> {
+    // 給与保存時のバリデーションと自動補正
+    const normalizedPayload = this.normalizeSalaryData(payload);
+    
     // 構造: monthlySalaries/{employeeId}/years/{year} (偶数セグメント)
     const ref = doc(this.firestore, 'monthlySalaries', employeeId, 'years', year.toString());
-    await setDoc(ref, payload, { merge: true });
+    await setDoc(ref, normalizedPayload, { merge: true });
+  }
+
+  /**
+   * 給与データを正規化（totalSalary = fixedSalary + variableSalary を保証）
+   */
+  private normalizeSalaryData(payload: any): any {
+    const normalized: any = { ...payload };
+    
+    // 月ごとのデータを正規化
+    for (const key in normalized) {
+      const monthData = normalized[key];
+      if (monthData && typeof monthData === 'object') {
+        // 既存のfixed/variable/totalからfixedSalary/variableSalary/totalSalaryを設定
+        const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+        const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+        const total = monthData.totalSalary ?? monthData.total ?? (fixed + variable);
+        
+        // 自動算出：totalSalary = fixedSalary + variableSalary
+        const calculatedTotal = fixed + variable;
+        
+        // バリデーション：fixed + variable が total と一致しない場合 → 自動補正
+        if (Math.abs(total - calculatedTotal) > 0.01) {
+          // 不一致がある場合は、calculatedTotalを優先（エラーログは上位で処理）
+          normalized[key] = {
+            ...monthData,
+            fixedSalary: fixed,
+            variableSalary: variable,
+            totalSalary: calculatedTotal,
+            // 後方互換性のため既存属性も設定
+            fixed: fixed,
+            variable: variable,
+            total: calculatedTotal
+          };
+        } else {
+          // 一致している場合は、新しい属性を設定
+          normalized[key] = {
+            ...monthData,
+            fixedSalary: fixed,
+            variableSalary: variable,
+            totalSalary: total,
+            // 後方互換性のため既存属性も設定
+            fixed: fixed,
+            variable: variable,
+            total: total
+          };
+        }
+      }
+    }
+    
+    return normalized;
   }
 
   async getEmployeeSalary(
@@ -22,7 +75,11 @@ export class MonthlySalaryService {
     // 構造: monthlySalaries/{employeeId}/years/{year} (偶数セグメント)
     const ref = doc(this.firestore, 'monthlySalaries', employeeId, 'years', year.toString());
     const snap = await getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    if (!snap.exists()) return null;
+    
+    // 取得したデータを正規化（totalSalary = fixedSalary + variableSalary を保証）
+    const data = snap.data();
+    return this.normalizeSalaryData(data);
   }
 
   async getMonthlyPremiums(

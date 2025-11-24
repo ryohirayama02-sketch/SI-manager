@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SettingsService } from '../../services/settings.service';
-import { SalaryCalculationService, TeijiKetteiResult, SuijiCandidate, RehabSuijiCandidate, ExcludedSuijiReason } from '../../services/salary-calculation.service';
+import { SalaryCalculationService, TeijiKetteiResult, SuijiCandidate, RehabSuijiCandidate, ExcludedSuijiReason, SuijiKouhoResult } from '../../services/salary-calculation.service';
 import { Employee } from '../../models/employee.model';
 
 @Component({
@@ -26,7 +26,7 @@ export class MonthlySalariesPageComponent implements OnInit {
   results: { [employeeId: string]: TeijiKetteiResult } = {};
   suijiCandidates: SuijiCandidate[] = [];
   excludedSuijiReasons: ExcludedSuijiReason[] = [];
-  rehabSuijiCandidates: RehabSuijiCandidate[] = [];
+  rehabSuijiCandidates: SuijiKouhoResult[] = [];
   
   // エラー・警告メッセージ（従業員IDをキーとする）
   errorMessages: { [employeeId: string]: string[] } = {};
@@ -334,8 +334,22 @@ export class MonthlySalariesPageComponent implements OnInit {
     const rank = stdResult ? stdResult.rank : null;
 
     const age = this.calculateAge(emp.birthDate);
+    // 4月の給与データを取得（定時決定の基準月）
+    const aprilKey = this.getSalaryKey(emp.id, 4);
+    const aprilSalary = this.salaries[aprilKey];
+    const fixedSalary = aprilSalary?.fixed || 0;
+    const variableSalary = aprilSalary?.variable || 0;
+    
     const premiums = standard !== null 
-      ? this.salaryCalculationService.calculateMonthlyPremiums(emp, standard, this.rates)
+      ? this.salaryCalculationService.calculateMonthlyPremiums(
+          emp, 
+          parseInt(this.year), 
+          4, 
+          fixedSalary, 
+          variableSalary, 
+          this.gradeTable, 
+          this.rates
+        )
       : null;
 
     // エラーチェック
@@ -477,7 +491,7 @@ export class MonthlySalariesPageComponent implements OnInit {
     for (const candidate of candidates) {
       // 重複チェック
       const exists = this.rehabSuijiCandidates.find(
-        c => c.employeeId === candidate.employeeId && c.changedMonth === candidate.changedMonth
+        c => c.employeeId === candidate.employeeId && c.changeMonth === candidate.changeMonth
       );
       if (!exists) {
         this.rehabSuijiCandidates.push(candidate);

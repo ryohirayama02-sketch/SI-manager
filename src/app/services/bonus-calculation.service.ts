@@ -4,6 +4,7 @@ import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { EmployeeEligibilityService, AgeFlags } from './employee-eligibility.service';
 import { SalaryCalculationService } from './salary-calculation.service';
+import { MaternityLeaveService } from './maternity-leave.service';
 
 export interface BonusCalculationResult {
   healthEmployee: number;
@@ -49,7 +50,8 @@ export class BonusCalculationService {
   constructor(
     private bonusService: BonusService,
     private employeeEligibilityService: EmployeeEligibilityService,
-    private salaryCalculationService: SalaryCalculationService
+    private salaryCalculationService: SalaryCalculationService,
+    private maternityLeaveService: MaternityLeaveService
   ) {}
 
   calculateAge(birthDate: string): number {
@@ -124,27 +126,18 @@ export class BonusCalculationService {
     isExempted: boolean;
     exemptReason?: string;
   } {
-    if (!employee.maternityLeaveStart || !employee.maternityLeaveEnd) {
-      return { isExempted: false };
-    }
-    
-    const matStart = new Date(employee.maternityLeaveStart);
-    const matEnd = new Date(employee.maternityLeaveEnd);
-    
-    if (payDate >= matStart && payDate <= matEnd) {
-      return {
-        isExempted: true,
-        exemptReason: "産休期間中のため免除"
-      };
-    }
-    
-    return { isExempted: false };
+    const result = this.maternityLeaveService.isMaternityLeave(payDate, employee);
+    return {
+      isExempted: result.exempt,
+      exemptReason: result.exempt ? result.reason : undefined
+    };
   }
 
   checkChildcareExemption(employee: Employee, payDate: Date): {
     isExempted: boolean;
     exemptReason?: string;
   } {
+    // 育休の場合は届出と同居の条件を確認
     if (!employee.childcareLeaveStart || !employee.childcareLeaveEnd) {
       return { isExempted: false };
     }
@@ -157,9 +150,10 @@ export class BonusCalculationService {
     
     if (isInChildcarePeriod) {
       if (isNotificationSubmitted && isLivingTogether) {
+        const result = this.maternityLeaveService.isChildcareLeave(payDate, employee);
         return {
-          isExempted: true,
-          exemptReason: "育休（届出済・同居）期間中のため免除"
+          isExempted: result.exempt,
+          exemptReason: result.exempt ? result.reason : undefined
         };
       } else {
         const reasons: string[] = [];

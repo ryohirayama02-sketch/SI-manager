@@ -92,3 +92,104 @@
   margin: 0;
   font-size: 1.1rem;
 }
+
+/* 従業員別月次保険料テーブル（payment-table と同じスタイル） */
+.monthly-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.monthly-table thead {
+  background: #f8f8f8;
+}
+
+.monthly-table th {
+  padding: 8px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.monthly-table tbody tr {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.monthly-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.monthly-table tbody tr:last-child {
+  border-bottom: 2px solid #007bff;
+}
+
+.monthly-table td {
+  padding: 8px;
+  text-align: left;
+}
+
+.monthly-table .amount-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  color: #333;
+}
+
+.badge-exempt {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #ffc107;
+  color: #000;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.badge-warning {
+  display: inline-block;
+  padding: 4px 8px;
+  background: #ff9800;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.info-label {
+  margin-top: 12px;
+  padding: 8px;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  font-size: 0.9rem;
+  color: #1976d2;
+}
+
+.monthly-section {
+  margin-top: 2rem;
+}
+
+.annual-summary-table {
+  max-width: 600px;
+}
+
+.annual-summary-table .label-cell {
+  font-weight: 500;
+  padding: 12px 16px;
+}
+
+.annual-summary-table .amount-cell {
+  text-align: right;
+  font-family: 'Courier New', monospace;
+  padding: 12px 16px;
+}
+
+.annual-summary-table .total-row {
+  border-top: 2px solid #007bff;
+  background: #f8f9fa;
+}
+
+.annual-summary-table .total-row .label-cell,
+.annual-summary-table .total-row .amount-cell {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #007bff;
+}
