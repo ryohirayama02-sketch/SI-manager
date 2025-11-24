@@ -37,10 +37,10 @@
     <tbody>
       <tr *ngFor="let month of months">
         <td class="month-cell">{{ month }}月</td>
-        <td class="amount-cell">{{ monthlyTotals[month]?.health | number:'1.0-0' }}円</td>
-        <td class="amount-cell">{{ monthlyTotals[month]?.care | number:'1.0-0' }}円</td>
-        <td class="amount-cell">{{ monthlyTotals[month]?.pension | number:'1.0-0' }}円</td>
-        <td class="amount-cell total-cell">{{ monthlyTotals[month]?.total | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ monthlyTotals[month].health | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ monthlyTotals[month].care | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ monthlyTotals[month].pension | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ monthlyTotals[month].total | number:'1.0-0' }}円</td>
       </tr>
     </tbody>
     <tfoot>
