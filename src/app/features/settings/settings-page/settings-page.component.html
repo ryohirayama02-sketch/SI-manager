@@ -7,7 +7,7 @@
   <form [formGroup]="form" (ngSubmit)="save()">
     <div class="form-group">
       <label>都道府県：</label>
-      <select [(ngModel)]="prefecture" name="prefecture" class="form-control">
+      <select formControlName="prefecture" (change)="onPrefectureChange()" class="form-control">
         <option value="tokyo">東京都</option>
         <option value="hokkaido">北海道</option>
         <option value="osaka">大阪府</option>

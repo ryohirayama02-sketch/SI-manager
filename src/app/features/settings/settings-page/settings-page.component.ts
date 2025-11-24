@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SettingsService } from '../../../services/settings.service';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './settings-page.component.html',
   styleUrl: './settings-page.component.css'
 })
@@ -24,6 +24,7 @@ export class SettingsPageComponent implements OnInit {
     private settingsService: SettingsService
   ) {
     this.form = this.fb.group({
+      prefecture: [this.prefecture, Validators.required],
       health_employee: [0, Validators.required],
       health_employer: [0, Validators.required],
       care_employee: [0, Validators.required],
@@ -94,8 +95,25 @@ export class SettingsPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     const data = await this.settingsService.getRates(this.year, this.prefecture);
-    if (data) this.form.patchValue(data);
+    if (data) {
+      this.form.patchValue({
+        ...data,
+        prefecture: this.prefecture
+      });
+    }
     await this.loadStandardTable();
+  }
+
+  async onPrefectureChange(): Promise<void> {
+    this.prefecture = this.form.get('prefecture')?.value || 'tokyo';
+    await this.reloadRates();
+  }
+
+  async reloadRates(): Promise<void> {
+    const data = await this.settingsService.getRates(this.year, this.prefecture);
+    if (data) {
+      this.form.patchValue(data);
+    }
   }
 
   validateRates(): void {
@@ -118,7 +136,10 @@ export class SettingsPageComponent implements OnInit {
     if (this.errorMessages.length > 0) {
       return;
     }
-    await this.settingsService.saveRates(this.year, this.prefecture, this.form.value);
+    const prefectureValue = this.form.get('prefecture')?.value || this.prefecture;
+    const formData = { ...this.form.value };
+    delete formData.prefecture; // prefectureはformDataから除外
+    await this.settingsService.saveRates(this.year, prefectureValue, formData);
     alert('設定を保存しました');
   }
 

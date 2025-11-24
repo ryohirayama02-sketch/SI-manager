@@ -11,14 +11,14 @@
   <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
     <h4>エラー（{{ emp.name }}）</h4>
     <ul>
-      <li *ngFor="let err of errorMessages[emp.id]">{{ err }}</li>
+      <li *ngFor="let err of errorMessages[emp.id] ?? []">{{ err }}</li>
     </ul>
   </div>
 
   <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
     <h4>警告（{{ emp.name }}）</h4>
     <ul>
-      <li *ngFor="let w of warningMessages[emp.id]">{{ w }}</li>
+      <li *ngFor="let w of warningMessages[emp.id] ?? []">{{ w }}</li>
     </ul>
   </div>
 </div>
@@ -37,10 +37,10 @@
     <tbody>
       <tr *ngFor="let month of months">
         <td class="month-cell">{{ month }}月</td>
-        <td class="amount-cell">{{ monthlyTotals[month].health | number:'1.0-0' }}円</td>
-        <td class="amount-cell">{{ monthlyTotals[month].care | number:'1.0-0' }}円</td>
-        <td class="amount-cell">{{ monthlyTotals[month].pension | number:'1.0-0' }}円</td>
-        <td class="amount-cell total-cell">{{ monthlyTotals[month].total | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ (monthlyTotals[month]?.health ?? 0) | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ (monthlyTotals[month]?.care ?? 0) | number:'1.0-0' }}円</td>
+        <td class="amount-cell">{{ (monthlyTotals[month]?.pension ?? 0) | number:'1.0-0' }}円</td>
+        <td class="amount-cell total-cell">{{ (monthlyTotals[month]?.total ?? 0) | number:'1.0-0' }}円</td>
       </tr>
     </tbody>
     <tfoot>

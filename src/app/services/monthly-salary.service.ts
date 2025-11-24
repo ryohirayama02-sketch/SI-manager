@@ -10,8 +10,8 @@ export class MonthlySalaryService {
     year: number,
     payload: any
   ): Promise<void> {
-    // 構造: monthlySalaries/{employeeId}/{year}
-    const ref = doc(this.firestore, 'monthlySalaries', employeeId, year.toString());
+    // 構造: monthlySalaries/{employeeId}/years/{year} (偶数セグメント)
+    const ref = doc(this.firestore, 'monthlySalaries', employeeId, 'years', year.toString());
     await setDoc(ref, payload, { merge: true });
   }
 
@@ -19,7 +19,8 @@ export class MonthlySalaryService {
     employeeId: string,
     year: number
   ): Promise<any | null> {
-    const ref = doc(this.firestore, `monthlySalaries/${employeeId}/${year}`);
+    // 構造: monthlySalaries/{employeeId}/years/{year} (偶数セグメント)
+    const ref = doc(this.firestore, 'monthlySalaries', employeeId, 'years', year.toString());
     const snap = await getDoc(ref);
     return snap.exists() ? snap.data() : null;
   }

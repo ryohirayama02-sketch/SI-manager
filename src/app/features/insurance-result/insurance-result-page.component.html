@@ -15,14 +15,14 @@
   <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
     <h4>エラー</h4>
     <ul>
-      <li *ngFor="let err of errorMessages[emp.id]">{{ err }}</li>
+      <li *ngFor="let err of errorMessages[emp.id] ?? []">{{ err }}</li>
     </ul>
   </div>
 
   <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
     <h4>警告</h4>
     <ul>
-      <li *ngFor="let w of warningMessages[emp.id]">{{ w }}</li>
+      <li *ngFor="let w of warningMessages[emp.id] ?? []">{{ w }}</li>
     </ul>
   </div>
 
@@ -35,28 +35,51 @@
   <!-- 賞与保険料 -->
   <div class="bonus-section" *ngIf="hasBonuses(emp.id)">
     <h4>賞与保険料（{{ year }}年度）</h4>
-    
+
     <div class="premium-group">
       <h5>健康保険</h5>
       <div class="calculation-item">
         <span class="label">本人：</span>
-        <span class="value">{{ bonusTotals[emp.id].healthEmployee | number:'1.0-0' }}円</span>
+        <span class="value"
+          >{{
+            bonusTotals[emp.id]?.healthEmployee ?? 0 | number : "1.0-0"
+          }}円</span
+        >
       </div>
       <div class="calculation-item">
         <span class="label">会社：</span>
-        <span class="value">{{ bonusTotals[emp.id].healthEmployer | number:'1.0-0' }}円</span>
+        <span class="value"
+          >{{
+            bonusTotals[emp.id]?.healthEmployer ?? 0 | number : "1.0-0"
+          }}円</span
+        >
       </div>
     </div>
 
-    <div class="premium-group" *ngIf="bonusTotals[emp.id] && (bonusTotals[emp.id].careEmployee > 0 || bonusTotals[emp.id].careEmployer > 0)">
+    <div
+      class="premium-group"
+      *ngIf="
+        bonusTotals[emp.id] &&
+        ((bonusTotals[emp.id]?.careEmployee ?? 0) > 0 ||
+          (bonusTotals[emp.id]?.careEmployer ?? 0) > 0)
+      "
+    >
       <h5>介護保険</h5>
       <div class="calculation-item">
         <span class="label">本人：</span>
-        <span class="value">{{ bonusTotals[emp.id].careEmployee | number:'1.0-0' }}円</span>
+        <span class="value"
+          >{{
+            bonusTotals[emp.id]?.careEmployee ?? 0 | number : "1.0-0"
+          }}円</span
+        >
       </div>
       <div class="calculation-item">
         <span class="label">会社：</span>
-        <span class="value">{{ bonusTotals[emp.id].careEmployer | number:'1.0-0' }}円</span>
+        <span class="value"
+          >{{
+            bonusTotals[emp.id]?.careEmployer ?? 0 | number : "1.0-0"
+          }}円</span
+        >
       </div>
     </div>
 
@@ -64,53 +87,105 @@
       <h5>厚生年金</h5>
       <div class="calculation-item">
         <span class="label">本人：</span>
-        <span class="value">{{ bonusTotals[emp.id].pensionEmployee | number:'1.0-0' }}円</span>
+        <span class="value"
+          >{{
+            bonusTotals[emp.id]?.pensionEmployee ?? 0 | number : "1.0-0"
+          }}円</span
+        >
       </div>
       <div class="calculation-item">
         <span class="label">会社：</span>
-        <span class="value">{{ bonusTotals[emp.id].pensionEmployer | number:'1.0-0' }}円</span>
+        <span class="value"
+          >{{
+            bonusTotals[emp.id]?.pensionEmployer ?? 0 | number : "1.0-0"
+          }}円</span
+        >
       </div>
     </div>
 
     <!-- 特記事項 -->
-    <div class="special-notes" *ngIf="bonusTotals[emp.id] && ((bonusTotals[emp.id].exemptReasons && bonusTotals[emp.id].exemptReasons.length > 0) || (bonusTotals[emp.id].salaryInsteadReasons && bonusTotals[emp.id].salaryInsteadReasons.length > 0))">
+    <div
+      class="special-notes"
+      *ngIf="
+        bonusTotals[emp.id] &&
+        ((bonusTotals[emp.id]?.exemptReasons?.length ?? 0) > 0 ||
+          (bonusTotals[emp.id]?.salaryInsteadReasons?.length ?? 0) > 0)
+      "
+    >
       <h5>特記事項</h5>
-      <div class="warning-card" *ngFor="let reason of bonusTotals[emp.id].exemptReasons">
+      <div
+        class="warning-card"
+        *ngFor="let reason of bonusTotals[emp.id]?.exemptReasons ?? []"
+      >
         <span class="warning-text">{{ reason }}</span>
       </div>
-      <div class="warning-card" *ngFor="let reason of bonusTotals[emp.id].salaryInsteadReasons">
+      <div
+        class="warning-card"
+        *ngFor="let reason of bonusTotals[emp.id]?.salaryInsteadReasons ?? []"
+      >
         <span class="warning-text">{{ reason }}</span>
       </div>
     </div>
   </div>
 
   <!-- 年間合計 -->
-  <div class="total-section">
+  <div class="total-section" *ngIf="bonusTotals[emp.id]">
     <h4>年間合計</h4>
     <div class="calculation-item">
       <span class="label">健康保険（本人）：</span>
-      <span class="value highlight">{{ bonusTotals[emp.id].healthEmployee | number:'1.0-0' }}円</span>
+      <span class="value highlight"
+        >{{
+          bonusTotals[emp.id]?.healthEmployee ?? 0 | number : "1.0-0"
+        }}円</span
+      >
     </div>
     <div class="calculation-item">
       <span class="label">健康保険（会社）：</span>
-      <span class="value highlight">{{ bonusTotals[emp.id].healthEmployer | number:'1.0-0' }}円</span>
+      <span class="value highlight"
+        >{{
+          bonusTotals[emp.id]?.healthEmployer ?? 0 | number : "1.0-0"
+        }}円</span
+      >
     </div>
-    <div class="calculation-item" *ngIf="bonusTotals[emp.id] && (bonusTotals[emp.id].careEmployee > 0 || bonusTotals[emp.id].careEmployer > 0)">
+    <div
+      class="calculation-item"
+      *ngIf="
+        (bonusTotals[emp.id]?.careEmployee ?? 0) > 0 ||
+        (bonusTotals[emp.id]?.careEmployer ?? 0) > 0
+      "
+    >
       <span class="label">介護保険（本人）：</span>
-      <span class="value highlight">{{ bonusTotals[emp.id].careEmployee | number:'1.0-0' }}円</span>
+      <span class="value highlight"
+        >{{ bonusTotals[emp.id]?.careEmployee ?? 0 | number : "1.0-0" }}円</span
+      >
     </div>
-    <div class="calculation-item" *ngIf="bonusTotals[emp.id] && (bonusTotals[emp.id].careEmployee > 0 || bonusTotals[emp.id].careEmployer > 0)">
+    <div
+      class="calculation-item"
+      *ngIf="
+        (bonusTotals[emp.id]?.careEmployee ?? 0) > 0 ||
+        (bonusTotals[emp.id]?.careEmployer ?? 0) > 0
+      "
+    >
       <span class="label">介護保険（会社）：</span>
-      <span class="value highlight">{{ bonusTotals[emp.id].careEmployer | number:'1.0-0' }}円</span>
+      <span class="value highlight"
+        >{{ bonusTotals[emp.id]?.careEmployer ?? 0 | number : "1.0-0" }}円</span
+      >
     </div>
     <div class="calculation-item">
       <span class="label">厚生年金（本人）：</span>
-      <span class="value highlight">{{ bonusTotals[emp.id].pensionEmployee | number:'1.0-0' }}円</span>
+      <span class="value highlight"
+        >{{
+          bonusTotals[emp.id]?.pensionEmployee ?? 0 | number : "1.0-0"
+        }}円</span
+      >
     </div>
     <div class="calculation-item">
       <span class="label">厚生年金（会社）：</span>
-      <span class="value highlight">{{ bonusTotals[emp.id].pensionEmployer | number:'1.0-0' }}円</span>
+      <span class="value highlight"
+        >{{
+          bonusTotals[emp.id]?.pensionEmployer ?? 0 | number : "1.0-0"
+        }}円</span
+      >
     </div>
   </div>
 </div>
-

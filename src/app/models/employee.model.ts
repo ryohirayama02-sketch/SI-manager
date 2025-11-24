@@ -13,4 +13,10 @@ export interface Employee {
   childcareLeaveEnd?: string; // 育休終了日（YYYY-MM-DD）
   childcareNotificationSubmitted?: boolean; // 育児休業取得届の提出済フラグ
   childcareLivingTogether?: boolean; // 子と同居しているか（養育しているか）
+  // 加入判定用の追加属性（オプショナル）
+  weeklyHours?: number; // 週労働時間
+  monthlyWage?: number; // 月額賃金（円）
+  expectedEmploymentMonths?: number; // 雇用見込期間（月）
+  isStudent?: boolean; // 学生かどうか
+  consecutiveMonthsOver20Hours?: number; // 連続で20時間以上働いた月数
 }

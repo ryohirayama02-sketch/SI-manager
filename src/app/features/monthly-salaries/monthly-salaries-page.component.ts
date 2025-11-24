@@ -1,6 +1,5 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SettingsService } from '../../services/settings.service';
@@ -10,7 +9,7 @@ import { Employee } from '../../models/employee.model';
 @Component({
   selector: 'app-monthly-salaries-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule],
   templateUrl: './monthly-salaries-page.component.html',
   styleUrl: './monthly-salaries-page.component.css'
 })
@@ -77,6 +76,12 @@ export class MonthlySalariesPageComponent implements OnInit {
     this.rates = await this.settingsService.getRates(this.year, this.prefecture);
   }
 
+  onPrefectureChange(event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    this.prefecture = select.value;
+    this.reloadRates();
+  }
+
   getSalaryKey(employeeId: string, month: number): string {
     return this.salaryCalculationService.getSalaryKey(employeeId, month);
   }
@@ -104,6 +109,33 @@ export class MonthlySalariesPageComponent implements OnInit {
     }
     
     this.updateRehabSuiji(employeeId);
+  }
+
+  onSalaryTotalChange(employeeId: string, month: number, value: string | number): void {
+    const key = this.getSalaryKey(employeeId, month);
+    if (!this.salaries[key]) {
+      this.salaries[key] = { total: 0, fixed: 0, variable: 0 };
+    }
+    this.salaries[key].total = value ? Number(value) : 0;
+    this.onSalaryChange(employeeId, month);
+  }
+
+  onSalaryFixedChange(employeeId: string, month: number, value: string | number): void {
+    const key = this.getSalaryKey(employeeId, month);
+    if (!this.salaries[key]) {
+      this.salaries[key] = { total: 0, fixed: 0, variable: 0 };
+    }
+    this.salaries[key].fixed = value ? Number(value) : 0;
+    this.onFixedChange(employeeId, month);
+  }
+
+  onSalaryVariableChange(employeeId: string, month: number, value: string | number): void {
+    const key = this.getSalaryKey(employeeId, month);
+    if (!this.salaries[key]) {
+      this.salaries[key] = { total: 0, fixed: 0, variable: 0 };
+    }
+    this.salaries[key].variable = value ? Number(value) : 0;
+    this.onSalaryChange(employeeId, month);
   }
 
   onFixedChange(employeeId: string, month: number): void {
