@@ -89,6 +89,34 @@ export class EmployeeLifecycleService {
     // 退職日が指定年月の範囲内か判定
     return retireYear === year && retireMonth === month;
   }
+
+  /**
+   * 指定月で月末在籍があるかどうかを判定する（健康保険用）
+   * @param emp 従業員
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 月末在籍がある場合true（退職日が月末の場合、または退職月でない場合）
+   */
+  isLastDayEligible(emp: Employee, year: number, month: number): boolean {
+    if (!emp.retireDate) {
+      return true; // 退職日がなければ月末在籍あり
+    }
+
+    const retireDate = new Date(emp.retireDate);
+    const retireYear = retireDate.getFullYear();
+    const retireMonth = retireDate.getMonth() + 1;
+    const retireDay = retireDate.getDate();
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+
+    // 退職月で、退職日が月末より前の場合、月末在籍なし（false）
+    // 退職日が月末の場合、月末在籍あり（true）
+    if (retireYear === year && retireMonth === month) {
+      return retireDay >= lastDayOfMonth; // 月末在籍ありの場合はtrue
+    }
+
+    return true; // 退職月でない場合は月末在籍あり
+  }
 }
+
 
 

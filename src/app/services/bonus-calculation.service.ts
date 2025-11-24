@@ -2,7 +2,10 @@ import { Injectable } from '@angular/core';
 import { BonusService } from './bonus.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-import { EmployeeEligibilityService, AgeFlags } from './employee-eligibility.service';
+import {
+  EmployeeEligibilityService,
+  AgeFlags,
+} from './employee-eligibility.service';
 import { SalaryCalculationService } from './salary-calculation.service';
 import { MaternityLeaveService } from './maternity-leave.service';
 
@@ -41,9 +44,9 @@ export interface BonusCalculationResult {
   errorMessages?: string[];
   warningMessages?: string[];
   // 追加: 要件に合わせた戻り値構造
-  exemptReasons?: string[];        // 免除理由の配列
+  exemptReasons?: string[]; // 免除理由の配列
   salaryInsteadReasons?: string[]; // 給与扱い理由の配列
-  reportRequired?: boolean;        // 賞与支払届の提出要否
+  reportRequired?: boolean; // 賞与支払届の提出要否
 }
 
 @Injectable({ providedIn: 'root' })
@@ -60,7 +63,10 @@ export class BonusCalculationService {
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
@@ -82,20 +88,26 @@ export class BonusCalculationService {
   }> {
     const HEALTH_CARE_ANNUAL_LIMIT = 5730000;
     const PENSION_SINGLE_LIMIT = 1500000;
-    
+
     // 厚生年金：1回150万円上限
     const cappedBonusPension = Math.min(standardBonus, PENSION_SINGLE_LIMIT);
     const reason_upper_limit_pension = standardBonus > PENSION_SINGLE_LIMIT;
-    
+
     // 健保・介保：年度累計573万円上限（今年支給済の賞与合計を読み取る）
-    const existingBonuses = await this.bonusService.getBonusesForResult(employeeId, payYear);
+    const existingBonuses = await this.bonusService.getBonusesForResult(
+      employeeId,
+      payYear
+    );
     const existingTotal = existingBonuses.reduce((sum, bonus) => {
       const bonusAmount = bonus.amount || 0;
       const existingStandard = Math.floor(bonusAmount / 1000) * 1000;
       return sum + existingStandard;
     }, 0);
-    
-    const remainingLimit = Math.max(0, HEALTH_CARE_ANNUAL_LIMIT - existingTotal);
+
+    const remainingLimit = Math.max(
+      0,
+      HEALTH_CARE_ANNUAL_LIMIT - existingTotal
+    );
     const cappedBonusHealth = Math.min(standardBonus, remainingLimit);
     const reason_upper_limit_health = standardBonus > remainingLimit;
 
@@ -103,11 +115,16 @@ export class BonusCalculationService {
       cappedBonusHealth,
       cappedBonusPension,
       reason_upper_limit_health,
-      reason_upper_limit_pension
+      reason_upper_limit_pension,
     };
   }
 
-  checkRetirement(employee: Employee, payDate: Date, payYear: number, payMonth: number): boolean {
+  checkRetirement(
+    employee: Employee,
+    payDate: Date,
+    payYear: number,
+    payMonth: number
+  ): boolean {
     if (!employee.retireDate) {
       return false;
     }
@@ -116,65 +133,82 @@ export class BonusCalculationService {
     const retireMonth = retireDate.getMonth() + 1;
     const retireDay = retireDate.getDate();
     const lastDayOfMonth = new Date(payYear, payMonth, 0).getDate();
-    
+
     if (retireYear === payYear && retireMonth === payMonth) {
       return retireDay < lastDayOfMonth;
     }
     return false;
   }
 
-  checkMaternityExemption(employee: Employee, payDate: Date): {
+  checkMaternityExemption(
+    employee: Employee,
+    payDate: Date
+  ): {
     isExempted: boolean;
     exemptReason?: string;
   } {
-    const result = this.maternityLeaveService.isMaternityLeave(payDate, employee);
-    return {
-      isExempted: result.exempt,
-      exemptReason: result.exempt ? result.reason : undefined
-    };
+    // maternityLeaveService.isExemptForBonus を使用して統一
+    const result = this.maternityLeaveService.isExemptForBonus(
+      payDate,
+      employee
+    );
+    // 産休のみを判定（育休は除外）
+    if (result.exempt && result.reason.includes('産前産後休業')) {
+      return {
+        isExempted: result.exempt,
+        exemptReason: result.exempt ? result.reason : undefined,
+      };
+    }
+    return { isExempted: false };
   }
 
-  checkChildcareExemption(employee: Employee, payDate: Date): {
+  checkChildcareExemption(
+    employee: Employee,
+    payDate: Date
+  ): {
     isExempted: boolean;
     exemptReason?: string;
   } {
+    // maternityLeaveService.isExemptForBonus を使用して統一
+    const result = this.maternityLeaveService.isExemptForBonus(
+      payDate,
+      employee
+    );
+
     // 育休の場合は届出と同居の条件を確認
-    if (!employee.childcareLeaveStart || !employee.childcareLeaveEnd) {
-      return { isExempted: false };
-    }
-    
-    const childStart = new Date(employee.childcareLeaveStart);
-    const childEnd = new Date(employee.childcareLeaveEnd);
-    const isInChildcarePeriod = payDate >= childStart && payDate <= childEnd;
-    const isNotificationSubmitted = employee.childcareNotificationSubmitted === true;
-    const isLivingTogether = employee.childcareLivingTogether === true;
-    
-    if (isInChildcarePeriod) {
+    if (result.exempt && result.reason.includes('育児休業')) {
+      const isNotificationSubmitted =
+        employee.childcareNotificationSubmitted === true;
+      const isLivingTogether = employee.childcareLivingTogether === true;
+
       if (isNotificationSubmitted && isLivingTogether) {
-        const result = this.maternityLeaveService.isChildcareLeave(payDate, employee);
         return {
           isExempted: result.exempt,
-          exemptReason: result.exempt ? result.reason : undefined
+          exemptReason: result.exempt ? result.reason : undefined,
         };
       } else {
         const reasons: string[] = [];
         if (!isNotificationSubmitted) {
-          reasons.push("届出未提出");
+          reasons.push('届出未提出');
         }
         if (!isLivingTogether) {
-          reasons.push("子と同居していない");
+          reasons.push('子と同居していない');
         }
         return {
           isExempted: false,
-          exemptReason: `育休中だが${reasons.join("・")}のため免除されません`
+          exemptReason: `育休中だが${reasons.join('・')}のため免除されません`,
         };
       }
     }
-    
+
     return { isExempted: false };
   }
 
-  checkOverAge70(employee: Employee, payYear: number, payMonth: number): boolean {
+  checkOverAge70(
+    employee: Employee,
+    payYear: number,
+    payMonth: number
+  ): boolean {
     const birthDate = new Date(employee.birthDate);
     const birthYear = birthDate.getFullYear();
     const birthMonth = birthDate.getMonth() + 1;
@@ -182,7 +216,11 @@ export class BonusCalculationService {
     return payYear === age70Year && payMonth >= birthMonth;
   }
 
-  checkOverAge75(employee: Employee, payYear: number, payMonth: number): boolean {
+  checkOverAge75(
+    employee: Employee,
+    payYear: number,
+    payMonth: number
+  ): boolean {
     const birthDate = new Date(employee.birthDate);
     const birthYear = birthDate.getFullYear();
     const birthMonth = birthDate.getMonth() + 1;
@@ -201,34 +239,41 @@ export class BonusCalculationService {
     salaryInsteadReasons: string[];
   }> {
     // 過去12ヶ月（支給日ベース）の賞与を取得（今回の支給日を含む）
-    const bonusesLast12Months = await this.bonusService.getBonusesLast12Months(employeeId, payDate);
+    const bonusesLast12Months = await this.bonusService.getBonusesLast12Months(
+      employeeId,
+      payDate
+    );
     // 今回の支給日を含めた過去12ヶ月の賞与回数
     const bonusCountLast12Months = bonusesLast12Months.length;
     // 今回を含む総回数（過去12ヶ月の回数と同じ）
     const bonusCount = bonusCountLast12Months;
-    
+
     const salaryInsteadReasons: string[] = [];
     let isSalaryInsteadOfBonus = false;
     let reason_bonus_to_salary_text: string | undefined = undefined;
-    
+
     // 過去12ヶ月の賞与支給回数から判定
     // 3回以内 → 賞与扱い
     // 4回以上 → 給与扱い（賞与保険料なし）
     if (bonusCountLast12Months >= 4) {
       isSalaryInsteadOfBonus = true;
       reason_bonus_to_salary_text = `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため、今回の支給は賞与ではなく給与として扱われます。`;
-      salaryInsteadReasons.push(`過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため給与扱い`);
+      salaryInsteadReasons.push(
+        `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため給与扱い`
+      );
     } else {
       // 3回以内は賞与扱い
-      salaryInsteadReasons.push(`過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（3回以内）のため賞与扱い`);
+      salaryInsteadReasons.push(
+        `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（3回以内）のため賞与扱い`
+      );
     }
-    
+
     return {
       isSalaryInsteadOfBonus,
       reason_bonus_to_salary_text,
       bonusCountLast12Months,
       bonusCount,
-      salaryInsteadReasons
+      salaryInsteadReasons,
     };
   }
 
@@ -251,17 +296,25 @@ export class BonusCalculationService {
     const actualHealthBase = ageFlags.isNoHealth ? 0 : healthBase;
     // ageFlags.isNoPension（70歳以上） → 厚生年金は0円
     const actualPensionBase = ageFlags.isNoPension ? 0 : pensionBase;
-    
+
     // 介護保険は40〜64歳のみ（ageFlags.isCare2）
     const isCareEligible = ageFlags.isCare2;
-    
+
     // 保険料計算
     const healthEmployee = Math.floor(actualHealthBase * rates.health_employee);
     const healthEmployer = Math.floor(actualHealthBase * rates.health_employer);
-    const careEmployee = isCareEligible ? Math.floor(actualHealthBase * rates.care_employee) : 0;
-    const careEmployer = isCareEligible ? Math.floor(actualHealthBase * rates.care_employer) : 0;
-    const pensionEmployee = Math.floor(actualPensionBase * rates.pension_employee);
-    const pensionEmployer = Math.floor(actualPensionBase * rates.pension_employer);
+    const careEmployee = isCareEligible
+      ? Math.floor(actualHealthBase * rates.care_employee)
+      : 0;
+    const careEmployer = isCareEligible
+      ? Math.floor(actualHealthBase * rates.care_employer)
+      : 0;
+    const pensionEmployee = Math.floor(
+      actualPensionBase * rates.pension_employee
+    );
+    const pensionEmployer = Math.floor(
+      actualPensionBase * rates.pension_employer
+    );
 
     return {
       healthEmployee,
@@ -269,7 +322,7 @@ export class BonusCalculationService {
       careEmployee,
       careEmployer,
       pensionEmployee,
-      pensionEmployer
+      pensionEmployer,
     };
   }
 
@@ -287,38 +340,46 @@ export class BonusCalculationService {
     cappedBonusPension: number
   ): string[] {
     const reasons: string[] = [];
-    
+
     if (reason_exempt_maternity) {
       reasons.push('産前産後休業中のため、賞与保険料は免除されます');
     }
-    
+
     if (reason_exempt_childcare) {
       reasons.push('育児休業中のため、賞与保険料は免除されます');
     }
-    
+
     if (reason_not_lastday_retired) {
-      reasons.push('退職日の関係で月末在籍がないため、賞与は社会保険料の対象外です');
+      reasons.push(
+        '退職日の関係で月末在籍がないため、賞与は社会保険料の対象外です'
+      );
       reasons.push('退職月の月末在籍が無いため賞与支払届は不要');
     }
-    
+
     if (reason_age70) {
       reasons.push('70歳到達月のため厚生年金の賞与保険料は停止されます');
     }
-    
+
     if (reason_age75) {
       reasons.push('75歳到達月のため健保・介保の賞与保険料は停止されます');
     }
-    
+
     if (reason_bonus_to_salary) {
-      reasons.push('過去1年間の賞与支給回数が3回を超えているため、今回の支給は賞与ではなく給与として扱われます。');
+      reasons.push(
+        '過去1年間の賞与支給回数が3回を超えているため、今回の支給は賞与ではなく給与として扱われます。'
+      );
     }
-    
+
     if (reason_upper_limit_health) {
-      reasons.push(`健保・介保の年度上限（573万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusHealth.toLocaleString()}円）`);
+      reasons.push(
+        `健保・介保の年度上限（573万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusHealth.toLocaleString()}円）`
+      );
     }
-    
+
     if (reason_upper_limit_pension) {
-      reasons.push(`厚生年金の1回あたり上限（150万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusPension.toLocaleString()}円）`);
+      reasons.push(
+        `厚生年金の1回あたり上限（150万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusPension.toLocaleString()}円）`
+      );
     }
 
     return reasons;
@@ -347,7 +408,8 @@ export class BonusCalculationService {
     } else if (isExempted) {
       requireReport = false;
       if (reason_exempt_maternity) {
-        reportReason = '産前産後休業中の賞与は免除対象のため賞与支払届は不要です';
+        reportReason =
+          '産前産後休業中の賞与は免除対象のため賞与支払届は不要です';
       } else if (reason_exempt_childcare) {
         reportReason = '育児休業中の賞与は免除対象のため賞与支払届は不要です';
       } else {
@@ -355,14 +417,17 @@ export class BonusCalculationService {
       }
     } else if (isOverAge75) {
       requireReport = false;
-      reportReason = '75歳到達月で健康保険・介護保険の資格喪失のため賞与支払届は不要です';
+      reportReason =
+        '75歳到達月で健康保険・介護保険の資格喪失のため賞与支払届は不要です';
     } else if (reason_bonus_to_salary) {
       requireReport = false;
-      reportReason = '年度内4回目以降の賞与は給与扱いとなるため賞与支払届は不要です';
+      reportReason =
+        '年度内4回目以降の賞与は給与扱いとなるため賞与支払届は不要です';
     } else {
       requireReport = true;
-      reportReason = '支給された賞与は社会保険の対象となるため、賞与支払届が必要です';
-      
+      reportReason =
+        '支給された賞与は社会保険の対象となるため、賞与支払届が必要です';
+
       const deadlineDate = new Date(payDate);
       deadlineDate.setDate(deadlineDate.getDate() + 5);
       reportDeadline = deadlineDate.toISOString().split('T')[0];
@@ -385,12 +450,12 @@ export class BonusCalculationService {
     if (standardBonus < 1000) {
       return false;
     }
-    
+
     // 支給月の月末在籍がfalse → false
     if (isRetiredNoLastDay) {
       return false;
     }
-    
+
     // 上記以外 → true（育休・産休免除でも提出必要）
     return true;
   }
@@ -419,58 +484,73 @@ export class BonusCalculationService {
     if (employee.joinDate) {
       const joinDate = new Date(employee.joinDate);
       if (payDate < joinDate) {
-        errorMessages.push("支給日が在籍期間外です（入社前）");
+        errorMessages.push('支給日が在籍期間外です（入社前）');
       }
     }
     if (employee.retireDate) {
       const retireDate = new Date(employee.retireDate);
       if (payDate > retireDate) {
-        errorMessages.push("支給日が在籍期間外です（退職後）");
+        errorMessages.push('支給日が在籍期間外です（退職後）');
       }
     }
 
     // 2. 育休 or 産休免除の条件不整合
-    if (employee.maternityLeaveStart && employee.maternityLeaveEnd && 
-        employee.childcareLeaveStart && employee.childcareLeaveEnd) {
+    if (
+      employee.maternityLeaveStart &&
+      employee.maternityLeaveEnd &&
+      employee.childcareLeaveStart &&
+      employee.childcareLeaveEnd
+    ) {
       const matStart = new Date(employee.maternityLeaveStart);
       const matEnd = new Date(employee.maternityLeaveEnd);
       const childStart = new Date(employee.childcareLeaveStart);
       const childEnd = new Date(employee.childcareLeaveEnd);
-      
-      if ((matStart <= childEnd && matEnd >= childStart)) {
-        const daysBetween = (childStart.getTime() - matEnd.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (matStart <= childEnd && matEnd >= childStart) {
+        const daysBetween =
+          (childStart.getTime() - matEnd.getTime()) / (1000 * 60 * 60 * 24);
         if (daysBetween > 30) {
-          errorMessages.push("産休・育休の設定が矛盾しています");
+          errorMessages.push('産休・育休の設定が矛盾しています');
         }
       }
     }
-    
+
     // 育休期間中なのに届出未提出だが免除されている場合のチェック
     if (employee.childcareLeaveStart && employee.childcareLeaveEnd) {
       const childStart = new Date(employee.childcareLeaveStart);
       const childEnd = new Date(employee.childcareLeaveEnd);
       if (payDate >= childStart && payDate <= childEnd) {
-        const isNotificationSubmitted = employee.childcareNotificationSubmitted === true;
+        const isNotificationSubmitted =
+          employee.childcareNotificationSubmitted === true;
         const isLivingTogether = employee.childcareLivingTogether === true;
-        if (isExempted && reason_exempt_childcare && (!isNotificationSubmitted || !isLivingTogether)) {
-          errorMessages.push("育休期間中で届出未提出または子と同居していないのに、免除されています。設定を確認してください");
+        if (
+          isExempted &&
+          reason_exempt_childcare &&
+          (!isNotificationSubmitted || !isLivingTogether)
+        ) {
+          errorMessages.push(
+            '育休期間中で届出未提出または子と同居していないのに、免除されています。設定を確認してください'
+          );
         }
       }
     }
 
     // 4. 70歳以上なのに厚生年金の保険料が計算されている
     if (age >= 70 && pensionEmployee > 0 && !isOverAge70) {
-      errorMessages.push("70歳以上は厚生年金保険料は発生しません");
+      errorMessages.push('70歳以上は厚生年金保険料は発生しません');
     }
 
     // 5. 75歳以上なのに健康保険・介護保険が計算されている
     if (age >= 75 && (healthEmployee > 0 || careEmployee > 0) && !isOverAge75) {
-      errorMessages.push("75歳以上は健康保険・介護保険は発生しません");
+      errorMessages.push('75歳以上は健康保険・介護保険は発生しません');
     }
 
     // 6. 賞与 → 給与扱いの誤判定
-    if (bonusCountLast12Months !== undefined && Math.abs(bonusCount - (bonusCountLast12Months + 1)) > 2) {
-      errorMessages.push("賞与の支給回数ロジックに矛盾があります");
+    if (
+      bonusCountLast12Months !== undefined &&
+      Math.abs(bonusCount - (bonusCountLast12Months + 1)) > 2
+    ) {
+      errorMessages.push('賞与の支給回数ロジックに矛盾があります');
     }
 
     return { errorMessages, warningMessages };
@@ -483,7 +563,13 @@ export class BonusCalculationService {
     paymentDate: string,
     rates: any
   ): Promise<BonusCalculationResult | null> {
-    if (!employeeId || bonusAmount === null || bonusAmount < 0 || !paymentDate || !rates) {
+    if (
+      !employeeId ||
+      bonusAmount === null ||
+      bonusAmount < 0 ||
+      !paymentDate ||
+      !rates
+    ) {
       return null;
     }
 
@@ -498,10 +584,20 @@ export class BonusCalculationService {
 
     // 2. 上限適用（年度累計を考慮）
     const caps = await this.applyBonusCaps(standardBonus, employeeId, payYear);
-    const { cappedBonusHealth, cappedBonusPension, reason_upper_limit_health, reason_upper_limit_pension } = caps;
+    const {
+      cappedBonusHealth,
+      cappedBonusPension,
+      reason_upper_limit_health,
+      reason_upper_limit_pension,
+    } = caps;
 
     // 3. 退職月チェック
-    const isRetiredNoLastDay = this.checkRetirement(employee, payDate, payYear, payMonth);
+    const isRetiredNoLastDay = this.checkRetirement(
+      employee,
+      payDate,
+      payYear,
+      payMonth
+    );
     const reason_not_lastday_retired = isRetiredNoLastDay;
 
     // 4. 産休・育休チェック
@@ -510,8 +606,9 @@ export class BonusCalculationService {
     const reason_exempt_maternity = maternityResult.isExempted;
     const reason_exempt_childcare = childcareResult.isExempted;
     const isExempted = reason_exempt_maternity || reason_exempt_childcare;
-    const exemptReason = maternityResult.exemptReason || childcareResult.exemptReason;
-    
+    const exemptReason =
+      maternityResult.exemptReason || childcareResult.exemptReason;
+
     // 免除理由の配列を作成
     const exemptReasons: string[] = [];
     // 退職月の賞与の扱い：月末在籍がない場合 → すべての保険料を0円にし、exemptReasonsに追加
@@ -527,7 +624,11 @@ export class BonusCalculationService {
 
     // 5. 年齢チェック（employee-eligibility.service を使用）
     const age = this.calculateAge(employee.birthDate);
-    const eligibilityResult = this.employeeEligibilityService.checkEligibility(employee, undefined, payDate);
+    const eligibilityResult = this.employeeEligibilityService.checkEligibility(
+      employee,
+      undefined,
+      payDate
+    );
     const ageFlags = eligibilityResult.ageFlags;
     const isOverAge70 = ageFlags.isNoPension;
     const isOverAge75 = ageFlags.isNoHealth;
@@ -535,10 +636,19 @@ export class BonusCalculationService {
     const reason_age75 = isOverAge75;
 
     // 6. 賞与→給与扱いチェック（先に判定）
-    const salaryResult = await this.checkSalaryInsteadOfBonus(employeeId, payDate);
-    const { isSalaryInsteadOfBonus, reason_bonus_to_salary_text, bonusCountLast12Months, bonusCount, salaryInsteadReasons } = salaryResult;
+    const salaryResult = await this.checkSalaryInsteadOfBonus(
+      employeeId,
+      payDate
+    );
+    const {
+      isSalaryInsteadOfBonus,
+      reason_bonus_to_salary_text,
+      bonusCountLast12Months,
+      bonusCount,
+      salaryInsteadReasons,
+    } = salaryResult;
     const reason_bonus_to_salary = isSalaryInsteadOfBonus;
-    
+
     // 給与扱い時は全保険料0円 + salaryInsteadReasons に理由を push（既に checkSalaryInsteadOfBonus で設定済み）
     // 給与扱いの場合、標準賞与額を給与に合算する
     if (isSalaryInsteadOfBonus) {
@@ -583,8 +693,21 @@ export class BonusCalculationService {
     }
 
     // 8. 保険料計算（上限適用済みの標準賞与額ベースで計算し、年齢到達処理を適用）
-    const premiums = this.calculatePremiums(healthBase, pensionBase, age, ageFlags, rates);
-    const { healthEmployee, healthEmployer, careEmployee, careEmployer, pensionEmployee, pensionEmployer } = premiums;
+    const premiums = this.calculatePremiums(
+      healthBase,
+      pensionBase,
+      age,
+      ageFlags,
+      rates
+    );
+    const {
+      healthEmployee,
+      healthEmployer,
+      careEmployee,
+      careEmployer,
+      pensionEmployee,
+      pensionEmployer,
+    } = premiums;
 
     // 9. 理由の配列を生成
     const reasons = this.buildReasons(
@@ -621,7 +744,11 @@ export class BonusCalculationService {
     const needsNotification = bonusAmount > 0;
 
     // 12. 提出期限（支給日の翌月10日）
-    const deadline = new Date(payDate.getFullYear(), payDate.getMonth() + 1, 10);
+    const deadline = new Date(
+      payDate.getFullYear(),
+      payDate.getMonth() + 1,
+      10
+    );
     const deadlineStr = deadline.toISOString().split('T')[0];
 
     // 13. エラーチェック
@@ -642,7 +769,10 @@ export class BonusCalculationService {
     const { errorMessages, warningMessages } = errorCheck;
 
     // 14. 賞与支払届の要否判定（簡易版）
-    const reportRequired = this.checkReportRequired(standardBonus, isRetiredNoLastDay);
+    const reportRequired = this.checkReportRequired(
+      standardBonus,
+      isRetiredNoLastDay
+    );
 
     return {
       healthEmployee,
@@ -679,9 +809,9 @@ export class BonusCalculationService {
       errorMessages: errorMessages.length > 0 ? errorMessages : undefined,
       warningMessages: warningMessages.length > 0 ? warningMessages : undefined,
       exemptReasons: exemptReasons.length > 0 ? exemptReasons : undefined,
-      salaryInsteadReasons: salaryInsteadReasons.length > 0 ? salaryInsteadReasons : undefined,
-      reportRequired: reportRequired
+      salaryInsteadReasons:
+        salaryInsteadReasons.length > 0 ? salaryInsteadReasons : undefined,
+      reportRequired: reportRequired,
     };
   }
 }
-

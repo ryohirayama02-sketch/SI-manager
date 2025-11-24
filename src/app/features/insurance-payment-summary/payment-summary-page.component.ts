@@ -261,7 +261,8 @@ export class PaymentSummaryPageComponent implements OnInit {
         this.year,
         this.gradeTable,
         this.rates,
-        this.salaryDataByEmployeeId
+        this.salaryDataByEmployeeId,
+        this.prefecture
       );
 
     // 結果をコンポーネントのプロパティに反映

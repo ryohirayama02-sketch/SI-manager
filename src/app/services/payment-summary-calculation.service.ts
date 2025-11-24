@@ -5,6 +5,7 @@ import { InsuranceCalculationService } from './insurance-calculation.service';
 import { NotificationDecisionService } from './notification-decision.service';
 import { MonthHelperService } from './month-helper.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
+import { SettingsService } from './settings.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 
@@ -84,7 +85,8 @@ export class PaymentSummaryCalculationService {
     private insuranceCalculationService: InsuranceCalculationService,
     private notificationDecisionService: NotificationDecisionService,
     private monthHelper: MonthHelperService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private settingsService: SettingsService
   ) {}
 
   async calculateMonthlyTotals(
@@ -93,7 +95,8 @@ export class PaymentSummaryCalculationService {
     year: number,
     gradeTable: any[],
     rates: any,
-    salaryDataByEmployeeId?: { [employeeId: string]: any }
+    salaryDataByEmployeeId?: { [employeeId: string]: any },
+    prefecture?: string
   ): Promise<CalculationResult> {
     // 賞与保険料の年間合計を初期化
     const bonusAnnualTotals: BonusAnnualTotal = {
@@ -209,6 +212,19 @@ export class PaymentSummaryCalculationService {
           const variableSalary =
             monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0;
 
+          // 年度料率の改定月ロジック：月ごとに料率を取得
+          let monthRates = rates;
+          if (prefecture) {
+            const monthRatesResult = await this.settingsService.getRates(
+              year.toString(),
+              prefecture,
+              month.toString()
+            );
+            if (monthRatesResult) {
+              monthRates = monthRatesResult;
+            }
+          }
+
           // calculateMonthlyPremiums を呼び出し（戻り値: MonthlyPremiums & { reasons: string[] }）
           const premiumResult =
             this.salaryCalculationService.calculateMonthlyPremiums(
@@ -218,7 +234,7 @@ export class PaymentSummaryCalculationService {
               fixedSalary,
               variableSalary,
               gradeTable,
-              rates
+              monthRates
             );
 
           // MonthlyPremiumRow に変換（サービス側の戻り値型に完全一致）
