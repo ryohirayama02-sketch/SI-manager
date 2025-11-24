@@ -1,0 +1,88 @@
+<div class="card" *ngIf="companyMonthlyTotals.length > 0">
+  <h3>会社全体の月次保険料合計（本人分＋会社負担分）（{{ year }}年度）</h3>
+  <div class="table-wrapper">
+    <table class="payment-table">
+    <thead>
+      <tr>
+        <th>月</th>
+        <th>健康保険</th>
+        <th>介護保険</th>
+        <th>厚生年金</th>
+        <th>合計</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        *ngFor="let total of companyMonthlyTotals"
+        [class.bonus-month-row]="bonusByMonth[total.month]"
+      >
+        <td class="month-cell">
+          {{ total.month }}月
+          <span *ngIf="bonusByMonth[total.month]" class="bonus-mark">★</span>
+          <span
+            *ngIf="bonusByMonth[total.month]"
+            class="bonus-info"
+            [title]="getBonusTooltip(total.month)"
+            >ℹ️</span
+          >
+          <div *ngIf="monthlyTotals[total.month]?.isRetired" class="stop-info">
+            <small>資格喪失月：保険料なし</small>
+          </div>
+          <div
+            *ngIf="monthlyTotals[total.month]?.isPensionStopped"
+            class="stop-info"
+          >
+            <small>厚生年金：70歳到達のため免除</small>
+          </div>
+          <div
+            *ngIf="monthlyTotals[total.month]?.isHealthStopped"
+            class="stop-info"
+          >
+            <small>健保・介保：75歳到達のため免除</small>
+          </div>
+          <div
+            *ngIf="monthlyTotals[total.month]?.isMaternityLeave"
+            class="stop-info"
+          >
+            <small>産休：本人負担免除</small>
+          </div>
+          <div
+            *ngIf="monthlyTotals[total.month]?.isChildcareLeave"
+            class="stop-info"
+          >
+            <small>育休：本人負担免除</small>
+          </div>
+        </td>
+        <td class="amount-cell">
+          {{ total.healthTotal | number : "1.0-0" }}円
+        </td>
+        <td class="amount-cell">{{ total.careTotal | number : "1.0-0" }}円</td>
+        <td class="amount-cell">
+          {{ total.pensionTotal | number : "1.0-0" }}円
+        </td>
+        <td class="amount-cell total-cell">
+          {{ total.total | number : "1.0-0" }}円
+        </td>
+      </tr>
+    </tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td class="month-cell">年間合計</td>
+          <td class="amount-cell total-cell">
+            {{ annualTotalHealth | number : "1.0-0" }}円
+          </td>
+          <td class="amount-cell total-cell">
+            {{ annualTotalCare | number : "1.0-0" }}円
+          </td>
+          <td class="amount-cell total-cell">
+            {{ annualTotalPension | number : "1.0-0" }}円
+          </td>
+          <td class="amount-cell total-cell">
+            {{ annualTotal | number : "1.0-0" }}円
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+

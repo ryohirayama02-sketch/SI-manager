@@ -1,0 +1,25 @@
+<!-- エラー・警告メッセージ（従業員ごと） -->
+<div class="error-panel-container" *ngIf="hasAnyMessages()">
+  <div class="section-header" (click)="toggleExpanded()">
+    <h4>エラー・警告メッセージ</h4>
+    <span class="toggle-icon">{{ isExpanded ? '▼' : '▶' }}</span>
+  </div>
+  <div class="section-content" *ngIf="isExpanded">
+    <div *ngFor="let emp of employees">
+      <div *ngIf="errorMessages[emp.id]?.length" class="error-block">
+        <h5>エラー（{{ emp.name }}）</h5>
+        <ul class="error-list">
+          <li *ngFor="let err of errorMessages[emp.id] ?? []">{{ err }}</li>
+        </ul>
+      </div>
+
+      <div *ngIf="warningMessages[emp.id]?.length" class="warning-block">
+        <h5>警告（{{ emp.name }}）</h5>
+        <ul class="warning-list">
+          <li *ngFor="let w of warningMessages[emp.id] ?? []">{{ w }}</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+

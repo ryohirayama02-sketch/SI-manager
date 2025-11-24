@@ -1,356 +1,78 @@
-<h2>{{ year }}年 社会保険料 振込額一覧</h2>
+<!-- ローディングインジケータ -->
+<app-loading-indicator
+  [isLoading]="isLoading"
+  message="集計中..."
+></app-loading-indicator>
+
+<!-- スクロールトップボタン -->
+<app-scroll-to-top></app-scroll-to-top>
+
+<!-- ヘッダー -->
+<app-payment-summary-header [year]="year"></app-payment-summary-header>
+
+<!-- 年度選択 -->
+<app-payment-summary-year-selector
+  [year]="year"
+  (yearChange)="onYearChange($event)"
+></app-payment-summary-year-selector>
+
+<!-- 従業員セレクタ -->
+<app-payment-summary-employee-selector
+  [employees]="employees"
+  [selectedEmployeeIds]="selectedEmployeeIds"
+  (selectionChange)="onEmployeeSelectionChange($event)"
+></app-payment-summary-employee-selector>
 
 <!-- 年間警告パネル -->
-<div class="warning-panel" *ngIf="warnings.length > 0">
-  <h3>⚠️ 年間警告</h3>
-  <div *ngFor="let w of warnings" class="warning-item">⚠️ {{ w }}</div>
-</div>
-
-<!-- TODO: 過去年度の集計にも対応できるように year セレクタを追加する -->
+<app-annual-warning-panel [warnings]="warnings"></app-annual-warning-panel>
 
 <!-- 会社全体の年間保険料合計（本人分＋会社負担分） -->
-<div
-  class="card"
-  *ngIf="employees.length > 0 && companyMonthlyTotals.length > 0"
->
-  <h3>年間保険料合計（{{ year }}年度）</h3>
-  <table class="payment-table annual-summary-table">
-    <thead>
-      <tr>
-        <th>項目</th>
-        <th>金額</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td class="label-cell">健康保険</td>
-        <td class="amount-cell">
-          {{ getAnnualTotalHealth() | number : "1.0-0" }}円
-        </td>
-      </tr>
-      <tr>
-        <td class="label-cell">介護保険</td>
-        <td class="amount-cell">
-          {{ getAnnualTotalCare() | number : "1.0-0" }}円
-        </td>
-      </tr>
-      <tr>
-        <td class="label-cell">厚生年金</td>
-        <td class="amount-cell">
-          {{ getAnnualTotalPension() | number : "1.0-0" }}円
-        </td>
-      </tr>
-      <tr>
-        <td class="label-cell">賞与保険料（従業員）</td>
-        <td class="amount-cell">
-          {{ bonusAnnualTotals.totalEmployee | number : "1.0-0" }}円
-        </td>
-      </tr>
-      <tr>
-        <td class="label-cell">賞与保険料（事業主）</td>
-        <td class="amount-cell">
-          {{ bonusAnnualTotals.totalEmployer | number : "1.0-0" }}円
-        </td>
-      </tr>
-      <tr class="total-row">
-        <td class="label-cell total-cell">年間合計（給与＋賞与）</td>
-        <td class="amount-cell total-cell">
-          {{ getAnnualTotal() + bonusAnnualTotals.total | number : "1.0-0" }}円
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+<app-annual-bonus-summary
+  [year]="year"
+  [bonusAnnualTotals]="bonusAnnualTotals"
+  [annualTotalHealth]="annualTotals.health"
+  [annualTotalCare]="annualTotals.care"
+  [annualTotalPension]="annualTotals.pension"
+  [annualTotal]="annualTotals.total"
+></app-annual-bonus-summary>
 
 <div *ngIf="employees.length === 0" class="no-data-message">
   <p>データがありません</p>
 </div>
 
 <!-- エラー・警告メッセージ（従業員ごと） -->
-<div *ngFor="let emp of employees">
-  <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
-    <h4>エラー（{{ emp.name }}）</h4>
-    <ul>
-      <li *ngFor="let err of errorMessages[emp.id] ?? []">{{ err }}</li>
-    </ul>
-  </div>
-
-  <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
-    <h4>警告（{{ emp.name }}）</h4>
-    <ul>
-      <li *ngFor="let w of warningMessages[emp.id] ?? []">{{ w }}</li>
-    </ul>
-  </div>
-</div>
-
-<div class="card" *ngIf="employees.length > 0">
-  <h3>会社全体の月次合計（{{ year }}年度）</h3>
-  <table class="payment-table">
-    <thead>
-      <tr>
-        <th>月</th>
-        <th>健康保険</th>
-        <th>介護保険</th>
-        <th>厚生年金</th>
-        <th>合計</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr
-        *ngFor="let month of months"
-        [class.bonus-month-row]="bonusByMonth[month]"
-      >
-        <td class="month-cell">
-          {{ month }}月
-          <span *ngIf="bonusByMonth[month]" class="bonus-mark">★</span>
-          <span
-            *ngIf="bonusByMonth[month]"
-            class="bonus-info"
-            [title]="getBonusTooltip(month)"
-            >ℹ️</span
-          >
-          <div *ngIf="monthlyTotals[month]?.isRetired" class="stop-info">
-            <small>資格喪失月：保険料なし</small>
-          </div>
-          <div *ngIf="monthlyTotals[month]?.isPensionStopped" class="stop-info">
-            <small>厚生年金：70歳到達のため免除</small>
-          </div>
-          <div *ngIf="monthlyTotals[month]?.isHealthStopped" class="stop-info">
-            <small>健保・介保：75歳到達のため免除</small>
-          </div>
-          <div *ngIf="monthlyTotals[month]?.isMaternityLeave" class="stop-info">
-            <small>産休：本人負担免除</small>
-          </div>
-          <div *ngIf="monthlyTotals[month]?.isChildcareLeave" class="stop-info">
-            <small>育休：本人負担免除</small>
-          </div>
-        </td>
-        <td class="amount-cell">
-          {{ monthlyTotals[month]?.health ?? 0 | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell">
-          {{ monthlyTotals[month]?.care ?? 0 | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell">
-          {{ monthlyTotals[month]?.pension ?? 0 | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ monthlyTotals[month]?.total ?? 0 | number : "1.0-0" }}円
-        </td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr class="total-row">
-        <td class="month-cell">年間合計</td>
-        <td class="amount-cell total-cell">
-          {{ getTotalHealth() | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ getTotalCare() | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ getTotalPension() | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ getTotalForYear() | number : "1.0-0" }}円
-        </td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
+<app-error-panel
+  [employees]="getFilteredEmployees()"
+  [errorMessages]="errorMessages"
+  [warningMessages]="warningMessages"
+></app-error-panel>
 
 <!-- 会社全体の月次保険料合計（本人分＋会社負担分） -->
-<div
-  class="card"
-  *ngIf="employees.length > 0 && companyMonthlyTotals.length > 0"
->
-  <h3>会社全体の月次保険料合計（本人分＋会社負担分）（{{ year }}年度）</h3>
-  <table class="payment-table">
-    <thead>
-      <tr>
-        <th>月</th>
-        <th>健康保険</th>
-        <th>介護保険</th>
-        <th>厚生年金</th>
-        <th>合計</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr
-        *ngFor="let total of companyMonthlyTotals"
-        [class.bonus-month-row]="bonusByMonth[total.month]"
-      >
-        <td class="month-cell">
-          {{ total.month }}月
-          <span *ngIf="bonusByMonth[total.month]" class="bonus-mark">★</span>
-          <span
-            *ngIf="bonusByMonth[total.month]"
-            class="bonus-info"
-            [title]="getBonusTooltip(total.month)"
-            >ℹ️</span
-          >
-          <div *ngIf="monthlyTotals[total.month]?.isRetired" class="stop-info">
-            <small>資格喪失月：保険料なし</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isPensionStopped"
-            class="stop-info"
-          >
-            <small>厚生年金：70歳到達のため免除</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isHealthStopped"
-            class="stop-info"
-          >
-            <small>健保・介保：75歳到達のため免除</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isMaternityLeave"
-            class="stop-info"
-          >
-            <small>産休：本人負担免除</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isChildcareLeave"
-            class="stop-info"
-          >
-            <small>育休：本人負担免除</small>
-          </div>
-        </td>
-        <td class="amount-cell">
-          {{ total.healthTotal | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell">{{ total.careTotal | number : "1.0-0" }}円</td>
-        <td class="amount-cell">
-          {{ total.pensionTotal | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ total.total | number : "1.0-0" }}円
-        </td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr class="total-row">
-        <td class="month-cell">年間合計</td>
-        <td class="amount-cell total-cell">
-          {{ getCompanyTotalHealth() | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ getCompanyTotalCare() | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ getCompanyTotalPension() | number : "1.0-0" }}円
-        </td>
-        <td class="amount-cell total-cell">
-          {{ getCompanyTotal() | number : "1.0-0" }}円
-        </td>
-      </tr>
-    </tfoot>
-  </table>
-</div>
+<app-company-monthly-total-table
+  [year]="year"
+  [companyMonthlyTotals]="companyMonthlyTotals"
+  [bonusByMonth]="bonusByMonth"
+  [monthlyTotals]="monthlyTotals"
+  [getBonusTooltip]="getBonusTooltip.bind(this)"
+  [annualTotalHealth]="annualTotals.health"
+  [annualTotalCare]="annualTotals.care"
+  [annualTotalPension]="annualTotals.pension"
+  [annualTotal]="annualTotals.total"
+></app-company-monthly-total-table>
 
 <!-- 従業員ごとの月次報酬保険料 -->
-<div *ngFor="let emp of employees" class="card monthly-section">
-  <h4>月次報酬保険料（{{ emp.name }} - {{ year }}年度）</h4>
+<app-monthly-premium-table
+  *ngFor="let emp of getFilteredEmployees()"
+  [employee]="emp"
+  [year]="year"
+  [monthlyPremiumRows]="monthlyPremiumsByEmployee[emp.id] || []"
+  [hasNotes]="hasNotesForEmployee(emp.id)"
+></app-monthly-premium-table>
 
-  <table
-    class="monthly-table"
-    *ngIf="monthlyPremiumsByEmployee[emp.id]?.length"
-  >
-    <thead>
-      <tr>
-        <th>月</th>
-        <th>健保（本人）</th>
-        <th>健保（会社）</th>
-        <th>介保（本人）</th>
-        <th>介保（会社）</th>
-        <th>厚年（本人）</th>
-        <th>厚年（会社）</th>
-        <th>ステータス</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let row of monthlyPremiumsByEmployee[emp.id]">
-        <td>
-          {{ row.month }}月
-          <div *ngIf="row.isAcquisitionMonth" class="acquire-info">
-            資格取得時決定：{{ row.acquisitionGrade }}等級（標準報酬
-            {{
-              (row.acquisitionStandard ?? 0) / 10000 | number : "1.0-1"
-            }}万円）
-            <div
-              *ngIf="row.acquisitionReason"
-              class="acquire-reason"
-              [title]="row.acquisitionReason"
-            >
-              💡 説明を表示
-            </div>
-            <div *ngIf="row.shikakuReportRequired" class="shikaku-report">
-              📄 資格取得届：提出必要（期限 {{ row.shikakuReportDeadline }}）
-            </div>
-            <div
-              *ngIf="
-                !row.shikakuReportRequired &&
-                row.shikakuReportRequired !== undefined
-              "
-              class="shikaku-report"
-            >
-              📄 資格取得届：提出不要
-            </div>
-          </div>
-        </td>
-        <td>{{ row.healthEmployee | number : "1.0-0" }}円</td>
-        <td>{{ row.healthEmployer | number : "1.0-0" }}円</td>
-        <td>{{ row.careEmployee | number : "1.0-0" }}円</td>
-        <td>{{ row.careEmployer | number : "1.0-0" }}円</td>
-        <td>{{ row.pensionEmployee | number : "1.0-0" }}円</td>
-        <td>{{ row.pensionEmployer | number : "1.0-0" }}円</td>
-        <td>
-          <span *ngIf="row.exempt" class="badge-exempt">免除</span>
-          <span *ngIf="!row.exempt && row.notes?.length" class="badge-warning"
-            >注意</span
-          >
-        </td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p *ngIf="!monthlyPremiumsByEmployee[emp.id]?.length">
-    月次給与データが未登録のため、保険料を計算できません。
-  </p>
-
-  <div class="info-label" *ngIf="hasNotesForEmployee(emp.id)">
-    <span>※ 詳細な免除理由・注意事項は各月の notes を参照</span>
-  </div>
-
-  <!-- 届出要否 -->
-  <div
-    class="notification-block"
-    *ngIf="notificationsByEmployee[emp.id]?.length"
-  >
-    <h4>届出要否</h4>
-    <div
-      *ngFor="let n of notificationsByEmployee[emp.id]"
-      class="notification-item"
-    >
-      <div class="notification-header">
-        <span class="notification-type">{{
-          getNotificationTypeLabel(n.type)
-        }}</span>
-        <span
-          class="notification-required"
-          [class.required]="n.required"
-          [class.not-required]="!n.required"
-        >
-          {{ n.required ? "要提出" : "不要" }}
-        </span>
-      </div>
-      <div *ngIf="n.submitUntil" class="notification-deadline">
-        提出期限: {{ n.submitUntil }}
-      </div>
-      <ul class="notification-reasons">
-        <li *ngFor="let r of n.reasons">{{ r }}</li>
-      </ul>
-    </div>
-  </div>
-</div>
+<!-- 従業員ごとの届出要否 -->
+<app-employee-notification-panel
+  *ngFor="let emp of getFilteredEmployees()"
+  [employee]="emp"
+  [notifications]="notificationsByEmployee[emp.id] || []"
+  [getNotificationTypeLabel]="getNotificationTypeLabel.bind(this)"
+></app-employee-notification-panel>

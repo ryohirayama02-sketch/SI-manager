@@ -348,3 +348,27 @@
   font-size: 0.95rem;
   line-height: 1.5;
 }
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .card {
+    margin: 1rem 0;
+    border-radius: 4px;
+  }
+
+  .no-data-message {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .no-data-message p {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .no-data-message {
+    margin: 0.5rem;
+    padding: 1rem;
+  }
+}

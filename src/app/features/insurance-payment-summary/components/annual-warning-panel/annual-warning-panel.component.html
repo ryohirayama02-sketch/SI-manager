@@ -1,0 +1,6 @@
+<div class="warning-panel" *ngIf="warnings.length > 0">
+  <h3>⚠️ 年間警告</h3>
+  <div *ngFor="let w of warnings" class="warning-item">⚠️ {{ w }}</div>
+</div>
+
+

@@ -1,0 +1,50 @@
+<div class="card" *ngIf="bonusAnnualTotals.total > 0 || annualTotal > 0">
+  <h3>年間保険料合計（{{ year }}年度）</h3>
+  <table class="payment-table annual-summary-table">
+    <thead>
+      <tr>
+        <th>項目</th>
+        <th>金額</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="label-cell">健康保険</td>
+        <td class="amount-cell">
+          {{ annualTotalHealth | number : "1.0-0" }}円
+        </td>
+      </tr>
+      <tr>
+        <td class="label-cell">介護保険</td>
+        <td class="amount-cell">
+          {{ annualTotalCare | number : "1.0-0" }}円
+        </td>
+      </tr>
+      <tr>
+        <td class="label-cell">厚生年金</td>
+        <td class="amount-cell">
+          {{ annualTotalPension | number : "1.0-0" }}円
+        </td>
+      </tr>
+      <tr>
+        <td class="label-cell">賞与保険料（従業員）</td>
+        <td class="amount-cell">
+          {{ bonusAnnualTotals.totalEmployee | number : "1.0-0" }}円
+        </td>
+      </tr>
+      <tr>
+        <td class="label-cell">賞与保険料（事業主）</td>
+        <td class="amount-cell">
+          {{ bonusAnnualTotals.totalEmployer | number : "1.0-0" }}円
+        </td>
+      </tr>
+      <tr class="total-row">
+        <td class="label-cell total-cell">年間合計（給与＋賞与）</td>
+        <td class="amount-cell total-cell">
+          {{ annualTotal + bonusAnnualTotals.total | number : "1.0-0" }}円
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
