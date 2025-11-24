@@ -1,5 +1,11 @@
 <h2>{{ year }}年 社会保険料 振込額一覧</h2>
 
+<!-- 年間警告パネル -->
+<div class="warning-panel" *ngIf="warnings.length > 0">
+  <h3>⚠️ 年間警告</h3>
+  <div *ngFor="let w of warnings" class="warning-item">⚠️ {{ w }}</div>
+</div>
+
 <!-- TODO: 過去年度の集計にも対応できるように year セレクタを追加する -->
 
 <!-- 会社全体の年間保険料合計（本人分＋会社負担分） -->
@@ -80,6 +86,21 @@
           {{ month }}月
           <span *ngIf="bonusByMonth[month]" class="bonus-mark">★</span>
           <span *ngIf="bonusByMonth[month]" class="bonus-info" [title]="getBonusTooltip(month)">ℹ️</span>
+          <div *ngIf="monthlyTotals[month]?.isRetired" class="stop-info">
+            <small>資格喪失月：保険料なし</small>
+          </div>
+          <div *ngIf="monthlyTotals[month]?.isPensionStopped" class="stop-info">
+            <small>厚生年金：70歳到達のため免除</small>
+          </div>
+          <div *ngIf="monthlyTotals[month]?.isHealthStopped" class="stop-info">
+            <small>健保・介保：75歳到達のため免除</small>
+          </div>
+          <div *ngIf="monthlyTotals[month]?.isMaternityLeave" class="stop-info">
+            <small>産休：本人負担免除</small>
+          </div>
+          <div *ngIf="monthlyTotals[month]?.isChildcareLeave" class="stop-info">
+            <small>育休：本人負担免除</small>
+          </div>
         </td>
         <td class="amount-cell">{{ (monthlyTotals[month]?.health ?? 0) | number:'1.0-0' }}円</td>
         <td class="amount-cell">{{ (monthlyTotals[month]?.care ?? 0) | number:'1.0-0' }}円</td>
@@ -118,6 +139,21 @@
           {{ total.month }}月
           <span *ngIf="bonusByMonth[total.month]" class="bonus-mark">★</span>
           <span *ngIf="bonusByMonth[total.month]" class="bonus-info" [title]="getBonusTooltip(total.month)">ℹ️</span>
+          <div *ngIf="monthlyTotals[total.month]?.isRetired" class="stop-info">
+            <small>資格喪失月：保険料なし</small>
+          </div>
+          <div *ngIf="monthlyTotals[total.month]?.isPensionStopped" class="stop-info">
+            <small>厚生年金：70歳到達のため免除</small>
+          </div>
+          <div *ngIf="monthlyTotals[total.month]?.isHealthStopped" class="stop-info">
+            <small>健保・介保：75歳到達のため免除</small>
+          </div>
+          <div *ngIf="monthlyTotals[total.month]?.isMaternityLeave" class="stop-info">
+            <small>産休：本人負担免除</small>
+          </div>
+          <div *ngIf="monthlyTotals[total.month]?.isChildcareLeave" class="stop-info">
+            <small>育休：本人負担免除</small>
+          </div>
         </td>
         <td class="amount-cell">{{ total.healthTotal | number:'1.0-0' }}円</td>
         <td class="amount-cell">{{ total.careTotal | number:'1.0-0' }}円</td>

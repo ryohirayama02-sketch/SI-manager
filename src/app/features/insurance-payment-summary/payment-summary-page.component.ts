@@ -30,11 +30,17 @@ export class PaymentSummaryPageComponent implements OnInit {
     care: number;
     pension: number;
     total: number;
+    isPensionStopped?: boolean;
+    isHealthStopped?: boolean;
+    isMaternityLeave?: boolean;
+    isChildcareLeave?: boolean;
+    isRetired?: boolean;
   } } = {};
 
   months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   errorMessages: { [employeeId: string]: string[] } = {};
   warningMessages: { [employeeId: string]: string[] } = {};
+  warnings: string[] = []; // 年間警告パネル用
 
   // 月次保険料一覧（従業員ごと）
   // MonthlyPremiumRow は calculateMonthlyPremiums の戻り値（MonthlyPremiums & { reasons: string[] }）をベースに変換
@@ -153,6 +159,11 @@ export class PaymentSummaryPageComponent implements OnInit {
       care: number;
       pension: number;
       total: number;
+      isPensionStopped?: boolean;
+      isHealthStopped?: boolean;
+      isMaternityLeave?: boolean;
+      isChildcareLeave?: boolean;
+      isRetired?: boolean;
     } } = {};
 
     for (let month = 1; month <= 12; month++) {
@@ -160,7 +171,12 @@ export class PaymentSummaryPageComponent implements OnInit {
         health: 0,
         care: 0,
         pension: 0,
-        total: 0
+        total: 0,
+        isPensionStopped: false,
+        isHealthStopped: false,
+        isMaternityLeave: false,
+        isChildcareLeave: false,
+        isRetired: false
       };
     }
 
@@ -252,16 +268,56 @@ export class PaymentSummaryPageComponent implements OnInit {
       // B. 賞与の保険料を取得（読み込んだ賞与データから該当従業員分を抽出）
       const employeeBonuses = bonusesByEmployee[emp.id] || [];
       
-      // 賞与保険料を月次給与の保険料に加算
+      // 賞与保険料を月次給与の保険料に加算（停止判定を適用）
       for (const bonus of employeeBonuses) {
-        const bonusHealthEmployee = bonus.healthEmployee || 0;
-        const bonusHealthEmployer = bonus.healthEmployer || 0;
-        const bonusCareEmployee = bonus.careEmployee || 0;
-        const bonusCareEmployer = bonus.careEmployer || 0;
-        const bonusPensionEmployee = bonus.pensionEmployee || 0;
-        const bonusPensionEmployer = bonus.pensionEmployer || 0;
+        const bonusMonth = bonus.month;
         
-        // 賞与保険料の年間合計に加算
+        // 停止判定（優先順位：退職 > 産休/育休 > 年齢停止）
+        const birthDate = new Date(emp.birthDate);
+        const age = this.getAgeAtMonth(birthDate, this.year, bonusMonth);
+        const pensionStopped = age >= 70;
+        const healthStopped = age >= 75;
+        const maternityLeave = this.isMaternityLeave(emp, this.year, bonusMonth);
+        const childcareLeave = this.isChildcareLeave(emp, this.year, bonusMonth);
+        const retired = this.isRetiredInMonth(emp, this.year, bonusMonth);
+        
+        let bonusHealthEmployee = bonus.healthEmployee || 0;
+        let bonusHealthEmployer = bonus.healthEmployer || 0;
+        let bonusCareEmployee = bonus.careEmployee || 0;
+        let bonusCareEmployer = bonus.careEmployer || 0;
+        let bonusPensionEmployee = bonus.pensionEmployee || 0;
+        let bonusPensionEmployer = bonus.pensionEmployer || 0;
+        
+        // 退職月判定（最優先：本人・会社とも保険料ゼロ）
+        if (retired) {
+          bonusHealthEmployee = 0;
+          bonusHealthEmployer = 0;
+          bonusCareEmployee = 0;
+          bonusCareEmployer = 0;
+          bonusPensionEmployee = 0;
+          bonusPensionEmployer = 0;
+        } else {
+          // 産休・育休による本人負担免除処理（事業主負担は維持）
+          if (maternityLeave || childcareLeave) {
+            bonusHealthEmployee = 0;
+            bonusCareEmployee = 0;
+            bonusPensionEmployee = 0;
+          }
+          
+          // 年齢による停止処理
+          if (pensionStopped) {
+            bonusPensionEmployee = 0;
+            bonusPensionEmployer = 0;
+          }
+          if (healthStopped) {
+            bonusHealthEmployee = 0;
+            bonusHealthEmployer = 0;
+            bonusCareEmployee = 0;
+            bonusCareEmployer = 0;
+          }
+        }
+        
+        // 賞与保険料の年間合計に加算（停止判定後の値）
         this.bonusAnnualTotals.healthEmployee += bonusHealthEmployee;
         this.bonusAnnualTotals.healthEmployer += bonusHealthEmployer;
         this.bonusAnnualTotals.careEmployee += bonusCareEmployee;
@@ -270,7 +326,6 @@ export class PaymentSummaryPageComponent implements OnInit {
         this.bonusAnnualTotals.pensionEmployer += bonusPensionEmployer;
         
         // 月次給与の保険料に賞与分を加算（該当月の保険料に加算）
-        const bonusMonth = bonus.month;
         if (monthlyPremiums[bonusMonth]) {
           monthlyPremiums[bonusMonth].healthEmployee += bonusHealthEmployee;
           monthlyPremiums[bonusMonth].healthEmployer += bonusHealthEmployer;
@@ -305,16 +360,71 @@ export class PaymentSummaryPageComponent implements OnInit {
         employeeBonuses
       );
 
-      // 全従業員分を合計
+      // 全従業員分を合計（退職判定、産休・育休判定、年齢による停止判定を適用）
+      // 優先順位：退職 ＞ 産休/育休 ＞ 年齢停止
       for (let month = 1; month <= 12; month++) {
-        allMonthlyTotals[month].health += employeeMonthlyTotals[month]?.health || 0;
-        allMonthlyTotals[month].care += employeeMonthlyTotals[month]?.care || 0;
-        allMonthlyTotals[month].pension += employeeMonthlyTotals[month]?.pension || 0;
-        allMonthlyTotals[month].total += employeeMonthlyTotals[month]?.total || 0;
+        const birthDate = new Date(emp.birthDate);
+        const age = this.getAgeAtMonth(birthDate, this.year, month);
+        const pensionStopped = age >= 70;
+        const healthStopped = age >= 75;
+        const maternityLeave = this.isMaternityLeave(emp, this.year, month);
+        const childcareLeave = this.isChildcareLeave(emp, this.year, month);
+        const retired = this.isRetiredInMonth(emp, this.year, month);
+        
+        let healthAmount = employeeMonthlyTotals[month]?.health || 0;
+        let careAmount = employeeMonthlyTotals[month]?.care || 0;
+        let pensionAmount = employeeMonthlyTotals[month]?.pension || 0;
+        
+        // 退職月判定（最優先：本人・会社とも保険料ゼロ）
+        if (retired) {
+          healthAmount = 0;
+          careAmount = 0;
+          pensionAmount = 0;
+          allMonthlyTotals[month].isRetired = true;
+        } else {
+          // 産休・育休による本人負担免除処理
+          // employee負担を0にするが、employer負担は維持
+          if (maternityLeave || childcareLeave) {
+            const premiums = monthlyPremiums[month];
+            if (premiums) {
+              // employee負担分を差し引く（employer負担は維持）
+              const employeeHealth = premiums.healthEmployee || 0;
+              const employeeCare = premiums.careEmployee || 0;
+              const employeePension = premiums.pensionEmployee || 0;
+              
+              healthAmount -= employeeHealth;
+              careAmount -= employeeCare;
+              pensionAmount -= employeePension;
+              
+              if (maternityLeave) {
+                allMonthlyTotals[month].isMaternityLeave = true;
+              }
+              if (childcareLeave) {
+                allMonthlyTotals[month].isChildcareLeave = true;
+              }
+            }
+          }
+          
+          // 年齢による停止処理
+          if (pensionStopped) {
+            pensionAmount = 0;
+            allMonthlyTotals[month].isPensionStopped = true;
+          }
+          if (healthStopped) {
+            healthAmount = 0;
+            careAmount = 0;
+            allMonthlyTotals[month].isHealthStopped = true;
+          }
+        }
+        
+        allMonthlyTotals[month].health += healthAmount;
+        allMonthlyTotals[month].care += careAmount;
+        allMonthlyTotals[month].pension += pensionAmount;
+        allMonthlyTotals[month].total += healthAmount + careAmount + pensionAmount;
       }
     }
 
-    // 賞与保険料を支給月の月別合計に加算
+    // 賞与保険料を支給月の月別合計に加算（年齢による停止判定を適用）
     for (const bonus of bonuses) {
       const bonusMonth = bonus.month;
       if (bonusMonth >= 1 && bonusMonth <= 12) {
@@ -324,25 +434,62 @@ export class PaymentSummaryPageComponent implements OnInit {
             health: 0,
             care: 0,
             pension: 0,
-            total: 0
+            total: 0,
+            isPensionStopped: false,
+            isHealthStopped: false,
+            isMaternityLeave: false,
+            isChildcareLeave: false,
+            isRetired: false
           };
         }
         
-        const bonusHealthEmployee = bonus.healthEmployee || 0;
-        const bonusHealthEmployer = bonus.healthEmployer || 0;
-        const bonusCareEmployee = bonus.careEmployee || 0;
-        const bonusCareEmployer = bonus.careEmployer || 0;
-        const bonusPensionEmployee = bonus.pensionEmployee || 0;
-        const bonusPensionEmployer = bonus.pensionEmployer || 0;
-        
-        // 賞与保険料を月別合計に加算
-        allMonthlyTotals[bonusMonth].health += bonusHealthEmployee + bonusHealthEmployer;
-        allMonthlyTotals[bonusMonth].care += bonusCareEmployee + bonusCareEmployer;
-        allMonthlyTotals[bonusMonth].pension += bonusPensionEmployee + bonusPensionEmployer;
-        allMonthlyTotals[bonusMonth].total += 
-          (bonusHealthEmployee + bonusHealthEmployer) + 
-          (bonusCareEmployee + bonusCareEmployer) + 
-          (bonusPensionEmployee + bonusPensionEmployer);
+        // 賞与支給者の年齢と退職日を確認
+        const bonusEmployee = this.employees.find(e => e.id === bonus.employeeId);
+        if (bonusEmployee) {
+          // 退職月判定（最優先）
+          const retired = this.isRetiredInMonth(bonusEmployee, this.year, bonusMonth);
+          
+          if (retired) {
+            // 退職月の場合は賞与保険料を加算しない
+            allMonthlyTotals[bonusMonth].isRetired = true;
+            continue;
+          }
+          
+          const birthDate = new Date(bonusEmployee.birthDate);
+          const age = this.getAgeAtMonth(birthDate, this.year, bonusMonth);
+          const pensionStopped = age >= 70;
+          const healthStopped = age >= 75;
+          
+          let bonusHealthEmployee = bonus.healthEmployee || 0;
+          let bonusHealthEmployer = bonus.healthEmployer || 0;
+          let bonusCareEmployee = bonus.careEmployee || 0;
+          let bonusCareEmployer = bonus.careEmployer || 0;
+          let bonusPensionEmployee = bonus.pensionEmployee || 0;
+          let bonusPensionEmployer = bonus.pensionEmployer || 0;
+          
+          // 年齢による停止処理
+          if (pensionStopped) {
+            bonusPensionEmployee = 0;
+            bonusPensionEmployer = 0;
+            allMonthlyTotals[bonusMonth].isPensionStopped = true;
+          }
+          if (healthStopped) {
+            bonusHealthEmployee = 0;
+            bonusHealthEmployer = 0;
+            bonusCareEmployee = 0;
+            bonusCareEmployer = 0;
+            allMonthlyTotals[bonusMonth].isHealthStopped = true;
+          }
+          
+          // 賞与保険料を月別合計に加算
+          allMonthlyTotals[bonusMonth].health += bonusHealthEmployee + bonusHealthEmployer;
+          allMonthlyTotals[bonusMonth].care += bonusCareEmployee + bonusCareEmployer;
+          allMonthlyTotals[bonusMonth].pension += bonusPensionEmployee + bonusPensionEmployer;
+          allMonthlyTotals[bonusMonth].total += 
+            (bonusHealthEmployee + bonusHealthEmployer) + 
+            (bonusCareEmployee + bonusCareEmployer) + 
+            (bonusPensionEmployee + bonusPensionEmployer);
+        }
       }
     }
 
@@ -363,6 +510,9 @@ export class PaymentSummaryPageComponent implements OnInit {
     
     // 会社全体の月次保険料合計を計算
     this.calculateCompanyMonthlyTotals();
+    
+    // 年間警告を収集
+    await this.collectAnnualWarnings(bonuses);
   }
 
   /**
@@ -482,6 +632,86 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
     
     return lines.join('\n');
+  }
+
+  /**
+   * 従業員の生年月日から指定月の年齢を計算する
+   * @param birthDate 生年月日
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 年齢
+   */
+  getAgeAtMonth(birthDate: Date, year: number, month: number): number {
+    const birth = new Date(birthDate);
+    const targetDate = new Date(year, month - 1, 1); // 月初日
+    let age = targetDate.getFullYear() - birth.getFullYear();
+    const monthDiff = targetDate.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && targetDate.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  }
+
+  /**
+   * 指定月が産休期間中かどうかを判定する
+   * @param emp 従業員
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 産休期間中の場合true
+   */
+  isMaternityLeave(emp: Employee, year: number, month: number): boolean {
+    if (!emp.maternityLeaveStart || !emp.maternityLeaveEnd) {
+      return false;
+    }
+    
+    const startDate = new Date(emp.maternityLeaveStart);
+    const endDate = new Date(emp.maternityLeaveEnd);
+    const targetDate = new Date(year, month - 1, 1); // 月初日
+    const targetEndDate = new Date(year, month, 0); // 月末日
+    
+    // 対象月が産休期間と重複しているか判定
+    return targetDate <= endDate && targetEndDate >= startDate;
+  }
+
+  /**
+   * 指定月が育休期間中かどうかを判定する
+   * @param emp 従業員
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 育休期間中の場合true
+   */
+  isChildcareLeave(emp: Employee, year: number, month: number): boolean {
+    if (!emp.childcareLeaveStart || !emp.childcareLeaveEnd) {
+      return false;
+    }
+    
+    const startDate = new Date(emp.childcareLeaveStart);
+    const endDate = new Date(emp.childcareLeaveEnd);
+    const targetDate = new Date(year, month - 1, 1); // 月初日
+    const targetEndDate = new Date(year, month, 0); // 月末日
+    
+    // 対象月が育休期間と重複しているか判定
+    return targetDate <= endDate && targetEndDate >= startDate;
+  }
+
+  /**
+   * 指定月が退職月（資格喪失月）かどうかを判定する
+   * @param emp 従業員
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 退職月の場合true（月末在籍なし）
+   */
+  isRetiredInMonth(emp: Employee, year: number, month: number): boolean {
+    if (!emp.retireDate) {
+      return false;
+    }
+    
+    const retireDate = new Date(emp.retireDate);
+    const retireYear = retireDate.getFullYear();
+    const retireMonth = retireDate.getMonth() + 1; // getMonth()は0-11なので+1
+    
+    // 退職日が指定年月の範囲内か判定
+    return retireYear === year && retireMonth === month;
   }
 
   validateAgeRelatedErrors(emp: Employee, monthlyPremiums: { [month: number]: {
@@ -702,6 +932,259 @@ export class PaymentSummaryPageComponent implements OnInit {
         return '賞与支払届';
       default:
         return type;
+    }
+  }
+
+  /**
+   * 年間警告を収集する
+   */
+  async collectAnnualWarnings(bonuses: Bonus[]): Promise<void> {
+    this.warnings = [];
+    const warningSet = new Set<string>(); // 重複排除用
+
+    // 優先度A-1: 退職月なのに保険料が発生している月
+    for (const emp of this.employees) {
+      if (!emp.retireDate) continue;
+      
+      const retireDate = new Date(emp.retireDate);
+      const retireYear = retireDate.getFullYear();
+      const retireMonth = retireDate.getMonth() + 1;
+      
+      if (retireYear !== this.year) continue;
+      
+      const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
+      if (!employeeRows) continue;
+      
+      const retireRow = employeeRows.find(r => r.month === retireMonth);
+      if (retireRow) {
+        const totalEmployee = retireRow.healthEmployee + retireRow.careEmployee + retireRow.pensionEmployee;
+        const totalEmployer = retireRow.healthEmployer + retireRow.careEmployer + retireRow.pensionEmployer;
+        const total = totalEmployee + totalEmployer;
+        
+        if (total > 0) {
+          const msg = `従業員「${emp.name}」の退職月（${retireMonth}月）に保険料が発生しています。資格喪失月の取り扱いを確認してください。`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+      }
+    }
+
+    // 優先度A-2: 70歳・75歳到達後も保険料が発生しているケース
+    for (const emp of this.employees) {
+      const birthDate = new Date(emp.birthDate);
+      const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
+      if (!employeeRows) continue;
+      
+      for (const row of employeeRows) {
+        const age = this.getAgeAtMonth(birthDate, this.year, row.month);
+        
+        // 70歳以上なのに厚生年金保険料が発生
+        if (age >= 70 && (row.pensionEmployee > 0 || row.pensionEmployer > 0)) {
+          const msg = `従業員「${emp.name}」は70歳以上ですが、${row.month}月の厚生年金保険料が発生しています。`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+        
+        // 75歳以上なのに健康保険・介護保険料が発生
+        if (age >= 75 && (row.healthEmployee > 0 || row.healthEmployer > 0 || row.careEmployee > 0 || row.careEmployer > 0)) {
+          const msg = `従業員「${emp.name}」は75歳以上ですが、${row.month}月の健康保険・介護保険料が発生しています。`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+      }
+    }
+
+    // 優先度A-3: 産休・育休中なのに本人負担が残っているケース
+    for (const emp of this.employees) {
+      const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
+      if (!employeeRows) continue;
+      
+      for (const row of employeeRows) {
+        const month = row.month;
+        const maternityLeave = this.isMaternityLeave(emp, this.year, month);
+        const childcareLeave = this.isChildcareLeave(emp, this.year, month);
+        
+        if (maternityLeave || childcareLeave) {
+          const totalEmployee = row.healthEmployee + row.careEmployee + row.pensionEmployee;
+          
+          if (totalEmployee > 0) {
+            const leaveType = maternityLeave ? '産休' : '育休';
+            const msg = `従業員「${emp.name}」の${month}月は${leaveType}中ですが、本人負担分の保険料が残っています。`;
+            if (!warningSet.has(msg)) {
+              warningSet.add(msg);
+              this.warnings.push(msg);
+            }
+          }
+        }
+      }
+    }
+
+    // 1. 4月〜6月の固定+非固定 ≠ 総支給 の不一致警告（算定基礎届）
+    for (const emp of this.employees) {
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year).catch(() => null);
+      if (!salaryData) continue;
+
+      for (let month = 4; month <= 6; month++) {
+        const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+        const monthSalaryData = salaryData[monthKey];
+        if (!monthSalaryData) continue;
+
+        const fixed = monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
+        const variable = monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
+        const total = monthSalaryData.total ?? 0;
+        const expectedTotal = fixed + variable;
+
+        if (Math.abs(total - expectedTotal) > 1) { // 1円以上の誤差
+          const msg = `${emp.name}の${month}月：固定+非固定(${expectedTotal.toLocaleString()}円) ≠ 総支給(${total.toLocaleString()}円)`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+      }
+    }
+
+    // 2. 退職月の賞与支給 → エラー
+    for (const bonus of bonuses) {
+      const bonusEmployee = this.employees.find(e => e.id === bonus.employeeId);
+      if (bonusEmployee && bonusEmployee.retireDate) {
+        const retireDate = new Date(bonusEmployee.retireDate);
+        const retireYear = retireDate.getFullYear();
+        const retireMonth = retireDate.getMonth() + 1;
+        
+        if (retireYear === this.year && retireMonth === bonus.month) {
+          const msg = `${bonusEmployee.name}：退職月(${bonus.month}月)に賞与が支給されています`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+      }
+    }
+
+    // 3. 賞与の上限エラー（150万/573万）
+    const bonusTotalsByEmployee: { [employeeId: string]: { healthCare: number; pension: number } } = {};
+    for (const bonus of bonuses) {
+      if (!bonusTotalsByEmployee[bonus.employeeId]) {
+        bonusTotalsByEmployee[bonus.employeeId] = { healthCare: 0, pension: 0 };
+      }
+      
+      const standardBonus = bonus.standardBonusAmount ?? Math.floor((bonus.amount || 0) / 1000) * 1000;
+      const cappedHealth = bonus.cappedBonusHealth ?? standardBonus;
+      const cappedPension = bonus.cappedBonusPension ?? Math.min(standardBonus, 1500000);
+      
+      bonusTotalsByEmployee[bonus.employeeId].healthCare += cappedHealth;
+      bonusTotalsByEmployee[bonus.employeeId].pension += cappedPension;
+    }
+
+    for (const employeeId in bonusTotalsByEmployee) {
+      const emp = this.employees.find(e => e.id === employeeId);
+      const totals = bonusTotalsByEmployee[employeeId];
+      
+      if (totals.healthCare > 5730000) {
+        const msg = `従業員「${emp?.name || employeeId}」の年度累計賞与額が健保・介保の上限（573万円）を超えています。`;
+        if (!warningSet.has(msg)) {
+          warningSet.add(msg);
+          this.warnings.push(msg);
+        }
+      }
+      if (totals.pension > 1500000) {
+        const msg = `従業員「${emp?.name || employeeId}」の賞与が厚生年金の上限額（1回150万円）を超えています。`;
+        if (!warningSet.has(msg)) {
+          warningSet.add(msg);
+          this.warnings.push(msg);
+        }
+      }
+    }
+
+    // 4. 年齢停止ルールの境界月（70歳/75歳到達月）
+    for (const emp of this.employees) {
+      const birthDate = new Date(emp.birthDate);
+      for (let month = 1; month <= 12; month++) {
+        const age = this.getAgeAtMonth(birthDate, this.year, month);
+        const prevAge = month > 1 ? this.getAgeAtMonth(birthDate, this.year, month - 1) : age - 1;
+        
+        if (prevAge < 70 && age >= 70) {
+          const msg = `${emp.name}：${month}月に70歳到達（厚生年金停止開始）`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+        if (prevAge < 75 && age >= 75) {
+          const msg = `${emp.name}：${month}月に75歳到達（健保・介保停止開始）`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+      }
+    }
+
+    // 5. 随時改定候補（suijiAlerts）がある場合
+    // 注：随時改定候補は monthly-change-alert-page で管理されているため、
+    // ここでは簡易的にチェック（実際の実装に応じて調整が必要）
+    // 必要に応じて SuijiService を注入して loadAlerts を呼び出す
+
+    // 6. データ欠損（月の給与データなし）
+    for (const emp of this.employees) {
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year).catch(() => null);
+      const missingMonths: number[] = [];
+      
+      for (let month = 1; month <= 12; month++) {
+        const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+        if (!salaryData || !salaryData[monthKey]) {
+          missingMonths.push(month);
+        }
+      }
+      
+      if (missingMonths.length > 0) {
+        // 4〜6月の欠損チェック
+        const missingAprToJun = missingMonths.filter(m => m >= 4 && m <= 6);
+        if (missingAprToJun.length > 0) {
+          const msg = `従業員「${emp.name}」の4〜6月のいずれかに給与データがなく、定時決定（算定基礎）の判定が困難です。`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+        
+        const msg = `従業員「${emp.name}」の${missingMonths.join(',')}月に給与データが登録されていません。`;
+        if (!warningSet.has(msg)) {
+          warningSet.add(msg);
+          this.warnings.push(msg);
+        }
+      }
+    }
+
+    // 7. 不正な月（負の金額など）の入力
+    for (const emp of this.employees) {
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year).catch(() => null);
+      if (!salaryData) continue;
+
+      for (let month = 1; month <= 12; month++) {
+        const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+        const monthSalaryData = salaryData[monthKey];
+        if (!monthSalaryData) continue;
+
+        const fixed = monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
+        const variable = monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
+        const total = monthSalaryData.total ?? 0;
+
+        if (fixed < 0 || variable < 0 || total < 0) {
+          const msg = `従業員「${emp.name}」の${month}月：負の金額が入力されています`;
+          if (!warningSet.has(msg)) {
+            warningSet.add(msg);
+            this.warnings.push(msg);
+          }
+        }
+      }
     }
   }
 }
