@@ -43,6 +43,7 @@ export interface BonusCalculationResult {
   // 追加: 要件に合わせた戻り値構造
   exemptReasons?: string[];        // 免除理由の配列
   salaryInsteadReasons?: string[]; // 給与扱い理由の配列
+  reportRequired?: boolean;        // 賞与支払届の提出要否
 }
 
 @Injectable({ providedIn: 'root' })
@@ -370,6 +371,30 @@ export class BonusCalculationService {
     return { requireReport, reportReason, reportDeadline };
   }
 
+  /**
+   * 賞与支払届の要否を判定する（簡易版）
+   * @param standardBonus 標準賞与額
+   * @param isRetiredNoLastDay 支給月の月末在籍がないか
+   * @returns 提出が必要な場合true
+   */
+  checkReportRequired(
+    standardBonus: number,
+    isRetiredNoLastDay: boolean
+  ): boolean {
+    // 標準賞与額が1,000円未満 → false
+    if (standardBonus < 1000) {
+      return false;
+    }
+    
+    // 支給月の月末在籍がfalse → false
+    if (isRetiredNoLastDay) {
+      return false;
+    }
+    
+    // 上記以外 → true（育休・産休免除でも提出必要）
+    return true;
+  }
+
   checkErrors(
     employee: Employee,
     payDate: Date,
@@ -616,6 +641,9 @@ export class BonusCalculationService {
     );
     const { errorMessages, warningMessages } = errorCheck;
 
+    // 14. 賞与支払届の要否判定（簡易版）
+    const reportRequired = this.checkReportRequired(standardBonus, isRetiredNoLastDay);
+
     return {
       healthEmployee,
       healthEmployer,
@@ -651,7 +679,8 @@ export class BonusCalculationService {
       errorMessages: errorMessages.length > 0 ? errorMessages : undefined,
       warningMessages: warningMessages.length > 0 ? warningMessages : undefined,
       exemptReasons: exemptReasons.length > 0 ? exemptReasons : undefined,
-      salaryInsteadReasons: salaryInsteadReasons.length > 0 ? salaryInsteadReasons : undefined
+      salaryInsteadReasons: salaryInsteadReasons.length > 0 ? salaryInsteadReasons : undefined,
+      reportRequired: reportRequired
     };
   }
 }

@@ -1,21 +1,29 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
+import { ReactiveFormsModule, FormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SettingsService } from '../../../services/settings.service';
+import { Settings } from '../../../models/settings.model';
+import { Rate } from '../../../models/rate.model';
+import { SalaryItem } from '../../../models/salary-item.model';
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './settings-page.component.html',
   styleUrl: './settings-page.component.css'
 })
 export class SettingsPageComponent implements OnInit {
   year = '2025';
+  standardTableYear: number = new Date().getFullYear();
+  salaryItemsYear: number = new Date().getFullYear();
   prefecture = 'tokyo';
   form: any;
+  settingsForm: FormGroup;
   standardTable: FormArray;
   standardTableForm: any;
+  salaryItems: FormArray;
+  salaryItemsForm: FormGroup;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
 
@@ -25,6 +33,7 @@ export class SettingsPageComponent implements OnInit {
   ) {
     this.form = this.fb.group({
       prefecture: [this.prefecture, Validators.required],
+      effectiveFrom: [`${this.year}-04`, Validators.required],
       health_employee: [0, Validators.required],
       health_employer: [0, Validators.required],
       care_employee: [0, Validators.required],
@@ -32,9 +41,16 @@ export class SettingsPageComponent implements OnInit {
       pension_employee: [0, Validators.required],
       pension_employer: [0, Validators.required],
     });
+    this.settingsForm = this.fb.group({
+      payrollMonthRule: ['payday', Validators.required]
+    });
     this.standardTable = this.fb.array([]);
     this.standardTableForm = this.fb.group({
       standardTable: this.standardTable
+    });
+    this.salaryItems = this.fb.array([]);
+    this.salaryItemsForm = this.fb.group({
+      salaryItems: this.salaryItems
     });
   }
 
@@ -49,8 +65,16 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async loadStandardTable(): Promise<void> {
-    const rows = await this.settingsService.getStandardTable(this.year);
+    // 既存のデータをクリア
+    while (this.standardTable.length !== 0) {
+      this.standardTable.removeAt(0);
+    }
+    const rows = await this.settingsService.getStandardTable(this.standardTableYear);
     rows.forEach(r => this.standardTable.push(this.createRow(r)));
+  }
+
+  async onStandardTableYearChange(): Promise<void> {
+    await this.loadStandardTable();
   }
 
   validateStandardTable(): void {
@@ -89,7 +113,7 @@ export class SettingsPageComponent implements OnInit {
       alert('エラーがあります。修正してください。');
       return;
     }
-    await this.settingsService.saveStandardTable(this.year, this.standardTable.value);
+    await this.settingsService.saveStandardTable(this.standardTableYear, this.standardTable.value);
     alert('標準報酬月額テーブルを保存しました');
   }
 
@@ -98,10 +122,18 @@ export class SettingsPageComponent implements OnInit {
     if (data) {
       this.form.patchValue({
         ...data,
-        prefecture: this.prefecture
+        prefecture: this.prefecture,
+        effectiveFrom: data.effectiveFrom || `${this.year}-04`
+      });
+    } else {
+      this.form.patchValue({
+        effectiveFrom: `${this.year}-04`
       });
     }
+    const settings = await this.settingsService.loadSettings();
+    this.settingsForm.patchValue(settings);
     await this.loadStandardTable();
+    await this.loadSalaryItems();
   }
 
   async onPrefectureChange(): Promise<void> {
@@ -139,7 +171,18 @@ export class SettingsPageComponent implements OnInit {
     const prefectureValue = this.form.get('prefecture')?.value || this.prefecture;
     const formData = { ...this.form.value };
     delete formData.prefecture; // prefectureはformDataから除外
-    await this.settingsService.saveRates(this.year, prefectureValue, formData);
+    
+    const rateData: Rate = {
+      effectiveFrom: formData.effectiveFrom || `${this.year}-04`,
+      health_employee: formData.health_employee,
+      health_employer: formData.health_employer,
+      care_employee: formData.care_employee,
+      care_employer: formData.care_employer,
+      pension_employee: formData.pension_employee,
+      pension_employer: formData.pension_employer,
+    };
+    
+    await this.settingsService.saveRates(this.year, prefectureValue, rateData);
     alert('設定を保存しました');
   }
 
@@ -151,6 +194,62 @@ export class SettingsPageComponent implements OnInit {
   async seedAllPrefectures(): Promise<void> {
     await this.settingsService.seedRatesAllPrefectures2025();
     alert('47都道府県の2025年度料率を登録しました');
+  }
+
+  async saveSettings(): Promise<void> {
+    const settings: Settings = {
+      payrollMonthRule: this.settingsForm.get('payrollMonthRule')?.value || 'payday'
+    };
+    await this.settingsService.saveSettings(settings);
+    alert('設定を保存しました');
+  }
+
+  getAvailableYears(): number[] {
+    const currentYear = new Date().getFullYear();
+    const years: number[] = [];
+    // 現在年から過去5年、未来2年まで
+    for (let i = currentYear - 5; i <= currentYear + 2; i++) {
+      years.push(i);
+    }
+    return years;
+  }
+
+  createSalaryItemRow(item?: SalaryItem): FormGroup {
+    return this.fb.group({
+      id: [item?.id || this.generateId()],
+      name: [item?.name || '', Validators.required],
+      type: [item?.type || 'fixed', Validators.required]
+    });
+  }
+
+  generateId(): string {
+    return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  async loadSalaryItems(): Promise<void> {
+    while (this.salaryItems.length !== 0) {
+      this.salaryItems.removeAt(0);
+    }
+    const items = await this.settingsService.loadSalaryItems(this.salaryItemsYear);
+    items.forEach(item => this.salaryItems.push(this.createSalaryItemRow(item)));
+  }
+
+  async onSalaryItemsYearChange(): Promise<void> {
+    await this.loadSalaryItems();
+  }
+
+  addSalaryItem(): void {
+    this.salaryItems.push(this.createSalaryItemRow());
+  }
+
+  removeSalaryItem(index: number): void {
+    this.salaryItems.removeAt(index);
+  }
+
+  async saveSalaryItems(): Promise<void> {
+    const items: SalaryItem[] = this.salaryItems.value;
+    await this.settingsService.saveSalaryItems(this.salaryItemsYear, items);
+    alert('給与項目マスタを保存しました');
   }
 }
 

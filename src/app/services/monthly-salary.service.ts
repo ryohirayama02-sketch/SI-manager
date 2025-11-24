@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Firestore, doc, setDoc, getDoc } from '@angular/fire/firestore';
+import { MonthlySalaryData, SalaryItemEntry } from '../models/monthly-salary.model';
+import { SalaryItem } from '../models/salary-item.model';
 
 @Injectable({ providedIn: 'root' })
 export class MonthlySalaryService {
@@ -19,7 +21,7 @@ export class MonthlySalaryService {
   }
 
   /**
-   * 給与データを正規化（totalSalary = fixedSalary + variableSalary を保証）
+   * 給与データを正規化（項目別形式を優先、既存形式はフォールバック）
    */
   private normalizeSalaryData(payload: any): any {
     const normalized: any = { ...payload };
@@ -28,39 +30,50 @@ export class MonthlySalaryService {
     for (const key in normalized) {
       const monthData = normalized[key];
       if (monthData && typeof monthData === 'object') {
-        // 既存のfixed/variable/totalからfixedSalary/variableSalary/totalSalaryを設定
-        const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
-        const variable = monthData.variableSalary ?? monthData.variable ?? 0;
-        const total = monthData.totalSalary ?? monthData.total ?? (fixed + variable);
-        
-        // 自動算出：totalSalary = fixedSalary + variableSalary
-        const calculatedTotal = fixed + variable;
-        
-        // バリデーション：fixed + variable が total と一致しない場合 → 自動補正
-        if (Math.abs(total - calculatedTotal) > 0.01) {
-          // 不一致がある場合は、calculatedTotalを優先（エラーログは上位で処理）
+        // 新しい項目別形式を優先
+        if (monthData.salaryItems && Array.isArray(monthData.salaryItems)) {
+          // 項目別形式：fixedTotal/variableTotal/totalは既に計算済み
           normalized[key] = {
             ...monthData,
-            fixedSalary: fixed,
-            variableSalary: variable,
-            totalSalary: calculatedTotal,
             // 後方互換性のため既存属性も設定
-            fixed: fixed,
-            variable: variable,
-            total: calculatedTotal
+            fixed: monthData.fixedTotal ?? 0,
+            variable: monthData.variableTotal ?? 0,
+            total: monthData.total ?? 0,
+            fixedSalary: monthData.fixedTotal ?? 0,
+            variableSalary: monthData.variableTotal ?? 0,
+            totalSalary: monthData.total ?? 0
           };
         } else {
-          // 一致している場合は、新しい属性を設定
-          normalized[key] = {
-            ...monthData,
-            fixedSalary: fixed,
-            variableSalary: variable,
-            totalSalary: total,
-            // 後方互換性のため既存属性も設定
-            fixed: fixed,
-            variable: variable,
-            total: total
-          };
+          // 既存形式：fixed/variable/totalから計算
+          const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+          const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+          const total = monthData.totalSalary ?? monthData.total ?? (fixed + variable);
+          
+          // 自動算出：totalSalary = fixedSalary + variableSalary
+          const calculatedTotal = fixed + variable;
+          
+          // バリデーション：fixed + variable が total と一致しない場合 → 自動補正
+          if (Math.abs(total - calculatedTotal) > 0.01) {
+            normalized[key] = {
+              ...monthData,
+              fixedSalary: fixed,
+              variableSalary: variable,
+              totalSalary: calculatedTotal,
+              fixed: fixed,
+              variable: variable,
+              total: calculatedTotal
+            };
+          } else {
+            normalized[key] = {
+              ...monthData,
+              fixedSalary: fixed,
+              variableSalary: variable,
+              totalSalary: total,
+              fixed: fixed,
+              variable: variable,
+              total: total
+            };
+          }
         }
       }
     }

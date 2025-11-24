@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, addDoc, query, where, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, addDoc, query, where, getDocs, doc, setDoc } from '@angular/fire/firestore';
+import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { Bonus } from '../models/bonus.model';
 
 @Injectable({ providedIn: 'root' })
@@ -84,6 +85,41 @@ export class BonusService {
     );
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bonus));
+  }
+
+  /**
+   * 賞与を保存する（新しい構造）
+   * @param year 年度
+   * @param data 賞与データ
+   */
+  async saveBonus(year: number, data: Bonus): Promise<void> {
+    const docId = `${data.employeeId}_${data.month}`;
+    const ref = doc(this.firestore, `bonus/${year}/${docId}`);
+    const bonusData = {
+      ...data,
+      year,
+      createdAt: data.createdAt || Timestamp.now()
+    };
+    await setDoc(ref, bonusData, { merge: true });
+  }
+
+  /**
+   * 賞与を読み込む（新しい構造）
+   * @param year 年度
+   * @param employeeId 従業員ID（オプショナル）
+   * @returns 賞与データの配列
+   */
+  async loadBonus(year: number, employeeId?: string): Promise<Bonus[]> {
+    const ref = collection(this.firestore, `bonus/${year}`);
+    if (employeeId) {
+      const q = query(ref, where('employeeId', '==', employeeId));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bonus));
+    } else {
+      // 全従業員の賞与データを取得
+      const snapshot = await getDocs(ref);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bonus));
+    }
   }
 }
 

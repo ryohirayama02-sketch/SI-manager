@@ -19,12 +19,13 @@ export class BonusPageComponent implements OnInit {
   employees: Employee[] = [];
   selectedEmployeeId: string = '';
   bonusAmount: number | null = null;
-  paymentDate: string = '';
+  paymentMonth: number = 1;
+  isExempt: boolean = false;
   rates: any = null;
-  year: string = '2025';
+  year: number = 2025;
   prefecture: string = 'tokyo';
 
-  // 計算結果
+  // 計算結果（次のStepで使用）
   calculationResult: BonusCalculationResult | null = null;
 
   constructor(
@@ -36,15 +37,15 @@ export class BonusPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
-    this.rates = await this.settingsService.getRates(this.year, this.prefecture);
+    this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
   }
 
-  public onInputChange(): void {
-    this.updateBonusCalculation().catch(err => console.error('計算エラー:', err));
+  async onInputChange(): Promise<void> {
+    await this.updateBonusCalculation();
   }
 
   async updateBonusCalculation(): Promise<void> {
-    if (!this.selectedEmployeeId || this.bonusAmount === null || this.bonusAmount < 0 || !this.paymentDate || !this.rates) {
+    if (!this.selectedEmployeeId || this.bonusAmount === null || this.bonusAmount < 0 || !this.rates) {
       this.calculationResult = null;
       return;
     }
@@ -55,11 +56,14 @@ export class BonusPageComponent implements OnInit {
       return;
     }
 
+    // paymentMonthからpayDateを生成（月の1日を仮定）
+    const paymentDate = `${this.year}-${String(this.paymentMonth).padStart(2, '0')}-01`;
+
     this.calculationResult = await this.bonusCalculationService.calculateBonus(
       employee,
       this.selectedEmployeeId,
       this.bonusAmount,
-      this.paymentDate,
+      paymentDate,
       this.rates
     );
   }
@@ -76,14 +80,9 @@ export class BonusPageComponent implements OnInit {
       return;
     }
 
-    if (!this.paymentDate) {
-      alert('支給日を入力してください');
-      return;
-    }
-
     // 計算結果が無い場合は計算を実行
     if (!this.calculationResult) {
-      this.updateBonusCalculation();
+      await this.updateBonusCalculation();
     }
 
     if (!this.calculationResult) {
@@ -91,15 +90,19 @@ export class BonusPageComponent implements OnInit {
       return;
     }
 
-    // 標準賞与額（1,000円未満切り捨て）
-    const standardBonusAmount = Math.floor((this.bonusAmount || 0) / 1000) * 1000;
-
-    // Bonusオブジェクトを作成（calculationResultと統合）
+    // Bonusオブジェクトを作成（計算結果を含む）
+    const paymentDate = `${this.year}-${String(this.paymentMonth).padStart(2, '0')}-01`;
     const bonus: Bonus = {
       employeeId: this.selectedEmployeeId,
-      amount: this.bonusAmount,
-      payDate: this.paymentDate,
+      year: this.year,
+      month: this.paymentMonth,
+      amount: this.bonusAmount!,
+      payDate: paymentDate,
       createdAt: new Date(),
+      isExempt: this.isExempt || this.calculationResult.isExempted || false,
+      cappedHealth: this.calculationResult.cappedBonusHealth || 0,
+      cappedPension: this.calculationResult.cappedBonusPension || 0,
+      // 既存フィールド（後方互換性）
       healthEmployee: this.calculationResult.healthEmployee,
       healthEmployer: this.calculationResult.healthEmployer,
       careEmployee: this.calculationResult.careEmployee,
@@ -115,17 +118,19 @@ export class BonusPageComponent implements OnInit {
       isOverAge75: this.calculationResult.isOverAge75,
       requireReport: this.calculationResult.requireReport,
       reportDeadline: this.calculationResult.reportDeadline || undefined,
-      isSalaryInsteadOfBonus: this.calculationResult.isSalaryInsteadOfBonus
+      isSalaryInsteadOfBonus: this.calculationResult.isSalaryInsteadOfBonus,
+      exemptReason: this.calculationResult.exemptReason
     };
 
     try {
-      await this.bonusService.addBonus(bonus);
+      await this.bonusService.saveBonus(this.year, bonus);
       alert('賞与データを保存しました');
       
       // フォームリセット
       this.selectedEmployeeId = '';
       this.bonusAmount = null;
-      this.paymentDate = '';
+      this.paymentMonth = 1;
+      this.isExempt = false;
       this.calculationResult = null;
     } catch (error) {
       console.error('賞与登録エラー:', error);

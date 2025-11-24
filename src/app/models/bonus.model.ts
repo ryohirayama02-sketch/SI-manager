@@ -1,9 +1,15 @@
 export interface Bonus {
   id?: string;
   employeeId: string;
+  year: number;
+  month: number;
   amount: number;
   payDate: string; // YYYY-MM-DD
   createdAt: any;
+  isExempt: boolean;
+  cappedHealth: number;
+  cappedPension: number;
+  // 既存フィールド（後方互換性のため残す）
   healthEmployee?: number;
   healthEmployer?: number;
   careEmployee?: number;

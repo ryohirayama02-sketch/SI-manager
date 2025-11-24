@@ -1,3 +1,29 @@
+<h2>基本設定</h2>
+
+<div class="card">
+  <div class="info-label">
+    給与月の判定方式を選択してください。
+  </div>
+  <form [formGroup]="settingsForm" (ngSubmit)="saveSettings()">
+    <div class="form-group">
+      <label>給与月の判定方式：</label>
+      <div>
+        <label>
+          <input type="radio" formControlName="payrollMonthRule" value="payday">
+          支給日基準（給与が支給された月を給与月とする）
+        </label>
+      </div>
+      <div>
+        <label>
+          <input type="radio" formControlName="payrollMonthRule" value="closing">
+          締日基準（給与の締めた月を給与月とする）
+        </label>
+      </div>
+    </div>
+    <button type="submit" class="btn-primary">保存する</button>
+  </form>
+</div>
+
 <h2>保険料率の設定（{{ year }}年）</h2>
 
 <div class="card">
@@ -12,6 +38,12 @@
         <option value="hokkaido">北海道</option>
         <option value="osaka">大阪府</option>
       </select>
+    </div>
+
+    <div class="form-group">
+      <label>適用開始月：</label>
+      <input type="month" formControlName="effectiveFrom" class="form-control" required>
+      <small class="form-text">例：2025-04（年度内で複数の料率を管理できます）</small>
     </div>
 
     <h3>健康保険</h3>
@@ -68,9 +100,15 @@
   </div>
 </div>
 
-<h2>標準報酬月額テーブル（{{ year }}年）</h2>
+<h2>標準報酬月額テーブル</h2>
 
 <div class="card">
+  <div class="form-group">
+    <label>年度：</label>
+    <select [(ngModel)]="standardTableYear" (change)="onStandardTableYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}年</option>
+    </select>
+  </div>
   <div class="info-label">
     標準報酬月額テーブルは上限＝次の等級の下限になるように編集してください。等級が連続していない場合はエラーが表示されます。
   </div>
@@ -110,5 +148,39 @@
   </div>
 
   <button (click)="saveStandardTable()" class="btn-success" style="margin-top: 1rem;">標準報酬月額テーブルを保存する</button>
+</div>
+
+<h2>給与項目マスタ</h2>
+
+<div class="card">
+  <div class="form-group">
+    <label>年度：</label>
+    <select [(ngModel)]="salaryItemsYear" (change)="onSalaryItemsYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}年</option>
+    </select>
+  </div>
+  <div class="info-label">
+    給与項目を「固定（fixed）」「非固定（variable）」で分類して管理します。
+  </div>
+  <form [formGroup]="salaryItemsForm">
+    <div formArrayName="salaryItems">
+      <div *ngFor="let item of salaryItems.controls; let i = index" [formGroupName]="i" class="row-card">
+        <div class="form-group">
+          <label>項目名：</label>
+          <input type="text" formControlName="name" class="form-control" placeholder="例：基本給" required>
+        </div>
+        <div class="form-group">
+          <label>種別：</label>
+          <select formControlName="type" class="form-control" required>
+            <option value="fixed">固定</option>
+            <option value="variable">非固定</option>
+          </select>
+        </div>
+        <button type="button" (click)="removeSalaryItem(i)" class="btn-secondary" style="margin-top: 0.5rem;">削除</button>
+      </div>
+    </div>
+  </form>
+  <button type="button" (click)="addSalaryItem()" class="btn-primary" style="margin-top: 1rem;">項目を追加</button>
+  <button type="button" (click)="saveSalaryItems()" class="btn-success" style="margin-top: 1rem; margin-left: 0.5rem;">給与項目マスタを保存する</button>
 </div>
 

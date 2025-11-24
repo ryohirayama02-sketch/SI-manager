@@ -175,7 +175,7 @@
       <span class="label">厚生年金（本人）：</span>
       <span class="value highlight"
         >{{
-          bonusTotals[emp.id]?.pensionEmployee ?? 0 | number : "1.0-0"
+          bonusTotals[emp.id].pensionEmployee ?? 0 | number : "1.0-0"
         }}円</span
       >
     </div>
@@ -183,7 +183,7 @@
       <span class="label">厚生年金（会社）：</span>
       <span class="value highlight"
         >{{
-          bonusTotals[emp.id]?.pensionEmployer ?? 0 | number : "1.0-0"
+          bonusTotals[emp.id].pensionEmployer ?? 0 | number : "1.0-0"
         }}円</span
       >
     </div>

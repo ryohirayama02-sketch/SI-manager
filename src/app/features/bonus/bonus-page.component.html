@@ -1,9 +1,5 @@
 <h2>賞与入力</h2>
 
-<div class="info-label">
-  <strong>重要:</strong> 支給額は必ず総支給額を入力してください。標準賞与額は自動的に千円未満が切り捨てられます。
-</div>
-
 <form (ngSubmit)="onSubmit()" class="bonus-form card">
   <div class="form-group">
     <label for="employee">従業員 <span class="required">*</span></label>
@@ -18,6 +14,22 @@
       <option value="">選択してください</option>
       <option *ngFor="let emp of employees" [value]="emp.id">
         {{ emp.name }}
+      </option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="paymentMonth">支給月 <span class="required">*</span></label>
+    <select
+      id="paymentMonth"
+      [(ngModel)]="paymentMonth"
+      (change)="onInputChange()"
+      name="paymentMonth"
+      class="form-control"
+      required
+    >
+      <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">
+        {{ m }}月
       </option>
     </select>
   </div>
@@ -38,19 +50,18 @@
   </div>
 
   <div class="form-group">
-    <label for="paymentDate">支給日 <span class="required">*</span></label>
-    <input
-      id="paymentDate"
-      type="date"
-      [(ngModel)]="paymentDate"
-      (change)="onInputChange()"
-      name="paymentDate"
-      class="form-control"
-      required
-    />
+    <label>
+      <input
+        type="checkbox"
+        [(ngModel)]="isExempt"
+        (change)="onInputChange()"
+        name="isExempt"
+      />
+      育休・産休中
+    </label>
   </div>
 
-  <button type="submit" class="btn-primary">登録（ダミー）</button>
+  <button type="submit" class="btn-primary">保存</button>
 </form>
 
 <div *ngIf="calculationResult as cr" class="calculation-card card">
@@ -149,6 +160,10 @@
 
   <div class="info-section">
     <h4>届出情報</h4>
+    <div class="calculation-item">
+      <span class="label">賞与支払届：</span>
+      <span class="value">{{ cr.reportRequired ? "提出 ○" : "提出 ×" }}</span>
+    </div>
     <div class="calculation-item">
       <span class="label">賞与支払届が必要：</span>
       <span class="value">{{ cr.needsNotification ? "はい" : "いいえ" }}</span>

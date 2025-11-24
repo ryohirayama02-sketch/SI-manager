@@ -8,6 +8,7 @@ import { SettingsPageComponent } from './features/settings/settings-page/setting
 import { BonusPageComponent } from './features/bonus/bonus-page.component';
 import { InsuranceResultPageComponent } from './features/insurance-result/insurance-result-page.component';
 import { PaymentSummaryPageComponent } from './features/insurance-payment-summary/payment-summary-page.component';
+import { MonthlyChangeAlertPageComponent } from './features/monthly-change-alert/monthly-change-alert-page.component';
 
 export const routes: Routes = [
   {
@@ -45,6 +46,10 @@ export const routes: Routes = [
   {
     path: 'insurance-payment-summary',
     component: PaymentSummaryPageComponent
+  },
+  {
+    path: 'monthly-change-alert',
+    component: MonthlyChangeAlertPageComponent
   },
   {
     path: '',

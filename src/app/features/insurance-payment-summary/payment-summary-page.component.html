@@ -25,9 +25,17 @@
         <td class="label-cell">厚生年金</td>
         <td class="amount-cell">{{ getAnnualTotalPension() | number:'1.0-0' }}円</td>
       </tr>
+      <tr>
+        <td class="label-cell">賞与保険料（従業員）</td>
+        <td class="amount-cell">{{ bonusAnnualTotals.totalEmployee | number:'1.0-0' }}円</td>
+      </tr>
+      <tr>
+        <td class="label-cell">賞与保険料（事業主）</td>
+        <td class="amount-cell">{{ bonusAnnualTotals.totalEmployer | number:'1.0-0' }}円</td>
+      </tr>
       <tr class="total-row">
-        <td class="label-cell total-cell">会社全体合計</td>
-        <td class="amount-cell total-cell">{{ getAnnualTotal() | number:'1.0-0' }}円</td>
+        <td class="label-cell total-cell">年間合計（給与＋賞与）</td>
+        <td class="amount-cell total-cell">{{ getAnnualTotal() + bonusAnnualTotals.total | number:'1.0-0' }}円</td>
       </tr>
     </tbody>
   </table>
@@ -67,8 +75,12 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let month of months">
-        <td class="month-cell">{{ month }}月</td>
+      <tr *ngFor="let month of months" [class.bonus-month-row]="bonusByMonth[month]">
+        <td class="month-cell">
+          {{ month }}月
+          <span *ngIf="bonusByMonth[month]" class="bonus-mark">★</span>
+          <span *ngIf="bonusByMonth[month]" class="bonus-info" [title]="getBonusTooltip(month)">ℹ️</span>
+        </td>
         <td class="amount-cell">{{ (monthlyTotals[month]?.health ?? 0) | number:'1.0-0' }}円</td>
         <td class="amount-cell">{{ (monthlyTotals[month]?.care ?? 0) | number:'1.0-0' }}円</td>
         <td class="amount-cell">{{ (monthlyTotals[month]?.pension ?? 0) | number:'1.0-0' }}円</td>
@@ -101,8 +113,12 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let total of companyMonthlyTotals">
-        <td class="month-cell">{{ total.month }}月</td>
+      <tr *ngFor="let total of companyMonthlyTotals" [class.bonus-month-row]="bonusByMonth[total.month]">
+        <td class="month-cell">
+          {{ total.month }}月
+          <span *ngIf="bonusByMonth[total.month]" class="bonus-mark">★</span>
+          <span *ngIf="bonusByMonth[total.month]" class="bonus-info" [title]="getBonusTooltip(total.month)">ℹ️</span>
+        </td>
         <td class="amount-cell">{{ total.healthTotal | number:'1.0-0' }}円</td>
         <td class="amount-cell">{{ total.careTotal | number:'1.0-0' }}円</td>
         <td class="amount-cell">{{ total.pensionTotal | number:'1.0-0' }}円</td>
@@ -161,6 +177,25 @@
 
   <div class="info-label" *ngIf="hasNotesForEmployee(emp.id)">
     <span>※ 詳細な免除理由・注意事項は各月の notes を参照</span>
+  </div>
+
+  <!-- 届出要否 -->
+  <div class="notification-block" *ngIf="notificationsByEmployee[emp.id]?.length">
+    <h4>届出要否</h4>
+    <div *ngFor="let n of notificationsByEmployee[emp.id]" class="notification-item">
+      <div class="notification-header">
+        <span class="notification-type">{{ getNotificationTypeLabel(n.type) }}</span>
+        <span class="notification-required" [class.required]="n.required" [class.not-required]="!n.required">
+          {{ n.required ? '要提出' : '不要' }}
+        </span>
+      </div>
+      <div *ngIf="n.submitUntil" class="notification-deadline">
+        提出期限: {{ n.submitUntil }}
+      </div>
+      <ul class="notification-reasons">
+        <li *ngFor="let r of n.reasons">{{ r }}</li>
+      </ul>
+    </div>
   </div>
 </div>
 

@@ -1,33 +1,108 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, getDoc, setDoc, collection, getDocs } from '@angular/fire/firestore';
+import { Firestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from '@angular/fire/firestore';
+import { Settings } from '../models/settings.model';
+import { Rate } from '../models/rate.model';
+import { SalaryItem } from '../models/salary-item.model';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
   constructor(private firestore: Firestore) {}
 
-  async getRates(year: string, prefecture: string): Promise<any | null> {
-    const ref = doc(this.firestore, `rates/${year}/prefectures/${prefecture}`);
+  async loadSettings(): Promise<Settings> {
+    const ref = doc(this.firestore, 'settings/general');
     const snap = await getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        payrollMonthRule: data['payrollMonthRule'] || 'payday'
+      };
+    }
+    return { payrollMonthRule: 'payday' };
   }
 
-  async saveRates(year: string, prefecture: string, data: any): Promise<void> {
-    const ref = doc(this.firestore, `rates/${year}/prefectures/${prefecture}`);
-    await setDoc(ref, data, { merge: true });
+  async saveSettings(settings: Settings): Promise<void> {
+    const ref = doc(this.firestore, 'settings/general');
+    await setDoc(ref, settings, { merge: true });
   }
 
-  async getStandardTable(year: string): Promise<any[]> {
-    const ref = collection(this.firestore, `standardTable/${year}/rows`);
+  async getRates(year: string, prefecture: string, payMonth?: string): Promise<any | null> {
+    // 既存の単一ドキュメント構造との互換性チェック
+    const legacyRef = doc(this.firestore, `rates/${year}/prefectures/${prefecture}`);
+    const legacySnap = await getDoc(legacyRef);
+    if (legacySnap.exists()) {
+      const legacyData = legacySnap.data();
+      // effectiveFromがない場合は年度初日として扱う
+      if (!legacyData['effectiveFrom']) {
+        return legacyData;
+      }
+    }
+
+    // 新しいサブコレクション構造から取得
+    const versionsRef = collection(this.firestore, `rates/${year}/prefectures/${prefecture}/versions`);
+    
+    if (payMonth) {
+      // 支給月に応じて適切なレコードを選択
+      // effectiveFrom <= payMonth の中で最も新しいものを選択
+      const q = query(
+        versionsRef,
+        where('effectiveFrom', '<=', payMonth),
+        orderBy('effectiveFrom', 'desc'),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data();
+      }
+    } else {
+      // payMonthが指定されていない場合は最新のレコードを取得
+      const q = query(versionsRef, orderBy('effectiveFrom', 'desc'), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return snap.docs[0].data();
+      }
+    }
+
+    return null;
+  }
+
+  async saveRates(year: string, prefecture: string, data: Rate): Promise<void> {
+    // effectiveFromが指定されていない場合は年度初日（4月）として扱う
+    const effectiveFrom = data.effectiveFrom || `${year}-04`;
+    const ref = doc(this.firestore, `rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`);
+    await setDoc(ref, { ...data, effectiveFrom }, { merge: true });
+  }
+
+  async getStandardTable(year: number): Promise<any[]> {
+    const ref = collection(this.firestore, `settings/${year}/standardTable`);
     const snap = await getDocs(ref);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snap.docs.map(d => ({ id: d.id, ...d.data(), year }));
   }
 
-  async saveStandardTable(year: string, rows: any[]): Promise<void> {
-    const basePath = `standardTable/${year}/rows`;
+  async saveStandardTable(year: number, rows: any[]): Promise<void> {
+    const basePath = `settings/${year}/standardTable`;
     for (const row of rows) {
       const ref = doc(this.firestore, `${basePath}/${row.id}`);
-      await setDoc(ref, row, { merge: true });
+      await setDoc(ref, { ...row, year }, { merge: true });
     }
+  }
+
+  async loadSalaryItems(year: number): Promise<SalaryItem[]> {
+    const ref = collection(this.firestore, `settings/${year}/salaryItems`);
+    const snap = await getDocs(ref);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryItem));
+  }
+
+  async saveSalaryItems(year: number, items: SalaryItem[]): Promise<void> {
+    const basePath = `settings/${year}/salaryItems`;
+    for (const item of items) {
+      const ref = doc(this.firestore, `${basePath}/${item.id}`);
+      await setDoc(ref, item, { merge: true });
+    }
+  }
+
+  async deleteSalaryItem(year: number, itemId: string): Promise<void> {
+    const ref = doc(this.firestore, `settings/${year}/salaryItems/${itemId}`);
+    await deleteDoc(ref);
   }
 
   async seedRatesTokyo2025(): Promise<void> {

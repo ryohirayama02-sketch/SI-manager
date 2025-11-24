@@ -167,6 +167,85 @@
   margin-top: 2rem;
 }
 
+.notification-block {
+  margin-top: 2rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+}
+
+.notification-block h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #007bff;
+  font-size: 1.1rem;
+}
+
+.notification-item {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.notification-item:last-child {
+  margin-bottom: 0;
+}
+
+.notification-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.notification-type {
+  font-weight: bold;
+  color: #333;
+  font-size: 1rem;
+}
+
+.notification-required {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.notification-required.required {
+  background: #dc3545;
+  color: #fff;
+}
+
+.notification-required.not-required {
+  background: #6c757d;
+  color: #fff;
+}
+
+.notification-deadline {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #fff3cd;
+  border-left: 3px solid #ffc107;
+  color: #856404;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.notification-reasons {
+  margin-top: 0.75rem;
+  margin-bottom: 0;
+  padding-left: 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.notification-reasons li {
+  margin-bottom: 0.25rem;
+}
+
 .annual-summary-table {
   max-width: 600px;
 }
@@ -192,4 +271,24 @@
   font-weight: bold;
   font-size: 1.1em;
   color: #007bff;
+}
+
+/* 賞与支給月の行強調 */
+.bonus-month-row {
+  background-color: #f0f7ff;
+}
+
+/* 賞与マーク */
+.bonus-mark {
+  color: #ff9800;
+  font-weight: bold;
+  margin-left: 4px;
+}
+
+/* 賞与情報アイコン */
+.bonus-info {
+  margin-left: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #2196f3;
 }

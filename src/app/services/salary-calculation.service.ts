@@ -4,6 +4,8 @@ import { MonthlySalaryService } from './monthly-salary.service';
 import { MonthHelperService } from './month-helper.service';
 import { MaternityLeaveService } from './maternity-leave.service';
 import { EmployeeEligibilityService } from './employee-eligibility.service';
+import { SalaryItemEntry, MonthlySalaryData } from '../models/monthly-salary.model';
+import { SalaryItem } from '../models/salary-item.model';
 
 export interface SalaryData {
   total: number;
@@ -1208,6 +1210,59 @@ export class SalaryCalculationService {
       usedMonth,
       reasons
     };
+  }
+
+  /**
+   * 給与項目マスタから固定/非固定の合計を計算
+   */
+  calculateSalaryTotals(
+    salaryItems: SalaryItemEntry[],
+    salaryItemMaster: SalaryItem[]
+  ): { fixedTotal: number; variableTotal: number; total: number } {
+    let fixedTotal = 0;
+    let variableTotal = 0;
+
+    for (const entry of salaryItems) {
+      const master = salaryItemMaster.find(item => item.id === entry.itemId);
+      if (master) {
+        if (master.type === 'fixed') {
+          fixedTotal += entry.amount;
+        } else if (master.type === 'variable') {
+          variableTotal += entry.amount;
+        }
+      }
+    }
+
+    return {
+      fixedTotal,
+      variableTotal,
+      total: fixedTotal + variableTotal
+    };
+  }
+
+  /**
+   * 給与データから固定/非固定/総支給を取得（後方互換性対応）
+   */
+  getSalaryFromData(data: MonthlySalaryData | SalaryData | undefined): { fixed: number; variable: number; total: number } {
+    if (!data) {
+      return { fixed: 0, variable: 0, total: 0 };
+    }
+
+    // 新しい項目別形式を優先
+    if ('salaryItems' in data && data.salaryItems) {
+      return {
+        fixed: data.fixedTotal ?? 0,
+        variable: data.variableTotal ?? 0,
+        total: data.total ?? 0
+      };
+    }
+
+    // 既存形式のフォールバック
+    const fixed = (data as any).fixedSalary ?? (data as any).fixed ?? 0;
+    const variable = (data as any).variableSalary ?? (data as any).variable ?? 0;
+    const total = (data as any).totalSalary ?? (data as any).total ?? (fixed + variable);
+
+    return { fixed, variable, total };
   }
 
 }
