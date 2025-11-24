@@ -26,18 +26,34 @@ export class BonusService {
   }
 
   async getBonusCountLast12Months(employeeId: string, payDate: Date): Promise<number> {
+    // 過去12ヶ月（支給日ベース）の賞与を取得
+    const bonuses = await this.getBonusesLast12Months(employeeId, payDate);
+    return bonuses.length;
+  }
+
+  /**
+   * 過去12ヶ月（支給日ベース）の賞与を取得
+   * @param employeeId 従業員ID
+   * @param payDate 現在の支給日
+   * @returns 過去12ヶ月の賞与リスト（今回の支給日を含む）
+   */
+  async getBonusesLast12Months(employeeId: string, payDate: Date): Promise<Bonus[]> {
     const col = collection(this.firestore, 'bonuses');
+    // 支給日から12ヶ月前の日付を計算
     const startDate = new Date(payDate);
-    startDate.setDate(startDate.getDate() - 365);
+    startDate.setMonth(startDate.getMonth() - 12);
     const startDateISO = startDate.toISOString().split('T')[0];
+    // 支給日当日まで（今回の支給日を含む）
+    const endDateISO = payDate.toISOString().split('T')[0];
     
     const q = query(
       col,
       where('employeeId', '==', employeeId),
-      where('payDate', '>=', startDateISO)
+      where('payDate', '>=', startDateISO),
+      where('payDate', '<=', endDateISO)
     );
     const snapshot = await getDocs(q);
-    return snapshot.size;
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Bonus));
   }
 
   async getBonusesByEmployee(employeeId: string, payDate?: Date): Promise<Bonus[]> {

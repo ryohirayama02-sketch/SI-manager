@@ -233,7 +233,10 @@ export class MonthlySalariesPageComponent implements OnInit {
     if (values.length !== 3) return null;
 
     // サービスメソッドを使用して平均を計算（除外月なし）
-    return this.salaryCalculationService.calculateAverage(values, []);
+    // calculateAverageの新しいシグネチャに合わせて、total/fixed/variable形式に変換
+    const salaryDataArray = values.map(total => ({ total, fixed: total, variable: 0 }));
+    const result = this.salaryCalculationService.calculateAverage(salaryDataArray, []);
+    return result.averageSalary > 0 ? result.averageSalary : null;
   }
 
   getStandardMonthlyRemuneration(avg: number | null) {

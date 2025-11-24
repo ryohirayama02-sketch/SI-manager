@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 import { BonusService } from './bonus.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
+import { EmployeeEligibilityService, AgeFlags } from './employee-eligibility.service';
+import { SalaryCalculationService } from './salary-calculation.service';
 
 export interface BonusCalculationResult {
   healthEmployee: number;
@@ -37,11 +39,18 @@ export interface BonusCalculationResult {
   exemptReason?: string;
   errorMessages?: string[];
   warningMessages?: string[];
+  // 追加: 要件に合わせた戻り値構造
+  exemptReasons?: string[];        // 免除理由の配列
+  salaryInsteadReasons?: string[]; // 給与扱い理由の配列
 }
 
 @Injectable({ providedIn: 'root' })
 export class BonusCalculationService {
-  constructor(private bonusService: BonusService) {}
+  constructor(
+    private bonusService: BonusService,
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private salaryCalculationService: SalaryCalculationService
+  ) {}
 
   calculateAge(birthDate: string): number {
     const birth = new Date(birthDate);
@@ -58,19 +67,34 @@ export class BonusCalculationService {
     return Math.floor(bonusAmount / 1000) * 1000;
   }
 
-  applyBonusCaps(standardBonus: number): {
+  async applyBonusCaps(
+    standardBonus: number,
+    employeeId: string,
+    payYear: number
+  ): Promise<{
     cappedBonusHealth: number;
     cappedBonusPension: number;
     reason_upper_limit_health: boolean;
     reason_upper_limit_pension: boolean;
-  } {
+  }> {
     const HEALTH_CARE_ANNUAL_LIMIT = 5730000;
     const PENSION_SINGLE_LIMIT = 1500000;
     
-    const cappedBonusHealth = Math.min(standardBonus, HEALTH_CARE_ANNUAL_LIMIT);
+    // 厚生年金：1回150万円上限
     const cappedBonusPension = Math.min(standardBonus, PENSION_SINGLE_LIMIT);
-    const reason_upper_limit_health = standardBonus > HEALTH_CARE_ANNUAL_LIMIT;
     const reason_upper_limit_pension = standardBonus > PENSION_SINGLE_LIMIT;
+    
+    // 健保・介保：年度累計573万円上限（今年支給済の賞与合計を読み取る）
+    const existingBonuses = await this.bonusService.getBonusesForResult(employeeId, payYear);
+    const existingTotal = existingBonuses.reduce((sum, bonus) => {
+      const bonusAmount = bonus.amount || 0;
+      const existingStandard = Math.floor(bonusAmount / 1000) * 1000;
+      return sum + existingStandard;
+    }, 0);
+    
+    const remainingLimit = Math.max(0, HEALTH_CARE_ANNUAL_LIMIT - existingTotal);
+    const cappedBonusHealth = Math.min(standardBonus, remainingLimit);
+    const reason_upper_limit_health = standardBonus > remainingLimit;
 
     return {
       cappedBonusHealth,
@@ -179,27 +203,37 @@ export class BonusCalculationService {
     reason_bonus_to_salary_text?: string;
     bonusCountLast12Months: number;
     bonusCount: number;
+    salaryInsteadReasons: string[];
   }> {
-    const pastBonuses = await this.bonusService.getBonusesByEmployee(employeeId, payDate);
-    const bonusCount = pastBonuses.length + 1;
-    const bonusCountLast12Months = await this.bonusService.getBonusCountLast12Months(employeeId, payDate);
+    // 過去12ヶ月（支給日ベース）の賞与を取得（今回の支給日を含む）
+    const bonusesLast12Months = await this.bonusService.getBonusesLast12Months(employeeId, payDate);
+    // 今回の支給日を含めた過去12ヶ月の賞与回数
+    const bonusCountLast12Months = bonusesLast12Months.length;
+    // 今回を含む総回数（過去12ヶ月の回数と同じ）
+    const bonusCount = bonusCountLast12Months;
     
+    const salaryInsteadReasons: string[] = [];
     let isSalaryInsteadOfBonus = false;
     let reason_bonus_to_salary_text: string | undefined = undefined;
     
-    if (bonusCount === 1) {
+    // 過去12ヶ月の賞与支給回数から判定
+    // 3回以内 → 賞与扱い
+    // 4回以上 → 給与扱い（賞与保険料なし）
+    if (bonusCountLast12Months >= 4) {
       isSalaryInsteadOfBonus = true;
-      reason_bonus_to_salary_text = "過去12ヶ月の賞与支給回数が1回のため給与扱いとなります。";
-    } else if (bonusCountLast12Months >= 3) {
-      isSalaryInsteadOfBonus = true;
-      reason_bonus_to_salary_text = "過去1年間の賞与支給回数が3回を超えているため、今回の支給は賞与ではなく給与として扱われます。";
+      reason_bonus_to_salary_text = `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため、今回の支給は賞与ではなく給与として扱われます。`;
+      salaryInsteadReasons.push(`過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため給与扱い`);
+    } else {
+      // 3回以内は賞与扱い
+      salaryInsteadReasons.push(`過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（3回以内）のため賞与扱い`);
     }
     
     return {
       isSalaryInsteadOfBonus,
       reason_bonus_to_salary_text,
       bonusCountLast12Months,
-      bonusCount
+      bonusCount,
+      salaryInsteadReasons
     };
   }
 
@@ -207,7 +241,7 @@ export class BonusCalculationService {
     healthBase: number,
     pensionBase: number,
     age: number,
-    isOverAge75: boolean,
+    ageFlags: AgeFlags,
     rates: any
   ): {
     healthEmployee: number;
@@ -217,14 +251,22 @@ export class BonusCalculationService {
     pensionEmployee: number;
     pensionEmployer: number;
   } {
-    const isCareEligible = age >= 40 && age <= 64 && !isOverAge75;
+    // 年齢到達の例外処理（ageFlags を使用）
+    // ageFlags.isNoHealth（75歳以上） → 健保・介保も0円
+    const actualHealthBase = ageFlags.isNoHealth ? 0 : healthBase;
+    // ageFlags.isNoPension（70歳以上） → 厚生年金は0円
+    const actualPensionBase = ageFlags.isNoPension ? 0 : pensionBase;
     
-    const healthEmployee = Math.floor(healthBase * rates.health_employee);
-    const healthEmployer = Math.floor(healthBase * rates.health_employer);
-    const careEmployee = isCareEligible ? Math.floor(healthBase * rates.care_employee) : 0;
-    const careEmployer = isCareEligible ? Math.floor(healthBase * rates.care_employer) : 0;
-    const pensionEmployee = Math.floor(pensionBase * rates.pension_employee);
-    const pensionEmployer = Math.floor(pensionBase * rates.pension_employer);
+    // 介護保険は40〜64歳のみ（ageFlags.isCare2）
+    const isCareEligible = ageFlags.isCare2;
+    
+    // 保険料計算
+    const healthEmployee = Math.floor(actualHealthBase * rates.health_employee);
+    const healthEmployer = Math.floor(actualHealthBase * rates.health_employer);
+    const careEmployee = isCareEligible ? Math.floor(actualHealthBase * rates.care_employee) : 0;
+    const careEmployer = isCareEligible ? Math.floor(actualHealthBase * rates.care_employer) : 0;
+    const pensionEmployee = Math.floor(actualPensionBase * rates.pension_employee);
+    const pensionEmployer = Math.floor(actualPensionBase * rates.pension_employer);
 
     return {
       healthEmployee,
@@ -432,11 +474,11 @@ export class BonusCalculationService {
     const payDay = payDate.getDate();
     const lastDayOfMonth = new Date(payYear, payMonth, 0).getDate();
 
-    // 1. 標準賞与額
+    // 1. 標準賞与額（1000円未満切捨て）
     const standardBonus = this.calculateStandardBonus(bonusAmount);
 
-    // 2. 上限適用
-    const caps = this.applyBonusCaps(standardBonus);
+    // 2. 上限適用（年度累計を考慮）
+    const caps = await this.applyBonusCaps(standardBonus, employeeId, payYear);
     const { cappedBonusHealth, cappedBonusPension, reason_upper_limit_health, reason_upper_limit_pension } = caps;
 
     // 3. 退職月チェック
@@ -450,38 +492,79 @@ export class BonusCalculationService {
     const reason_exempt_childcare = childcareResult.isExempted;
     const isExempted = reason_exempt_maternity || reason_exempt_childcare;
     const exemptReason = maternityResult.exemptReason || childcareResult.exemptReason;
+    
+    // 免除理由の配列を作成
+    const exemptReasons: string[] = [];
+    // 退職月の賞与の扱い：月末在籍がない場合 → すべての保険料を0円にし、exemptReasonsに追加
+    if (isRetiredNoLastDay) {
+      exemptReasons.push('退職月のため社保対象外（月末在籍なし）');
+    }
+    if (reason_exempt_maternity && maternityResult.exemptReason) {
+      exemptReasons.push(maternityResult.exemptReason);
+    }
+    if (reason_exempt_childcare && childcareResult.exemptReason) {
+      exemptReasons.push(childcareResult.exemptReason);
+    }
 
-    // 5. 年齢チェック
+    // 5. 年齢チェック（employee-eligibility.service を使用）
     const age = this.calculateAge(employee.birthDate);
-    const isOverAge70 = this.checkOverAge70(employee, payYear, payMonth);
-    const isOverAge75 = this.checkOverAge75(employee, payYear, payMonth);
+    const eligibilityResult = this.employeeEligibilityService.checkEligibility(employee, undefined, payDate);
+    const ageFlags = eligibilityResult.ageFlags;
+    const isOverAge70 = ageFlags.isNoPension;
+    const isOverAge75 = ageFlags.isNoHealth;
     const reason_age70 = isOverAge70;
     const reason_age75 = isOverAge75;
 
-    // 6. 保険料計算のベース額を決定
+    // 6. 賞与→給与扱いチェック（先に判定）
+    const salaryResult = await this.checkSalaryInsteadOfBonus(employeeId, payDate);
+    const { isSalaryInsteadOfBonus, reason_bonus_to_salary_text, bonusCountLast12Months, bonusCount, salaryInsteadReasons } = salaryResult;
+    const reason_bonus_to_salary = isSalaryInsteadOfBonus;
+    
+    // 給与扱い時は全保険料0円 + salaryInsteadReasons に理由を push（既に checkSalaryInsteadOfBonus で設定済み）
+    // 給与扱いの場合、標準賞与額を給与に合算する
+    if (isSalaryInsteadOfBonus) {
+      try {
+        await this.salaryCalculationService.addBonusAsSalary(
+          employeeId,
+          payYear,
+          payMonth,
+          standardBonus
+        );
+      } catch (error) {
+        // エラーは上位でハンドリング（ログ出力などは上位で行う）
+        console.error('給与への賞与合算処理でエラーが発生しました:', error);
+      }
+    }
+
+    // 7. 保険料計算のベース額を決定
     let healthBase = 0;
     let pensionBase = 0;
 
-    if (!isRetiredNoLastDay && !isExempted && !isOverAge75) {
-      healthBase = cappedBonusHealth;
-    }
-
-    if (!isRetiredNoLastDay && !isExempted && !isOverAge70) {
-      pensionBase = cappedBonusPension;
-    }
-
-    // 7. 賞与→給与扱いチェック
-    const salaryResult = await this.checkSalaryInsteadOfBonus(employeeId, payDate);
-    const { isSalaryInsteadOfBonus, reason_bonus_to_salary_text, bonusCountLast12Months, bonusCount } = salaryResult;
-    const reason_bonus_to_salary = isSalaryInsteadOfBonus;
-
-    if (isSalaryInsteadOfBonus) {
+    // 退職月（月末在籍なし）の場合、すべての保険料を0円にする
+    if (isRetiredNoLastDay) {
       healthBase = 0;
       pensionBase = 0;
     }
+    // 産休・育休免除の場合
+    else if (isExempted) {
+      healthBase = 0;
+      pensionBase = 0;
+    }
+    // 給与扱いの場合（過去12ヶ月で4回以上）
+    else if (isSalaryInsteadOfBonus) {
+      healthBase = 0;
+      pensionBase = 0;
+    }
+    // 通常の場合（上限適用済みの標準賞与額を使用）
+    else {
+      // 健保・介保は年度累計上限適用済みの値（cappedBonusHealth）
+      healthBase = cappedBonusHealth;
+      // 厚年は1回上限適用済みの値（cappedBonusPension）
+      pensionBase = cappedBonusPension;
+    }
 
-    // 8. 保険料計算
-    const premiums = this.calculatePremiums(healthBase, pensionBase, age, isOverAge75, rates);
+    // 8. 保険料計算（上限適用済みの標準賞与額ベースで計算し、年齢到達処理を適用）
+    const premiums = this.calculatePremiums(healthBase, pensionBase, age, ageFlags, rates);
     const { healthEmployee, healthEmployer, careEmployee, careEmployer, pensionEmployee, pensionEmployer } = premiums;
 
     // 9. 理由の配列を生成
@@ -572,7 +655,9 @@ export class BonusCalculationService {
       reason_bonus_to_salary_text,
       exemptReason,
       errorMessages: errorMessages.length > 0 ? errorMessages : undefined,
-      warningMessages: warningMessages.length > 0 ? warningMessages : undefined
+      warningMessages: warningMessages.length > 0 ? warningMessages : undefined,
+      exemptReasons: exemptReasons.length > 0 ? exemptReasons : undefined,
+      salaryInsteadReasons: salaryInsteadReasons.length > 0 ? salaryInsteadReasons : undefined
     };
   }
 }

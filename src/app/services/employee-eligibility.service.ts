@@ -1,12 +1,23 @@
 import { Injectable } from '@angular/core';
 import { Employee } from '../models/employee.model';
 
+export type AgeCategory = 'normal' | 'care-2nd' | 'care-1st' | 'no-pension' | 'no-health';
+
+export interface AgeFlags {
+  isCare2: boolean;     // 40〜64歳（介護保険第2号被保険者）
+  isCare1: boolean;     // 65歳以上（介護保険第1号被保険者）
+  isNoPension: boolean; // 70歳以上（厚生年金停止）
+  isNoHealth: boolean;  // 75歳以上（健康保険・介護保険停止）
+}
+
 export interface EmployeeEligibilityResult {
   healthInsuranceEligible: boolean;
   pensionEligible: boolean;
   careInsuranceEligible: boolean;
   candidateFlag: boolean; // 加入候補者（3ヶ月連続で実働20時間以上など）
   reasons: string[]; // 判定根拠
+  ageCategory: AgeCategory; // 年齢区分
+  ageFlags: AgeFlags; // 年齢フラグ
 }
 
 export interface EmployeeWorkInfo {
@@ -41,22 +52,33 @@ export class EmployeeEligibilityService {
     if (employee.retireDate) {
       const retireDate = new Date(employee.retireDate);
       if (retireDate <= currentDate) {
+        const age = this.calculateAge(employee.birthDate, currentDate);
+        const ageFlags = this.getAgeFlags(age);
+        const ageCategory = this.getAgeCategory(age);
         reasons.push('退職済みのため加入不可');
         return {
           healthInsuranceEligible: false,
           pensionEligible: false,
           careInsuranceEligible: false,
           candidateFlag: false,
-          reasons
+          reasons,
+          ageCategory,
+          ageFlags
         };
       }
     }
 
     // 年齢による判定（下準備）
     const age = this.calculateAge(employee.birthDate, currentDate);
-    const isCareInsuranceEligible = this.isCareInsuranceEligibleByAge(age);
-    const isPensionEligibleByAge = this.isPensionEligibleByAge(age);
-    const isHealthInsuranceEligibleByAge = this.isHealthInsuranceEligibleByAge(age);
+    const ageFlags = this.getAgeFlags(age);
+    const ageCategory = this.getAgeCategory(age);
+    const isCareInsuranceEligible = this.isCareInsuranceEligible(age);
+    const isCareInsuranceStopped = this.isCareInsuranceStopped(age);
+    const isPensionStopped = this.isPensionStopped(age);
+    const isHealthAndCareStopped = this.isHealthAndCareStopped(age);
+    
+    const isPensionEligibleByAge = !isPensionStopped;
+    const isHealthInsuranceEligibleByAge = !isHealthAndCareStopped;
 
     // 1. 週30時間以上 → 加入
     if (workInfo?.weeklyHours && workInfo.weeklyHours >= 30) {
@@ -114,7 +136,9 @@ export class EmployeeEligibilityService {
       pensionEligible,
       careInsuranceEligible,
       candidateFlag,
-      reasons
+      reasons,
+      ageCategory,
+      ageFlags
     };
   }
 
@@ -189,26 +213,64 @@ export class EmployeeEligibilityService {
   }
 
   /**
-   * 介護保険の加入可能年齢を判定（40歳以上65歳未満）
+   * 年齢フラグを取得
    */
-  private isCareInsuranceEligibleByAge(age: number): boolean {
+  private getAgeFlags(age: number): AgeFlags {
+    return {
+      isCare2: age >= 40 && age < 65,      // 40〜64歳（介護保険第2号被保険者）
+      isCare1: age >= 65,                  // 65歳以上（介護保険第1号被保険者）
+      isNoPension: age >= 70,              // 70歳以上（厚生年金停止）
+      isNoHealth: age >= 75                // 75歳以上（健康保険・介護保険停止）
+    };
+  }
+
+  /**
+   * 年齢区分を取得
+   */
+  private getAgeCategory(age: number): AgeCategory {
+    if (age >= 75) {
+      return 'no-health';      // 75歳以上：健康保険・介護保険停止
+    } else if (age >= 70) {
+      return 'no-pension';     // 70歳以上：厚生年金停止
+    } else if (age >= 65) {
+      return 'care-1st';       // 65歳以上：介護保険第1号被保険者
+    } else if (age >= 40) {
+      return 'care-2nd';       // 40〜64歳：介護保険第2号被保険者
+    } else {
+      return 'normal';        // 40歳未満：通常
+    }
+  }
+
+  /**
+   * 介護保険の加入可能年齢を判定（40歳以上65歳未満）
+   * 40歳到達月：介護保険料徴収開始
+   */
+  isCareInsuranceEligible(age: number): boolean {
     return age >= 40 && age < 65;
   }
 
   /**
-   * 厚生年金の加入可能年齢を判定（70歳未満）
-   * 注: 70歳到達月の処理は別で実装予定
+   * 介護保険の徴収停止を判定（65歳）
+   * 65歳到達月：介護保険料徴収終了（第1号へ移行）
    */
-  private isPensionEligibleByAge(age: number): boolean {
-    return age < 70;
+  isCareInsuranceStopped(age: number): boolean {
+    return age >= 65;
   }
 
   /**
-   * 健康保険・介護保険の加入可能年齢を判定（75歳未満）
-   * 注: 75歳到達月の処理は別で実装予定
+   * 厚生年金の徴収停止を判定（70歳）
+   * 70歳到達月：厚生年金保険料徴収停止
    */
-  private isHealthInsuranceEligibleByAge(age: number): boolean {
-    return age < 75;
+  isPensionStopped(age: number): boolean {
+    return age >= 70;
+  }
+
+  /**
+   * 健康保険・介護保険の徴収停止を判定（75歳）
+   * 75歳到達月：健康保険・介護保険徴収停止
+   */
+  isHealthAndCareStopped(age: number): boolean {
+    return age >= 75;
   }
 }
 
