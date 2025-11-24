@@ -48,7 +48,7 @@
 
 .amount-cell {
   text-align: right;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   color: #333;
   width: 20%;
 }
@@ -130,7 +130,7 @@
 
 .monthly-table .amount-cell {
   text-align: right;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   color: #333;
 }
 
@@ -257,7 +257,7 @@
 
 .annual-summary-table .amount-cell {
   text-align: right;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   padding: 12px 16px;
 }
 
@@ -303,6 +303,27 @@
 .stop-info small {
   display: block;
   color: #856404;
+}
+
+/* 資格取得時決定表示 */
+.acquire-info {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: #0056b3;
+  font-weight: bold;
+}
+
+.acquire-reason {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 2px;
+  cursor: help;
+}
+
+.shikaku-report {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: #8a6d3b;
 }
 
 /* 年間警告パネル */

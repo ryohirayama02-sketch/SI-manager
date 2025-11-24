@@ -19,4 +19,9 @@ export interface Employee {
   expectedEmploymentMonths?: number; // 雇用見込期間（月）
   isStudent?: boolean; // 学生かどうか
   consecutiveMonthsOver20Hours?: number; // 連続で20時間以上働いた月数
+  // 資格取得時決定情報
+  acquisitionGrade?: number; // 資格取得時決定の等級
+  acquisitionStandard?: number; // 資格取得時決定の標準報酬月額
+  acquisitionYear?: number; // 資格取得年
+  acquisitionMonth?: number; // 資格取得月（1-12）
 }

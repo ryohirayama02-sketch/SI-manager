@@ -5,8 +5,18 @@ import { BonusService } from '../../services/bonus.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SettingsService } from '../../services/settings.service';
 import { InsuranceCalculationService } from '../../services/insurance-calculation.service';
-import { SalaryCalculationService, MonthlyPremiums, TeijiKetteiResult, SuijiKouhoResult } from '../../services/salary-calculation.service';
-import { NotificationDecisionService, NotificationDecisionResult } from '../../services/notification-decision.service';
+import {
+  SalaryCalculationService,
+  MonthlyPremiums,
+  TeijiKetteiResult,
+  SuijiKouhoResult,
+  ShikakuShutokuResult,
+} from '../../services/salary-calculation.service';
+import {
+  NotificationDecisionService,
+  NotificationDecisionResult,
+} from '../../services/notification-decision.service';
+import { MonthHelperService } from '../../services/month-helper.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 
@@ -15,7 +25,7 @@ import { Bonus } from '../../models/bonus.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './payment-summary-page.component.html',
-  styleUrl: './payment-summary-page.component.css'
+  styleUrl: './payment-summary-page.component.css',
 })
 export class PaymentSummaryPageComponent implements OnInit {
   employees: Employee[] = [];
@@ -23,19 +33,21 @@ export class PaymentSummaryPageComponent implements OnInit {
   prefecture: string = 'tokyo';
   rates: any = null;
   gradeTable: any[] = [];
-  
+
   // 月ごとの集計結果
-  monthlyTotals: { [month: number]: {
-    health: number;
-    care: number;
-    pension: number;
-    total: number;
-    isPensionStopped?: boolean;
-    isHealthStopped?: boolean;
-    isMaternityLeave?: boolean;
-    isChildcareLeave?: boolean;
-    isRetired?: boolean;
-  } } = {};
+  monthlyTotals: {
+    [month: number]: {
+      health: number;
+      care: number;
+      pension: number;
+      total: number;
+      isPensionStopped?: boolean;
+      isHealthStopped?: boolean;
+      isMaternityLeave?: boolean;
+      isChildcareLeave?: boolean;
+      isRetired?: boolean;
+    };
+  } = {};
 
   months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   errorMessages: { [employeeId: string]: string[] } = {};
@@ -44,17 +56,26 @@ export class PaymentSummaryPageComponent implements OnInit {
 
   // 月次保険料一覧（従業員ごと）
   // MonthlyPremiumRow は calculateMonthlyPremiums の戻り値（MonthlyPremiums & { reasons: string[] }）をベースに変換
-  monthlyPremiumsByEmployee: { [employeeId: string]: {
-    month: number;
-    healthEmployee: number;  // health_employee から変換
-    healthEmployer: number;  // health_employer から変換
-    careEmployee: number;    // care_employee から変換
-    careEmployer: number;    // care_employer から変換
-    pensionEmployee: number; // pension_employee から変換
-    pensionEmployer: number; // pension_employer から変換
-    exempt: boolean;         // reasons から判定
-    notes: string[];         // reasons から取得
-  }[] } = {};
+  monthlyPremiumsByEmployee: {
+    [employeeId: string]: {
+      month: number;
+      healthEmployee: number; // health_employee から変換
+      healthEmployer: number; // health_employer から変換
+      careEmployee: number; // care_employee から変換
+      careEmployer: number; // care_employer から変換
+      pensionEmployee: number; // pension_employee から変換
+      pensionEmployer: number; // pension_employer から変換
+      exempt: boolean; // reasons から判定
+      notes: string[]; // reasons から取得
+      isAcquisitionMonth?: boolean; // 資格取得月フラグ
+      acquisitionGrade?: number; // 資格取得時決定の等級
+      acquisitionStandard?: number; // 資格取得時決定の標準報酬月額
+      acquisitionReason?: string; // 資格取得時決定の理由文
+      shikakuReportRequired?: boolean; // 資格取得届の提出要否
+      shikakuReportDeadline?: string; // 資格取得届の提出期限
+      shikakuReportReason?: string; // 資格取得届の理由
+    }[];
+  } = {};
 
   // 会社全体の月次保険料合計
   companyMonthlyTotals: {
@@ -66,7 +87,9 @@ export class PaymentSummaryPageComponent implements OnInit {
   }[] = [];
 
   // 届出要否判定結果（従業員ごと）
-  notificationsByEmployee: { [employeeId: string]: NotificationDecisionResult[] } = {};
+  notificationsByEmployee: {
+    [employeeId: string]: NotificationDecisionResult[];
+  } = {};
 
   // 賞与保険料の年間合計
   bonusAnnualTotals: {
@@ -88,7 +111,7 @@ export class PaymentSummaryPageComponent implements OnInit {
     pensionEmployer: 0,
     totalEmployee: 0,
     totalEmployer: 0,
-    total: 0
+    total: 0,
   };
 
   // 月ごとの賞与データ
@@ -101,18 +124,22 @@ export class PaymentSummaryPageComponent implements OnInit {
     private settingsService: SettingsService,
     private insuranceCalculationService: InsuranceCalculationService,
     private salaryCalculationService: SalaryCalculationService,
-    private notificationDecisionService: NotificationDecisionService
+    private notificationDecisionService: NotificationDecisionService,
+    private monthHelper: MonthHelperService
   ) {}
 
   async ngOnInit(): Promise<void> {
     const employeesData = await this.employeeService.getAllEmployees();
     this.employees = employeesData || [];
-    this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
+    this.rates = await this.settingsService.getRates(
+      this.year.toString(),
+      this.prefecture
+    );
     this.gradeTable = await this.settingsService.getStandardTable(this.year);
-    
+
     // 賞与データを読み込む
     const bonuses = await this.bonusService.loadBonus(this.year);
-    
+
     if (this.employees.length > 0) {
       await this.calculateMonthlyTotals(bonuses);
     }
@@ -129,7 +156,7 @@ export class PaymentSummaryPageComponent implements OnInit {
       pensionEmployer: 0,
       totalEmployee: 0,
       totalEmployer: 0,
-      total: 0
+      total: 0,
     };
 
     // 月ごとの賞与データを初期化
@@ -154,17 +181,19 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
 
     // 月ごとの集計を初期化
-    const allMonthlyTotals: { [month: number]: {
-      health: number;
-      care: number;
-      pension: number;
-      total: number;
-      isPensionStopped?: boolean;
-      isHealthStopped?: boolean;
-      isMaternityLeave?: boolean;
-      isChildcareLeave?: boolean;
-      isRetired?: boolean;
-    } } = {};
+    const allMonthlyTotals: {
+      [month: number]: {
+        health: number;
+        care: number;
+        pension: number;
+        total: number;
+        isPensionStopped?: boolean;
+        isHealthStopped?: boolean;
+        isMaternityLeave?: boolean;
+        isChildcareLeave?: boolean;
+        isRetired?: boolean;
+      };
+    } = {};
 
     for (let month = 1; month <= 12; month++) {
       allMonthlyTotals[month] = {
@@ -176,7 +205,7 @@ export class PaymentSummaryPageComponent implements OnInit {
         isHealthStopped: false,
         isMaternityLeave: false,
         isChildcareLeave: false,
-        isRetired: false
+        isRetired: false,
       };
     }
 
@@ -189,17 +218,22 @@ export class PaymentSummaryPageComponent implements OnInit {
     for (const emp of this.employees) {
       this.errorMessages[emp.id] = [];
       this.warningMessages[emp.id] = [];
-      
+
       // A. 月次給与の保険料を取得
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
-      let monthlyPremiums: { [month: number]: {
-        healthEmployee: number;
-        healthEmployer: number;
-        careEmployee: number;
-        careEmployer: number;
-        pensionEmployee: number;
-        pensionEmployer: number;
-      } } = {};
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+        emp.id,
+        this.year
+      );
+      let monthlyPremiums: {
+        [month: number]: {
+          healthEmployee: number;
+          healthEmployer: number;
+          careEmployee: number;
+          careEmployer: number;
+          pensionEmployee: number;
+          pensionEmployer: number;
+        };
+      } = {};
 
       // 月次保険料一覧を計算（初期化を確実に行う）
       const monthlyPremiumRows: {
@@ -212,32 +246,45 @@ export class PaymentSummaryPageComponent implements OnInit {
         pensionEmployer: number;
         exempt: boolean;
         notes: string[];
+        isAcquisitionMonth?: boolean;
+        acquisitionGrade?: number;
+        acquisitionStandard?: number;
+        acquisitionReason?: string;
+        shikakuReportRequired?: boolean;
+        shikakuReportDeadline?: string;
+        shikakuReportReason?: string;
       }[] = [];
-      
+
       if (salaryData) {
         // 1〜12月分の月次保険料を計算
         for (let month = 1; month <= 12; month++) {
-          const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+          const monthKey = this.salaryCalculationService.getSalaryKey(
+            emp.id,
+            month
+          );
           const monthSalaryData = salaryData[monthKey];
-          const fixedSalary = monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0;
-          const variableSalary = monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0;
-          
+          const fixedSalary =
+            monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0;
+          const variableSalary =
+            monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0;
+
           // calculateMonthlyPremiums を呼び出し（戻り値: MonthlyPremiums & { reasons: string[] }）
-          const premiumResult = this.salaryCalculationService.calculateMonthlyPremiums(
-            emp,
-            this.year,
-            month,
-            fixedSalary,
-            variableSalary,
-            this.gradeTable,
-            this.rates
-          );
-          
+          const premiumResult =
+            this.salaryCalculationService.calculateMonthlyPremiums(
+              emp,
+              this.year,
+              month,
+              fixedSalary,
+              variableSalary,
+              this.gradeTable,
+              this.rates
+            );
+
           // MonthlyPremiumRow に変換（サービス側の戻り値型に完全一致）
-          const exempt = premiumResult.reasons.some(r => 
-            r.includes('産前産後休業') || r.includes('育児休業')
+          const exempt = premiumResult.reasons.some(
+            (r) => r.includes('産前産後休業') || r.includes('育児休業')
           );
-          
+
           monthlyPremiumRows.push({
             month,
             healthEmployee: premiumResult.health_employee,
@@ -247,9 +294,9 @@ export class PaymentSummaryPageComponent implements OnInit {
             pensionEmployee: premiumResult.pension_employee,
             pensionEmployer: premiumResult.pension_employer,
             exempt,
-            notes: premiumResult.reasons
+            notes: premiumResult.reasons,
           });
-          
+
           // 既存の monthlyPremiums 形式にも変換（後方互換性）
           monthlyPremiums[month] = {
             healthEmployee: premiumResult.health_employee,
@@ -257,37 +304,136 @@ export class PaymentSummaryPageComponent implements OnInit {
             careEmployee: premiumResult.care_employee,
             careEmployer: premiumResult.care_employer,
             pensionEmployee: premiumResult.pension_employee,
-            pensionEmployer: premiumResult.pension_employer
+            pensionEmployer: premiumResult.pension_employer,
           };
         }
-        
+
         // 年齢関連の矛盾チェック
         this.validateAgeRelatedErrors(emp, monthlyPremiums);
       }
-      
+
+      // 追加：資格取得時決定 資格取得月の情報を追加
+      if (emp.joinDate && salaryData) {
+        const joinDate = new Date(emp.joinDate);
+        const joinYear = this.monthHelper.getPayYear(joinDate);
+        const joinMonth = this.monthHelper.getPayMonth(joinDate);
+
+        if (joinYear === this.year) {
+          const salaries: {
+            [key: string]: { total: number; fixed: number; variable: number };
+          } = {};
+          for (let month = 1; month <= 12; month++) {
+            const monthKey = this.salaryCalculationService.getSalaryKey(
+              emp.id,
+              month
+            );
+            const monthSalaryData = salaryData[monthKey];
+            if (monthSalaryData) {
+              salaries[monthKey] = {
+                total:
+                  monthSalaryData.totalSalary ?? monthSalaryData.total ?? 0,
+                fixed:
+                  monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0,
+                variable:
+                  monthSalaryData.variableSalary ??
+                  monthSalaryData.variable ??
+                  0,
+              };
+            }
+          }
+
+          // 追加：資格取得時決定 employeeの既存情報を優先
+          let acquisitionGrade = emp.acquisitionGrade;
+          let acquisitionStandard = emp.acquisitionStandard;
+          let acquisitionMonth = emp.acquisitionMonth;
+          let shikakuResult: ShikakuShutokuResult | null = null;
+
+          // 既存情報がない場合のみ計算
+          if (!acquisitionGrade || !acquisitionStandard || !acquisitionMonth) {
+            shikakuResult =
+              await this.salaryCalculationService.calculateShikakuShutoku(
+                emp,
+                this.year,
+                salaries,
+                this.gradeTable
+              );
+
+            if (shikakuResult && shikakuResult.grade > 0) {
+              acquisitionGrade = shikakuResult.grade;
+              acquisitionStandard = shikakuResult.standardMonthlyRemuneration;
+              acquisitionMonth = shikakuResult.usedMonth;
+            }
+          } else {
+            // 既存情報がある場合はそのまま使用（計算は呼ばない）
+            // 既存情報からShikakuShutokuResultを構築（資格取得届判定用）
+            shikakuResult = {
+              baseSalary: acquisitionStandard,
+              grade: acquisitionGrade,
+              standardMonthlyRemuneration: acquisitionStandard,
+              usedMonth: acquisitionMonth,
+              reasons: [],
+            };
+          }
+
+          // UI表示用に設定
+          if (acquisitionGrade && acquisitionStandard && acquisitionMonth) {
+            const acquisitionRow = monthlyPremiumRows.find(
+              (r) => r.month === acquisitionMonth
+            );
+            if (acquisitionRow) {
+              acquisitionRow.isAcquisitionMonth = true;
+              acquisitionRow.acquisitionGrade = acquisitionGrade;
+              acquisitionRow.acquisitionStandard = acquisitionStandard;
+              // 理由文を生成
+              acquisitionRow.acquisitionReason = `標準報酬月額：${acquisitionStandard.toLocaleString()}円（1,000円単位に四捨五入済み）\n標準報酬等級：${acquisitionGrade}等級\n資格取得月のため、随時改定対象外`;
+
+              // 資格取得届の要否判定
+              const shikakuDecision =
+                this.notificationDecisionService.getShikakuShutokuDecision(
+                  emp,
+                  shikakuResult
+                );
+              if (shikakuDecision) {
+                acquisitionRow.shikakuReportRequired = shikakuDecision.required;
+                acquisitionRow.shikakuReportDeadline = shikakuDecision.deadline;
+                acquisitionRow.shikakuReportReason = shikakuDecision.reason;
+              }
+            }
+          }
+        }
+      }
+
       // B. 賞与の保険料を取得（読み込んだ賞与データから該当従業員分を抽出）
       const employeeBonuses = bonusesByEmployee[emp.id] || [];
-      
+
       // 賞与保険料を月次給与の保険料に加算（停止判定を適用）
       for (const bonus of employeeBonuses) {
         const bonusMonth = bonus.month;
-        
+
         // 停止判定（優先順位：退職 > 産休/育休 > 年齢停止）
         const birthDate = new Date(emp.birthDate);
         const age = this.getAgeAtMonth(birthDate, this.year, bonusMonth);
         const pensionStopped = age >= 70;
         const healthStopped = age >= 75;
-        const maternityLeave = this.isMaternityLeave(emp, this.year, bonusMonth);
-        const childcareLeave = this.isChildcareLeave(emp, this.year, bonusMonth);
+        const maternityLeave = this.isMaternityLeave(
+          emp,
+          this.year,
+          bonusMonth
+        );
+        const childcareLeave = this.isChildcareLeave(
+          emp,
+          this.year,
+          bonusMonth
+        );
         const retired = this.isRetiredInMonth(emp, this.year, bonusMonth);
-        
+
         let bonusHealthEmployee = bonus.healthEmployee || 0;
         let bonusHealthEmployer = bonus.healthEmployer || 0;
         let bonusCareEmployee = bonus.careEmployee || 0;
         let bonusCareEmployer = bonus.careEmployer || 0;
         let bonusPensionEmployee = bonus.pensionEmployee || 0;
         let bonusPensionEmployer = bonus.pensionEmployer || 0;
-        
+
         // 退職月判定（最優先：本人・会社とも保険料ゼロ）
         if (retired) {
           bonusHealthEmployee = 0;
@@ -303,7 +449,7 @@ export class PaymentSummaryPageComponent implements OnInit {
             bonusCareEmployee = 0;
             bonusPensionEmployee = 0;
           }
-          
+
           // 年齢による停止処理
           if (pensionStopped) {
             bonusPensionEmployee = 0;
@@ -316,7 +462,7 @@ export class PaymentSummaryPageComponent implements OnInit {
             bonusCareEmployer = 0;
           }
         }
-        
+
         // 賞与保険料の年間合計に加算（停止判定後の値）
         this.bonusAnnualTotals.healthEmployee += bonusHealthEmployee;
         this.bonusAnnualTotals.healthEmployer += bonusHealthEmployer;
@@ -324,7 +470,7 @@ export class PaymentSummaryPageComponent implements OnInit {
         this.bonusAnnualTotals.careEmployer += bonusCareEmployer;
         this.bonusAnnualTotals.pensionEmployee += bonusPensionEmployee;
         this.bonusAnnualTotals.pensionEmployer += bonusPensionEmployer;
-        
+
         // 月次給与の保険料に賞与分を加算（該当月の保険料に加算）
         if (monthlyPremiums[bonusMonth]) {
           monthlyPremiums[bonusMonth].healthEmployee += bonusHealthEmployee;
@@ -334,9 +480,11 @@ export class PaymentSummaryPageComponent implements OnInit {
           monthlyPremiums[bonusMonth].pensionEmployee += bonusPensionEmployee;
           monthlyPremiums[bonusMonth].pensionEmployer += bonusPensionEmployer;
         }
-        
+
         // 月次保険料一覧にも加算
-        const premiumRow = monthlyPremiumRows.find(r => r.month === bonusMonth);
+        const premiumRow = monthlyPremiumRows.find(
+          (r) => r.month === bonusMonth
+        );
         if (premiumRow) {
           premiumRow.healthEmployee += bonusHealthEmployee;
           premiumRow.healthEmployer += bonusHealthEmployer;
@@ -346,7 +494,7 @@ export class PaymentSummaryPageComponent implements OnInit {
           premiumRow.pensionEmployer += bonusPensionEmployer;
         }
       }
-      
+
       // 月次保険料一覧を保存（salaryDataがない場合でも空配列を設定）
       this.monthlyPremiumsByEmployee[emp.id] = monthlyPremiumRows;
 
@@ -354,11 +502,12 @@ export class PaymentSummaryPageComponent implements OnInit {
       await this.calculateNotifications(emp, salaryData);
 
       // サービスを使用して月次会社負担を計算
-      const employeeMonthlyTotals = this.insuranceCalculationService.getMonthlyCompanyBurden(
-        emp,
-        monthlyPremiums,
-        employeeBonuses
-      );
+      const employeeMonthlyTotals =
+        this.insuranceCalculationService.getMonthlyCompanyBurden(
+          emp,
+          monthlyPremiums,
+          employeeBonuses
+        );
 
       // 全従業員分を合計（退職判定、産休・育休判定、年齢による停止判定を適用）
       // 優先順位：退職 ＞ 産休/育休 ＞ 年齢停止
@@ -370,11 +519,11 @@ export class PaymentSummaryPageComponent implements OnInit {
         const maternityLeave = this.isMaternityLeave(emp, this.year, month);
         const childcareLeave = this.isChildcareLeave(emp, this.year, month);
         const retired = this.isRetiredInMonth(emp, this.year, month);
-        
+
         let healthAmount = employeeMonthlyTotals[month]?.health || 0;
         let careAmount = employeeMonthlyTotals[month]?.care || 0;
         let pensionAmount = employeeMonthlyTotals[month]?.pension || 0;
-        
+
         // 退職月判定（最優先：本人・会社とも保険料ゼロ）
         if (retired) {
           healthAmount = 0;
@@ -391,11 +540,11 @@ export class PaymentSummaryPageComponent implements OnInit {
               const employeeHealth = premiums.healthEmployee || 0;
               const employeeCare = premiums.careEmployee || 0;
               const employeePension = premiums.pensionEmployee || 0;
-              
+
               healthAmount -= employeeHealth;
               careAmount -= employeeCare;
               pensionAmount -= employeePension;
-              
+
               if (maternityLeave) {
                 allMonthlyTotals[month].isMaternityLeave = true;
               }
@@ -404,7 +553,7 @@ export class PaymentSummaryPageComponent implements OnInit {
               }
             }
           }
-          
+
           // 年齢による停止処理
           if (pensionStopped) {
             pensionAmount = 0;
@@ -416,11 +565,12 @@ export class PaymentSummaryPageComponent implements OnInit {
             allMonthlyTotals[month].isHealthStopped = true;
           }
         }
-        
+
         allMonthlyTotals[month].health += healthAmount;
         allMonthlyTotals[month].care += careAmount;
         allMonthlyTotals[month].pension += pensionAmount;
-        allMonthlyTotals[month].total += healthAmount + careAmount + pensionAmount;
+        allMonthlyTotals[month].total +=
+          healthAmount + careAmount + pensionAmount;
       }
     }
 
@@ -439,34 +589,40 @@ export class PaymentSummaryPageComponent implements OnInit {
             isHealthStopped: false,
             isMaternityLeave: false,
             isChildcareLeave: false,
-            isRetired: false
+            isRetired: false,
           };
         }
-        
+
         // 賞与支給者の年齢と退職日を確認
-        const bonusEmployee = this.employees.find(e => e.id === bonus.employeeId);
+        const bonusEmployee = this.employees.find(
+          (e) => e.id === bonus.employeeId
+        );
         if (bonusEmployee) {
           // 退職月判定（最優先）
-          const retired = this.isRetiredInMonth(bonusEmployee, this.year, bonusMonth);
-          
+          const retired = this.isRetiredInMonth(
+            bonusEmployee,
+            this.year,
+            bonusMonth
+          );
+
           if (retired) {
             // 退職月の場合は賞与保険料を加算しない
             allMonthlyTotals[bonusMonth].isRetired = true;
             continue;
           }
-          
+
           const birthDate = new Date(bonusEmployee.birthDate);
           const age = this.getAgeAtMonth(birthDate, this.year, bonusMonth);
           const pensionStopped = age >= 70;
           const healthStopped = age >= 75;
-          
+
           let bonusHealthEmployee = bonus.healthEmployee || 0;
           let bonusHealthEmployer = bonus.healthEmployer || 0;
           let bonusCareEmployee = bonus.careEmployee || 0;
           let bonusCareEmployer = bonus.careEmployer || 0;
           let bonusPensionEmployee = bonus.pensionEmployee || 0;
           let bonusPensionEmployer = bonus.pensionEmployer || 0;
-          
+
           // 年齢による停止処理
           if (pensionStopped) {
             bonusPensionEmployee = 0;
@@ -480,37 +636,41 @@ export class PaymentSummaryPageComponent implements OnInit {
             bonusCareEmployer = 0;
             allMonthlyTotals[bonusMonth].isHealthStopped = true;
           }
-          
+
           // 賞与保険料を月別合計に加算
-          allMonthlyTotals[bonusMonth].health += bonusHealthEmployee + bonusHealthEmployer;
-          allMonthlyTotals[bonusMonth].care += bonusCareEmployee + bonusCareEmployer;
-          allMonthlyTotals[bonusMonth].pension += bonusPensionEmployee + bonusPensionEmployer;
-          allMonthlyTotals[bonusMonth].total += 
-            (bonusHealthEmployee + bonusHealthEmployer) + 
-            (bonusCareEmployee + bonusCareEmployer) + 
+          allMonthlyTotals[bonusMonth].health +=
+            bonusHealthEmployee + bonusHealthEmployer;
+          allMonthlyTotals[bonusMonth].care +=
+            bonusCareEmployee + bonusCareEmployer;
+          allMonthlyTotals[bonusMonth].pension +=
+            bonusPensionEmployee + bonusPensionEmployer;
+          allMonthlyTotals[bonusMonth].total +=
+            bonusHealthEmployee +
+            bonusHealthEmployer +
+            (bonusCareEmployee + bonusCareEmployer) +
             (bonusPensionEmployee + bonusPensionEmployer);
         }
       }
     }
 
     this.monthlyTotals = allMonthlyTotals;
-    
+
     // 賞与保険料の年間合計を計算
-    this.bonusAnnualTotals.totalEmployee = 
-      this.bonusAnnualTotals.healthEmployee + 
-      this.bonusAnnualTotals.careEmployee + 
+    this.bonusAnnualTotals.totalEmployee =
+      this.bonusAnnualTotals.healthEmployee +
+      this.bonusAnnualTotals.careEmployee +
       this.bonusAnnualTotals.pensionEmployee;
-    this.bonusAnnualTotals.totalEmployer = 
-      this.bonusAnnualTotals.healthEmployer + 
-      this.bonusAnnualTotals.careEmployer + 
+    this.bonusAnnualTotals.totalEmployer =
+      this.bonusAnnualTotals.healthEmployer +
+      this.bonusAnnualTotals.careEmployer +
       this.bonusAnnualTotals.pensionEmployer;
-    this.bonusAnnualTotals.total = 
-      this.bonusAnnualTotals.totalEmployee + 
+    this.bonusAnnualTotals.total =
+      this.bonusAnnualTotals.totalEmployee +
       this.bonusAnnualTotals.totalEmployer;
-    
+
     // 会社全体の月次保険料合計を計算
     this.calculateCompanyMonthlyTotals();
-    
+
     // 年間警告を収集
     await this.collectAnnualWarnings(bonuses);
   }
@@ -520,12 +680,14 @@ export class PaymentSummaryPageComponent implements OnInit {
    * 事業主が支払うべき総額（本人負担 + 会社負担）を月ごとに集計する
    */
   calculateCompanyMonthlyTotals(): void {
-    const totals: { [month: number]: {
-      healthTotal: number;
-      careTotal: number;
-      pensionTotal: number;
-      total: number;
-    } } = {};
+    const totals: {
+      [month: number]: {
+        healthTotal: number;
+        careTotal: number;
+        pensionTotal: number;
+        total: number;
+      };
+    } = {};
 
     // 1〜12月を初期化
     for (let month = 1; month <= 12; month++) {
@@ -533,7 +695,7 @@ export class PaymentSummaryPageComponent implements OnInit {
         healthTotal: 0,
         careTotal: 0,
         pensionTotal: 0,
-        total: 0
+        total: 0,
       };
     }
 
@@ -551,7 +713,7 @@ export class PaymentSummaryPageComponent implements OnInit {
         const healthSum = row.healthEmployee + row.healthEmployer;
         const careSum = row.careEmployee + row.careEmployer;
         const pensionSum = row.pensionEmployee + row.pensionEmployer;
-        
+
         totals[month].healthTotal += healthSum;
         totals[month].careTotal += careSum;
         totals[month].pensionTotal += pensionSum;
@@ -565,13 +727,13 @@ export class PaymentSummaryPageComponent implements OnInit {
       const careTotal = totals[month].careTotal;
       const pensionTotal = totals[month].pensionTotal;
       const total = healthTotal + careTotal + pensionTotal;
-      
+
       this.companyMonthlyTotals.push({
         month,
         healthTotal,
         careTotal,
         pensionTotal,
-        total
+        total,
       });
     }
   }
@@ -589,33 +751,41 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     const lines: string[] = [];
     for (const bonus of bonuses) {
-      const employee = this.employees.find(e => e.id === bonus.employeeId);
+      const employee = this.employees.find((e) => e.id === bonus.employeeId);
       const employeeName = employee ? employee.name : bonus.employeeId;
-      
+
       lines.push(`【${employeeName}】`);
       lines.push(`賞与額: ${(bonus.amount || 0).toLocaleString()}円`);
-      
+
       if (bonus.standardBonusAmount !== undefined) {
-        lines.push(`標準賞与額: ${bonus.standardBonusAmount.toLocaleString()}円`);
+        lines.push(
+          `標準賞与額: ${bonus.standardBonusAmount.toLocaleString()}円`
+        );
       }
-      
+
       const healthEmployee = bonus.healthEmployee || 0;
       const healthEmployer = bonus.healthEmployer || 0;
       const careEmployee = bonus.careEmployee || 0;
       const careEmployer = bonus.careEmployer || 0;
       const pensionEmployee = bonus.pensionEmployee || 0;
       const pensionEmployer = bonus.pensionEmployer || 0;
-      
+
       if (healthEmployee > 0 || healthEmployer > 0) {
-        lines.push(`健康保険: 本人${healthEmployee.toLocaleString()}円 / 会社${healthEmployer.toLocaleString()}円`);
+        lines.push(
+          `健康保険: 本人${healthEmployee.toLocaleString()}円 / 会社${healthEmployer.toLocaleString()}円`
+        );
       }
       if (careEmployee > 0 || careEmployer > 0) {
-        lines.push(`介護保険: 本人${careEmployee.toLocaleString()}円 / 会社${careEmployer.toLocaleString()}円`);
+        lines.push(
+          `介護保険: 本人${careEmployee.toLocaleString()}円 / 会社${careEmployer.toLocaleString()}円`
+        );
       }
       if (pensionEmployee > 0 || pensionEmployer > 0) {
-        lines.push(`厚生年金: 本人${pensionEmployee.toLocaleString()}円 / 会社${pensionEmployer.toLocaleString()}円`);
+        lines.push(
+          `厚生年金: 本人${pensionEmployee.toLocaleString()}円 / 会社${pensionEmployer.toLocaleString()}円`
+        );
       }
-      
+
       if (bonus.isExempted || bonus.isExempt) {
         lines.push(`免除: ${bonus.exemptReason || '産休・育休中'}`);
       } else if (bonus.isSalaryInsteadOfBonus) {
@@ -625,12 +795,12 @@ export class PaymentSummaryPageComponent implements OnInit {
       } else {
         lines.push(`有効`);
       }
-      
+
       if (bonuses.length > 1 && bonus !== bonuses[bonuses.length - 1]) {
         lines.push(''); // 複数賞与の場合は区切り
       }
     }
-    
+
     return lines.join('\n');
   }
 
@@ -646,7 +816,10 @@ export class PaymentSummaryPageComponent implements OnInit {
     const targetDate = new Date(year, month - 1, 1); // 月初日
     let age = targetDate.getFullYear() - birth.getFullYear();
     const monthDiff = targetDate.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && targetDate.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && targetDate.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
@@ -663,12 +836,12 @@ export class PaymentSummaryPageComponent implements OnInit {
     if (!emp.maternityLeaveStart || !emp.maternityLeaveEnd) {
       return false;
     }
-    
+
     const startDate = new Date(emp.maternityLeaveStart);
     const endDate = new Date(emp.maternityLeaveEnd);
     const targetDate = new Date(year, month - 1, 1); // 月初日
     const targetEndDate = new Date(year, month, 0); // 月末日
-    
+
     // 対象月が産休期間と重複しているか判定
     return targetDate <= endDate && targetEndDate >= startDate;
   }
@@ -684,12 +857,12 @@ export class PaymentSummaryPageComponent implements OnInit {
     if (!emp.childcareLeaveStart || !emp.childcareLeaveEnd) {
       return false;
     }
-    
+
     const startDate = new Date(emp.childcareLeaveStart);
     const endDate = new Date(emp.childcareLeaveEnd);
     const targetDate = new Date(year, month - 1, 1); // 月初日
     const targetEndDate = new Date(year, month, 0); // 月末日
-    
+
     // 対象月が育休期間と重複しているか判定
     return targetDate <= endDate && targetEndDate >= startDate;
   }
@@ -705,35 +878,48 @@ export class PaymentSummaryPageComponent implements OnInit {
     if (!emp.retireDate) {
       return false;
     }
-    
+
     const retireDate = new Date(emp.retireDate);
     const retireYear = retireDate.getFullYear();
     const retireMonth = retireDate.getMonth() + 1; // getMonth()は0-11なので+1
-    
+
     // 退職日が指定年月の範囲内か判定
     return retireYear === year && retireMonth === month;
   }
 
-  validateAgeRelatedErrors(emp: Employee, monthlyPremiums: { [month: number]: {
-    healthEmployee: number;
-    healthEmployer: number;
-    careEmployee: number;
-    careEmployer: number;
-    pensionEmployee: number;
-    pensionEmployer: number;
-  } }): void {
+  validateAgeRelatedErrors(
+    emp: Employee,
+    monthlyPremiums: {
+      [month: number]: {
+        healthEmployee: number;
+        healthEmployer: number;
+        careEmployee: number;
+        careEmployer: number;
+        pensionEmployee: number;
+        pensionEmployer: number;
+      };
+    }
+  ): void {
     const age = this.insuranceCalculationService.getAge(emp.birthDate);
-    
+
     // 70歳以上なのに厚生年金の保険料が計算されている
     for (let month = 1; month <= 12; month++) {
       const premiums = monthlyPremiums[month];
       if (premiums && age >= 70 && premiums.pensionEmployee > 0) {
-        this.errorMessages[emp.id].push(`${month}月：70歳以上は厚生年金保険料は発生しません`);
+        this.errorMessages[emp.id].push(
+          `${month}月：70歳以上は厚生年金保険料は発生しません`
+        );
       }
-      
+
       // 75歳以上なのに健康保険・介護保険が計算されている
-      if (premiums && age >= 75 && (premiums.healthEmployee > 0 || premiums.careEmployee > 0)) {
-        this.errorMessages[emp.id].push(`${month}月：75歳以上は健康保険・介護保険は発生しません`);
+      if (
+        premiums &&
+        age >= 75 &&
+        (premiums.healthEmployee > 0 || premiums.careEmployee > 0)
+      ) {
+        this.errorMessages[emp.id].push(
+          `${month}月：75歳以上は健康保険・介護保険は発生しません`
+        );
       }
     }
   }
@@ -759,7 +945,7 @@ export class PaymentSummaryPageComponent implements OnInit {
     if (!rows || rows.length === 0) {
       return false;
     }
-    return rows.some(r => r.notes && r.notes.length > 0);
+    return rows.some((r) => r.notes && r.notes.length > 0);
   }
 
   /**
@@ -837,30 +1023,43 @@ export class PaymentSummaryPageComponent implements OnInit {
   /**
    * 従業員ごとの届出要否を計算
    */
-  async calculateNotifications(employee: Employee, salaryData: any): Promise<void> {
+  async calculateNotifications(
+    employee: Employee,
+    salaryData: any
+  ): Promise<void> {
     const notifications: NotificationDecisionResult[] = [];
 
     // 1. 定時決定の届出要否判定
     if (salaryData) {
-      const salaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};
+      const salaries: {
+        [key: string]: { total: number; fixed: number; variable: number };
+      } = {};
       for (let month = 1; month <= 12; month++) {
-        const monthKey = this.salaryCalculationService.getSalaryKey(employee.id, month);
+        const monthKey = this.salaryCalculationService.getSalaryKey(
+          employee.id,
+          month
+        );
         const monthSalaryData = salaryData[monthKey];
         if (monthSalaryData) {
           salaries[monthKey] = {
             total: monthSalaryData.totalSalary ?? monthSalaryData.total ?? 0,
             fixed: monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0,
-            variable: monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0
+            variable:
+              monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0,
           };
         }
       }
 
       // 定時決定を計算
       const currentStandard = employee.standardMonthlyRemuneration || 0;
-      const currentGrade = currentStandard > 0 
-        ? this.salaryCalculationService.findGrade(this.gradeTable, currentStandard)?.grade || 0
-        : 0;
-      
+      const currentGrade =
+        currentStandard > 0
+          ? this.salaryCalculationService.findGrade(
+              this.gradeTable,
+              currentStandard
+            )?.grade || 0
+          : 0;
+
       const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
         employee.id,
         salaries,
@@ -869,11 +1068,12 @@ export class PaymentSummaryPageComponent implements OnInit {
       );
 
       if (teijiResult.grade > 0) {
-        const teijiNotification = this.notificationDecisionService.checkTeijiNotification(
-          teijiResult,
-          currentGrade,
-          this.year
-        );
+        const teijiNotification =
+          this.notificationDecisionService.checkTeijiNotification(
+            teijiResult,
+            currentGrade,
+            this.year
+          );
         notifications.push(teijiNotification);
       }
 
@@ -889,29 +1089,34 @@ export class PaymentSummaryPageComponent implements OnInit {
 
       for (const suijiResult of suijiResults) {
         if (suijiResult.isEligible) {
-          const suijiNotification = this.notificationDecisionService.checkSuijiNotification(
-            suijiResult,
-            suijiResult.changeMonth,
-            this.year
-          );
+          const suijiNotification =
+            this.notificationDecisionService.checkSuijiNotification(
+              suijiResult,
+              suijiResult.changeMonth,
+              this.year
+            );
           notifications.push(suijiNotification);
         }
       }
     }
 
     // 3. 賞与支払届の届出要否判定
-    const bonuses = await this.bonusService.getBonusesForResult(employee.id, this.year);
+    const bonuses = await this.bonusService.getBonusesForResult(
+      employee.id,
+      this.year
+    );
     for (const bonus of bonuses) {
       if (bonus.payDate && bonus.amount) {
         const payDate = new Date(bonus.payDate);
-        const bonusNotification = this.notificationDecisionService.checkBonusNotification(
-          bonus.amount,
-          payDate,
-          bonus.isRetiredNoLastDay || false,
-          bonus.isExempted || false,
-          bonus.isOverAge75 || false,
-          bonus.isSalaryInsteadOfBonus || false
-        );
+        const bonusNotification =
+          this.notificationDecisionService.checkBonusNotification(
+            bonus.amount,
+            payDate,
+            bonus.isRetiredNoLastDay || false,
+            bonus.isExempted || false,
+            bonus.isOverAge75 || false,
+            bonus.isSalaryInsteadOfBonus || false
+          );
         notifications.push(bonusNotification);
       }
     }
@@ -945,22 +1150,28 @@ export class PaymentSummaryPageComponent implements OnInit {
     // 優先度A-1: 退職月なのに保険料が発生している月
     for (const emp of this.employees) {
       if (!emp.retireDate) continue;
-      
+
       const retireDate = new Date(emp.retireDate);
       const retireYear = retireDate.getFullYear();
       const retireMonth = retireDate.getMonth() + 1;
-      
+
       if (retireYear !== this.year) continue;
-      
+
       const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
       if (!employeeRows) continue;
-      
-      const retireRow = employeeRows.find(r => r.month === retireMonth);
+
+      const retireRow = employeeRows.find((r) => r.month === retireMonth);
       if (retireRow) {
-        const totalEmployee = retireRow.healthEmployee + retireRow.careEmployee + retireRow.pensionEmployee;
-        const totalEmployer = retireRow.healthEmployer + retireRow.careEmployer + retireRow.pensionEmployer;
+        const totalEmployee =
+          retireRow.healthEmployee +
+          retireRow.careEmployee +
+          retireRow.pensionEmployee;
+        const totalEmployer =
+          retireRow.healthEmployer +
+          retireRow.careEmployer +
+          retireRow.pensionEmployer;
         const total = totalEmployee + totalEmployer;
-        
+
         if (total > 0) {
           const msg = `従業員「${emp.name}」の退職月（${retireMonth}月）に保険料が発生しています。資格喪失月の取り扱いを確認してください。`;
           if (!warningSet.has(msg)) {
@@ -976,10 +1187,10 @@ export class PaymentSummaryPageComponent implements OnInit {
       const birthDate = new Date(emp.birthDate);
       const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
       if (!employeeRows) continue;
-      
+
       for (const row of employeeRows) {
         const age = this.getAgeAtMonth(birthDate, this.year, row.month);
-        
+
         // 70歳以上なのに厚生年金保険料が発生
         if (age >= 70 && (row.pensionEmployee > 0 || row.pensionEmployer > 0)) {
           const msg = `従業員「${emp.name}」は70歳以上ですが、${row.month}月の厚生年金保険料が発生しています。`;
@@ -988,9 +1199,15 @@ export class PaymentSummaryPageComponent implements OnInit {
             this.warnings.push(msg);
           }
         }
-        
+
         // 75歳以上なのに健康保険・介護保険料が発生
-        if (age >= 75 && (row.healthEmployee > 0 || row.healthEmployer > 0 || row.careEmployee > 0 || row.careEmployer > 0)) {
+        if (
+          age >= 75 &&
+          (row.healthEmployee > 0 ||
+            row.healthEmployer > 0 ||
+            row.careEmployee > 0 ||
+            row.careEmployer > 0)
+        ) {
           const msg = `従業員「${emp.name}」は75歳以上ですが、${row.month}月の健康保険・介護保険料が発生しています。`;
           if (!warningSet.has(msg)) {
             warningSet.add(msg);
@@ -1004,15 +1221,16 @@ export class PaymentSummaryPageComponent implements OnInit {
     for (const emp of this.employees) {
       const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
       if (!employeeRows) continue;
-      
+
       for (const row of employeeRows) {
         const month = row.month;
         const maternityLeave = this.isMaternityLeave(emp, this.year, month);
         const childcareLeave = this.isChildcareLeave(emp, this.year, month);
-        
+
         if (maternityLeave || childcareLeave) {
-          const totalEmployee = row.healthEmployee + row.careEmployee + row.pensionEmployee;
-          
+          const totalEmployee =
+            row.healthEmployee + row.careEmployee + row.pensionEmployee;
+
           if (totalEmployee > 0) {
             const leaveType = maternityLeave ? '産休' : '育休';
             const msg = `従業員「${emp.name}」の${month}月は${leaveType}中ですが、本人負担分の保険料が残っています。`;
@@ -1027,21 +1245,30 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     // 1. 4月〜6月の固定+非固定 ≠ 総支給 の不一致警告（算定基礎届）
     for (const emp of this.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year).catch(() => null);
+      const salaryData = await this.monthlySalaryService
+        .getEmployeeSalary(emp.id, this.year)
+        .catch(() => null);
       if (!salaryData) continue;
 
       for (let month = 4; month <= 6; month++) {
-        const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+        const monthKey = this.salaryCalculationService.getSalaryKey(
+          emp.id,
+          month
+        );
         const monthSalaryData = salaryData[monthKey];
         if (!monthSalaryData) continue;
 
         const fixed = monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
-        const variable = monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
+        const variable =
+          monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
         const total = monthSalaryData.total ?? 0;
         const expectedTotal = fixed + variable;
 
-        if (Math.abs(total - expectedTotal) > 1) { // 1円以上の誤差
-          const msg = `${emp.name}の${month}月：固定+非固定(${expectedTotal.toLocaleString()}円) ≠ 総支給(${total.toLocaleString()}円)`;
+        if (Math.abs(total - expectedTotal) > 1) {
+          // 1円以上の誤差
+          const msg = `${
+            emp.name
+          }の${month}月：固定+非固定(${expectedTotal.toLocaleString()}円) ≠ 総支給(${total.toLocaleString()}円)`;
           if (!warningSet.has(msg)) {
             warningSet.add(msg);
             this.warnings.push(msg);
@@ -1052,12 +1279,14 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     // 2. 退職月の賞与支給 → エラー
     for (const bonus of bonuses) {
-      const bonusEmployee = this.employees.find(e => e.id === bonus.employeeId);
+      const bonusEmployee = this.employees.find(
+        (e) => e.id === bonus.employeeId
+      );
       if (bonusEmployee && bonusEmployee.retireDate) {
         const retireDate = new Date(bonusEmployee.retireDate);
         const retireYear = retireDate.getFullYear();
         const retireMonth = retireDate.getMonth() + 1;
-        
+
         if (retireYear === this.year && retireMonth === bonus.month) {
           const msg = `${bonusEmployee.name}：退職月(${bonus.month}月)に賞与が支給されています`;
           if (!warningSet.has(msg)) {
@@ -1069,33 +1298,42 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
 
     // 3. 賞与の上限エラー（150万/573万）
-    const bonusTotalsByEmployee: { [employeeId: string]: { healthCare: number; pension: number } } = {};
+    const bonusTotalsByEmployee: {
+      [employeeId: string]: { healthCare: number; pension: number };
+    } = {};
     for (const bonus of bonuses) {
       if (!bonusTotalsByEmployee[bonus.employeeId]) {
         bonusTotalsByEmployee[bonus.employeeId] = { healthCare: 0, pension: 0 };
       }
-      
-      const standardBonus = bonus.standardBonusAmount ?? Math.floor((bonus.amount || 0) / 1000) * 1000;
+
+      const standardBonus =
+        bonus.standardBonusAmount ??
+        Math.floor((bonus.amount || 0) / 1000) * 1000;
       const cappedHealth = bonus.cappedBonusHealth ?? standardBonus;
-      const cappedPension = bonus.cappedBonusPension ?? Math.min(standardBonus, 1500000);
-      
+      const cappedPension =
+        bonus.cappedBonusPension ?? Math.min(standardBonus, 1500000);
+
       bonusTotalsByEmployee[bonus.employeeId].healthCare += cappedHealth;
       bonusTotalsByEmployee[bonus.employeeId].pension += cappedPension;
     }
 
     for (const employeeId in bonusTotalsByEmployee) {
-      const emp = this.employees.find(e => e.id === employeeId);
+      const emp = this.employees.find((e) => e.id === employeeId);
       const totals = bonusTotalsByEmployee[employeeId];
-      
+
       if (totals.healthCare > 5730000) {
-        const msg = `従業員「${emp?.name || employeeId}」の年度累計賞与額が健保・介保の上限（573万円）を超えています。`;
+        const msg = `従業員「${
+          emp?.name || employeeId
+        }」の年度累計賞与額が健保・介保の上限（573万円）を超えています。`;
         if (!warningSet.has(msg)) {
           warningSet.add(msg);
           this.warnings.push(msg);
         }
       }
       if (totals.pension > 1500000) {
-        const msg = `従業員「${emp?.name || employeeId}」の賞与が厚生年金の上限額（1回150万円）を超えています。`;
+        const msg = `従業員「${
+          emp?.name || employeeId
+        }」の賞与が厚生年金の上限額（1回150万円）を超えています。`;
         if (!warningSet.has(msg)) {
           warningSet.add(msg);
           this.warnings.push(msg);
@@ -1108,8 +1346,11 @@ export class PaymentSummaryPageComponent implements OnInit {
       const birthDate = new Date(emp.birthDate);
       for (let month = 1; month <= 12; month++) {
         const age = this.getAgeAtMonth(birthDate, this.year, month);
-        const prevAge = month > 1 ? this.getAgeAtMonth(birthDate, this.year, month - 1) : age - 1;
-        
+        const prevAge =
+          month > 1
+            ? this.getAgeAtMonth(birthDate, this.year, month - 1)
+            : age - 1;
+
         if (prevAge < 70 && age >= 70) {
           const msg = `${emp.name}：${month}月に70歳到達（厚生年金停止開始）`;
           if (!warningSet.has(msg)) {
@@ -1134,19 +1375,24 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     // 6. データ欠損（月の給与データなし）
     for (const emp of this.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year).catch(() => null);
+      const salaryData = await this.monthlySalaryService
+        .getEmployeeSalary(emp.id, this.year)
+        .catch(() => null);
       const missingMonths: number[] = [];
-      
+
       for (let month = 1; month <= 12; month++) {
-        const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+        const monthKey = this.salaryCalculationService.getSalaryKey(
+          emp.id,
+          month
+        );
         if (!salaryData || !salaryData[monthKey]) {
           missingMonths.push(month);
         }
       }
-      
+
       if (missingMonths.length > 0) {
         // 4〜6月の欠損チェック
-        const missingAprToJun = missingMonths.filter(m => m >= 4 && m <= 6);
+        const missingAprToJun = missingMonths.filter((m) => m >= 4 && m <= 6);
         if (missingAprToJun.length > 0) {
           const msg = `従業員「${emp.name}」の4〜6月のいずれかに給与データがなく、定時決定（算定基礎）の判定が困難です。`;
           if (!warningSet.has(msg)) {
@@ -1154,8 +1400,10 @@ export class PaymentSummaryPageComponent implements OnInit {
             this.warnings.push(msg);
           }
         }
-        
-        const msg = `従業員「${emp.name}」の${missingMonths.join(',')}月に給与データが登録されていません。`;
+
+        const msg = `従業員「${emp.name}」の${missingMonths.join(
+          ','
+        )}月に給与データが登録されていません。`;
         if (!warningSet.has(msg)) {
           warningSet.add(msg);
           this.warnings.push(msg);
@@ -1165,16 +1413,22 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     // 7. 不正な月（負の金額など）の入力
     for (const emp of this.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year).catch(() => null);
+      const salaryData = await this.monthlySalaryService
+        .getEmployeeSalary(emp.id, this.year)
+        .catch(() => null);
       if (!salaryData) continue;
 
       for (let month = 1; month <= 12; month++) {
-        const monthKey = this.salaryCalculationService.getSalaryKey(emp.id, month);
+        const monthKey = this.salaryCalculationService.getSalaryKey(
+          emp.id,
+          month
+        );
         const monthSalaryData = salaryData[monthKey];
         if (!monthSalaryData) continue;
 
         const fixed = monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
-        const variable = monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
+        const variable =
+          monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
         const total = monthSalaryData.total ?? 0;
 
         if (fixed < 0 || variable < 0 || total < 0) {
@@ -1188,4 +1442,3 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
   }
 }
-

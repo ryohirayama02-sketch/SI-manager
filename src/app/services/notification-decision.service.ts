@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
-import { TeijiKetteiResult, SuijiKouhoResult } from './salary-calculation.service';
+import { TeijiKetteiResult, SuijiKouhoResult, ShikakuShutokuResult } from './salary-calculation.service';
+import { Employee } from '../models/employee.model';
 
 export interface NotificationDecisionResult {
   type: 'teiji' | 'suiji' | 'bonus';
@@ -205,6 +206,45 @@ export class NotificationDecisionService {
       required: true,
       submitUntil,
       reasons
+    };
+  }
+
+  /**
+   * 資格取得届の提出要否を判定する
+   * @param emp 従業員情報
+   * @param shikakuResult 資格取得時決定の結果
+   * @returns 資格取得届の提出要否判定結果（nullの場合は判定不可）
+   */
+  getShikakuShutokuDecision(
+    emp: Employee,
+    shikakuResult: ShikakuShutokuResult | null
+  ): { required: boolean; deadline: string; reason: string } | null {
+    // 入社日が存在しない場合は判定不可
+    if (!emp.joinDate) {
+      return null;
+    }
+
+    // 資格取得時決定が行われていない場合は判定不可
+    if (!shikakuResult || shikakuResult.grade === 0) {
+      return null;
+    }
+
+    // 提出期限 = joinDate の翌日から 5 日以内
+    const joinDate = new Date(emp.joinDate);
+    const nextDay = new Date(joinDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    
+    // 5日後を計算
+    const deadline = new Date(nextDay);
+    deadline.setDate(deadline.getDate() + 5);
+    
+    // yyyy-mm-dd形式に変換
+    const deadlineStr = deadline.toISOString().split('T')[0];
+
+    return {
+      required: true,
+      deadline: deadlineStr,
+      reason: `資格取得時決定が行われたため、資格取得届の提出が必要（提出期限：${deadlineStr}）`
     };
   }
 }

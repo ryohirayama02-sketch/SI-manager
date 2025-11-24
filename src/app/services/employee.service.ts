@@ -44,5 +44,23 @@ export class EmployeeService {
     const ref = doc(this.firestore, `employees/${id}`);
     await deleteDoc(ref);
   }
+
+  /**
+   * 資格取得時決定情報を更新
+   * @param employeeId 従業員ID
+   * @param info 資格取得時決定情報
+   */
+  async updateAcquisitionInfo(
+    employeeId: string,
+    info: {
+      acquisitionGrade: number;
+      acquisitionStandard: number;
+      acquisitionYear: number;
+      acquisitionMonth: number;
+    }
+  ): Promise<void> {
+    const ref = doc(this.firestore, `employees/${employeeId}`);
+    await updateDoc(ref, info);
+  }
 }
 
