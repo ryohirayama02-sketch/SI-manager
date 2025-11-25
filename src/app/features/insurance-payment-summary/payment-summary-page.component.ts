@@ -337,4 +337,134 @@ export class PaymentSummaryPageComponent implements OnInit {
   getNotificationTypeLabel(type: 'teiji' | 'suiji' | 'bonus'): string {
     return this.notificationFormatService.getNotificationTypeLabel(type);
   }
+
+  /**
+   * CSV出力メソッド
+   */
+  exportCsv(): void {
+    const csvContent = this.buildCsv();
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM付きUTF-8
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `社会保険料振込額_${this.year}年度.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * CSV構築メソッド
+   * monthlyPremiumsByEmployeeから会社全体の本人負担・会社負担を集計してCSV形式で出力
+   */
+  buildCsv(): string {
+    const headers = [
+      'month',
+      'healthEmployee',
+      'healthEmployer',
+      'careEmployee',
+      'careEmployer',
+      'pensionEmployee',
+      'pensionEmployer',
+      'total'
+    ];
+    const rows: string[] = [headers.join(',')];
+
+    // 会社全体の月次合計を計算（本人負担・会社負担を分けて）
+    const monthlyTotalsByMonth: {
+      [month: number]: {
+        healthEmployee: number;
+        healthEmployer: number;
+        careEmployee: number;
+        careEmployer: number;
+        pensionEmployee: number;
+        pensionEmployer: number;
+        total: number;
+      };
+    } = {};
+
+    // 1〜12月を初期化
+    for (let month = 1; month <= 12; month++) {
+      monthlyTotalsByMonth[month] = {
+        healthEmployee: 0,
+        healthEmployer: 0,
+        careEmployee: 0,
+        careEmployer: 0,
+        pensionEmployee: 0,
+        pensionEmployer: 0,
+        total: 0,
+      };
+    }
+
+    // 選択された従業員の月次保険料を集計
+    const filteredEmployees = this.getFilteredEmployees();
+    for (const emp of filteredEmployees) {
+      const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
+      if (!employeeRows || employeeRows.length === 0) {
+        continue;
+      }
+
+      for (const row of employeeRows) {
+        const month = row.month;
+        if (month >= 1 && month <= 12) {
+          monthlyTotalsByMonth[month].healthEmployee += row.healthEmployee || 0;
+          monthlyTotalsByMonth[month].healthEmployer += row.healthEmployer || 0;
+          monthlyTotalsByMonth[month].careEmployee += row.careEmployee || 0;
+          monthlyTotalsByMonth[month].careEmployer += row.careEmployer || 0;
+          monthlyTotalsByMonth[month].pensionEmployee += row.pensionEmployee || 0;
+          monthlyTotalsByMonth[month].pensionEmployer += row.pensionEmployer || 0;
+        }
+      }
+    }
+
+    // 賞与保険料を月次合計に加算
+    for (const bonus of this.currentYearBonuses) {
+      const bonusMonth = bonus.month;
+      if (bonusMonth >= 1 && bonusMonth <= 12) {
+        // 選択された従業員の賞与のみを加算
+        if (this.selectedEmployeeIds.includes(bonus.employeeId)) {
+          monthlyTotalsByMonth[bonusMonth].healthEmployee += bonus.healthEmployee || 0;
+          monthlyTotalsByMonth[bonusMonth].healthEmployer += bonus.healthEmployer || 0;
+          monthlyTotalsByMonth[bonusMonth].careEmployee += bonus.careEmployee || 0;
+          monthlyTotalsByMonth[bonusMonth].careEmployer += bonus.careEmployer || 0;
+          monthlyTotalsByMonth[bonusMonth].pensionEmployee += bonus.pensionEmployee || 0;
+          monthlyTotalsByMonth[bonusMonth].pensionEmployer += bonus.pensionEmployer || 0;
+        }
+      }
+    }
+
+    // CSV行を生成
+    for (let month = 1; month <= 12; month++) {
+      const monthData = monthlyTotalsByMonth[month];
+      const total =
+        monthData.healthEmployee +
+        monthData.healthEmployer +
+        monthData.careEmployee +
+        monthData.careEmployer +
+        monthData.pensionEmployee +
+        monthData.pensionEmployer;
+
+      const row = [
+        month.toString(),
+        monthData.healthEmployee.toString(),
+        monthData.healthEmployer.toString(),
+        monthData.careEmployee.toString(),
+        monthData.careEmployer.toString(),
+        monthData.pensionEmployee.toString(),
+        monthData.pensionEmployer.toString(),
+        total.toString(),
+      ];
+      rows.push(row.join(','));
+    }
+
+    return rows.join('\n');
+  }
+
+  /**
+   * 印刷メソッド
+   */
+  print(): void {
+    window.print();
+  }
 }

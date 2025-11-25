@@ -13,6 +13,7 @@ import {
   SuijiKouhoResult,
 } from '../../services/salary-calculation.service';
 import { SuijiService } from '../../services/suiji.service';
+import { ValidationService } from '../../services/validation.service';
 import { Employee } from '../../models/employee.model';
 import { SalaryItem } from '../../models/salary-item.model';
 import {
@@ -22,12 +23,14 @@ import {
 import { SalaryInputSectionComponent } from './components/salary-input-section/salary-input-section.component';
 import { CalculationResultSectionComponent } from './components/calculation-result-section/calculation-result-section.component';
 import { ErrorWarningSectionComponent } from './components/error-warning-section/error-warning-section.component';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-monthly-salaries-page',
   standalone: true,
   imports: [
     CommonModule,
+    FormsModule,
     SalaryInputSectionComponent,
     CalculationResultSectionComponent,
     ErrorWarningSectionComponent,
@@ -46,7 +49,8 @@ export class MonthlySalariesPageComponent implements OnInit {
     [key: string]: { total: number; fixed: number; variable: number };
   } = {};
   prefecture = 'tokyo';
-  year = '2025';
+  year: number = new Date().getFullYear();
+  availableYears: number[] = [];
   rates: any = null;
   gradeTable: any[] = [];
   results: { [employeeId: string]: TeijiKetteiResult } = {};
@@ -78,8 +82,14 @@ export class MonthlySalariesPageComponent implements OnInit {
     private settingsService: SettingsService,
     private salaryCalculationService: SalaryCalculationService,
     private suijiService: SuijiService,
+    private validationService: ValidationService,
     private router: Router
-  ) {}
+  ) {
+    // 年度選択用の年度リストを生成（2023〜2026）
+    for (let y = 2023; y <= 2026; y++) {
+      this.availableYears.push(y);
+    }
+  }
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
@@ -91,9 +101,7 @@ export class MonthlySalariesPageComponent implements OnInit {
     }
 
     // 給与項目マスタを読み込む
-    this.salaryItems = await this.settingsService.loadSalaryItems(
-      parseInt(this.year)
-    );
+    this.salaryItems = await this.settingsService.loadSalaryItems(this.year);
     if (this.salaryItems.length === 0) {
       this.warningMessages['system'] = ['先に給与項目マスタを設定してください'];
     }
@@ -106,16 +114,8 @@ export class MonthlySalariesPageComponent implements OnInit {
       return a.name.localeCompare(b.name);
     });
 
-    // 都道府県別料率を読み込む
-    this.rates = await this.settingsService.getRates(
-      this.year,
-      this.prefecture
-    );
-
-    // 標準報酬月額テーブルを読み込む
-    this.gradeTable = await this.settingsService.getStandardTable(
-      parseInt(this.year)
-    );
+    // 料率と等級表を取得
+    await this.loadRatesAndGradeTable();
 
     // 全従業員×全月のsalariesオブジェクトを初期化（後方互換性）
     for (const emp of this.employees) {
@@ -144,10 +144,27 @@ export class MonthlySalariesPageComponent implements OnInit {
   }
 
   async reloadRates(): Promise<void> {
+    await this.loadRatesAndGradeTable();
+  }
+
+  async loadRatesAndGradeTable(): Promise<void> {
     this.rates = await this.settingsService.getRates(
-      this.year,
+      this.year.toString(),
       this.prefecture
     );
+    this.gradeTable = await this.settingsService.getStandardTable(this.year);
+  }
+
+  async onYearChange(): Promise<void> {
+    // 年度変更時にデータを再読み込み
+    await this.loadRatesAndGradeTable();
+    this.salaryItems = await this.settingsService.loadSalaryItems(this.year);
+    await this.loadExistingSalaries();
+    // 全従業員の定時決定を計算
+    for (const emp of this.employees) {
+      this.calculateTeijiKettei(emp.id);
+    }
+    await this.updateAllCalculatedInfo();
   }
 
   onPrefectureChange(prefecture: string): void {
@@ -302,31 +319,28 @@ export class MonthlySalariesPageComponent implements OnInit {
     // バリデーション実行
     this.validateSalaryData(employeeId);
 
-    // 前月と比較して変動を検出
-    if (month > 1) {
-      const prevKey = this.getSalaryKey(employeeId, month - 1);
-      const prev = this.salaries[prevKey]?.fixed || 0;
-      const cur = this.salaries[key].fixed || 0;
+    // 固定的賃金の変動を検出（Service層に委譲）
+    const emp = this.employees.find((e) => e.id === employeeId);
+    const changeResult = this.suijiService.detectFixedChangeForMonth(
+      employeeId,
+      month,
+      this.salaries,
+      emp?.name || ''
+    );
 
-      // 固定的賃金の変動を検出（前月と異なり、かつ今月が0より大きい）
-      if (prev !== cur && cur > 0) {
-        this.updateSuijiKettei(employeeId, month);
+    if (changeResult.hasChange) {
+      this.updateSuijiKettei(employeeId, month);
+    }
+
+    // 警告メッセージを追加
+    if (changeResult.warningMessage) {
+      if (!this.warningMessages[employeeId]) {
+        this.warningMessages[employeeId] = [];
       }
-
-      // 極端に不自然な固定的賃金の変動チェック（前月比50%以上）
-      if (prev > 0 && cur > 0) {
-        const changeRate = Math.abs((cur - prev) / prev);
-        if (changeRate >= 0.5) {
-          if (!this.warningMessages[employeeId]) {
-            this.warningMessages[employeeId] = [];
-          }
-          const emp = this.employees.find((e) => e.id === employeeId);
-          const empName = emp?.name || '';
-          const warningMsg = `${month}月：固定的賃金が前月から極端に変動しています（前月: ${prev.toLocaleString()}円 → 今月: ${cur.toLocaleString()}円）`;
-          if (!this.warningMessages[employeeId].includes(warningMsg)) {
-            this.warningMessages[employeeId].push(warningMsg);
-          }
-        }
+      if (
+        !this.warningMessages[employeeId].includes(changeResult.warningMessage)
+      ) {
+        this.warningMessages[employeeId].push(changeResult.warningMessage);
       }
     }
 
@@ -439,7 +453,7 @@ export class MonthlySalariesPageComponent implements OnInit {
       if (Object.keys(payload).length > 0) {
         await this.monthlySalaryService.saveEmployeeSalary(
           emp.id,
-          parseInt(this.year),
+          this.year,
           payload
         );
       }
@@ -519,10 +533,7 @@ export class MonthlySalariesPageComponent implements OnInit {
 
         // isEligible=trueの場合のみFirestoreに保存し、アラートに追加
         if (suijiResult.isEligible) {
-          await this.suijiService.saveSuijiKouho(
-            parseInt(this.year),
-            suijiResult
-          );
+          await this.suijiService.saveSuijiKouho(this.year, suijiResult);
           this.suijiAlerts.push(suijiResult);
         }
       }
@@ -548,7 +559,7 @@ export class MonthlySalariesPageComponent implements OnInit {
     for (const emp of this.employees) {
       const data = await this.monthlySalaryService.getEmployeeSalary(
         emp.id,
-        parseInt(this.year)
+        this.year
       );
       if (!data) continue;
 
@@ -600,7 +611,7 @@ export class MonthlySalariesPageComponent implements OnInit {
       standard !== null
         ? await this.salaryCalculationService.calculateMonthlyPremiums(
             emp,
-            parseInt(this.year),
+            this.year,
             4,
             fixedSalary,
             variableSalary,
@@ -627,76 +638,41 @@ export class MonthlySalariesPageComponent implements OnInit {
   }
 
   checkEmployeeErrors(emp: any, age: number, premiums: any): void {
+    const result = this.validationService.checkEmployeeErrors(
+      emp,
+      age,
+      premiums
+    );
     if (!this.errorMessages[emp.id]) {
       this.errorMessages[emp.id] = [];
     }
     if (!this.warningMessages[emp.id]) {
       this.warningMessages[emp.id] = [];
     }
-
-    // 70歳以上なのに厚生年金の保険料が計算されている
-    if (age >= 70 && premiums && premiums.pension_employee > 0) {
-      const errorMsg = `70歳以上は厚生年金保険料は発生しません`;
-      if (!this.errorMessages[emp.id].includes(errorMsg)) {
-        this.errorMessages[emp.id].push(errorMsg);
-      }
-    }
-
-    // 75歳以上なのに健康保険・介護保険が計算されている
-    if (
-      age >= 75 &&
-      premiums &&
-      (premiums.health_employee > 0 || premiums.care_employee > 0)
-    ) {
-      const errorMsg = `75歳以上は健康保険・介護保険は発生しません`;
-      if (!this.errorMessages[emp.id].includes(errorMsg)) {
-        this.errorMessages[emp.id].push(errorMsg);
-      }
-    }
+    this.errorMessages[emp.id].push(...result.errors);
+    this.warningMessages[emp.id].push(...result.warnings);
   }
 
   validateSalaryData(employeeId: string): void {
+    const emp = this.employees.find((e) => e.id === employeeId);
+    if (!emp) return;
+
+    const result = this.validationService.validateSalaryData(
+      employeeId,
+      emp,
+      this.salaries,
+      this.months,
+      (total: number) => this.getStandardMonthlyRemuneration(total)
+    );
+
     if (!this.errorMessages[employeeId]) {
       this.errorMessages[employeeId] = [];
     }
     if (!this.warningMessages[employeeId]) {
       this.warningMessages[employeeId] = [];
     }
-
-    const emp = this.employees.find((e) => e.id === employeeId);
-    if (!emp) return;
-
-    // 各月の給与データをチェック
-    for (const month of this.months) {
-      const key = this.getSalaryKey(employeeId, month);
-      const salaryData = this.salaries[key];
-      if (!salaryData) continue;
-
-      const total = salaryData.total || 0;
-      const fixed = salaryData.fixed || 0;
-      const variable = salaryData.variable || 0;
-
-      // 報酬月額の整合性チェック（固定+非固定=総支給）
-      if (total > 0 && Math.abs(fixed + variable - total) > 1) {
-        const errorMsg = `${month}月：固定的賃金と非固定的賃金の合計が総支給と一致しません（総支給: ${total.toLocaleString()}円、合計: ${(
-          fixed + variable
-        ).toLocaleString()}円）`;
-        if (!this.errorMessages[employeeId].includes(errorMsg)) {
-          this.errorMessages[employeeId].push(errorMsg);
-        }
-      }
-
-      // 等級が算出できない場合のチェック（標準報酬月額が算出できない）
-      if (total > 0) {
-        const stdResult = this.getStandardMonthlyRemuneration(total);
-        if (!stdResult || !stdResult.standard) {
-          const warningMsg = `${month}月：標準報酬月額テーブルに該当する等級が見つかりません（報酬: ${total.toLocaleString()}円）`;
-          if (!this.warningMessages[employeeId].includes(warningMsg)) {
-            this.warningMessages[employeeId].push(warningMsg);
-          }
-        }
-      }
-    }
+    this.errorMessages[employeeId].push(...result.errors);
+    this.warningMessages[employeeId].push(...result.warnings);
   }
 
   // 定時決定ロジック
@@ -706,7 +682,7 @@ export class MonthlySalariesPageComponent implements OnInit {
         employeeId,
         this.salaries,
         this.gradeTable,
-        parseInt(this.year)
+        this.year
       );
   }
 
@@ -718,7 +694,7 @@ export class MonthlySalariesPageComponent implements OnInit {
       this.salaries,
       this.gradeTable,
       this.employees,
-      this.year,
+      this.year.toString(),
       this.results
     );
 
@@ -750,7 +726,7 @@ export class MonthlySalariesPageComponent implements OnInit {
       this.salaries,
       this.gradeTable,
       this.employees,
-      this.year,
+      this.year.toString(),
       this.results
     );
 
@@ -775,7 +751,7 @@ export class MonthlySalariesPageComponent implements OnInit {
     for (const emp of this.employees) {
       result[emp.id] = this.salaryCalculationService.getRehabHighlightMonths(
         emp,
-        this.year
+        this.year.toString()
       );
     }
     return result;

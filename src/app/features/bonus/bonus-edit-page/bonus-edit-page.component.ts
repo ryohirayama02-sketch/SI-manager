@@ -79,8 +79,12 @@ export class BonusEditPageComponent implements OnInit {
     }
 
     try {
-      // 年度を自動検索して取得
-      const result = await this.bonusService.getBonusWithYear(this.employeeId, this.bonusId);
+      // クエリパラメータから年度を取得（優先検索年度）
+      const queryParams = this.route.snapshot.queryParams;
+      const preferredYear = queryParams['year'] ? parseInt(queryParams['year'], 10) : undefined;
+      
+      // 年度を自動検索して取得（優先年度を指定）
+      const result = await this.bonusService.getBonusWithYear(this.employeeId, this.bonusId, preferredYear);
       
       if (!result) {
         alert('賞与データが見つかりません');

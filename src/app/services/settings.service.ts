@@ -149,16 +149,35 @@ export class SettingsService {
   }
 
   async getStandardTable(year: number): Promise<any[]> {
-    const ref = collection(this.firestore, `settings/${year}/standardTable`);
+    const ref = collection(this.firestore, `grades/${year}/table`);
     const snap = await getDocs(ref);
-    return snap.docs.map(d => ({ id: d.id, ...d.data(), year }));
+    return snap.docs.map(d => {
+      const data = d.data();
+      // Firestoreのフィールド名（grade, remuneration）を既存コードのフィールド名（rank, standard）にマッピング
+      return {
+        id: d.id,
+        rank: data['grade'] || data['rank'],
+        lower: data['lower'],
+        upper: data['upper'],
+        standard: data['remuneration'] || data['standard'],
+        year
+      };
+    }).sort((a, b) => (a.rank || 0) - (b.rank || 0)); // 等級順にソート
   }
 
   async saveStandardTable(year: number, rows: any[]): Promise<void> {
-    const basePath = `settings/${year}/standardTable`;
+    const basePath = `grades/${year}/table`;
     for (const row of rows) {
-      const ref = doc(this.firestore, `${basePath}/${row.id}`);
-      await setDoc(ref, { ...row, year }, { merge: true });
+      // 既存コードのフィールド名（rank, standard）をFirestoreのフィールド名（grade, remuneration）にマッピング
+      const gradeId = row.id || row.rank?.toString() || `grade_${row.rank}`;
+      const ref = doc(this.firestore, `${basePath}/${gradeId}`);
+      await setDoc(ref, {
+        grade: row.rank,
+        lower: row.lower,
+        upper: row.upper,
+        remuneration: row.standard,
+        year
+      }, { merge: true });
     }
   }
 

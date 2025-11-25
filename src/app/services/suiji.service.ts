@@ -5,6 +5,12 @@ import { SalaryItem } from '../models/salary-item.model';
 import { FixedChangeResult } from '../models/suiji.model';
 import { SuijiKouhoResult } from './salary-calculation.service';
 
+export interface SalaryData {
+  total: number;
+  fixed: number;
+  variable: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SuijiService {
   constructor(private firestore: Firestore) {}
@@ -215,6 +221,44 @@ export class SuijiService {
     const ref = collection(this.firestore, `suiji/${year}/alerts`);
     const snap = await getDocs(ref);
     return snap.docs.map(d => d.data() as SuijiKouhoResult);
+  }
+
+  /**
+   * 固定的賃金の変動を検出（月次給与画面用）
+   * @param employeeId 従業員ID
+   * @param month 月
+   * @param salaries 給与データ（{ employeeId_month: { total, fixed, variable } }）
+   * @param employeeName 従業員名（オプショナル）
+   * @returns 変動検出結果（警告メッセージを含む）
+   */
+  detectFixedChangeForMonth(
+    employeeId: string,
+    month: number,
+    salaries: { [key: string]: SalaryData },
+    employeeName: string = ''
+  ): { hasChange: boolean; warningMessage?: string } {
+    if (month <= 1) {
+      return { hasChange: false };
+    }
+
+    const key = `${employeeId}_${month}`;
+    const prevKey = `${employeeId}_${month - 1}`;
+    const prev = salaries[prevKey]?.fixed || 0;
+    const cur = salaries[key]?.fixed || 0;
+
+    // 固定的賃金の変動を検出（前月と異なり、かつ今月が0より大きい）
+    const hasChange = prev !== cur && cur > 0;
+
+    // 極端に不自然な固定的賃金の変動チェック（前月比50%以上）
+    let warningMessage: string | undefined;
+    if (prev > 0 && cur > 0) {
+      const changeRate = Math.abs((cur - prev) / prev);
+      if (changeRate >= 0.5) {
+        warningMessage = `${month}月：固定的賃金が前月から極端に変動しています（前月: ${prev.toLocaleString()}円 → 今月: ${cur.toLocaleString()}円）`;
+      }
+    }
+
+    return { hasChange, warningMessage };
   }
 }
 

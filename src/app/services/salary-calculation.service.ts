@@ -1647,4 +1647,89 @@ export class SalaryCalculationService {
 
     return { fixed, variable, total };
   }
+
+  /**
+   * 4〜6月の平均報酬を計算
+   * @param employeeId 従業員ID
+   * @param salaries 給与データ（{ employeeId_month: { total, fixed, variable } }）
+   * @returns 平均報酬（3ヶ月分すべて存在する場合のみ、それ以外はnull）
+   */
+  getAverageForAprToJun(
+    employeeId: string,
+    salaries: { [key: string]: SalaryData }
+  ): number | null {
+    const values: number[] = [];
+    for (const month of [4, 5, 6]) {
+      const key = `${employeeId}_${month}`;
+      const salaryData = salaries[key];
+      if (salaryData && salaryData.total > 0) {
+        values.push(salaryData.total);
+      }
+    }
+
+    if (values.length !== 3) return null;
+
+    // サービスメソッドを使用して平均を計算（除外月なし）
+    const salaryDataArray = values.map((total) => ({
+      total,
+      fixed: total,
+      variable: 0,
+    }));
+    const result = this.calculateAverage(salaryDataArray, []);
+    return result.averageSalary > 0 ? result.averageSalary : null;
+  }
+
+  /**
+   * 標準報酬月額を取得
+   * @param avg 平均報酬
+   * @param gradeTable 等級表
+   * @returns { rank: number, standard: number } | null
+   */
+  getStandardMonthlyRemuneration(
+    avg: number | null,
+    gradeTable: any[]
+  ): { rank: number; standard: number } | null {
+    if (avg === null) return null;
+    const result = this.findGrade(gradeTable, avg);
+    if (!result) return null;
+    return { rank: result.grade, standard: result.remuneration };
+  }
+
+  /**
+   * 月次保険料を計算
+   * @param standard 標準報酬月額
+   * @param age 年齢
+   * @param rates 料率データ
+   * @returns 保険料データ
+   */
+  calculateInsurancePremiums(
+    standard: number,
+    age: number,
+    rates: any
+  ): {
+    health_employee: number;
+    health_employer: number;
+    care_employee: number;
+    care_employer: number;
+    pension_employee: number;
+    pension_employer: number;
+  } | null {
+    if (!rates) return null;
+    const r = rates;
+    const health_employee = r.health_employee;
+    const health_employer = r.health_employer;
+    const care_employee = age >= 40 && age <= 64 ? r.care_employee : 0;
+    const care_employer = age >= 40 && age <= 64 ? r.care_employer : 0;
+    const pension_employee = r.pension_employee;
+    const pension_employer = r.pension_employer;
+
+    return {
+      health_employee: Math.floor(standard * health_employee),
+      health_employer: Math.floor(standard * health_employer),
+      care_employee: Math.floor(standard * care_employee),
+      care_employer: Math.floor(standard * care_employer),
+      pension_employee: Math.floor(standard * pension_employee),
+      pension_employer: Math.floor(standard * pension_employer),
+    };
+  }
 }

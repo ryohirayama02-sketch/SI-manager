@@ -206,15 +206,45 @@ export class BonusService {
   }
 
   /**
+   * 指定年度の賞与一覧を取得する
+   * @param employeeId 従業員ID
+   * @param year 年度
+   * @returns 賞与データの配列
+   */
+  async getBonusesByYear(employeeId: string, year: number): Promise<Bonus[]> {
+    const ref = collection(
+      this.firestore,
+      `bonus/${year}/employees/${employeeId}/items`
+    );
+    const snapshot = await getDocs(ref);
+    return snapshot.docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
+    );
+  }
+
+  /**
    * 賞与を1件取得する（年度を自動検索）
    * @param employeeId 従業員ID
    * @param bonusId 賞与ID（ドキュメントID）
+   * @param preferredYear 優先検索年度（オプショナル）
    * @returns 賞与データと年度のタプル
    */
-  async getBonusWithYear(employeeId: string, bonusId: string): Promise<{ bonus: Bonus; year: number } | null> {
+  async getBonusWithYear(employeeId: string, bonusId: string, preferredYear?: number): Promise<{ bonus: Bonus; year: number } | null> {
+    // 優先年度が指定されている場合は、まずその年度を検索
+    if (preferredYear !== undefined) {
+      const bonus = await this.getBonus(preferredYear, employeeId, bonusId);
+      if (bonus) {
+        return { bonus, year: preferredYear };
+      }
+    }
+
     // 現在年度±2年の範囲で検索
     const currentYear = new Date().getFullYear();
     for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+      // 優先年度は既に検索済みなのでスキップ
+      if (preferredYear !== undefined && year === preferredYear) {
+        continue;
+      }
       const bonus = await this.getBonus(year, employeeId, bonusId);
       if (bonus) {
         return { bonus, year };
