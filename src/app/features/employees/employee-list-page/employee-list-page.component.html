@@ -63,7 +63,7 @@
         <td>{{ getHealthInsuranceStatus(info) }}</td>
         <td>{{ getCareInsuranceStatus(info) }}</td>
         <td>{{ getPensionStatus(info) }}</td>
-        <td>{{ getStandardMonthlyRemunerationDisplay(info.employee) }}</td>
+        <td>{{ getStandardMonthlyRemunerationDisplay(info) }}</td>
         <td>
           <span *ngIf="monthlyPremiumSummary[info.employee.id]">
             {{ monthlyPremiumSummary[info.employee.id].healthEmployee | number:'1.0-0' }}

@@ -185,6 +185,15 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       this.prefecture
     );
     this.gradeTable = await this.settingsService.getStandardTable(this.year);
+    console.log(
+      `[monthly-salaries] 年度=${this.year}, 標準報酬等級表の件数=${this.gradeTable.length}`
+    );
+    if (this.gradeTable.length > 0) {
+      console.log(
+        `[monthly-salaries] 標準報酬等級表のサンプル:`,
+        this.gradeTable.slice(0, 3)
+      );
+    }
   }
 
   async onYearChange(): Promise<void> {
@@ -759,13 +768,16 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
   // 定時決定ロジック
   calculateTeijiKettei(employeeId: string): void {
-    this.results[employeeId] =
-      this.salaryCalculationService.calculateTeijiKettei(
-        employeeId,
-        this.salaries,
-        this.gradeTable,
-        this.year
-      );
+    const result = this.salaryCalculationService.calculateTeijiKettei(
+      employeeId,
+      this.salaries,
+      this.gradeTable,
+      this.year
+    );
+    console.log(
+      `[monthly-salaries] 定時決定計算: 従業員ID=${employeeId}, 年度=${this.year}, 等級=${result.grade}, 標準報酬=${result.standardMonthlyRemuneration}, 等級表件数=${this.gradeTable.length}`
+    );
+    this.results[employeeId] = result;
   }
 
   // 随時改定ロジック

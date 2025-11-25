@@ -98,10 +98,11 @@ export class BonusService {
     employeeId: string,
     year: number
   ): Promise<Bonus[]> {
-    const ref = collection(
-      this.firestore,
-      `bonus/${year}/employees/${employeeId}/items`
+    const path = `bonus/${year}/employees/${employeeId}/items`;
+    console.log(
+      `[bonus.service] 賞与取得: 年度=${year}, 従業員ID=${employeeId}, パス=${path}`
     );
+    const ref = collection(this.firestore, path);
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
     const q = query(
@@ -110,7 +111,11 @@ export class BonusService {
       where('payDate', '<=', endDate)
     );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Bonus));
+    const bonuses = snapshot.docs.map(
+      (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
+    );
+    console.log(`[bonus.service] 取得した賞与データ:`, bonuses);
+    return bonuses;
   }
 
   /**
@@ -120,15 +125,26 @@ export class BonusService {
    */
   async saveBonus(year: number, data: Bonus): Promise<void> {
     const docId = `${data.employeeId}_${data.month}`;
-    const ref = doc(
-      this.firestore,
-      `bonus/${year}/employees/${data.employeeId}/items/${docId}`
+    const path = `bonus/${year}/employees/${data.employeeId}/items/${docId}`;
+    console.log(
+      `[bonus.service] 賞与保存: 年度=${year}, パス=${path}, bonus.year=${data.year}`
     );
+    const ref = doc(this.firestore, path);
+
+    // undefinedのフィールドを削除（Firestoreはundefinedを保存できない）
+    const cleanedData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanedData[key] = value;
+      }
+    }
+
     const bonusData = {
-      ...data,
-      year,
+      ...cleanedData,
+      year, // パラメータのyearを使用（保存先のパスと一致させる）
       createdAt: data.createdAt || Timestamp.now(),
     };
+    console.log(`[bonus.service] 保存データ:`, bonusData);
     await setDoc(ref, bonusData, { merge: true });
   }
 
@@ -178,7 +194,11 @@ export class BonusService {
    * @param employeeId 従業員ID
    * @param bonusId 賞与ID（ドキュメントID）
    */
-  async deleteBonus(year: number, employeeId: string, bonusId: string): Promise<void> {
+  async deleteBonus(
+    year: number,
+    employeeId: string,
+    bonusId: string
+  ): Promise<void> {
     const ref = doc(
       this.firestore,
       `bonus/${year}/employees/${employeeId}/items/${bonusId}`
@@ -193,7 +213,11 @@ export class BonusService {
    * @param bonusId 賞与ID（ドキュメントID）
    * @returns 賞与データ
    */
-  async getBonus(year: number, employeeId: string, bonusId: string): Promise<Bonus | null> {
+  async getBonus(
+    year: number,
+    employeeId: string,
+    bonusId: string
+  ): Promise<Bonus | null> {
     const ref = doc(
       this.firestore,
       `bonus/${year}/employees/${employeeId}/items/${bonusId}`
@@ -217,9 +241,7 @@ export class BonusService {
       `bonus/${year}/employees/${employeeId}/items`
     );
     const snapshot = await getDocs(ref);
-    return snapshot.docs.map(
-      (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
-    );
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Bonus));
   }
 
   /**
@@ -229,7 +251,11 @@ export class BonusService {
    * @param preferredYear 優先検索年度（オプショナル）
    * @returns 賞与データと年度のタプル
    */
-  async getBonusWithYear(employeeId: string, bonusId: string, preferredYear?: number): Promise<{ bonus: Bonus; year: number } | null> {
+  async getBonusWithYear(
+    employeeId: string,
+    bonusId: string,
+    preferredYear?: number
+  ): Promise<{ bonus: Bonus; year: number } | null> {
     // 優先年度が指定されている場合は、まずその年度を検索
     if (preferredYear !== undefined) {
       const bonus = await this.getBonus(preferredYear, employeeId, bonusId);
@@ -260,12 +286,17 @@ export class BonusService {
    * @param bonusId 賞与ID（ドキュメントID）
    * @param data 更新データ
    */
-  async updateBonus(year: number, employeeId: string, bonusId: string, data: Partial<Bonus>): Promise<void> {
+  async updateBonus(
+    year: number,
+    employeeId: string,
+    bonusId: string,
+    data: Partial<Bonus>
+  ): Promise<void> {
     const ref = doc(
       this.firestore,
       `bonus/${year}/employees/${employeeId}/items/${bonusId}`
     );
-    
+
     // undefinedの値を除外
     const cleanData: any = {};
     for (const [key, value] of Object.entries(data)) {
@@ -273,7 +304,7 @@ export class BonusService {
         cleanData[key] = value;
       }
     }
-    
+
     await updateDoc(ref, cleanData);
   }
 }

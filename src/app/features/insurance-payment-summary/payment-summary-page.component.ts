@@ -231,8 +231,9 @@ export class PaymentSummaryPageComponent implements OnInit {
     // 月次給与データを一括読み込み（年度変更時のみ）
     this.salaryDataByEmployeeId = {};
     for (const emp of this.employees) {
-      this.salaryDataByEmployeeId[emp.id] =
-        await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+      this.salaryDataByEmployeeId[emp.id] = salaryData;
+      console.log(`[payment-summary] 給与データ取得: 従業員=${emp.name}, 年度=${this.year}, データ=`, salaryData);
     }
 
     // 賞与データを従業員ごとにグループ化

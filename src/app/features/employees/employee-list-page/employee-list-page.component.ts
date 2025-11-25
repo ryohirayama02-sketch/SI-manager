@@ -24,6 +24,8 @@ interface EmployeeDisplayInfo {
     total: number;
   } | null;
   notes: string[]; // 備考欄用
+  standardMonthlyRemuneration: number | null; // 標準報酬月額（月次給与データから計算）
+  grade: number | null; // 等級
 }
 
 @Component({
@@ -119,6 +121,9 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       // 注: payment-summary-calculation.service.tsは全従業員の年間データを計算するサービスで、
       // 従業員一覧画面で当月だけを取得するには重いため、SalaryCalculationServiceを直接使用
       let currentMonthPremium = null;
+      let standardMonthlyRemuneration: number | null = null;
+      let grade: number | null = null;
+      
       try {
         const salaryData = await this.monthlySalaryService.getEmployeeSalary(
           emp.id,
@@ -132,6 +137,16 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
           if (monthData) {
             const fixedSalary = monthData.fixedTotal ?? monthData.fixed ?? monthData.fixedSalary ?? 0;
             const variableSalary = monthData.variableTotal ?? monthData.variable ?? monthData.variableSalary ?? 0;
+            const totalSalary = fixedSalary + variableSalary;
+            
+            // 標準報酬月額と等級を計算
+            if (totalSalary > 0 && gradeTable.length > 0) {
+              const gradeResult = this.salaryCalculationService.findGrade(gradeTable, totalSalary);
+              if (gradeResult) {
+                standardMonthlyRemuneration = gradeResult.remuneration;
+                grade = gradeResult.grade;
+              }
+            }
             
             if (fixedSalary > 0 || variableSalary > 0) {
               const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
@@ -238,6 +253,8 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         eligibility,
         currentMonthPremium,
         notes,
+        standardMonthlyRemuneration,
+        grade,
       });
     }
   }
@@ -272,15 +289,23 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     return info.eligibility.candidateFlag === true;
   }
 
-  getStandardMonthlyRemunerationDisplay(emp: Employee): string {
-    // 資格取得時決定の標準報酬月額を優先表示
-    if (emp.acquisitionStandard) {
-      return `${emp.acquisitionStandard.toLocaleString('ja-JP')}円（資格取得時決定）`;
+  getStandardMonthlyRemunerationDisplay(info: EmployeeDisplayInfo): string {
+    // 月次給与データから計算した標準報酬月額を優先表示
+    if (info.standardMonthlyRemuneration && info.standardMonthlyRemuneration > 0) {
+      const gradeText = info.grade ? `（${info.grade}等級）` : '';
+      return `${info.standardMonthlyRemuneration.toLocaleString('ja-JP')}円${gradeText}`;
     }
-    // 通常の標準報酬月額
-    if (emp.standardMonthlyRemuneration) {
-      return `${emp.standardMonthlyRemuneration.toLocaleString('ja-JP')}円`;
+    
+    // 資格取得時決定の標準報酬月額
+    if (info.employee.acquisitionStandard) {
+      return `${info.employee.acquisitionStandard.toLocaleString('ja-JP')}円（資格取得時決定）`;
     }
+    
+    // 通常の標準報酬月額（従業員データに保存されている値）
+    if (info.employee.standardMonthlyRemuneration) {
+      return `${info.employee.standardMonthlyRemuneration.toLocaleString('ja-JP')}円`;
+    }
+    
     return '-';
   }
 

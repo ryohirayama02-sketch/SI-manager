@@ -178,11 +178,9 @@ export class AnnualWarningService {
         const missingMonths: number[] = [];
 
         for (let month = 1; month <= 12; month++) {
-          const monthKey = this.salaryCalculationService.getSalaryKey(
-            emp.id,
-            month
-          );
-          const monthSalaryData = salaryData[monthKey];
+          // getEmployeeSalaryは { "4": {...}, "5": {...} } 形式を返す
+          const monthKeyString = month.toString(); // "4", "5", "6" など
+          const monthSalaryData = salaryData[monthKeyString];
 
           // データ欠損チェック
           if (!monthSalaryData) {

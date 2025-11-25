@@ -5,11 +5,19 @@
     <p><strong>氏名:</strong> {{ employee.name }}</p>
     <p><strong>生年月日:</strong> {{ employee.birthDate }}</p>
     <p><strong>年齢:</strong> {{ getAge(employee.birthDate) }} 歳</p>
-    <p><strong>入社日:</strong> {{ employee.hireDate }}</p>
+    <p><strong>入社日:</strong> {{ employee.joinDate || employee.hireDate || '-' }}</p>
 
     <p>
-      <strong>介護保険対象:</strong>
-      {{ isCareInsuranceTarget() ? '対象（40〜64歳）' : '対象外' }}
+      <strong>健康保険加入状況:</strong>
+      {{ getHealthInsuranceStatus() }}
+    </p>
+    <p>
+      <strong>介護保険加入状況:</strong>
+      {{ getCareInsuranceStatus() }}
+    </p>
+    <p>
+      <strong>厚生年金加入状況:</strong>
+      {{ getPensionStatus() }}
     </p>
 
     <p>

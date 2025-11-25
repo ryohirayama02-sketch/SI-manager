@@ -47,7 +47,19 @@ export class EmployeeService {
   async getEmployeeById(id: string): Promise<any | null> {
     const ref = doc(this.firestore, `employees/${id}`);
     const snap = await getDoc(ref);
-    return snap.exists() ? snap.data() : null;
+    if (!snap.exists()) return null;
+    
+    const data = snap.data();
+    // 後方互換性のため、hireDate → joinDate、shortTimeWorker → isShortTime の変換
+    const normalizedData: any = { ...data };
+    if (normalizedData.hireDate && !normalizedData.joinDate) {
+      normalizedData.joinDate = normalizedData.hireDate;
+    }
+    if (normalizedData.shortTimeWorker !== undefined && normalizedData.isShortTime === undefined) {
+      normalizedData.isShortTime = normalizedData.shortTimeWorker;
+    }
+    
+    return normalizedData;
   }
 
   // 新規作成（UC1）

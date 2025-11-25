@@ -185,6 +185,7 @@ export class PaymentSummaryCalculationService {
       // A. 月次給与の保険料を取得（キャッシュから取得、なければ読み込み）
       const salaryData = salaryDataByEmployeeId?.[emp.id] || 
         await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+      console.log(`[payment-summary-calculation] 従業員=${emp.name}, 給与データ=`, salaryData);
       let monthlyPremiums: {
         [month: number]: {
           healthEmployee: number;
@@ -202,11 +203,9 @@ export class PaymentSummaryCalculationService {
       if (salaryData) {
         // 1〜12月分の月次保険料を計算
         for (let month = 1; month <= 12; month++) {
-          const monthKey = this.salaryCalculationService.getSalaryKey(
-            emp.id,
-            month
-          );
-          const monthSalaryData = salaryData[monthKey];
+          // getEmployeeSalaryは { "4": {...}, "5": {...} } 形式を返す
+          const monthKeyString = month.toString(); // "4", "5", "6" など
+          const monthSalaryData = salaryData[monthKeyString];
           const fixedSalary =
             monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0;
           const variableSalary =

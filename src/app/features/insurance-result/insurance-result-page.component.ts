@@ -243,6 +243,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                            monthlyTotal.pensionEmployee + monthlyTotal.pensionEmployer;
 
       // 賞与データを取得
+      console.log(`[insurance-result] 賞与取得: 年度=${this.year}, 従業員ID=${emp.id}`);
       const bonuses = await this.bonusService.getBonusesForResult(emp.id, this.year);
       const latestBonus = bonuses && bonuses.length > 0 
         ? bonuses.sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime())[0]

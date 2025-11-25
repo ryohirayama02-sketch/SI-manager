@@ -138,7 +138,9 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   }
 
   async onMonthChange(month: number): Promise<void> {
-    // 支給月から年度を自動判定
+    // 支給月から年度を自動判定しない（ユーザーが選択した年度を維持）
+    // コメントアウト：支給月変更時に年度を自動変更すると、ユーザーが選択した年度が上書きされてしまう
+    /*
     // 支給月が1-3月の場合、年度は前年（会計年度4月始まり）
     // 支給月が4-12月の場合、年度は当年
     const currentDate = new Date();
@@ -155,8 +157,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       // 不正な値の場合は現在年度を維持
       this.year = currentYear;
     }
+    */
     
-    // 年度変更時に料率を再取得
+    console.log(`[bonus-page] 支給月変更: 月=${month}, 現在の年度=${this.year}`);
+    
+    // 年度変更時に料率を再取得（年度は変更しない）
     this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
     
     // 計算結果を再計算
@@ -310,10 +315,12 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       requireReport: this.calculationResult.requireReport,
       reportDeadline: this.calculationResult.reportDeadline || undefined,
       isSalaryInsteadOfBonus: this.calculationResult.isSalaryInsteadOfBonus,
-      exemptReason: this.calculationResult.exemptReason
+      exemptReason: this.calculationResult.exemptReason || undefined
     };
 
     try {
+      console.log(`[bonus-page] 賞与保存: 年度=${this.year}, 従業員ID=${this.selectedEmployeeId}, 月=${this.paymentMonth}, 賞与額=${this.bonusAmount}`);
+      console.log(`[bonus-page] bonusオブジェクト:`, bonus);
       await this.bonusService.saveBonus(this.year, bonus);
       alert('賞与データを保存しました');
       
