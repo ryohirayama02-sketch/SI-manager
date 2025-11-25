@@ -8,6 +8,7 @@ import {
 } from './employee-eligibility.service';
 import { SalaryCalculationService } from './salary-calculation.service';
 import { MaternityLeaveService } from './maternity-leave.service';
+import { SettingsService } from './settings.service';
 
 export interface BonusCalculationResult {
   healthEmployee: number;
@@ -55,7 +56,8 @@ export class BonusCalculationService {
     private bonusService: BonusService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private salaryCalculationService: SalaryCalculationService,
-    private maternityLeaveService: MaternityLeaveService
+    private maternityLeaveService: MaternityLeaveService,
+    private settingsService: SettingsService
   ) {}
 
   calculateAge(birthDate: string): number {
@@ -561,14 +563,14 @@ export class BonusCalculationService {
     employeeId: string,
     bonusAmount: number,
     paymentDate: string,
-    rates: any
+    year: number
   ): Promise<BonusCalculationResult | null> {
     if (
       !employeeId ||
       bonusAmount === null ||
       bonusAmount < 0 ||
       !paymentDate ||
-      !rates
+      !year
     ) {
       return null;
     }
@@ -578,6 +580,16 @@ export class BonusCalculationService {
     const payMonth = payDate.getMonth() + 1;
     const payDay = payDate.getDate();
     const lastDayOfMonth = new Date(payYear, payMonth, 0).getDate();
+
+    // 料率を年度テーブルから取得
+    const prefecture = (employee as any).prefecture || 'tokyo';
+    const rates = await this.settingsService.getRates(
+      year.toString(),
+      prefecture
+    );
+    if (!rates) {
+      return null;
+    }
 
     // 1. 標準賞与額（1000円未満切捨て）
     const standardBonus = this.calculateStandardBonus(bonusAmount);

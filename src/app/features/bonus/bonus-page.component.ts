@@ -1,11 +1,13 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../services/employee.service';
 import { BonusService } from '../../services/bonus.service';
 import { SettingsService } from '../../services/settings.service';
 import { BonusCalculationService, BonusCalculationResult } from '../../services/bonus-calculation.service';
+import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 
@@ -23,7 +25,7 @@ interface ParsedBonus {
   templateUrl: './bonus-page.component.html',
   styleUrl: './bonus-page.component.css'
 })
-export class BonusPageComponent implements OnInit {
+export class BonusPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   selectedEmployeeId: string = '';
   bonusAmount: number | null = null;
@@ -40,20 +42,22 @@ export class BonusPageComponent implements OnInit {
 
   // 賞与一覧
   bonusList: Bonus[] = [];
+  filteredBonuses: Bonus[] = [];
 
   // CSVインポート結果
   importResult: { successCount: number; errorCount: number; errors: string[] } | null = null;
+  // 加入区分購読用
+  eligibilitySubscription: Subscription | null = null;
 
   constructor(
     private employeeService: EmployeeService,
     private bonusService: BonusService,
     private settingsService: SettingsService,
-    private bonusCalculationService: BonusCalculationService
+    private bonusCalculationService: BonusCalculationService,
+    private employeeEligibilityService: EmployeeEligibilityService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
-    for (let y = 2023; y <= 2026; y++) {
-      this.availableYears.push(y);
-    }
+    this.availableYears = [2023, 2024, 2025, 2026];
   }
 
   async ngOnInit(): Promise<void> {
@@ -61,6 +65,33 @@ export class BonusPageComponent implements OnInit {
     this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
     // 初期表示時にカンマ付きで表示
     this.bonusAmountDisplay = this.formatAmount(this.bonusAmount);
+
+    // 加入区分の変更を購読
+    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
+      this.reloadEligibility();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.eligibilitySubscription?.unsubscribe();
+  }
+
+  async reloadEligibility(): Promise<void> {
+    // 加入区分が変更された場合、賞与計算を再実行（選択中の従業員がいて賞与額が入力されている場合）
+    if (this.selectedEmployeeId && this.bonusAmount && this.bonusAmount > 0) {
+      const employee = this.employees.find(e => e.id === this.selectedEmployeeId);
+      if (employee) {
+        const paymentDate = `${this.year}-${this.paymentMonth.toString().padStart(2, '0')}-01`;
+        this.calculationResult = await this.bonusCalculationService.calculateBonus(
+          employee,
+          this.selectedEmployeeId,
+          this.bonusAmount,
+          paymentDate,
+          this.year
+        );
+        this.isExempt = this.calculationResult?.isExempted || false;
+      }
+    }
   }
 
   formatAmount(value: number | null | undefined): string {
@@ -102,6 +133,38 @@ export class BonusPageComponent implements OnInit {
       await this.loadBonusList();
     } else {
       this.bonusList = [];
+      this.filteredBonuses = [];
+    }
+  }
+
+  async onMonthChange(month: number): Promise<void> {
+    // 支給月から年度を自動判定
+    // 支給月が1-3月の場合、年度は前年（会計年度4月始まり）
+    // 支給月が4-12月の場合、年度は当年
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    
+    if (month >= 1 && month <= 3) {
+      // 1-3月は前年度
+      this.year = currentYear - 1;
+    } else if (month >= 4 && month <= 12) {
+      // 4-12月は当年
+      this.year = currentYear;
+    } else {
+      // 不正な値の場合は現在年度を維持
+      this.year = currentYear;
+    }
+    
+    // 年度変更時に料率を再取得
+    this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
+    
+    // 計算結果を再計算
+    await this.updateBonusCalculation();
+    
+    // 賞与一覧を再読み込み
+    if (this.selectedEmployeeId) {
+      await this.loadBonusList();
     }
   }
 
@@ -113,12 +176,16 @@ export class BonusPageComponent implements OnInit {
       await this.loadBonusList();
     } else {
       this.bonusList = [];
+      this.filteredBonuses = [];
     }
+    // 年度フィルタを適用
+    this.filteredBonuses = this.bonusList.filter(b => b.year === this.year);
   }
 
   async loadBonusList(): Promise<void> {
     if (!this.selectedEmployeeId) {
       this.bonusList = [];
+      this.filteredBonuses = [];
       return;
     }
 
@@ -130,9 +197,12 @@ export class BonusPageComponent implements OnInit {
         const dateB = new Date(b.payDate).getTime();
         return dateB - dateA; // 降順
       });
+      // 年度フィルタを適用
+      this.filteredBonuses = this.bonusList.filter(b => b.year === this.year);
     } catch (error) {
       console.error('賞与一覧の取得エラー:', error);
       this.bonusList = [];
+      this.filteredBonuses = [];
     }
   }
 
@@ -150,6 +220,8 @@ export class BonusPageComponent implements OnInit {
       alert('賞与データを削除しました');
       // 一覧を再読み込み
       await this.loadBonusList();
+      // 年度フィルタを適用
+      this.filteredBonuses = this.bonusList.filter(b => b.year === this.year);
     } catch (error) {
       console.error('賞与削除エラー:', error);
       alert('削除に失敗しました');
@@ -183,7 +255,7 @@ export class BonusPageComponent implements OnInit {
       this.selectedEmployeeId,
       this.bonusAmount,
       paymentDate,
-      this.rates
+      this.year
     );
   }
 
@@ -256,6 +328,7 @@ export class BonusPageComponent implements OnInit {
       this.isExempt = false;
       this.calculationResult = null;
       this.bonusList = [];
+      this.filteredBonuses = [];
     } catch (error) {
       console.error('賞与登録エラー:', error);
       alert('登録に失敗しました');
@@ -370,12 +443,15 @@ export class BonusPageComponent implements OnInit {
         }
 
         // 賞与計算を実行
+        // 支給日から年度を取得
+        const payDateObj = new Date(item.payDate);
+        const bonusYear = payDateObj.getFullYear();
         const calculationResult = await this.bonusCalculationService.calculateBonus(
           employee,
           item.employeeId,
           item.bonusAmount,
           item.payDate,
-          this.rates
+          bonusYear
         );
 
         if (!calculationResult) {
@@ -384,8 +460,7 @@ export class BonusPageComponent implements OnInit {
           continue;
         }
 
-        // payDateから月を抽出
-        const payDateObj = new Date(item.payDate);
+        // payDateから月を抽出（payDateObjは既に416行目で宣言済み）
         const month = payDateObj.getMonth() + 1;
 
         // Bonusオブジェクトを作成

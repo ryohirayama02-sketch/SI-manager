@@ -4,6 +4,8 @@ import { MonthlySalaryData } from '../models/monthly-salary.model';
 import { SalaryItem } from '../models/salary-item.model';
 import { FixedChangeResult } from '../models/suiji.model';
 import { SuijiKouhoResult } from './salary-calculation.service';
+import { SettingsService } from './settings.service';
+import { Employee } from '../models/employee.model';
 
 export interface SalaryData {
   total: number;
@@ -13,7 +15,10 @@ export interface SalaryData {
 
 @Injectable({ providedIn: 'root' })
 export class SuijiService {
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private settingsService: SettingsService
+  ) {}
   
   /**
    * 固定的賃金の変動を検出する
@@ -228,15 +233,27 @@ export class SuijiService {
    * @param employeeId 従業員ID
    * @param month 月
    * @param salaries 給与データ（{ employeeId_month: { total, fixed, variable } }）
+   * @param year 年度
    * @param employeeName 従業員名（オプショナル）
    * @returns 変動検出結果（警告メッセージを含む）
    */
-  detectFixedChangeForMonth(
+  async detectFixedChangeForMonth(
     employeeId: string,
     month: number,
     salaries: { [key: string]: SalaryData },
+    year: number,
+    employee: Employee | null = null,
     employeeName: string = ''
-  ): { hasChange: boolean; warningMessage?: string } {
+  ): Promise<{ hasChange: boolean; warningMessage?: string }> {
+    // 年度テーブルを取得
+    const prefecture = employee ? ((employee as any).prefecture || 'tokyo') : 'tokyo';
+    const rates = await this.settingsService.getRates(year.toString(), prefecture);
+    const gradeTable = await this.settingsService.getStandardTable(year);
+    
+    // 年度テーブルが取得できない場合はエラー
+    if (!rates || !gradeTable || gradeTable.length === 0) {
+      return { hasChange: false };
+    }
     if (month <= 1) {
       return { hasChange: false };
     }

@@ -36,7 +36,13 @@
         <th>介護保険<br>加入状況</th>
         <th>厚生年金<br>加入状況</th>
         <th>標準報酬</th>
-        <th>当月保険料</th>
+        <th>健康（本人）</th>
+        <th>健康（会社）</th>
+        <th>介護（本人）</th>
+        <th>介護（会社）</th>
+        <th>年金（本人）</th>
+        <th>年金（会社）</th>
+        <th>合計</th>
         <th>備考</th>
       </tr>
     </thead>
@@ -49,7 +55,7 @@
           <span *ngIf="isCandidate(info)" style="color: #ff6b00; font-weight: bold;">⚠️ </span>
           {{ info.employee.name }}
         </td>
-        <td>
+        <td [title]="eligibilityDescriptions[getEligibilityCategory(info)]">
           <span [ngClass]="{ 'candidate-badge': isCandidate(info) }">
             {{ getEligibilityStatusLabel(info) }}
           </span>
@@ -59,10 +65,46 @@
         <td>{{ getPensionStatus(info) }}</td>
         <td>{{ getStandardMonthlyRemunerationDisplay(info.employee) }}</td>
         <td>
-          <span *ngIf="info.currentMonthPremium">
-            {{ info.currentMonthPremium.total | number:'1.0-0' }}円
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].healthEmployee | number:'1.0-0' }}
           </span>
-          <span *ngIf="!info.currentMonthPremium">-</span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
+        </td>
+        <td>
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].healthEmployer | number:'1.0-0' }}
+          </span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
+        </td>
+        <td>
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].careEmployee | number:'1.0-0' }}
+          </span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
+        </td>
+        <td>
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].careEmployer | number:'1.0-0' }}
+          </span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
+        </td>
+        <td>
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].pensionEmployee | number:'1.0-0' }}
+          </span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
+        </td>
+        <td>
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].pensionEmployer | number:'1.0-0' }}
+          </span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
+        </td>
+        <td>
+          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
+            {{ monthlyPremiumSummary[info.employee.id].total | number:'1.0-0' }}
+          </span>
+          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
         </td>
         <td>
           <span *ngFor="let note of info.notes; let last = last">

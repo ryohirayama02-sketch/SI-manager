@@ -26,6 +26,13 @@
 <h2>保険料率の設定（{{ year }}年）</h2>
 
 <div class="card">
+  <div class="form-group">
+    <label>年度：</label>
+    <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{ standalone: true }">
+      <option *ngFor="let y of availableYears" [value]="y.toString()">{{ y }}年</option>
+    </select>
+  </div>
+
   <div class="info-label">
     各保険の料率を0以上1以下の範囲で入力してください。
   </div>
@@ -160,8 +167,8 @@
 <div class="card">
   <div class="form-group">
     <label>年度：</label>
-    <select [(ngModel)]="standardTableYear" (change)="onStandardTableYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-      <option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}年</option>
+    <select [(ngModel)]="gradeYear" (change)="onGradeYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <option *ngFor="let y of availableGradeYears" [value]="y.toString()">{{ y }}年</option>
     </select>
   </div>
   <div class="info-label">

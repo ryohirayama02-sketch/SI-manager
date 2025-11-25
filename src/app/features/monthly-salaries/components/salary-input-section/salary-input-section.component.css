@@ -1,2 +1,13 @@
 /* 親コンポーネントのCSSを継承するため、必要に応じて追加 */
 
+.exempt-month {
+  background-color: #f3f4f6;
+  color: #777;
+  text-align: center;
+}
+
+.exempt-label {
+  font-weight: bold;
+  color: #444;
+}
+

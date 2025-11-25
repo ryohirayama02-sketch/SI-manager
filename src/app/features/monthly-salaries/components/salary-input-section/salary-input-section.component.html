@@ -41,8 +41,14 @@
             {{ item.name }}
             <small style="display: block; color: #666;">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small>
           </td>
-          <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m) }">
+          <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m), 'exempt-month': isExemptMonth(emp.id, m) }">
+            <!-- 免除月の場合 -->
+            <div *ngIf="isExemptMonth(emp.id, m)" class="exempt-label">
+              免除中
+            </div>
+            <!-- 通常月の場合 -->
             <input
+              *ngIf="!isExemptMonth(emp.id, m)"
               type="text"
               [value]="formatAmount(getSalaryItemAmount(emp.id, m, item.id))"
               (input)="onSalaryItemInput(emp.id, m, item.id, $event)"

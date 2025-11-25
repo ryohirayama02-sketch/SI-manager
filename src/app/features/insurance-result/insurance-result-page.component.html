@@ -94,67 +94,108 @@
   </div>
 
   <!-- 賞与保険料 -->
-  <div class="bonus-section" *ngIf="getInsuranceData(emp.id)?.latestBonus as latestBonus">
+  <div class="bonus-section" *ngIf="getInsuranceData(emp.id) as data">
     <h4>賞与保険料（{{ year }}年度）</h4>
-    <p style="margin-bottom: 1rem;">最新1回分の賞与: {{ latestBonus.amount | number:'1.0-0' }}円（{{ latestBonus.month }}月支給）</p>
 
-    <div class="premium-group">
-      <h5>健康保険</h5>
-      <div class="calculation-item">
-        <span class="label">本人：</span>
-        <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-          {{ latestBonus.isExempted ? '免除中' : (latestBonus.healthEmployee ?? 0 | number:'1.0-0') + '円' }}
-        </span>
+    <!-- 最新1回分の賞与（既存表示をここに移す） -->
+    <div *ngIf="data.latestBonus as latestBonus" class="latest-bonus-block">
+      <p style="margin-bottom: 1rem;">最新1回分の賞与: {{ latestBonus.amount | number:'1.0-0' }}円（{{ latestBonus.month }}月支給）</p>
+
+      <div class="premium-group">
+        <h5>健康保険</h5>
+        <div class="calculation-item">
+          <span class="label">本人：</span>
+          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
+            {{ latestBonus.isExempted ? '免除中' : (latestBonus.healthEmployee ?? 0 | number:'1.0-0') + '円' }}
+          </span>
+        </div>
+        <div class="calculation-item">
+          <span class="label">会社：</span>
+          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
+            {{ latestBonus.isExempted ? '免除中' : (latestBonus.healthEmployer ?? 0 | number:'1.0-0') + '円' }}
+          </span>
+        </div>
       </div>
-      <div class="calculation-item">
-        <span class="label">会社：</span>
-        <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-          {{ latestBonus.isExempted ? '免除中' : (latestBonus.healthEmployer ?? 0 | number:'1.0-0') + '円' }}
-        </span>
+
+      <div
+        class="premium-group"
+        *ngIf="
+          (latestBonus.careEmployee ?? 0) > 0 ||
+          (latestBonus.careEmployer ?? 0) > 0 ||
+          latestBonus.isExempted
+        "
+      >
+        <h5>介護保険</h5>
+        <div class="calculation-item">
+          <span class="label">本人：</span>
+          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
+            {{ latestBonus.isExempted ? '免除中' : (latestBonus.careEmployee ?? 0 | number:'1.0-0') + '円' }}
+          </span>
+        </div>
+        <div class="calculation-item">
+          <span class="label">会社：</span>
+          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
+            {{ latestBonus.isExempted ? '免除中' : (latestBonus.careEmployer ?? 0 | number:'1.0-0') + '円' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="premium-group">
+        <h5>厚生年金</h5>
+        <div class="calculation-item">
+          <span class="label">本人：</span>
+          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
+            {{ latestBonus.isExempted ? '免除中' : (latestBonus.pensionEmployee ?? 0 | number:'1.0-0') + '円' }}
+          </span>
+        </div>
+        <div class="calculation-item">
+          <span class="label">会社：</span>
+          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
+            {{ latestBonus.isExempted ? '免除中' : (latestBonus.pensionEmployer ?? 0 | number:'1.0-0') + '円' }}
+          </span>
+        </div>
+      </div>
+
+      <div *ngIf="latestBonus.isExempted && latestBonus.exemptReason" class="info-box" style="margin-top: 1rem; padding: 0.75rem; background-color: #e3f2fd; border-radius: 4px;">
+        <p><strong>免除理由:</strong> {{ latestBonus.exemptReason }}</p>
       </div>
     </div>
 
-    <div
-      class="premium-group"
-      *ngIf="
-        (latestBonus.careEmployee ?? 0) > 0 ||
-        (latestBonus.careEmployer ?? 0) > 0 ||
-        latestBonus.isExempted
-      "
-    >
-      <h5>介護保険</h5>
-      <div class="calculation-item">
-        <span class="label">本人：</span>
-        <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-          {{ latestBonus.isExempted ? '免除中' : (latestBonus.careEmployee ?? 0 | number:'1.0-0') + '円' }}
-        </span>
-      </div>
-      <div class="calculation-item">
-        <span class="label">会社：</span>
-        <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-          {{ latestBonus.isExempted ? '免除中' : (latestBonus.careEmployer ?? 0 | number:'1.0-0') + '円' }}
-        </span>
-      </div>
-    </div>
+    <!-- ★ 新規：賞与年間合計 -->
+    <div class="bonus-total-section" *ngIf="data.bonusTotal" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ddd;">
+      <h5>賞与年間合計</h5>
 
-    <div class="premium-group">
-      <h5>厚生年金</h5>
       <div class="calculation-item">
-        <span class="label">本人：</span>
-        <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-          {{ latestBonus.isExempted ? '免除中' : (latestBonus.pensionEmployee ?? 0 | number:'1.0-0') + '円' }}
-        </span>
+        <span class="label">健康保険（本人）：</span>
+        <span class="value">{{ data.bonusTotal.healthEmployee | number:'1.0-0' }}円</span>
       </div>
       <div class="calculation-item">
-        <span class="label">会社：</span>
-        <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-          {{ latestBonus.isExempted ? '免除中' : (latestBonus.pensionEmployer ?? 0 | number:'1.0-0') + '円' }}
-        </span>
+        <span class="label">健康保険（会社）：</span>
+        <span class="value">{{ data.bonusTotal.healthEmployer | number:'1.0-0' }}円</span>
       </div>
-    </div>
 
-    <div *ngIf="latestBonus.isExempted && latestBonus.exemptReason" class="info-box" style="margin-top: 1rem; padding: 0.75rem; background-color: #e3f2fd; border-radius: 4px;">
-      <p><strong>免除理由:</strong> {{ latestBonus.exemptReason }}</p>
+      <div class="calculation-item">
+        <span class="label">介護保険（本人）：</span>
+        <span class="value">{{ data.bonusTotal.careEmployee | number:'1.0-0' }}円</span>
+      </div>
+      <div class="calculation-item">
+        <span class="label">介護保険（会社）：</span>
+        <span class="value">{{ data.bonusTotal.careEmployer | number:'1.0-0' }}円</span>
+      </div>
+
+      <div class="calculation-item">
+        <span class="label">厚生年金（本人）：</span>
+        <span class="value">{{ data.bonusTotal.pensionEmployee | number:'1.0-0' }}円</span>
+      </div>
+      <div class="calculation-item">
+        <span class="label">厚生年金（会社）：</span>
+        <span class="value">{{ data.bonusTotal.pensionEmployer | number:'1.0-0' }}円</span>
+      </div>
+
+      <div class="calculation-item" style="border-top: 1px solid #ccc; margin-top: 0.5rem; padding-top: 0.5rem;">
+        <span class="label"><strong>賞与合計：</strong></span>
+        <span class="value"><strong>{{ data.bonusTotal.total | number:'1.0-0' }}円</strong></span>
+      </div>
     </div>
   </div>
 

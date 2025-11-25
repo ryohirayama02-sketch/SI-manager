@@ -136,6 +136,97 @@ export class SalaryCalculationService {
   }
 
   /**
+   * 指定年月における年齢を計算する
+   * @param birthDate 生年月日（YYYY-MM-DD形式）
+   * @param year 年度
+   * @param month 月（1-12）
+   * @returns 年齢
+   */
+  private calculateAgeForMonth(
+    birthDate: string,
+    year: number,
+    month: number
+  ): number {
+    const birth = new Date(birthDate);
+    const birthYear = birth.getFullYear();
+    const birthMonth = birth.getMonth() + 1;
+    const birthDay = birth.getDate();
+
+    // その月の1日時点の年齢を計算
+    const checkDate = new Date(year, month - 1, 1);
+    let age = year - birthYear;
+    if (month < birthMonth || (month === birthMonth && 1 < birthDay)) {
+      age--;
+    }
+    return age;
+  }
+
+  /**
+   * 指定年月が介護保険適用対象かどうかを判定する
+   * @param birthDate 生年月日（YYYY-MM-DD形式）
+   * @param year 年度
+   * @param month 月（1-12）
+   * @returns 介護保険適用対象の場合true（第2号被保険者のみ）
+   */
+  isCareInsuranceApplicable(
+    birthDate: string,
+    year: number,
+    month: number
+  ): boolean {
+    const careType = this.getCareInsuranceType(birthDate, year, month);
+    return careType === 'type2';
+  }
+
+  /**
+   * 指定年月における介護保険区分を取得する
+   * @param birthDate 生年月日（YYYY-MM-DD形式）
+   * @param year 年度
+   * @param month 月（1-12）
+   * @returns 'none' | 'type1' | 'type2'
+   *   - 'none': 39歳まで（介護保険適用なし）
+   *   - 'type2': 40歳到達月から64歳到達月の前月まで（第2号被保険者、保険料あり）
+   *   - 'type1': 65歳到達月以降（第1号被保険者、保険料なし）
+   */
+  getCareInsuranceType(
+    birthDate: string,
+    year: number,
+    month: number
+  ): 'none' | 'type1' | 'type2' {
+    const birth = new Date(birthDate);
+    const birthYear = birth.getFullYear();
+    const birthMonth = birth.getMonth() + 1;
+    const birthDay = birth.getDate();
+
+    // その月の1日時点の年齢を計算
+    const age = this.calculateAgeForMonth(birthDate, year, month);
+
+    // 40歳到達月の判定（誕生日の属する月から）
+    const isAge40Month =
+      (year === birthYear + 40 && month >= birthMonth) || year > birthYear + 40;
+    // 65歳到達月の判定（誕生日の属する月から）
+    const isAge65Month =
+      (year === birthYear + 65 && month >= birthMonth) || year > birthYear + 65;
+
+    // 75歳以上は健康保険・介護保険停止
+    if (age >= 75) {
+      return 'none';
+    }
+
+    // 65歳到達月以降は第1号被保険者（保険料なし）
+    if (isAge65Month || age >= 65) {
+      return 'type1';
+    }
+
+    // 40歳到達月から64歳到達月の前月まで第2号被保険者（保険料あり）
+    if (isAge40Month || age >= 40) {
+      return 'type2';
+    }
+
+    // 39歳まで
+    return 'none';
+  }
+
+  /**
    * 給与データから固定的賃金を取得（後方互換性対応）
    */
   private getFixedSalary(salaryData: SalaryData | undefined): number {
@@ -1034,6 +1125,22 @@ export class SalaryCalculationService {
    * @param gradeTable 標準報酬月額テーブル
    * @returns 月次保険料
    */
+  /**
+   * 指定月が免除月（産前産後休業・育児休業）かどうかを判定する
+   * @param emp 従業員情報
+   * @param year 年度
+   * @param month 月（1-12）
+   * @returns 免除月の場合true、それ以外false
+   */
+  isExemptMonth(emp: Employee, year: number, month: number): boolean {
+    const exemptResult = this.maternityLeaveService.isExemptForSalary(
+      year,
+      month,
+      emp
+    );
+    return exemptResult.exempt === true;
+  }
+
   async calculateMonthlyPremiums(
     employee: Employee,
     year: number,
@@ -1219,7 +1326,9 @@ export class SalaryCalculationService {
         reasons.push('70歳以上のため厚生年金は停止');
       }
     }
-    if (isAge65Reached) {
+    // 介護保険区分の判定（Service統一ロジックを使用）
+    const careType = this.getCareInsuranceType(employee.birthDate, year, month);
+    if (careType === 'type1') {
       if (isAge65Month && month === birthMonth) {
         reasons.push(
           `${month}月は65歳到達月のため介護保険は第1号被保険者（健保から除外、到達月から適用）`
@@ -1227,8 +1336,7 @@ export class SalaryCalculationService {
       } else {
         reasons.push('65歳以上のため介護保険は第1号被保険者（健保から除外）');
       }
-    }
-    if (isAge40Reached && !isAge65Reached) {
+    } else if (careType === 'type2') {
       if (isAge40Month && month === birthMonth) {
         reasons.push(
           `${month}月は40歳到達月のため介護保険料が発生します（到達月から適用）`
@@ -1278,13 +1386,14 @@ export class SalaryCalculationService {
     const health_employee = Math.floor(healthBase * r.health_employee);
     const health_employer = Math.floor(healthBase * r.health_employer);
 
-    // 介護保険（40〜64歳のみ、75歳以上は0円、資格取得月から発生、月末在籍が必要）
-    const isCareEligible = ageFlags.isCare2 && !ageFlags.isNoHealth;
+    // 介護保険（Service統一ロジックを使用）
+    // careTypeは既に1330行目で宣言済み
+    const isCareApplicable = careType === 'type2';
     let careBase = 0;
     if (!isLastDayEligible) {
       // 月末在籍がない場合は0円
       careBase = 0;
-    } else if (isCareEligible) {
+    } else if (isCareApplicable) {
       if (employee.joinDate) {
         const joinDate = new Date(employee.joinDate);
         const joinYear = this.monthHelper.getPayYear(joinDate);
@@ -1696,15 +1805,19 @@ export class SalaryCalculationService {
   }
 
   /**
-   * 月次保険料を計算
+   * 月次保険料を計算（簡易版）
    * @param standard 標準報酬月額
-   * @param age 年齢
+   * @param birthDate 生年月日（YYYY-MM-DD形式）
+   * @param year 年度
+   * @param month 月（1-12）
    * @param rates 料率データ
    * @returns 保険料データ
    */
   calculateInsurancePremiums(
     standard: number,
-    age: number,
+    birthDate: string,
+    year: number,
+    month: number,
     rates: any
   ): {
     health_employee: number;
@@ -1718,8 +1831,13 @@ export class SalaryCalculationService {
     const r = rates;
     const health_employee = r.health_employee;
     const health_employer = r.health_employer;
-    const care_employee = age >= 40 && age <= 64 ? r.care_employee : 0;
-    const care_employer = age >= 40 && age <= 64 ? r.care_employer : 0;
+
+    // 介護保険判定（Service統一ロジックを使用）
+    const careType = this.getCareInsuranceType(birthDate, year, month);
+    const isCareApplicable = careType === 'type2';
+    const care_employee = isCareApplicable ? r.care_employee : 0;
+    const care_employer = isCareApplicable ? r.care_employer : 0;
+
     const pension_employee = r.pension_employee;
     const pension_employer = r.pension_employer;
 

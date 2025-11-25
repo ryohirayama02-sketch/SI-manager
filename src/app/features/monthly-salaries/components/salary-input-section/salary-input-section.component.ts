@@ -17,6 +17,7 @@ export class SalaryInputSectionComponent {
   @Input() salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
   @Input() prefecture: string = 'tokyo';
   @Input() rehabHighlightMonths: { [employeeId: string]: number[] } = {};
+  @Input() exemptMonths: { [employeeId: string]: number[] } = {};
 
   @Output() salaryItemChange = new EventEmitter<{
     employeeId: string;
@@ -95,6 +96,10 @@ export class SalaryInputSectionComponent {
 
   getRehabHighlightMonths(employee: Employee): number[] {
     return this.rehabHighlightMonths[employee.id] || [];
+  }
+
+  isExemptMonth(empId: string, month: number): boolean {
+    return this.exemptMonths[empId]?.includes(month) ?? false;
   }
 }
 

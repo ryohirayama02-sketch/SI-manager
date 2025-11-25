@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../services/employee.service';
 import { BonusService } from '../../services/bonus.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
@@ -8,6 +9,7 @@ import { InsuranceCalculationService } from '../../services/insurance-calculatio
 import { SalaryCalculationService } from '../../services/salary-calculation.service';
 import { SettingsService } from '../../services/settings.service';
 import { EmployeeLifecycleService } from '../../services/employee-lifecycle.service';
+import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 
@@ -67,13 +69,15 @@ interface EmployeeInsuranceData {
   templateUrl: './insurance-result-page.component.html',
   styleUrl: './insurance-result-page.component.css'
 })
-export class InsuranceResultPageComponent implements OnInit {
+export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   year: number = new Date().getFullYear();
   availableYears: number[] = [];
   insuranceData: { [employeeId: string]: EmployeeInsuranceData } = {};
   errorMessages: { [employeeId: string]: string[] } = {};
   warningMessages: { [employeeId: string]: string[] } = {};
+  // 加入区分購読用
+  eligibilitySubscription: Subscription | null = null;
 
   constructor(
     private employeeService: EmployeeService,
@@ -82,7 +86,8 @@ export class InsuranceResultPageComponent implements OnInit {
     private insuranceCalculationService: InsuranceCalculationService,
     private salaryCalculationService: SalaryCalculationService,
     private settingsService: SettingsService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private employeeEligibilityService: EmployeeEligibilityService
   ) {
     // 年度選択用の年度リストを生成（現在年度±2年）
     const currentYear = new Date().getFullYear();
@@ -97,6 +102,20 @@ export class InsuranceResultPageComponent implements OnInit {
     if (this.employees.length > 0) {
       await this.loadInsuranceData();
     }
+
+    // 加入区分の変更を購読
+    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
+      this.reloadEligibility();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.eligibilitySubscription?.unsubscribe();
+  }
+
+  async reloadEligibility(): Promise<void> {
+    // 加入区分が変更された場合、保険料データを再計算
+    await this.loadInsuranceData();
   }
 
   async onYearChange(): Promise<void> {
@@ -171,11 +190,11 @@ export class InsuranceResultPageComponent implements OnInit {
               }
             }
 
-            const isExempt = premiumResult.reasons.some(
-              (r) => r.includes('産前産後休業') || r.includes('育児休業')
-            );
+            // 免除判定（Service統一ロジックを使用）
+            const isExempt = this.salaryCalculationService.isExemptMonth(emp, this.year, month);
+            // 免除理由はreasons配列から取得（Service層で設定済み）
             const exemptReason = isExempt 
-              ? premiumResult.reasons.find(r => r.includes('産前産後休業') || r.includes('育児休業')) || ''
+              ? premiumResult.reasons.find(r => r.includes('産前産後休業') || r.includes('育児休業') || r.includes('免除')) || ''
               : '';
 
             const monthlyPremium: MonthlyPremiumData = {
@@ -269,7 +288,7 @@ export class InsuranceResultPageComponent implements OnInit {
       };
 
       // 年齢関連の矛盾チェック
-      this.validateAgeRelatedErrors(emp, grandTotal);
+      this.validateAgeRelatedErrors(emp, grandTotal, this.insuranceData[emp.id]);
     }
   }
 
@@ -286,7 +305,7 @@ export class InsuranceResultPageComponent implements OnInit {
     return startDate <= today && endDate >= today;
   }
 
-  validateAgeRelatedErrors(emp: Employee, totals: any): void {
+  validateAgeRelatedErrors(emp: Employee, totals: any, data: EmployeeInsuranceData): void {
     const age = this.insuranceCalculationService.getAge(emp.birthDate);
     
     // 70歳以上なのに厚生年金の保険料が計算されている
@@ -294,9 +313,16 @@ export class InsuranceResultPageComponent implements OnInit {
       this.errorMessages[emp.id].push('70歳以上は厚生年金保険料は発生しません');
     }
     
-    // 75歳以上なのに健康保険・介護保険が計算されている
-    if (age >= 75 && (totals.healthEmployee > 0 || totals.careEmployee > 0)) {
-      this.errorMessages[emp.id].push('75歳以上は健康保険・介護保険は発生しません');
+    // 75歳以上なのに健康保険・介護保険が計算されている（Service統一ロジックを使用）
+    for (let month = 1; month <= 12; month++) {
+      const careType = this.salaryCalculationService.getCareInsuranceType(emp.birthDate, this.year, month);
+      if (careType === 'none' && age >= 75) {
+        // 75歳以上で介護保険が計算されている場合
+        const monthlyData = data.monthlyPremiums.find(p => p.month === month);
+        if (monthlyData && monthlyData.careEmployee > 0) {
+          this.errorMessages[emp.id].push(`${month}月：75歳以上は健康保険・介護保険は発生しません`);
+        }
+      }
     }
   }
 
@@ -304,4 +330,5 @@ export class InsuranceResultPageComponent implements OnInit {
     return this.insuranceData[employeeId] || null;
   }
 }
+
 

@@ -93,7 +93,8 @@ export class BonusEditPageComponent implements OnInit {
       }
 
       this.bonus = result.bonus;
-      this.year = result.year;
+      // 賞与データの年度があればそれを使用、なければ検索結果の年度を使用
+      this.year = this.bonus.year || result.year;
 
       // 料率を取得
       this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
@@ -169,7 +170,7 @@ export class BonusEditPageComponent implements OnInit {
       this.employeeId,
       this.form.value.amount,
       payDate,
-      this.rates
+      this.year
     );
   }
 
@@ -196,6 +197,7 @@ export class BonusEditPageComponent implements OnInit {
 
     // 更新データを作成（undefinedの値を除外）
     const updateData: any = {
+      year: this.year,
       amount: this.form.value.amount,
       payDate: this.form.value.payDate,
       isExempt: this.calculationResult.isExempted || false,

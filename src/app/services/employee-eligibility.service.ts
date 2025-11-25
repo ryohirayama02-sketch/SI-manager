@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
+import { Observable, BehaviorSubject } from 'rxjs';
 import { Employee } from '../models/employee.model';
+import { EmployeeService } from './employee.service';
 
 export type AgeCategory = 'normal' | 'care-2nd' | 'care-1st' | 'no-pension' | 'no-health';
 
@@ -30,6 +32,45 @@ export interface EmployeeWorkInfo {
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeEligibilityService {
+  private eligibilitySubject = new BehaviorSubject<{ [employeeId: string]: EmployeeEligibilityResult }>({});
+
+  constructor(private employeeService: EmployeeService) {
+    // 従業員情報の変更を監視してeligibilityを再計算
+    this.employeeService.observeEmployees().subscribe(async () => {
+      await this.recalculateAllEligibility();
+    });
+  }
+
+  /**
+   * 全従業員の加入区分を再計算
+   */
+  private async recalculateAllEligibility(): Promise<void> {
+    const employees = await this.employeeService.getAllEmployees();
+    const eligibilityMap: { [employeeId: string]: EmployeeEligibilityResult } = {};
+    
+    for (const emp of employees) {
+      const workInfo = {
+        weeklyHours: emp.weeklyHours,
+        monthlyWage: emp.monthlyWage,
+        expectedEmploymentMonths: emp.expectedEmploymentMonths,
+        isStudent: emp.isStudent,
+        consecutiveMonthsOver20Hours: emp.consecutiveMonthsOver20Hours,
+      };
+      eligibilityMap[emp.id] = this.checkEligibility(emp, workInfo);
+    }
+    
+    this.eligibilitySubject.next(eligibilityMap);
+  }
+
+  /**
+   * 加入区分の変更を監視する
+   * @returns Observable<{ [employeeId: string]: EmployeeEligibilityResult }>
+   */
+  observeEligibility(): Observable<{ [employeeId: string]: EmployeeEligibilityResult }> {
+    // 初回読み込み時に計算を実行
+    this.recalculateAllEligibility();
+    return this.eligibilitySubject.asObservable();
+  }
 
   /**
    * 従業員の社会保険加入資格を判定する

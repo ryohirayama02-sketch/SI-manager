@@ -1,5 +1,17 @@
 <h2>随時改定アラート</h2>
 
+<div class="card" style="max-width: 400px; margin-bottom: 1rem;">
+  <div class="form-group">
+    <label>年度：</label>
+    <select [(ngModel)]="year"
+            (change)="onYearChange()"
+            class="form-control"
+            [ngModelOptions]="{ standalone: true }">
+      <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
+    </select>
+  </div>
+</div>
+
 <div class="card">
   <div *ngIf="alerts.length === 0" class="info-label">
     随時改定候補はありません。
@@ -10,6 +22,7 @@
       <tr>
         <th>従業員</th>
         <th>変動月</th>
+        <th>前月比</th>
         <th>前後3ヶ月平均</th>
         <th>現行等級</th>
         <th>新等級候補</th>
@@ -20,9 +33,22 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let alert of alerts">
-        <td>{{ getEmployeeName(alert.employeeId) }}</td>
+      <tr *ngFor="let alert of alerts"
+          [ngClass]="{
+            'alert-row': alert.isEligible,
+            'large-change-row': isLargeChange(alert.diff)
+          }">
+        <td>
+          <span *ngIf="alert.isEligible">⚠️ </span>
+          {{ getEmployeeName(alert.employeeId) }}
+        </td>
         <td>{{ alert.changeMonth }}月</td>
+        <td>
+          <span *ngIf="alert.diffPrev != null">
+            {{ alert.diffPrev | number:'1.0-0' }}円
+          </span>
+          <span *ngIf="alert.diffPrev == null">-</span>
+        </td>
         <td>{{ alert.averageSalary | number:'1.0-0' }}円</td>
         <td>{{ alert.currentGrade }}</td>
         <td>{{ alert.newGrade }}</td>

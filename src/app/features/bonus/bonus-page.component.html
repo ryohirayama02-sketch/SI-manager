@@ -32,7 +32,7 @@
     <select
       id="paymentMonth"
       [(ngModel)]="paymentMonth"
-      (change)="onInputChange()"
+      (change)="onMonthChange(paymentMonth)"
       name="paymentMonth"
       class="form-control"
       required
@@ -214,11 +214,11 @@
 <div class="bonus-list-section card" *ngIf="selectedEmployeeId">
   <h3>賞与一覧（{{ year }}年度）</h3>
   
-  <div *ngIf="bonusList.length === 0" class="no-data-message" style="padding: 2rem; text-align: center; color: #666;">
+  <div *ngIf="filteredBonuses.length === 0" class="no-data-message" style="padding: 2rem; text-align: center; color: #666;">
     賞与データがありません
   </div>
 
-  <table class="bonus-list" *ngIf="bonusList.length > 0">
+  <table class="bonus-list" *ngIf="filteredBonuses.length > 0">
     <thead>
       <tr>
         <th>支給日</th>
@@ -233,7 +233,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let bonus of bonusList">
+      <tr *ngFor="let bonus of filteredBonuses">
         <td>{{ bonus.payDate }}</td>
         <td>{{ bonus.amount | number:'1.0-0' }}円</td>
         <td>{{ bonus.standardBonusAmount || 0 | number:'1.0-0' }}円</td>

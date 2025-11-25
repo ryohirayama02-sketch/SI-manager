@@ -15,3 +15,13 @@
   font-weight: bold;
 }
 
+.alert-row {
+  /* 随時改定対象の行全体を少し目立たせる */
+  background-color: #fff8e1;
+}
+
+.large-change-row {
+  /* 等級差が2以上のケースをさらに強調 */
+  font-weight: bold;
+}
+

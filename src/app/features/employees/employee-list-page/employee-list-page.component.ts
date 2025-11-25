@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../../services/employee.service';
 import { EmployeeEligibilityService, EmployeeEligibilityResult } from '../../../services/employee-eligibility.service';
 import { MonthlySalaryService } from '../../../services/monthly-salary.service';
@@ -32,7 +33,7 @@ interface EmployeeDisplayInfo {
   templateUrl: './employee-list-page.component.html',
   styleUrl: './employee-list-page.component.css'
 })
-export class EmployeeListPageComponent implements OnInit {
+export class EmployeeListPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   employeeDisplayInfos: EmployeeDisplayInfo[] = [];
   
@@ -40,9 +41,33 @@ export class EmployeeListPageComponent implements OnInit {
   filterName: string = '';
   filterEligibilityStatus: string = ''; // 'all' | 'eligible' | 'short-time' | 'non-eligible' | 'candidate'
 
+  // Firestore購読用
+  employeesSubscription: Subscription | null = null;
+
+  // 月次保険料サマリー（従業員IDをキーとする）
+  monthlyPremiumSummary: {
+    [employeeId: string]: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+  } = {};
+
   // 現在の年月
   currentYear: number = new Date().getFullYear();
   currentMonth: number = new Date().getMonth() + 1;
+
+  // 加入判定の説明辞書
+  eligibilityDescriptions: { [key: string]: string } = {
+    eligible: '社会保険の加入対象です',
+    shortTime: '短時間労働者（一定要件を満たせば加入）',
+    nonEligible: '社会保険の加入対象外です',
+    candidate: '加入要件を満たす可能性があります',
+  };
 
   constructor(
     private employeeService: EmployeeService,
@@ -55,8 +80,19 @@ export class EmployeeListPageComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    this.employees = await this.employeeService.getAllEmployees();
+    await this.reloadEmployees();
+    this.employeesSubscription = this.employeeService.observeEmployees().subscribe(() => {
+      this.reloadEmployees();
+    });
+  }
+
+  async reloadEmployees(): Promise<void> {
+    this.employees = await this.employeeService.getEmployees();
     await this.loadEmployeeDisplayInfos();
+  }
+
+  ngOnDestroy(): void {
+    this.employeesSubscription?.unsubscribe();
   }
 
   async loadEmployeeDisplayInfos(): Promise<void> {
@@ -118,6 +154,19 @@ export class EmployeeListPageComponent implements OnInit {
                        premiums.care_employee + premiums.care_employer +
                        premiums.pension_employee + premiums.pension_employer,
               };
+              
+              // monthlyPremiumSummaryにも格納
+              this.monthlyPremiumSummary[emp.id] = {
+                healthEmployee: premiums.health_employee,
+                healthEmployer: premiums.health_employer,
+                careEmployee: premiums.care_employee,
+                careEmployer: premiums.care_employer,
+                pensionEmployee: premiums.pension_employee,
+                pensionEmployer: premiums.pension_employer,
+                total: premiums.health_employee + premiums.health_employer +
+                       premiums.care_employee + premiums.care_employer +
+                       premiums.pension_employee + premiums.pension_employer,
+              };
             }
           }
         }
@@ -133,15 +182,20 @@ export class EmployeeListPageComponent implements OnInit {
         notes.push('⚠️ 加入候補者（3ヶ月連続で実働20時間以上）');
       }
       
-      // 年齢到達による停止・変更（SalaryCalculationService.calculateAge()を使用）
+      // 年齢到達による停止・変更（Service統一ロジックを使用）
       const age = this.salaryCalculationService.calculateAge(emp.birthDate);
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+      const careType = this.salaryCalculationService.getCareInsuranceType(emp.birthDate, currentYear, currentMonth);
+      
       if (age >= 75) {
         notes.push('75歳到達により健康保険・介護保険停止');
       } else if (age >= 70) {
         notes.push('70歳到達により厚生年金停止');
-      } else if (age >= 65) {
+      } else if (careType === 'type1') {
         notes.push('65歳到達により介護保険第1号被保険者');
-      } else if (age >= 40) {
+      } else if (careType === 'type2') {
         notes.push('40歳到達により介護保険第2号被保険者');
       }
       
@@ -201,6 +255,19 @@ export class EmployeeListPageComponent implements OnInit {
     return '非対象';
   }
 
+  getEligibilityCategory(info: EmployeeDisplayInfo): string {
+    if (info.eligibility.candidateFlag) {
+      return 'candidate';
+    }
+    if (info.eligibility.healthInsuranceEligible || info.eligibility.pensionEligible) {
+      if (info.employee.isShortTime || (info.employee.weeklyHours && info.employee.weeklyHours >= 20 && info.employee.weeklyHours < 30)) {
+        return 'shortTime';
+      }
+      return 'eligible';
+    }
+    return 'nonEligible';
+  }
+
   isCandidate(info: EmployeeDisplayInfo): boolean {
     return info.eligibility.candidateFlag === true;
   }
@@ -228,13 +295,21 @@ export class EmployeeListPageComponent implements OnInit {
   }
 
   getCareInsuranceStatus(info: EmployeeDisplayInfo): string {
-    if (info.eligibility.ageFlags.isNoHealth) {
-      return '停止（75歳以上）';
-    }
-    if (info.eligibility.ageFlags.isCare1) {
+    const emp = info.employee;
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const careType = this.salaryCalculationService.getCareInsuranceType(emp.birthDate, currentYear, currentMonth);
+    
+    if (careType === 'none') {
+      // 75歳以上または39歳以下
+      if (info.eligibility.ageFlags.isNoHealth) {
+        return '停止（75歳以上）';
+      }
+      return 'なし';
+    } else if (careType === 'type1') {
       return '第1号被保険者';
-    }
-    if (info.eligibility.careInsuranceEligible) {
+    } else if (careType === 'type2') {
       return 'あり（40〜64歳）';
     }
     return 'なし';

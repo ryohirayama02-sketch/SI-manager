@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SettingsService } from '../../services/settings.service';
@@ -14,6 +15,7 @@ import {
 } from '../../services/salary-calculation.service';
 import { SuijiService } from '../../services/suiji.service';
 import { ValidationService } from '../../services/validation.service';
+import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { SalaryItem } from '../../models/salary-item.model';
 import {
@@ -38,7 +40,7 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './monthly-salaries-page.component.html',
   styleUrl: './monthly-salaries-page.component.css',
 })
-export class MonthlySalariesPageComponent implements OnInit {
+export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   salaryItems: SalaryItem[] = [];
@@ -76,6 +78,11 @@ export class MonthlySalariesPageComponent implements OnInit {
     };
   } = {};
 
+  // 免除月情報（従業員IDをキーとする）
+  exemptMonths: { [employeeId: string]: number[] } = {};
+  // 加入区分購読用
+  eligibilitySubscription: Subscription | null = null;
+
   constructor(
     private employeeService: EmployeeService,
     private monthlySalaryService: MonthlySalaryService,
@@ -83,6 +90,7 @@ export class MonthlySalariesPageComponent implements OnInit {
     private salaryCalculationService: SalaryCalculationService,
     private suijiService: SuijiService,
     private validationService: ValidationService,
+    private employeeEligibilityService: EmployeeEligibilityService,
     private router: Router
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
@@ -140,6 +148,22 @@ export class MonthlySalariesPageComponent implements OnInit {
     }
 
     // 全従業員の計算結果情報を取得
+    await this.updateAllCalculatedInfo();
+
+    // 加入区分の変更を購読
+    this.eligibilitySubscription = this.employeeEligibilityService
+      .observeEligibility()
+      .subscribe(() => {
+        this.reloadEligibility();
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.eligibilitySubscription?.unsubscribe();
+  }
+
+  async reloadEligibility(): Promise<void> {
+    // 加入区分が変更された場合、計算結果を再計算
     await this.updateAllCalculatedInfo();
   }
 
@@ -310,7 +334,7 @@ export class MonthlySalariesPageComponent implements OnInit {
     this.onSalaryChange(employeeId, month);
   }
 
-  onFixedChange(employeeId: string, month: number): void {
+  async onFixedChange(employeeId: string, month: number): Promise<void> {
     const key = this.getSalaryKey(employeeId, month);
     if (!this.salaries[key]) {
       this.salaries[key] = { total: 0, fixed: 0, variable: 0 };
@@ -321,10 +345,12 @@ export class MonthlySalariesPageComponent implements OnInit {
 
     // 固定的賃金の変動を検出（Service層に委譲）
     const emp = this.employees.find((e) => e.id === employeeId);
-    const changeResult = this.suijiService.detectFixedChangeForMonth(
+    const changeResult = await this.suijiService.detectFixedChangeForMonth(
       employeeId,
       month,
       this.salaries,
+      this.year,
+      emp || null,
       emp?.name || ''
     );
 
@@ -356,29 +382,10 @@ export class MonthlySalariesPageComponent implements OnInit {
   }
 
   getAverageForAprToJun(employeeId: string): number | null {
-    // 4-6月の値を取得
-    const values: number[] = [];
-    for (const month of [4, 5, 6]) {
-      const key = this.getSalaryKey(employeeId, month);
-      const salaryData = this.salaries[key];
-      if (salaryData && salaryData.total > 0) {
-        values.push(salaryData.total);
-      }
-    }
-
-    if (values.length !== 3) return null;
-
-    // サービスメソッドを使用して平均を計算（除外月なし）
-    const salaryDataArray = values.map((total) => ({
-      total,
-      fixed: total,
-      variable: 0,
-    }));
-    const result = this.salaryCalculationService.calculateAverage(
-      salaryDataArray,
-      []
+    return this.salaryCalculationService.getAverageForAprToJun(
+      employeeId,
+      this.salaries
     );
-    return result.averageSalary > 0 ? result.averageSalary : null;
   }
 
   getStandardMonthlyRemuneration(avg: number | null) {
@@ -391,13 +398,22 @@ export class MonthlySalariesPageComponent implements OnInit {
     return { rank: result.grade, standard: result.remuneration };
   }
 
-  calculateInsurancePremiums(standard: number, age: number) {
+  calculateInsurancePremiums(standard: number, emp: Employee, month: number) {
     if (!this.rates) return null;
     const r = this.rates;
     const health_employee = r.health_employee;
     const health_employer = r.health_employer;
-    const care_employee = age >= 40 && age <= 64 ? r.care_employee : 0;
-    const care_employer = age >= 40 && age <= 64 ? r.care_employer : 0;
+
+    // 介護保険判定（Service統一ロジックを使用）
+    const careType = this.salaryCalculationService.getCareInsuranceType(
+      emp.birthDate,
+      this.year,
+      month
+    );
+    const isCareApplicable = careType === 'type2';
+    const care_employee = isCareApplicable ? r.care_employee : 0;
+    const care_employer = isCareApplicable ? r.care_employer : 0;
+
     const pension_employee = r.pension_employee;
     const pension_employer = r.pension_employer;
 
@@ -634,6 +650,29 @@ export class MonthlySalariesPageComponent implements OnInit {
   async updateAllCalculatedInfo(): Promise<void> {
     for (const emp of this.employees) {
       await this.updateCalculatedInfo(emp);
+    }
+    // 免除月を構築
+    this.buildExemptMonths();
+  }
+
+  buildExemptMonths(): void {
+    this.exemptMonths = {};
+    for (const emp of this.employees) {
+      this.exemptMonths[emp.id] = [];
+
+      for (const month of this.months) {
+        // 各月の免除判定（Service層のメソッドを使用）
+        const isExempt = this.salaryCalculationService.isExemptMonth(
+          emp,
+          this.year,
+          month
+        );
+        if (isExempt) {
+          if (!this.exemptMonths[emp.id].includes(month)) {
+            this.exemptMonths[emp.id].push(month);
+          }
+        }
+      }
     }
   }
 

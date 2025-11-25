@@ -15,7 +15,10 @@ import { SalaryItem } from '../../../models/salary-item.model';
 })
 export class SettingsPageComponent implements OnInit {
   year = '2025';
+  availableYears: number[] = [];
   standardTableYear: number = new Date().getFullYear();
+  gradeYear: string = (new Date().getFullYear()).toString();
+  availableGradeYears: number[] = [];
   salaryItemsYear: number = new Date().getFullYear();
   prefecture = 'tokyo';
   form: any;
@@ -32,6 +35,12 @@ export class SettingsPageComponent implements OnInit {
     private fb: FormBuilder,
     private settingsService: SettingsService
   ) {
+    // 年度選択用のリストを初期化（現在年度±2年）
+    const currentYear = new Date().getFullYear();
+    this.availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+    this.year = currentYear.toString();
+    // 標準報酬等級表の年度選択用リストを初期化（現在年度±2年）
+    this.availableGradeYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
     this.form = this.fb.group({
       prefecture: [this.prefecture, Validators.required],
       effectiveFrom: [`${this.year}-04`, Validators.required],
@@ -123,6 +132,12 @@ export class SettingsPageComponent implements OnInit {
     await this.loadStandardTable();
   }
 
+  async onGradeYearChange(): Promise<void> {
+    const yearNum = parseInt(this.gradeYear, 10);
+    this.standardTableYear = yearNum;
+    await this.loadStandardTable();
+  }
+
   validateStandardTable(): void {
     this.errorMessages = [];
     this.warningMessages = [];
@@ -181,6 +196,9 @@ export class SettingsPageComponent implements OnInit {
     const salaryMonthRule = await this.settingsService.getSalaryMonthRule();
     this.settingsForm.patchValue({ salaryMonthRule });
     
+    // 標準報酬等級表の年度を初期化
+    this.standardTableYear = parseInt(this.gradeYear, 10);
+    
     // 変更時に自動保存
     this.settingsForm.get('salaryMonthRule')?.valueChanges.subscribe(async (value) => {
       if (value) {
@@ -201,6 +219,26 @@ export class SettingsPageComponent implements OnInit {
     
     await this.loadStandardTable();
     await this.loadSalaryItems();
+  }
+
+  async onYearChange(): Promise<void> {
+    // 料率と改定月を再読み込み
+    const data = await this.settingsService.getRates(this.year, this.prefecture);
+    if (data) {
+      this.form.patchValue({
+        ...data,
+        prefecture: this.prefecture,
+        effectiveFrom: data.effectiveFrom || `${this.year}-04`
+      });
+    } else {
+      this.form.patchValue({
+        effectiveFrom: `${this.year}-04`
+      });
+    }
+    
+    // 適用開始月（改定月）を再読み込み
+    const versionInfo = await this.settingsService.getRateVersionInfo(this.year);
+    this.rateVersionForm.patchValue({ applyFromMonth: versionInfo.applyFromMonth });
   }
 
   async onPrefectureChange(): Promise<void> {

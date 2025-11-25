@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc } from '@angular/fire/firestore';
+import { Firestore, collection, addDoc, doc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot } from '@angular/fire/firestore';
 import { Employee } from '../models/employee.model';
+import { Observable } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeService {
@@ -98,6 +99,27 @@ export class EmployeeService {
     }
     
     await updateDoc(ref, cleanData);
+  }
+
+  /**
+   * 従業員コレクションの変更を監視する
+   * @returns Observable<void>
+   */
+  observeEmployees(): Observable<void> {
+    const colRef = collection(this.firestore, 'employees');
+    return new Observable<void>(observer => {
+      const unsubscribe = onSnapshot(colRef, () => {
+        observer.next();
+      });
+      return () => unsubscribe();
+    });
+  }
+
+  /**
+   * 全従業員を取得（getAllEmployees のエイリアス）
+   */
+  async getEmployees(): Promise<Employee[]> {
+    return this.getAllEmployees();
   }
 }
 

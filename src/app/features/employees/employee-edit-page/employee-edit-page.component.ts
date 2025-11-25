@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../../services/employee.service';
 import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
 import { EmployeeEligibilityService } from '../../../services/employee-eligibility.service';
@@ -15,7 +16,7 @@ import { Employee } from '../../../models/employee.model';
   templateUrl: './employee-edit-page.component.html',
   styleUrl: './employee-edit-page.component.css'
 })
-export class EmployeeEditPageComponent implements OnInit {
+export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   employeeId: string | null = null;
   form: any;
   errorMessages: string[] = [];
@@ -32,6 +33,9 @@ export class EmployeeEditPageComponent implements OnInit {
   
   // 標準報酬履歴（read-only）
   standardMonthlyRemunerationHistory: string = '';
+
+  // 加入区分購読用
+  eligibilitySubscription: Subscription | null = null;
 
   constructor(
     private route: ActivatedRoute,
@@ -110,6 +114,22 @@ export class EmployeeEditPageComponent implements OnInit {
       // 初期表示時に自動判定を実行
       this.updateAutoDetection();
     }
+
+    // 加入区分の変更を購読
+    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
+      if (this.employeeId) {
+        this.reloadEligibility();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.eligibilitySubscription?.unsubscribe();
+  }
+
+  reloadEligibility(): void {
+    // 加入区分を再計算して画面に反映
+    this.updateAutoDetection();
   }
 
   updateAutoDetection(): void {
