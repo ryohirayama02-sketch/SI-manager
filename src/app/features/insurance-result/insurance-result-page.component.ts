@@ -132,11 +132,14 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     const gradeTable = await this.settingsService.getStandardTable(this.year);
 
     for (const emp of this.employees) {
-      this.errorMessages[emp.id] = [];
-      this.warningMessages[emp.id] = [];
+      try {
+        console.log(`[loadInsuranceData] 処理開始: ${emp.name} (ID: ${emp.id})`);
+        this.errorMessages[emp.id] = [];
+        this.warningMessages[emp.id] = [];
 
-      // 月次給与データを取得
-      const monthlySalaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+        // 月次給与データを取得
+        const monthlySalaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+        console.log(`[loadInsuranceData] ${emp.name} の給与データ:`, monthlySalaryData);
       
       // 月次給与の保険料を計算
       const monthlyPremiums: MonthlyPremiumData[] = [];
@@ -196,6 +199,13 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             const exemptReason = isExempt 
               ? premiumResult.reasons.find(r => r.includes('産前産後休業') || r.includes('育児休業') || r.includes('免除')) || ''
               : '';
+
+            // 料率取得失敗の警告を追加
+            if (premiumResult.reasons.some(r => r.includes('保険料率の取得に失敗しました'))) {
+              this.warningMessages[emp.id].push(
+                `${month}月：保険料率が設定されていません。設定画面で料率を設定してください。`
+              );
+            }
 
             const monthlyPremium: MonthlyPremiumData = {
               month,
@@ -287,8 +297,55 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         hasLeaveOfAbsence,
       };
 
+      console.log(`[loadInsuranceData] ${emp.name} の保険料データ設定完了:`, {
+        monthlyPremiumsCount: monthlyPremiums.length,
+        monthlyTotal: monthlyTotal.total,
+        grandTotal: grandTotal.total
+      });
+
       // 年齢関連の矛盾チェック
       this.validateAgeRelatedErrors(emp, grandTotal, this.insuranceData[emp.id]);
+      } catch (error) {
+        console.error(`従業員 ${emp.name} (ID: ${emp.id}) の保険料計算エラー:`, error);
+        this.errorMessages[emp.id] = [
+          ...(this.errorMessages[emp.id] || []),
+          `保険料の計算中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`
+        ];
+        
+        // エラーが発生しても空のデータを設定して表示できるようにする
+        this.insuranceData[emp.id] = {
+          monthlyPremiums: [],
+          monthlyTotal: {
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+            total: 0,
+          },
+          bonusTotal: {
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+            total: 0,
+          },
+          grandTotal: {
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+            total: 0,
+          },
+          latestBonus: null,
+          hasLeaveOfAbsence: false,
+        };
+      }
     }
   }
 

@@ -54,7 +54,8 @@ export class ValidationService {
       }
 
       // 等級が算出できない場合のチェック（標準報酬月額が算出できない）
-      if (total > 0) {
+      // 入力途中の値（10,000円未満）はチェックしない
+      if (total >= 10000) {
         const stdResult = getStandardMonthlyRemuneration(total);
         if (!stdResult || !stdResult.standard) {
           const warningMsg = `${month}月：標準報酬月額テーブルに該当する等級が見つかりません（報酬: ${total.toLocaleString()}円）`;

@@ -224,7 +224,10 @@
     </ul>
   </div>
 
-  <button (click)="saveStandardTable()" class="btn-success" style="margin-top: 1rem;">標準報酬月額テーブルを保存する</button>
+  <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+    <button (click)="seedStandardTable()" class="btn-primary">標準報酬等級表の初期データを一括登録（50等級）</button>
+    <button (click)="saveStandardTable()" class="btn-success">標準報酬月額テーブルを保存する</button>
+  </div>
 </div>
 
 <h2>給与項目マスタ</h2>

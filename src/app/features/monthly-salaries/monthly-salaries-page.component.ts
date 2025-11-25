@@ -125,6 +125,14 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     // 料率と等級表を取得
     await this.loadRatesAndGradeTable();
 
+    // 標準報酬等級表が空の場合の警告
+    if (this.gradeTable.length === 0) {
+      this.warningMessages['system'] = [
+        ...(this.warningMessages['system'] || []),
+        '標準報酬等級表が設定されていません。設定画面で標準報酬等級表を設定してください。',
+      ];
+    }
+
     // 全従業員×全月のsalariesオブジェクトを初期化（後方互換性）
     for (const emp of this.employees) {
       for (const month of this.months) {
@@ -432,9 +440,9 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async saveAllSalaries(): Promise<void> {
-    const payload: any = {};
-
     for (const emp of this.employees) {
+      const payload: any = {};
+
       for (const month of this.months) {
         const itemKey = this.getSalaryItemKey(emp.id, month);
         const itemEntries: SalaryItemEntry[] = [];
@@ -446,6 +454,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
           }
         }
 
+        // 項目別入力がある場合
         if (itemEntries.length > 0) {
           const totals = this.salaryCalculationService.calculateSalaryTotals(
             itemEntries,
@@ -463,6 +472,31 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
             fixedSalary: totals.fixedTotal,
             variableSalary: totals.variableTotal,
           };
+        } else {
+          // 項目別入力がない場合、salariesオブジェクトから取得
+          const salaryKey = this.getSalaryKey(emp.id, month);
+          const salaryData = this.salaries[salaryKey];
+          if (
+            salaryData &&
+            (salaryData.total > 0 ||
+              salaryData.fixed > 0 ||
+              salaryData.variable > 0)
+          ) {
+            const fixed = salaryData.fixed || 0;
+            const variable = salaryData.variable || 0;
+            const total = salaryData.total || fixed + variable;
+            payload[month.toString()] = {
+              fixedTotal: fixed,
+              variableTotal: variable,
+              total: total,
+              // 後方互換性
+              fixed: fixed,
+              variable: variable,
+              totalSalary: total,
+              fixedSalary: fixed,
+              variableSalary: variable,
+            };
+          }
         }
       }
 
@@ -710,6 +744,15 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     if (!this.warningMessages[employeeId]) {
       this.warningMessages[employeeId] = [];
     }
+
+    // 既存のバリデーション警告をクリア（システム警告は残す）
+    const systemWarnings = this.warningMessages[employeeId].filter((w) =>
+      w.includes('標準報酬等級表が設定されていません')
+    );
+    this.errorMessages[employeeId] = [];
+    this.warningMessages[employeeId] = [...systemWarnings];
+
+    // 新しいエラーと警告を追加
     this.errorMessages[employeeId].push(...result.errors);
     this.warningMessages[employeeId].push(...result.warnings);
   }

@@ -1229,13 +1229,16 @@ export class SalaryCalculationService {
     // ③ 資格取得月の判定（同月得喪）
     let isAcquisitionMonth = false;
     let isAcquisitionMonthForPension = false;
+    // yearを数値に変換（文字列の場合があるため）
+    const yearNumForAcquisition =
+      typeof year === 'string' ? parseInt(year, 10) : year;
     if (employee.joinDate) {
       const joinDate = new Date(employee.joinDate);
       const joinYear = this.monthHelper.getPayYear(joinDate);
       const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
       // 健康保険：資格取得月から保険料発生
-      if (joinYear === year && joinMonth === month) {
+      if (joinYear === yearNumForAcquisition && joinMonth === month) {
         isAcquisitionMonth = true;
         reasons.push(
           `${month}月は資格取得月のため健康保険・介護保険の保険料が発生します`
@@ -1243,12 +1246,12 @@ export class SalaryCalculationService {
       }
 
       // 厚生年金：資格取得月の翌月から保険料発生
-      if (joinYear === year && joinMonth === month - 1) {
+      if (joinYear === yearNumForAcquisition && joinMonth === month - 1) {
         isAcquisitionMonthForPension = true;
         reasons.push(
           `${month}月は資格取得月の翌月のため厚生年金の保険料が発生します`
         );
-      } else if (joinYear === year && joinMonth === month) {
+      } else if (joinYear === yearNumForAcquisition && joinMonth === month) {
         reasons.push(
           `${month}月は資格取得月のため厚生年金の保険料は発生しません（翌月から発生）`
         );
@@ -1307,6 +1310,16 @@ export class SalaryCalculationService {
     );
     const ageFlags = eligibilityResult.ageFlags;
 
+    console.log(
+      `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月):`,
+      {
+        ageFlags,
+        isLastDayEligible,
+        joinDate: employee.joinDate,
+        standardMonthlyRemuneration,
+      }
+    );
+
     // 年齢到達による停止理由を追加
     if (isAge75Reached) {
       if (isAge75Month && month === birthMonth) {
@@ -1345,13 +1358,23 @@ export class SalaryCalculationService {
     }
 
     // ⑤ 通常の保険料計算（年齢到達・同月得喪を考慮）
+    const prefecture = (employee as any).prefecture || 'tokyo';
     const ratesResult = await this.settingsService.getRates(
       year.toString(),
-      (employee as any).prefecture || '13',
+      prefecture,
       month.toString()
     );
     if (!ratesResult) {
-      reasons.push('保険料率の取得に失敗しました');
+      reasons.push(
+        `保険料率の取得に失敗しました（年度: ${year}, 都道府県: ${prefecture}, 月: ${month}）。設定画面で料率を設定してください。`
+      );
+      console.error(`[calculateMonthlyPremiums] 料率取得失敗:`, {
+        year,
+        prefecture,
+        month,
+        employeeId: employee.id,
+        employeeName: employee.name,
+      });
       return {
         health_employee: 0,
         health_employer: 0,
@@ -1363,26 +1386,81 @@ export class SalaryCalculationService {
       };
     }
     const r = ratesResult;
+    console.log(
+      `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 料率取得成功:`,
+      r
+    );
 
     // 健康保険（75歳以上は0円、資格取得月から発生、月末在籍が必要）
     // 資格取得月より前の場合は0円、資格取得月以降は標準報酬月額を使用
     // 月末在籍がない場合は0円
     let healthBase = 0;
+    let joinYear: number | null = null;
+    let joinMonth: number | null = null;
     if (!isLastDayEligible) {
       // 月末在籍がない場合は0円
       healthBase = 0;
+      console.log(
+        `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 健康保険: 月末在籍なし`
+      );
     } else if (employee.joinDate) {
       const joinDate = new Date(employee.joinDate);
-      const joinYear = this.monthHelper.getPayYear(joinDate);
-      const joinMonth = this.monthHelper.getPayMonth(joinDate);
+      joinYear = this.monthHelper.getPayYear(joinDate);
+      joinMonth = this.monthHelper.getPayMonth(joinDate);
+      // yearを数値に変換（文字列の場合があるため）
+      const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+      console.log(
+        `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 健康保険: 入社日あり`,
+        {
+          joinYear,
+          joinMonth,
+          year,
+          yearNum,
+          month,
+          condition1: joinYear < yearNum,
+          condition2: joinYear === yearNum && joinMonth <= month,
+          conditionMet:
+            joinYear < yearNum || (joinYear === yearNum && joinMonth <= month),
+        }
+      );
       // 資格取得月以降の場合のみ標準報酬月額を使用
-      if (joinYear < year || (joinYear === year && joinMonth <= month)) {
+      if (joinYear < yearNum || (joinYear === yearNum && joinMonth <= month)) {
         healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
+        console.log(
+          `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 健康保険: 条件満たした`,
+          {
+            ageFlags_isNoHealth: ageFlags.isNoHealth,
+            healthBase,
+          }
+        );
+      } else {
+        console.log(
+          `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 健康保険: 条件を満たさない（資格取得月より前）`
+        );
       }
     } else {
       // 入社日が未設定の場合は通常通り計算
       healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
+      console.log(
+        `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 健康保険: 入社日なし`,
+        {
+          ageFlags_isNoHealth: ageFlags.isNoHealth,
+          healthBase,
+        }
+      );
     }
+    console.log(
+      `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 健康保険計算:`,
+      {
+        healthBase,
+        rate: r.health_employee,
+        isLastDayEligible,
+        joinYear,
+        joinMonth,
+        ageFlags_isNoHealth: ageFlags.isNoHealth,
+        standardMonthlyRemuneration,
+      }
+    );
     const health_employee = Math.floor(healthBase * r.health_employee);
     const health_employer = Math.floor(healthBase * r.health_employer);
 
@@ -1390,6 +1468,8 @@ export class SalaryCalculationService {
     // careTypeは既に1330行目で宣言済み
     const isCareApplicable = careType === 'type2';
     let careBase = 0;
+    // yearを数値に変換（文字列の場合があるため）
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
     if (!isLastDayEligible) {
       // 月末在籍がない場合は0円
       careBase = 0;
@@ -1399,7 +1479,10 @@ export class SalaryCalculationService {
         const joinYear = this.monthHelper.getPayYear(joinDate);
         const joinMonth = this.monthHelper.getPayMonth(joinDate);
         // 資格取得月以降の場合のみ標準報酬月額を使用
-        if (joinYear < year || (joinYear === year && joinMonth <= month)) {
+        if (
+          joinYear < yearNum ||
+          (joinYear === yearNum && joinMonth <= month)
+        ) {
           careBase = standardMonthlyRemuneration;
         }
       } else {
@@ -1413,17 +1496,23 @@ export class SalaryCalculationService {
     // 厚生年金（70歳以上は0円、資格取得月の翌月から発生）
     // 資格取得月の場合は0円、資格取得月の翌月以降は標準報酬月額を使用
     let pensionBase = 0;
+    // yearを数値に変換（文字列の場合があるため）
+    const yearNumForPension =
+      typeof year === 'string' ? parseInt(year, 10) : year;
     if (employee.joinDate) {
       const joinDate = new Date(employee.joinDate);
       const joinYear = this.monthHelper.getPayYear(joinDate);
       const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
       // 資格取得月の場合は0円（月単位加入のため）
-      if (joinYear === year && joinMonth === month) {
+      if (joinYear === yearNumForPension && joinMonth === month) {
         pensionBase = 0;
       }
       // 資格取得月の翌月以降の場合のみ標準報酬月額を使用
-      else if (joinYear < year || (joinYear === year && joinMonth < month)) {
+      else if (
+        joinYear < yearNumForPension ||
+        (joinYear === yearNumForPension && joinMonth < month)
+      ) {
         pensionBase = ageFlags.isNoPension ? 0 : standardMonthlyRemuneration;
       }
       // 資格取得月より前の場合は0円

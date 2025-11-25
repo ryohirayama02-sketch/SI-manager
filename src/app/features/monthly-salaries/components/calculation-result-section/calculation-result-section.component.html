@@ -15,10 +15,6 @@
       <p><strong>標準報酬月額:</strong> {{ results[emp.id]?.standardMonthlyRemuneration ?? 0 | number:'1.0-0' }} 円（等級: {{ results[emp.id]?.grade ?? '-' }}）</p>
     </div>
 
-    <!-- 既存の計算結果（後方互換性のため残す） -->
-    <p><strong>4〜6月の平均報酬:</strong> {{ info?.avg ?? 0 | number:'1.0-0' }} 円</p>
-    <p><strong>標準報酬月額:</strong> {{ info?.standard ?? 0 | number:'1.0-0' }} 円（等級: {{ info?.rank ?? '-' }}）</p>
-
     <div class="premium-group" *ngIf="info?.premiums">
       <h5>健康保険</h5>
       <p>本人: {{ info?.premiums?.health_employee ?? 0 | number:'1.0-0' }} 円</p>

@@ -354,5 +354,21 @@ export class SettingsPageComponent implements OnInit {
     await this.settingsService.saveSalaryItems(this.salaryItemsYear, items);
     alert('給与項目マスタを保存しました');
   }
+
+  async seedStandardTable(): Promise<void> {
+    if (!confirm(`${this.standardTableYear}年度の標準報酬等級表（50等級）を一括登録しますか？\n既存のデータは上書きされます。`)) {
+      return;
+    }
+    
+    try {
+      await this.settingsService.seedStandardTable(this.standardTableYear);
+      alert(`${this.standardTableYear}年度の標準報酬等級表（50等級）を登録しました`);
+      // テーブルを再読み込み
+      await this.loadStandardTable();
+    } catch (error) {
+      console.error('標準報酬等級表の一括登録エラー:', error);
+      alert('標準報酬等級表の一括登録に失敗しました');
+    }
+  }
 }
 

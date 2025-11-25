@@ -30,7 +30,7 @@ export class SettingsService {
    * @returns 'payDate' | 'closingDate'（デフォルト: 'payDate'）
    */
   async getSalaryMonthRule(): Promise<string> {
-    const ref = doc(this.firestore, 'settings/global/salaryMonthRule');
+    const ref = doc(this.firestore, 'settings/global');
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
@@ -45,7 +45,7 @@ export class SettingsService {
    * @param rule 'payDate' | 'closingDate'
    */
   async saveSalaryMonthRule(rule: string): Promise<void> {
-    const ref = doc(this.firestore, 'settings/global/salaryMonthRule');
+    const ref = doc(this.firestore, 'settings/global');
     await setDoc(ref, { salaryMonthRule: rule }, { merge: true });
   }
 
@@ -179,6 +179,74 @@ export class SettingsService {
         year
       }, { merge: true });
     }
+  }
+
+  /**
+   * 標準報酬等級表の初期データ（協会けんぽ50等級）を取得
+   * @returns 標準報酬等級表の配列
+   */
+  getDefaultStandardTable(): any[] {
+    return [
+      { rank: 1, lower: 58000, upper: 63000, standard: 58000 },
+      { rank: 2, lower: 63000, upper: 68000, standard: 63000 },
+      { rank: 3, lower: 68000, upper: 73000, standard: 68000 },
+      { rank: 4, lower: 73000, upper: 79000, standard: 73000 },
+      { rank: 5, lower: 79000, upper: 85000, standard: 79000 },
+      { rank: 6, lower: 85000, upper: 91000, standard: 85000 },
+      { rank: 7, lower: 91000, upper: 97000, standard: 91000 },
+      { rank: 8, lower: 97000, upper: 103000, standard: 97000 },
+      { rank: 9, lower: 103000, upper: 109000, standard: 103000 },
+      { rank: 10, lower: 109000, upper: 115000, standard: 109000 },
+      { rank: 11, lower: 115000, upper: 122000, standard: 115000 },
+      { rank: 12, lower: 122000, upper: 129000, standard: 122000 },
+      { rank: 13, lower: 129000, upper: 137000, standard: 129000 },
+      { rank: 14, lower: 137000, upper: 145000, standard: 137000 },
+      { rank: 15, lower: 145000, upper: 155000, standard: 145000 },
+      { rank: 16, lower: 155000, upper: 165000, standard: 155000 },
+      { rank: 17, lower: 165000, upper: 175000, standard: 165000 },
+      { rank: 18, lower: 175000, upper: 185000, standard: 175000 },
+      { rank: 19, lower: 185000, upper: 195000, standard: 185000 },
+      { rank: 20, lower: 195000, upper: 210000, standard: 200000 },
+      { rank: 21, lower: 210000, upper: 230000, standard: 220000 },
+      { rank: 22, lower: 230000, upper: 250000, standard: 240000 },
+      { rank: 23, lower: 250000, upper: 270000, standard: 260000 },
+      { rank: 24, lower: 270000, upper: 290000, standard: 280000 },
+      { rank: 25, lower: 290000, upper: 310000, standard: 300000 },
+      { rank: 26, lower: 310000, upper: 330000, standard: 320000 },
+      { rank: 27, lower: 330000, upper: 350000, standard: 340000 },
+      { rank: 28, lower: 350000, upper: 370000, standard: 360000 },
+      { rank: 29, lower: 370000, upper: 395000, standard: 380000 },
+      { rank: 30, lower: 395000, upper: 425000, standard: 410000 },
+      { rank: 31, lower: 425000, upper: 455000, standard: 440000 },
+      { rank: 32, lower: 455000, upper: 485000, standard: 470000 },
+      { rank: 33, lower: 485000, upper: 515000, standard: 500000 },
+      { rank: 34, lower: 515000, upper: 545000, standard: 530000 },
+      { rank: 35, lower: 545000, upper: 575000, standard: 560000 },
+      { rank: 36, lower: 575000, upper: 605000, standard: 590000 },
+      { rank: 37, lower: 605000, upper: 635000, standard: 620000 },
+      { rank: 38, lower: 635000, upper: 665000, standard: 650000 },
+      { rank: 39, lower: 665000, upper: 695000, standard: 680000 },
+      { rank: 40, lower: 695000, upper: 730000, standard: 710000 },
+      { rank: 41, lower: 730000, upper: 770000, standard: 750000 },
+      { rank: 42, lower: 770000, upper: 810000, standard: 790000 },
+      { rank: 43, lower: 810000, upper: 855000, standard: 830000 },
+      { rank: 44, lower: 855000, upper: 905000, standard: 880000 },
+      { rank: 45, lower: 905000, upper: 955000, standard: 930000 },
+      { rank: 46, lower: 955000, upper: 1005000, standard: 980000 },
+      { rank: 47, lower: 1005000, upper: 1055000, standard: 1030000 },
+      { rank: 48, lower: 1055000, upper: 1115000, standard: 1085000 },
+      { rank: 49, lower: 1115000, upper: 1175000, standard: 1145000 },
+      { rank: 50, lower: 1175000, upper: 9999999, standard: 1300000 },
+    ];
+  }
+
+  /**
+   * 標準報酬等級表の初期データを一括登録
+   * @param year 年度
+   */
+  async seedStandardTable(year: number): Promise<void> {
+    const defaultTable = this.getDefaultStandardTable();
+    await this.saveStandardTable(year, defaultTable);
   }
 
   async loadSalaryItems(year: number): Promise<SalaryItem[]> {
