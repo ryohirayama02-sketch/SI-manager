@@ -1,0 +1,17 @@
+<nav *ngIf="isAuthenticated" class="navbar">
+  <div class="nav-container">
+    <a
+      routerLink="/employees"
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: false }"
+    >
+      従業員一覧
+    </a>
+    <a routerLink="/monthly-salaries" routerLinkActive="active"> 月次給与 </a>
+    <a routerLink="/insurance-payment-summary" routerLinkActive="active">
+      年間サマリー
+    </a>
+    <a routerLink="/settings" routerLinkActive="active"> 設定 </a>
+    <button class="logout-button" (click)="onLogout()">ログアウト</button>
+  </div>
+</nav>

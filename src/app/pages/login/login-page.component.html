@@ -1,0 +1,14 @@
+<div class="login-container">
+  <div class="login-card">
+    <h1>社会保険管理アプリ</h1>
+    <p>Googleアカウントでログインしてください</p>
+    <button
+      class="google-signin-button"
+      (click)="onGoogleSignIn()"
+      [disabled]="isLoading"
+    >
+      {{ isLoading ? "ログイン中..." : "Googleでログイン" }}
+    </button>
+    <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
+  </div>
+</div>

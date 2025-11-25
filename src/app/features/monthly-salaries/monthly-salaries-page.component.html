@@ -1,192 +1,35 @@
 <h2>月次給与・報酬入力</h2>
 
-<div class="info-label" *ngIf="warningMessages['system']?.length">
-  <strong>警告:</strong> {{ warningMessages['system'][0] }}
-</div>
+<app-error-warning-section
+  [employees]="employees"
+  [errorMessages]="errorMessages"
+  [warningMessages]="warningMessages"
+></app-error-warning-section>
 
-<div class="info-label">
-  <strong>重要:</strong> 4〜6月の値は算定基礎届の判定に使用されます。給与項目ごとに金額を入力してください。
-</div>
+<app-salary-input-section
+  [employees]="employees"
+  [salaryItems]="salaryItems"
+  [months]="months"
+  [salaryItemData]="salaryItemData"
+  [prefecture]="prefecture"
+  [rehabHighlightMonths]="getRehabHighlightMonths()"
+  (salaryItemChange)="onSalaryItemChange($event)"
+  (prefectureChange)="onPrefectureChange($event)"
+></app-salary-input-section>
 
-<div class="card" style="max-width: 400px;">
-  <div class="form-group">
-    <label>都道府県：</label>
-    <select [value]="prefecture" (change)="onPrefectureChange($event)" name="prefecture" class="form-control">
-      <option value="tokyo">東京都</option>
-      <option value="hokkaido">北海道</option>
-      <option value="osaka">大阪府</option>
-    </select>
-  </div>
-</div>
-
-<div class="legend">
-  ■ 復職後3ヶ月の期間（随時改定が発生しやすい期間）
-</div>
-
-<div *ngIf="salaryItems.length === 0" class="error-box">
-  <h4>エラー</h4>
-  <p>先に給与項目マスタを設定してください。</p>
-</div>
-
-<div *ngIf="salaryItems.length > 0" class="salary-table-wrapper">
-  <table class="salary-table">
-    <thead>
-      <tr>
-        <th class="sticky-col">従業員</th>
-        <th class="sticky-col">項目</th>
-        <th *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': false }">{{ m }}月</th>
-      </tr>
-    </thead>
-    <tbody>
-      <ng-container *ngFor="let emp of employees">
-        <tr *ngFor="let item of salaryItems; let itemIndex = index" [ngClass]="{ 'rehab-highlight-row': getRehabHighlightMonths(emp).length > 0 && itemIndex === 0 }">
-          <td class="sticky-col" *ngIf="itemIndex === 0" [attr.rowspan]="salaryItems.length">
-            {{ emp.name }}
-          </td>
-          <td class="sticky-col">
-            {{ item.name }}
-            <small style="display: block; color: #666;">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small>
-          </td>
-          <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m) }">
-            <input
-              type="number"
-              [value]="getSalaryItemAmount(emp.id, m, item.id)"
-              (input)="onSalaryItemChange(emp.id, m, item.id, $any($event.target).value)"
-              placeholder="0"
-              class="form-control"
-              [name]="'item_' + emp.id + '_' + m + '_' + item.id"
-              min="0"
-              step="1"
-            />
-          </td>
-        </tr>
-      </ng-container>
-    </tbody>
-  </table>
-</div>
-
-<!-- エラー・警告メッセージ -->
-<div *ngFor="let emp of employees">
-  <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
-    <h4>エラー（{{ emp.name }}）</h4>
-    <ul>
-      <li *ngFor="let err of errorMessages[emp.id]">{{ err }}</li>
-    </ul>
-  </div>
-  
-  <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
-    <h4>警告（{{ emp.name }}）</h4>
-    <ul>
-      <li *ngFor="let w of warningMessages[emp.id]">{{ w }}</li>
-    </ul>
-  </div>
-</div>
-
-<ng-container *ngFor="let emp of employees">
-  <div class="result-card" *ngIf="getCalculatedInfo(emp) as info">
-    <h4>{{ emp.name }} の計算結果</h4>
-
-    <!-- 定時決定結果 -->
-    <div *ngIf="results[emp.id]" style="margin-bottom: 1rem; padding: 8px; background: #f0f0f0; border-radius: 4px;">
-      <h5 style="margin-top: 0;">定時決定（4〜6月の算定基礎）</h5>
-      <p><strong>4〜6月の平均報酬:</strong> {{ results[emp.id]?.averageSalary ?? 0 | number:'1.0-0' }} 円</p>
-      <p *ngIf="results[emp.id] && results[emp.id].excludedMonths && results[emp.id].excludedMonths.length > 0">
-        <strong>算定除外月:</strong> {{ (results[emp.id]?.excludedMonths ?? []).join(', ') }}月
-      </p>
-      <p *ngIf="!results[emp.id]?.excludedMonths || results[emp.id]?.excludedMonths?.length === 0">
-        <strong>算定除外月:</strong> なし
-      </p>
-      <p><strong>標準報酬月額:</strong> {{ results[emp.id]?.standardMonthlyRemuneration ?? 0 | number:'1.0-0' }} 円（等級: {{ results[emp.id]?.grade ?? '-' }}）</p>
-    </div>
-
-    <!-- 既存の計算結果（後方互換性のため残す） -->
-    <p><strong>4〜6月の平均報酬:</strong> {{ info?.avg ?? 0 | number:'1.0-0' }} 円</p>
-    <p><strong>標準報酬月額:</strong> {{ info?.standard ?? 0 | number:'1.0-0' }} 円（等級: {{ info?.rank ?? '-' }}）</p>
-
-    <div class="premium-group" *ngIf="info?.premiums">
-      <h5>健康保険</h5>
-      <p>本人: {{ info?.premiums?.health_employee ?? 0 | number:'1.0-0' }} 円</p>
-      <p>事業主: {{ info?.premiums?.health_employer ?? 0 | number:'1.0-0' }} 円</p>
-    </div>
-
-    <div class="premium-group" *ngIf="info?.premiums && (info?.premiums?.care_employee ?? 0) !== 0">
-      <h5>介護保険</h5>
-      <p>本人: {{ info?.premiums?.care_employee ?? 0 | number:'1.0-0' }} 円</p>
-      <p>事業主: {{ info?.premiums?.care_employer ?? 0 | number:'1.0-0' }} 円</p>
-    </div>
-
-    <div class="premium-group" *ngIf="info?.premiums">
-      <h5>厚生年金</h5>
-      <p>本人: {{ info?.premiums?.pension_employee ?? 0 | number:'1.0-0' }} 円</p>
-      <p>事業主: {{ info?.premiums?.pension_employer ?? 0 | number:'1.0-0' }} 円</p>
-    </div>
-  </div>
-</ng-container>
+<app-calculation-result-section
+  [employees]="employees"
+  [results]="results"
+  [infoByEmployee]="infoByEmployee"
+  [suijiCandidates]="suijiCandidates"
+  [excludedSuijiReasons]="excludedSuijiReasons"
+  [rehabSuijiCandidates]="rehabSuijiCandidates"
+  [suijiAlerts]="suijiAlerts"
+  [showSuijiDialog]="showSuijiDialog"
+  (closeSuijiDialog)="closeSuijiDialog()"
+  (navigateToSuijiAlert)="navigateToSuijiAlert()"
+></app-calculation-result-section>
 
 <button (click)="saveAllSalaries()" class="btn-success" style="margin-top: 1rem;">
   保存する
 </button>
-
-<div *ngIf="suijiCandidates.length > 0" style="margin-top: 2rem;">
-  <h4 class="suiji-title">随時改定候補（固定的賃金の変動）</h4>
-  
-  <div class="suiji-card" *ngFor="let item of suijiCandidates">
-    <div class="suiji-row">
-      <div class="col-left">
-        <p class="name">{{ item.name }}</p>
-        <p class="small">変動月：{{ item.changedMonth }}月</p>
-        <p class="small" *ngIf="item.excludedMonths.length > 0">
-          算定除外月：{{ item.excludedMonths.join(', ') }}月
-        </p>
-      </div>
-
-      <div class="col-right">
-        <p>平均固定：{{ item.avgFixed | number:'1.0-0' }}円</p>
-        <p>
-          等級差：
-          <span class="suiji-badge" [class.bad]="item.gradeDiff >= 2">
-            {{ item.currentGrade }} → {{ item.newGrade }}（差：{{ item.gradeDiff }}）
-          </span>
-        </p>
-        <p>適用開始月：{{ item.applyMonth }}月</p>
-      </div>
-    </div>
-
-    <div class="notice">
-      <p *ngIf="item.gradeDiff >= 2">→ 月額変更届の提出が必要な可能性があります</p>
-      <p *ngIf="item.gradeDiff < 2">→ 今回は等級差が基準未満のため、提出不要</p>
-    </div>
-  </div>
-</div>
-
-<div *ngIf="excludedSuijiReasons.length > 0" style="margin-top: 2rem;">
-  <h4>随時改定が適用されないケース</h4>
-  <div class="suiji-excluded" *ngFor="let ex of excludedSuijiReasons">
-    <p><strong>{{ ex.name }}</strong></p>
-    <p>{{ ex.reason }}</p>
-  </div>
-</div>
-
-<div *ngIf="rehabSuijiCandidates.length > 0" class="rehab-section">
-  <h4>復職関連の随時改定候補</h4>
-  <div class="rehab-card" *ngFor="let item of rehabSuijiCandidates">
-    <p class="name">{{ getEmployeeName(item.employeeId) }}</p>
-    <p>判定対象月：{{ item.changeMonth }}月</p>
-    <p>固定的賃金３ヶ月平均：{{ item.averageSalary | number:'1.0-0' }}円</p>
-    <p>等級差：{{ item.currentGrade }} → {{ item.newGrade }}（差：{{ item.diff }}）</p>
-    <p>適用開始月：{{ item.applyStartMonth }}月</p>
-    <p>復職に伴う賃金変動により、随時改定の対象となる可能性があります。</p>
-  </div>
-</div>
-
-<!-- 随時改定アラートダイアログ -->
-<div class="overlay" *ngIf="showSuijiDialog" (click)="closeSuijiDialog()">
-  <div class="dialog" (click)="$event.stopPropagation()">
-    <h3>随時改定アラート</h3>
-    <p>随時改定候補が {{ suijiAlerts.length }} 件あります</p>
-    <div style="margin-top: 1rem;">
-      <button (click)="navigateToSuijiAlert()" class="btn-primary" style="margin-right: 0.5rem;">→ アラート一覧へ移動</button>
-      <button (click)="closeSuijiDialog()" class="btn-secondary">閉じる</button>
-    </div>
-  </div>
-</div>

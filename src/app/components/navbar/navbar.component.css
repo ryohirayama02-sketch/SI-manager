@@ -1,0 +1,44 @@
+.navbar {
+  background-color: #333;
+  padding: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+  display: flex;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.navbar a {
+  color: white;
+  text-decoration: none;
+  padding: 1rem 1.5rem;
+  display: inline-block;
+  transition: background-color 0.3s;
+}
+
+.navbar a:hover {
+  background-color: #555;
+}
+
+.navbar a.active {
+  background-color: #4285f4;
+}
+
+.logout-button {
+  margin-left: auto;
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-button:hover {
+  background-color: #b71c1c;
+}
