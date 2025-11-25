@@ -29,3 +29,37 @@
   font-size: 0.9rem;
 }
 
+.employee-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.employee-table th,
+.employee-table td {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+.employee-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.employee-table tbody tr:hover {
+  background-color: #f0f0f0;
+}
+
+.candidate-row {
+  background-color: #fff8e1;
+}
+
+.candidate-row:hover {
+  background-color: #ffecb3;
+}
+
+.candidate-badge {
+  color: #ff6b00;
+  font-weight: bold;
+}
+

@@ -118,15 +118,30 @@
         <h4>等級 {{ row.get('rank')?.value }}</h4>
         <div class="form-group">
           <label>下限：</label>
-          <input type="number" formControlName="lower" class="form-control" min="0" step="1" (change)="validateStandardTable()"> 円
+          <input 
+            type="text" 
+            [value]="getAmountDisplayValue(i, 'lower')"
+            (input)="onAmountInput(i, 'lower', $event)"
+            (blur)="onAmountBlur(i, 'lower', $event)"
+            class="form-control"> 円
         </div>
         <div class="form-group">
           <label>上限：</label>
-          <input type="number" formControlName="upper" class="form-control" min="0" step="1" (change)="validateStandardTable()"> 円
+          <input 
+            type="text" 
+            [value]="getAmountDisplayValue(i, 'upper')"
+            (input)="onAmountInput(i, 'upper', $event)"
+            (blur)="onAmountBlur(i, 'upper', $event)"
+            class="form-control"> 円
         </div>
         <div class="form-group">
           <label>標準報酬月額：</label>
-          <input type="number" formControlName="standard" class="form-control" min="0" step="1" (change)="validateStandardTable()"> 円
+          <input 
+            type="text" 
+            [value]="getAmountDisplayValue(i, 'standard')"
+            (input)="onAmountInput(i, 'standard', $event)"
+            (blur)="onAmountBlur(i, 'standard', $event)"
+            class="form-control"> 円
         </div>
       </div>
     </div>

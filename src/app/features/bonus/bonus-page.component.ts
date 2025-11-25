@@ -19,6 +19,7 @@ export class BonusPageComponent implements OnInit {
   employees: Employee[] = [];
   selectedEmployeeId: string = '';
   bonusAmount: number | null = null;
+  bonusAmountDisplay: string = ''; // カンマ付き表示用
   paymentMonth: number = 1;
   isExempt: boolean = false;
   rates: any = null;
@@ -38,6 +39,40 @@ export class BonusPageComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
     this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
+    // 初期表示時にカンマ付きで表示
+    this.bonusAmountDisplay = this.formatAmount(this.bonusAmount);
+  }
+
+  formatAmount(value: number | null | undefined): string {
+    if (value === null || value === undefined || value === 0) {
+      return '';
+    }
+    return value.toLocaleString('ja-JP');
+  }
+
+  parseAmount(value: string): number {
+    // カンマを削除して数値に変換
+    const numStr = value.replace(/,/g, '');
+    const num = parseInt(numStr, 10);
+    return isNaN(num) ? 0 : num;
+  }
+
+  onBonusAmountInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    const numValue = this.parseAmount(value);
+    this.bonusAmount = numValue;
+    this.bonusAmountDisplay = this.formatAmount(numValue);
+    input.value = this.bonusAmountDisplay;
+    this.onInputChange();
+  }
+
+  onBonusAmountBlur(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const numValue = this.parseAmount(input.value);
+    this.bonusAmount = numValue;
+    this.bonusAmountDisplay = this.formatAmount(numValue);
+    input.value = this.bonusAmountDisplay;
   }
 
   async onInputChange(): Promise<void> {
@@ -129,6 +164,7 @@ export class BonusPageComponent implements OnInit {
       // フォームリセット
       this.selectedEmployeeId = '';
       this.bonusAmount = null;
+      this.bonusAmountDisplay = '';
       this.paymentMonth = 1;
       this.isExempt = false;
       this.calculationResult = null;

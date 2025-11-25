@@ -39,6 +39,46 @@ export class SalaryInputSectionComponent {
     return this.salaryItemData[key]?.[itemId] ?? 0;
   }
 
+  formatAmount(value: number | null | undefined): string {
+    if (value === null || value === undefined || value === 0) {
+      return '';
+    }
+    return value.toLocaleString('ja-JP');
+  }
+
+  parseAmount(value: string): number {
+    // カンマを削除して数値に変換
+    const numStr = value.replace(/,/g, '');
+    const num = parseInt(numStr, 10);
+    return isNaN(num) ? 0 : num;
+  }
+
+  onSalaryItemInput(
+    employeeId: string,
+    month: number,
+    itemId: string,
+    event: Event
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    const numValue = this.parseAmount(value);
+    this.onSalaryItemChange(employeeId, month, itemId, numValue);
+    
+    // カンマ付きで表示を更新
+    input.value = this.formatAmount(numValue);
+  }
+
+  onSalaryItemBlur(
+    employeeId: string,
+    month: number,
+    itemId: string,
+    event: Event
+  ): void {
+    const input = event.target as HTMLInputElement;
+    const numValue = this.parseAmount(input.value);
+    input.value = this.formatAmount(numValue);
+  }
+
   onSalaryItemChange(
     employeeId: string,
     month: number,

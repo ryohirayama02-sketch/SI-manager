@@ -1,26 +1,259 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
+import { EmployeeEligibilityService, EmployeeEligibilityResult } from '../../../services/employee-eligibility.service';
+import { MonthlySalaryService } from '../../../services/monthly-salary.service';
+import { SettingsService } from '../../../services/settings.service';
+import { SalaryCalculationService } from '../../../services/salary-calculation.service';
 import { Employee } from '../../../models/employee.model';
+
+interface EmployeeDisplayInfo {
+  employee: Employee;
+  eligibility: EmployeeEligibilityResult;
+  currentMonthPremium: {
+    healthEmployee: number;
+    healthEmployer: number;
+    careEmployee: number;
+    careEmployer: number;
+    pensionEmployee: number;
+    pensionEmployer: number;
+    total: number;
+  } | null;
+  notes: string[]; // 備考欄用
+}
 
 @Component({
   selector: 'app-employee-list-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './employee-list-page.component.html',
   styleUrl: './employee-list-page.component.css'
 })
 export class EmployeeListPageComponent implements OnInit {
   employees: Employee[] = [];
+  employeeDisplayInfos: EmployeeDisplayInfo[] = [];
+  
+  // フィルター用
+  filterName: string = '';
+  filterEligibilityStatus: string = ''; // 'all' | 'eligible' | 'short-time' | 'non-eligible' | 'candidate'
+
+  // 現在の年月
+  currentYear: number = new Date().getFullYear();
+  currentMonth: number = new Date().getMonth() + 1;
 
   constructor(
     private employeeService: EmployeeService,
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private monthlySalaryService: MonthlySalaryService,
+    private settingsService: SettingsService,
+    private salaryCalculationService: SalaryCalculationService,
     private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
+    await this.loadEmployeeDisplayInfos();
+  }
+
+  async loadEmployeeDisplayInfos(): Promise<void> {
+    // 標準報酬月額テーブルを取得（料率はSalaryCalculationService内で取得される）
+    const gradeTable = await this.settingsService.getStandardTable(this.currentYear);
+
+    this.employeeDisplayInfos = [];
+
+    for (const emp of this.employees) {
+      // 加入判定
+      const workInfo = {
+        weeklyHours: emp.weeklyHours,
+        monthlyWage: emp.monthlyWage,
+        expectedEmploymentMonths: emp.expectedEmploymentMonths,
+        isStudent: emp.isStudent,
+        consecutiveMonthsOver20Hours: emp.consecutiveMonthsOver20Hours,
+      };
+      const eligibility = this.employeeEligibilityService.checkEligibility(
+        emp,
+        workInfo
+      );
+
+      // 当月の保険料を計算
+      let currentMonthPremium = null;
+      try {
+        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+          emp.id,
+          this.currentYear
+        );
+        
+        if (salaryData) {
+          const monthKey = this.currentMonth.toString();
+          const monthData = salaryData[monthKey];
+          
+          if (monthData) {
+            const fixedSalary = monthData.fixedTotal ?? monthData.fixed ?? monthData.fixedSalary ?? 0;
+            const variableSalary = monthData.variableTotal ?? monthData.variable ?? monthData.variableSalary ?? 0;
+            
+            if (fixedSalary > 0 || variableSalary > 0) {
+              const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
+                emp,
+                this.currentYear,
+                this.currentMonth,
+                fixedSalary,
+                variableSalary,
+                gradeTable
+              );
+              
+              currentMonthPremium = {
+                healthEmployee: premiums.health_employee,
+                healthEmployer: premiums.health_employer,
+                careEmployee: premiums.care_employee,
+                careEmployer: premiums.care_employer,
+                pensionEmployee: premiums.pension_employee,
+                pensionEmployer: premiums.pension_employer,
+                total: premiums.health_employee + premiums.health_employer +
+                       premiums.care_employee + premiums.care_employer +
+                       premiums.pension_employee + premiums.pension_employer,
+              };
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`従業員 ${emp.id} の保険料計算エラー:`, error);
+      }
+
+      // 備考欄の生成
+      const notes: string[] = [];
+      
+      // 加入候補者アラート
+      if (eligibility.candidateFlag) {
+        notes.push('⚠️ 加入候補者（3ヶ月連続で実働20時間以上）');
+      }
+      
+      // 年齢到達による停止・変更（SalaryCalculationService.calculateAge()を使用）
+      const age = this.salaryCalculationService.calculateAge(emp.birthDate);
+      if (age >= 75) {
+        notes.push('75歳到達により健康保険・介護保険停止');
+      } else if (age >= 70) {
+        notes.push('70歳到達により厚生年金停止');
+      } else if (age >= 65) {
+        notes.push('65歳到達により介護保険第1号被保険者');
+      } else if (age >= 40) {
+        notes.push('40歳到達により介護保険第2号被保険者');
+      }
+      
+      // 産休・育休中
+      if (emp.maternityLeaveStart || emp.maternityLeaveEnd || emp.childcareLeaveStart || emp.childcareLeaveEnd) {
+        notes.push('産休・育休中');
+      }
+      
+      // 退職済み
+      if (emp.retireDate) {
+        const retireDate = new Date(emp.retireDate);
+        if (retireDate <= new Date()) {
+          notes.push('退職済み');
+        }
+      }
+      
+      // 休職中（無給期間）の判定
+      // TODO: 休職情報がEmployeeモデルに追加されたら実装
+
+      this.employeeDisplayInfos.push({
+        employee: emp,
+        eligibility,
+        currentMonthPremium,
+        notes,
+      });
+    }
+  }
+
+  getEligibilityStatusLabel(info: EmployeeDisplayInfo): string {
+    if (info.eligibility.candidateFlag) {
+      return '加入候補';
+    }
+    if (info.eligibility.healthInsuranceEligible || info.eligibility.pensionEligible) {
+      if (info.employee.isShortTime || (info.employee.weeklyHours && info.employee.weeklyHours >= 20 && info.employee.weeklyHours < 30)) {
+        return '短時間対象';
+      }
+      return '加入対象';
+    }
+    return '非対象';
+  }
+
+  isCandidate(info: EmployeeDisplayInfo): boolean {
+    return info.eligibility.candidateFlag === true;
+  }
+
+  getStandardMonthlyRemunerationDisplay(emp: Employee): string {
+    // 資格取得時決定の標準報酬月額を優先表示
+    if (emp.acquisitionStandard) {
+      return `${emp.acquisitionStandard.toLocaleString('ja-JP')}円（資格取得時決定）`;
+    }
+    // 通常の標準報酬月額
+    if (emp.standardMonthlyRemuneration) {
+      return `${emp.standardMonthlyRemuneration.toLocaleString('ja-JP')}円`;
+    }
+    return '-';
+  }
+
+  getHealthInsuranceStatus(info: EmployeeDisplayInfo): string {
+    if (info.eligibility.ageFlags.isNoHealth) {
+      return '停止（75歳以上）';
+    }
+    if (info.eligibility.healthInsuranceEligible) {
+      return '加入';
+    }
+    return '未加入';
+  }
+
+  getCareInsuranceStatus(info: EmployeeDisplayInfo): string {
+    if (info.eligibility.ageFlags.isNoHealth) {
+      return '停止（75歳以上）';
+    }
+    if (info.eligibility.ageFlags.isCare1) {
+      return '第1号被保険者';
+    }
+    if (info.eligibility.careInsuranceEligible) {
+      return 'あり（40〜64歳）';
+    }
+    return 'なし';
+  }
+
+  getPensionStatus(info: EmployeeDisplayInfo): string {
+    if (info.eligibility.ageFlags.isNoPension) {
+      return '停止（70歳以上）';
+    }
+    if (info.eligibility.pensionEligible) {
+      return '加入';
+    }
+    return '未加入';
+  }
+
+  getFilteredEmployees(): EmployeeDisplayInfo[] {
+    return this.employeeDisplayInfos.filter((info) => {
+      // 名前フィルター
+      if (this.filterName && !info.employee.name.includes(this.filterName)) {
+        return false;
+      }
+
+      // 対象区分フィルター
+      if (this.filterEligibilityStatus && this.filterEligibilityStatus !== 'all') {
+        const status = this.getEligibilityStatusLabel(info);
+        if (this.filterEligibilityStatus === 'eligible' && status !== '加入対象') {
+          return false;
+        }
+        if (this.filterEligibilityStatus === 'short-time' && status !== '短時間対象') {
+          return false;
+        }
+        if (this.filterEligibilityStatus === 'non-eligible' && status !== '非対象') {
+          return false;
+        }
+        if (this.filterEligibilityStatus === 'candidate' && status !== '加入候補') {
+          return false;
+        }
+      }
+
+      return true;
+    });
   }
 
   goDetail(id: string): void {

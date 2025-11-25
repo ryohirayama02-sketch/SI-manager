@@ -1,15 +1,82 @@
 <h2>従業員一覧</h2>
 
-<button (click)="goCreate()" class="btn-primary btn-create">
-  ＋ 新規登録
-</button>
+<div class="card" style="margin-bottom: 1rem;">
+  <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+    <button (click)="goCreate()" class="btn-primary btn-create">
+      ＋ 新規登録
+    </button>
+    
+    <div style="display: flex; gap: 1rem; align-items: center;">
+      <label>
+        名前検索：
+        <input type="text" [(ngModel)]="filterName" placeholder="名前で検索" class="form-control" style="width: 200px;">
+      </label>
+      
+      <label>
+        対象区分：
+        <select [(ngModel)]="filterEligibilityStatus" class="form-control" style="width: 150px;">
+          <option value="all">すべて</option>
+          <option value="eligible">加入対象</option>
+          <option value="short-time">短時間対象</option>
+          <option value="non-eligible">非対象</option>
+          <option value="candidate">加入候補</option>
+        </select>
+      </label>
+    </div>
+  </div>
+</div>
 
 <div class="card">
-  <ul class="employee-list">
-    <li *ngFor="let emp of employees" (click)="goDetail(emp.id)" class="employee-item">
-      {{ emp.name }}<span *ngIf="emp.standardMonthlyRemuneration" class="employee-standard">（標準報酬月額：{{ emp.standardMonthlyRemuneration | number:'1.0-0' }}円）</span>
-    </li>
-  </ul>
+  <table class="employee-table" style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>名前</th>
+        <th>加入判定</th>
+        <th>健康保険<br>加入状況</th>
+        <th>介護保険<br>加入状況</th>
+        <th>厚生年金<br>加入状況</th>
+        <th>標準報酬</th>
+        <th>当月保険料</th>
+        <th>備考</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let info of getFilteredEmployees()" 
+          (click)="goDetail(info.employee.id)" 
+          style="cursor: pointer;"
+          [ngClass]="{ 'candidate-row': isCandidate(info) }">
+        <td>
+          <span *ngIf="isCandidate(info)" style="color: #ff6b00; font-weight: bold;">⚠️ </span>
+          {{ info.employee.name }}
+        </td>
+        <td>
+          <span [ngClass]="{ 'candidate-badge': isCandidate(info) }">
+            {{ getEligibilityStatusLabel(info) }}
+          </span>
+        </td>
+        <td>{{ getHealthInsuranceStatus(info) }}</td>
+        <td>{{ getCareInsuranceStatus(info) }}</td>
+        <td>{{ getPensionStatus(info) }}</td>
+        <td>{{ getStandardMonthlyRemunerationDisplay(info.employee) }}</td>
+        <td>
+          <span *ngIf="info.currentMonthPremium">
+            {{ info.currentMonthPremium.total | number:'1.0-0' }}円
+          </span>
+          <span *ngIf="!info.currentMonthPremium">-</span>
+        </td>
+        <td>
+          <span *ngFor="let note of info.notes; let last = last">
+            {{ note }}<span *ngIf="!last">、</span>
+          </span>
+          <span *ngIf="info.notes.length === 0">-</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div *ngIf="getFilteredEmployees().length === 0" style="padding: 2rem; text-align: center;">
+    該当する従業員がありません
+  </div>
 </div>
 
 

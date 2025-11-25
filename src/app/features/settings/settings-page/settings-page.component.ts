@@ -54,6 +54,48 @@ export class SettingsPageComponent implements OnInit {
     });
   }
 
+  formatAmount(value: number | null | undefined): string {
+    if (value === null || value === undefined || value === 0) {
+      return '';
+    }
+    return value.toLocaleString('ja-JP');
+  }
+
+  parseAmount(value: string): number {
+    // カンマを削除して数値に変換
+    const numStr = value.replace(/,/g, '');
+    const num = parseInt(numStr, 10);
+    return isNaN(num) ? 0 : num;
+  }
+
+  onAmountInput(index: number, field: string, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value;
+    const numValue = this.parseAmount(value);
+    const row = this.standardTable.at(index);
+    row.get(field)?.setValue(numValue, { emitEvent: false });
+    
+    // カンマ付きで表示を更新
+    input.value = this.formatAmount(numValue);
+    
+    // バリデーション実行
+    this.validateStandardTable();
+  }
+
+  onAmountBlur(index: number, field: string, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const numValue = this.parseAmount(input.value);
+    const row = this.standardTable.at(index);
+    row.get(field)?.setValue(numValue, { emitEvent: false });
+    input.value = this.formatAmount(numValue);
+  }
+
+  getAmountDisplayValue(index: number, field: string): string {
+    const row = this.standardTable.at(index);
+    const value = row.get(field)?.value;
+    return this.formatAmount(value);
+  }
+
   createRow(row: any): FormGroup {
     return this.fb.group({
       id: [row.id],

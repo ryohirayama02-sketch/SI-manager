@@ -43,14 +43,13 @@
           </td>
           <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m) }">
             <input
-              type="number"
-              [value]="getSalaryItemAmount(emp.id, m, item.id)"
-              (input)="onSalaryItemChange(emp.id, m, item.id, $any($event.target).value)"
+              type="text"
+              [value]="formatAmount(getSalaryItemAmount(emp.id, m, item.id))"
+              (input)="onSalaryItemInput(emp.id, m, item.id, $event)"
+              (blur)="onSalaryItemBlur(emp.id, m, item.id, $event)"
               placeholder="0"
               class="form-control"
               [name]="'item_' + emp.id + '_' + m + '_' + item.id"
-              min="0"
-              step="1"
             />
           </td>
         </tr>
