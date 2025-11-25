@@ -6,6 +6,7 @@ import { MaternityLeaveService } from './maternity-leave.service';
 import { EmployeeEligibilityService } from './employee-eligibility.service';
 import { EmployeeService } from './employee.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
+import { SettingsService } from './settings.service';
 import {
   SalaryItemEntry,
   MonthlySalaryData,
@@ -109,7 +110,8 @@ export class SalaryCalculationService {
     private maternityLeaveService: MaternityLeaveService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private employeeService: EmployeeService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private settingsService: SettingsService
   ) {}
 
   // 協会けんぽ（一般）標準報酬月額テーブル（簡略化版）
@@ -1030,18 +1032,16 @@ export class SalaryCalculationService {
    * @param fixedSalary 固定的賃金
    * @param variableSalary 非固定的賃金
    * @param gradeTable 標準報酬月額テーブル
-   * @param rates 保険料率
    * @returns 月次保険料
    */
-  calculateMonthlyPremiums(
+  async calculateMonthlyPremiums(
     employee: Employee,
     year: number,
     month: number,
     fixedSalary: number,
     variableSalary: number,
-    gradeTable: any[],
-    rates: any
-  ): MonthlyPremiums & { reasons: string[] } {
+    gradeTable: any[]
+  ): Promise<MonthlyPremiums & { reasons: string[] }> {
     const reasons: string[] = [];
 
     // ① 月末在籍の健保判定（最優先）
@@ -1053,7 +1053,9 @@ export class SalaryCalculationService {
 
     if (!isLastDayEligible) {
       // 月末在籍がない場合、健康保険・介護保険の保険料は0円
-      reasons.push(`${month}月は退職月で月末在籍がないため、健康保険・介護保険の保険料は0円です`);
+      reasons.push(
+        `${month}月は退職月で月末在籍がないため、健康保険・介護保険の保険料は0円です`
+      );
       // 厚生年金は月単位加入のため、退職月でも月末在籍がなくても発生する可能性があるが、
       // ここでは健康保険・介護保険のみ0円とする
       // 厚生年金の処理は後続のロジックで処理される
@@ -1124,19 +1126,25 @@ export class SalaryCalculationService {
       const joinDate = new Date(employee.joinDate);
       const joinYear = this.monthHelper.getPayYear(joinDate);
       const joinMonth = this.monthHelper.getPayMonth(joinDate);
-      
+
       // 健康保険：資格取得月から保険料発生
       if (joinYear === year && joinMonth === month) {
         isAcquisitionMonth = true;
-        reasons.push(`${month}月は資格取得月のため健康保険・介護保険の保険料が発生します`);
+        reasons.push(
+          `${month}月は資格取得月のため健康保険・介護保険の保険料が発生します`
+        );
       }
-      
+
       // 厚生年金：資格取得月の翌月から保険料発生
       if (joinYear === year && joinMonth === month - 1) {
         isAcquisitionMonthForPension = true;
-        reasons.push(`${month}月は資格取得月の翌月のため厚生年金の保険料が発生します`);
+        reasons.push(
+          `${month}月は資格取得月の翌月のため厚生年金の保険料が発生します`
+        );
       } else if (joinYear === year && joinMonth === month) {
-        reasons.push(`${month}月は資格取得月のため厚生年金の保険料は発生しません（翌月から発生）`);
+        reasons.push(
+          `${month}月は資格取得月のため厚生年金の保険料は発生しません（翌月から発生）`
+        );
       }
     }
 
@@ -1145,14 +1153,17 @@ export class SalaryCalculationService {
     const birthDate = new Date(employee.birthDate);
     const birthYear = birthDate.getFullYear();
     const birthMonth = birthDate.getMonth() + 1;
-    
+
     // その月の1日時点の年齢を計算（到達月の判定用）
     const checkDate = new Date(year, month - 1, 1);
     let age = year - birthYear;
-    if (month < birthMonth || (month === birthMonth && 1 < birthDate.getDate())) {
+    if (
+      month < birthMonth ||
+      (month === birthMonth && 1 < birthDate.getDate())
+    ) {
       age--;
     }
-    
+
     // 年齢到達月の判定（到達月から適用）
     // 40歳到達月：介護保険料徴収開始（到達月から）
     // 65歳到達月：介護保険料徴収終了（到達月から第1号へ移行）
@@ -1162,14 +1173,26 @@ export class SalaryCalculationService {
     const isAge65Reached = age >= 65;
     const isAge70Reached = age >= 70;
     const isAge75Reached = age >= 75;
-    
+
     // 到達月の判定（誕生日の月・日で判定）
     const birthDay = birthDate.getDate();
-    const isAge40Month = (year === birthYear + 40 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 40 && month > birthMonth) || (year > birthYear + 40);
-    const isAge65Month = (year === birthYear + 65 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 65 && month > birthMonth) || (year > birthYear + 65);
-    const isAge70Month = (year === birthYear + 70 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 70 && month > birthMonth) || (year > birthYear + 70);
-    const isAge75Month = (year === birthYear + 75 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 75 && month > birthMonth) || (year > birthYear + 75);
-    
+    const isAge40Month =
+      (year === birthYear + 40 && month === birthMonth && 1 >= birthDay) ||
+      (year === birthYear + 40 && month > birthMonth) ||
+      year > birthYear + 40;
+    const isAge65Month =
+      (year === birthYear + 65 && month === birthMonth && 1 >= birthDay) ||
+      (year === birthYear + 65 && month > birthMonth) ||
+      year > birthYear + 65;
+    const isAge70Month =
+      (year === birthYear + 70 && month === birthMonth && 1 >= birthDay) ||
+      (year === birthYear + 70 && month > birthMonth) ||
+      year > birthYear + 70;
+    const isAge75Month =
+      (year === birthYear + 75 && month === birthMonth && 1 >= birthDay) ||
+      (year === birthYear + 75 && month > birthMonth) ||
+      year > birthYear + 75;
+
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
       undefined,
@@ -1180,33 +1203,58 @@ export class SalaryCalculationService {
     // 年齢到達による停止理由を追加
     if (isAge75Reached) {
       if (isAge75Month && month === birthMonth) {
-        reasons.push(`${month}月は75歳到達月のため健康保険・介護保険は停止（到達月から適用）`);
+        reasons.push(
+          `${month}月は75歳到達月のため健康保険・介護保険は停止（到達月から適用）`
+        );
       } else {
         reasons.push('75歳以上のため健康保険・介護保険は停止');
       }
     }
     if (isAge70Reached) {
       if (isAge70Month && month === birthMonth) {
-        reasons.push(`${month}月は70歳到達月のため厚生年金は停止（到達月から適用）`);
+        reasons.push(
+          `${month}月は70歳到達月のため厚生年金は停止（到達月から適用）`
+        );
       } else {
         reasons.push('70歳以上のため厚生年金は停止');
       }
     }
     if (isAge65Reached) {
       if (isAge65Month && month === birthMonth) {
-        reasons.push(`${month}月は65歳到達月のため介護保険は第1号被保険者（健保から除外、到達月から適用）`);
+        reasons.push(
+          `${month}月は65歳到達月のため介護保険は第1号被保険者（健保から除外、到達月から適用）`
+        );
       } else {
         reasons.push('65歳以上のため介護保険は第1号被保険者（健保から除外）');
       }
     }
     if (isAge40Reached && !isAge65Reached) {
       if (isAge40Month && month === birthMonth) {
-        reasons.push(`${month}月は40歳到達月のため介護保険料が発生します（到達月から適用）`);
+        reasons.push(
+          `${month}月は40歳到達月のため介護保険料が発生します（到達月から適用）`
+        );
       }
     }
 
     // ⑤ 通常の保険料計算（年齢到達・同月得喪を考慮）
-    const r = rates;
+    const ratesResult = await this.settingsService.getRates(
+      year.toString(),
+      (employee as any).prefecture || '13',
+      month.toString()
+    );
+    if (!ratesResult) {
+      reasons.push('保険料率の取得に失敗しました');
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons,
+      };
+    }
+    const r = ratesResult;
 
     // 健康保険（75歳以上は0円、資格取得月から発生、月末在籍が必要）
     // 資格取得月より前の場合は0円、資格取得月以降は標準報酬月額を使用
@@ -1260,7 +1308,7 @@ export class SalaryCalculationService {
       const joinDate = new Date(employee.joinDate);
       const joinYear = this.monthHelper.getPayYear(joinDate);
       const joinMonth = this.monthHelper.getPayMonth(joinDate);
-      
+
       // 資格取得月の場合は0円（月単位加入のため）
       if (joinYear === year && joinMonth === month) {
         pensionBase = 0;

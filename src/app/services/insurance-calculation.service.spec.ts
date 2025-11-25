@@ -38,8 +38,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployee: 91500,
           pensionEmployer: 91500,
           isExempted: false,
-          isSalaryInsteadOfBonus: false
-        } as Bonus,
+          isSalaryInsteadOfBonus: false,
+          year: 2025,
+          month: 6,
+          createdAt: new Date('2025-06-15'),
+          isExempt: false,
+          cappedHealth: 1000000,
+          cappedPension: 1000000
+        } as unknown as Bonus,
         {
           id: '2',
           employeeId: 'emp1',
@@ -52,8 +58,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployee: 137250,
           pensionEmployer: 137250,
           isExempted: false,
-          isSalaryInsteadOfBonus: false
-        } as Bonus
+          isSalaryInsteadOfBonus: false,
+          year: 2025,
+          month: 12,
+          createdAt: new Date('2025-12-15'),
+          isExempt: false,
+          cappedHealth: 1500000,
+          cappedPension: 1500000
+        } as unknown as Bonus
       ];
 
       const result = service.getAnnualPremiums(employee, null, bonusData);
@@ -89,8 +101,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployer: 91500,
           isExempted: true,
           exemptReason: '産休期間中のため免除',
-          isSalaryInsteadOfBonus: false
-        } as Bonus,
+          isSalaryInsteadOfBonus: false,
+          year: 2025,
+          month: 6,
+          createdAt: new Date('2025-06-15'),
+          isExempt: true,
+          cappedHealth: 1000000,
+          cappedPension: 1000000
+        } as unknown as Bonus,
         {
           id: '2',
           employeeId: 'emp1',
@@ -103,8 +121,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployee: 137250,
           pensionEmployer: 137250,
           isExempted: false,
-          isSalaryInsteadOfBonus: false
-        } as Bonus
+          isSalaryInsteadOfBonus: false,
+          year: 2025,
+          month: 12,
+          createdAt: new Date('2025-12-15'),
+          isExempt: false,
+          cappedHealth: 1500000,
+          cappedPension: 1500000
+        } as unknown as Bonus
       ];
 
       const result = service.getAnnualPremiums(employee, null, bonusData);
@@ -137,8 +161,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployer: 91500,
           isExempted: false,
           isSalaryInsteadOfBonus: true,
-          reason_bonus_to_salary_text: '過去12ヶ月の賞与支給回数が1回のため給与扱い'
-        } as Bonus
+          reason_bonus_to_salary_text: '過去12ヶ月の賞与支給回数が1回のため給与扱い',
+          year: 2025,
+          month: 6,
+          createdAt: new Date('2025-06-15'),
+          isExempt: false,
+          cappedHealth: 1000000,
+          cappedPension: 1000000
+        } as unknown as Bonus
       ];
 
       const result = service.getAnnualPremiums(employee, null, bonusData);
@@ -191,8 +221,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployee: 91500,
           pensionEmployer: 91500,
           isExempted: false,
-          isSalaryInsteadOfBonus: false
-        } as Bonus
+          isSalaryInsteadOfBonus: false,
+          year: 2025,
+          month: 6,
+          createdAt: new Date('2025-06-15'),
+          isExempt: false,
+          cappedHealth: 1000000,
+          cappedPension: 1000000
+        } as unknown as Bonus
       ];
 
       const result = service.getMonthlyCompanyBurden(employee, monthlyPremiums, bonusPremiums);
@@ -232,8 +268,14 @@ describe('InsuranceCalculationService', () => {
           pensionEmployee: 91500,
           pensionEmployer: 91500,
           isExempted: true,
-          isSalaryInsteadOfBonus: false
-        } as Bonus
+          isSalaryInsteadOfBonus: false,
+          year: 2025,
+          month: 6,
+          createdAt: new Date('2025-06-15'),
+          isExempt: true,
+          cappedHealth: 1000000,
+          cappedPension: 1000000
+        } as unknown as Bonus
       ];
 
       const result = service.getMonthlyCompanyBurden(employee, monthlyPremiums, bonusPremiums);

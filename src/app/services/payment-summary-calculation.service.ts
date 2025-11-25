@@ -227,14 +227,13 @@ export class PaymentSummaryCalculationService {
 
           // calculateMonthlyPremiums を呼び出し（戻り値: MonthlyPremiums & { reasons: string[] }）
           const premiumResult =
-            this.salaryCalculationService.calculateMonthlyPremiums(
+            await this.salaryCalculationService.calculateMonthlyPremiums(
               emp,
               year,
               month,
               fixedSalary,
               variableSalary,
-              gradeTable,
-              monthRates
+              gradeTable
             );
 
           // MonthlyPremiumRow に変換（サービス側の戻り値型に完全一致）
