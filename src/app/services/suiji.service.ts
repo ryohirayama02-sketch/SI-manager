@@ -162,8 +162,8 @@ export class SuijiService {
     // 等級差を計算
     const diff = newGrade - currentGrade;
 
-    // 適用開始月を計算（変動月の3ヶ月後）
-    const applyStartMonth = change.changeMonth + 3;
+    // 適用開始月を計算（変動月の4ヶ月後）
+    const applyStartMonth = change.changeMonth + 4;
     // 12を超える場合は翌年扱いだが、今回は月のみ計算でOK
     const normalizedApplyMonth = applyStartMonth > 12 ? applyStartMonth - 12 : applyStartMonth;
 

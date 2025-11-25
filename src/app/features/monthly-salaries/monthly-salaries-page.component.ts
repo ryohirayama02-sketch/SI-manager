@@ -570,7 +570,8 @@ export class MonthlySalariesPageComponent implements OnInit {
     this.results[employeeId] = this.salaryCalculationService.calculateTeijiKettei(
       employeeId,
       this.salaries,
-      this.gradeTable
+      this.gradeTable,
+      parseInt(this.year)
     );
   }
 

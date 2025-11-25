@@ -27,6 +27,7 @@ export interface TeijiKetteiResult {
   reasons: string[]; // 除外理由や特例判断メッセージ
   // 後方互換性のため残す
   average46?: number; // deprecated: averageSalary を使用
+  startApplyYearMonth?: { year: number; month: number }; // 適用開始年月（定時決定の場合、原則9月）
 }
 
 export interface SuijiCandidate {
@@ -324,6 +325,7 @@ export class SalaryCalculationService {
     employeeId: string,
     salaries: { [key: string]: SalaryData },
     gradeTable: any[],
+    year: number,
     currentStandardMonthlyRemuneration?: number
   ): TeijiKetteiResult {
     const values = this.getAprilToJuneValues(employeeId, salaries);
@@ -336,13 +338,16 @@ export class SalaryCalculationService {
     const exclusionReasons = exclusionResult.reasons;
 
     const averageResult = this.calculateAverage(values, excludedMonths);
-    const averageSalary = averageResult.averageSalary;
+    // 標準報酬月額の四捨五入処理（1000円未満四捨五入）
+    const averageSalary = Math.round(averageResult.averageSalary / 1000) * 1000;
     const usedMonths = averageResult.usedMonths;
     const calculationReasons = averageResult.reasons;
 
     // 全部除外の場合の特例処理
     if (averageSalary === 0 && excludedMonths.length === 3) {
       const allReasons = [...exclusionReasons, ...calculationReasons];
+      // 定時決定の適用開始月（原則9月支給分から適用）
+      const startApplyYearMonth = { year, month: 9 };
       if (
         currentStandardMonthlyRemuneration &&
         currentStandardMonthlyRemuneration > 0
@@ -358,6 +363,7 @@ export class SalaryCalculationService {
           standardMonthlyRemuneration: currentStandardMonthlyRemuneration,
           reasons: allReasons,
           average46: 0, // 後方互換性
+          startApplyYearMonth,
         };
       } else {
         allReasons.push('未決定扱い（現在の標準報酬月額が設定されていない）');
@@ -369,6 +375,7 @@ export class SalaryCalculationService {
           standardMonthlyRemuneration: 0,
           reasons: allReasons,
           average46: 0, // 後方互換性
+          startApplyYearMonth,
         };
       }
     }
@@ -376,6 +383,9 @@ export class SalaryCalculationService {
     // 通常の等級判定
     const gradeResult = this.findGrade(gradeTable, averageSalary);
     const allReasons = [...exclusionReasons, ...calculationReasons];
+
+    // 定時決定の適用開始月（原則9月支給分から適用）
+    const startApplyYearMonth = { year, month: 9 };
 
     if (gradeResult) {
       return {
@@ -386,6 +396,7 @@ export class SalaryCalculationService {
         standardMonthlyRemuneration: gradeResult.remuneration,
         reasons: allReasons,
         average46: averageSalary, // 後方互換性
+        startApplyYearMonth,
       };
     } else {
       allReasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
@@ -397,6 +408,7 @@ export class SalaryCalculationService {
         standardMonthlyRemuneration: 0,
         reasons: allReasons,
         average46: averageSalary, // 後方互換性
+        startApplyYearMonth,
       };
     }
   }
@@ -561,17 +573,17 @@ export class SalaryCalculationService {
       targetMonths.push(month);
     }
 
-    // 3ヶ月分の給与データを取得（fixed + variable の総額）
-    const salaryValues: number[] = [];
+    // 3ヶ月分の給与データを取得（総支給額：固定＋非固定）
+    const totalSalaryValues: number[] = [];
     for (const month of targetMonths) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
       const total = this.getTotalSalary(salaryData); // totalSalary を優先（fixed + variable の総額）
-      salaryValues.push(total);
+      totalSalaryValues.push(total);
     }
 
     // 3ヶ月揃わない場合は算定不可
-    if (salaryValues.length !== 3) {
+    if (totalSalaryValues.length !== 3) {
       reasons.push(`${changeMonth}月の変動では、3ヶ月分のデータが揃わない`);
       return {
         changeMonth,
@@ -585,9 +597,11 @@ export class SalaryCalculationService {
       };
     }
 
-    // 平均報酬を計算
-    const total = salaryValues.reduce((sum, v) => sum + v, 0);
-    const averageSalary = Math.round(total / salaryValues.length);
+    // 平均報酬を計算（総支給額で平均）
+    const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
+    const rawAverage = Math.round(total / totalSalaryValues.length);
+    // 標準報酬月額の四捨五入処理（1000円未満四捨五入）
+    const averageSalary = Math.round(rawAverage / 1000) * 1000;
     reasons.push(
       `${targetMonths.join(
         '・'
@@ -930,18 +944,20 @@ export class SalaryCalculationService {
       targetMonths.push(targetMonth);
     }
 
-    // 3ヶ月分の給与データを取得（fixed + variable の総支給）
-    const salaryValues: number[] = [];
+    // 3ヶ月分の給与データを取得（総支給額：固定＋非固定）
+    const totalSalaryValues: number[] = [];
     for (const targetMonth of targetMonths) {
       const key = this.getSalaryKey(employeeId, targetMonth);
       const salaryData = salaries[key];
       const total = this.getTotalSalary(salaryData); // totalSalary を優先（fixed + variable の総支給）
-      salaryValues.push(total);
+      totalSalaryValues.push(total);
     }
 
-    // 3ヶ月平均を計算
-    const total = salaryValues.reduce((sum, v) => sum + v, 0);
-    const averageSalary = Math.round(total / salaryValues.length);
+    // 3ヶ月平均を計算（総支給額で平均）
+    const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
+    const rawAverage = Math.round(total / totalSalaryValues.length);
+    // 標準報酬月額の四捨五入処理（1000円未満四捨五入）
+    const averageSalary = Math.round(rawAverage / 1000) * 1000;
     reasons.push(
       `${targetMonths.join(
         '・'
@@ -1147,11 +1163,12 @@ export class SalaryCalculationService {
     const isAge70Reached = age >= 70;
     const isAge75Reached = age >= 75;
     
-    // 到達月の判定（誕生日の月で判定）
-    const isAge40Month = (year === birthYear + 40 && month >= birthMonth) || (year > birthYear + 40);
-    const isAge65Month = (year === birthYear + 65 && month >= birthMonth) || (year > birthYear + 65);
-    const isAge70Month = (year === birthYear + 70 && month >= birthMonth) || (year > birthYear + 70);
-    const isAge75Month = (year === birthYear + 75 && month >= birthMonth) || (year > birthYear + 75);
+    // 到達月の判定（誕生日の月・日で判定）
+    const birthDay = birthDate.getDate();
+    const isAge40Month = (year === birthYear + 40 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 40 && month > birthMonth) || (year > birthYear + 40);
+    const isAge65Month = (year === birthYear + 65 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 65 && month > birthMonth) || (year > birthYear + 65);
+    const isAge70Month = (year === birthYear + 70 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 70 && month > birthMonth) || (year > birthYear + 70);
+    const isAge75Month = (year === birthYear + 75 && month === birthMonth && 1 >= birthDay) || (year === birthYear + 75 && month > birthMonth) || (year > birthYear + 75);
     
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
