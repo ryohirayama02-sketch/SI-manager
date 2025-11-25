@@ -19,6 +19,9 @@ export interface Employee {
   expectedEmploymentMonths?: number; // 雇用見込期間（月）
   isStudent?: boolean; // 学生かどうか
   consecutiveMonthsOver20Hours?: number; // 連続で20時間以上働いた月数
+  prefecture?: string; // 事業所の都道府県（tokyo/hokkaido/osakaなど）
+  leaveOfAbsenceStart?: string; // 休職開始日（YYYY-MM-DD）
+  leaveOfAbsenceEnd?: string; // 休職終了日（YYYY-MM-DD）
   // 資格取得時決定情報
   acquisitionGrade?: number; // 資格取得時決定の等級
   acquisitionStandard?: number; // 資格取得時決定の標準報酬月額

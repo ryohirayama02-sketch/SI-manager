@@ -2,6 +2,7 @@
 
 <div class="card">
   <form [formGroup]="form" (ngSubmit)="updateEmployee()">
+    <h3>基本情報</h3>
     <div class="form-group">
       <label for="name">氏名 <span class="required">*</span></label>
       <input id="name" formControlName="name" type="text" class="form-control" required>
@@ -9,38 +10,97 @@
 
     <div class="form-group">
       <label for="birthDate">生年月日 <span class="required">*</span></label>
-      <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required>
+      <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required (change)="validateDates()">
+      <small *ngIf="ageInfo" class="form-text">現在の年齢: {{ ageInfo }}</small>
     </div>
 
     <div class="form-group">
-      <label for="hireDate">入社日 <span class="required">*</span></label>
-      <input id="hireDate" formControlName="hireDate" type="date" class="form-control" required>
+      <label for="joinDate">入社日 <span class="required">*</span></label>
+      <input id="joinDate" formControlName="joinDate" type="date" class="form-control" required (change)="validateDates()">
     </div>
 
+    <div class="form-group">
+      <label for="retireDate">退職日</label>
+      <input id="retireDate" formControlName="retireDate" type="date" class="form-control" (change)="validateDates()">
+    </div>
+
+    <div class="form-group">
+      <label for="prefecture">事業所の都道府県</label>
+      <select id="prefecture" formControlName="prefecture" class="form-control">
+        <option value="tokyo">東京都</option>
+        <option value="hokkaido">北海道</option>
+        <option value="osaka">大阪府</option>
+      </select>
+    </div>
+
+    <h3>標準報酬履歴（読み取り専用）</h3>
+    <div class="form-group">
+      <label>標準報酬月額</label>
+      <input type="text" [value]="standardMonthlyRemunerationHistory" class="form-control" readonly>
+    </div>
+
+    <h3>労働条件</h3>
     <div class="form-group">
       <label>
-        <input type="checkbox" formControlName="shortTimeWorker">
+        <input type="checkbox" formControlName="isShortTime">
         短時間労働者
       </label>
     </div>
 
-    <h3>産休情報</h3>
     <div class="form-group">
-      <label for="maternityLeaveStart">産休開始日</label>
+      <label for="weeklyHours">週所定労働時間</label>
+      <input id="weeklyHours" type="number" formControlName="weeklyHours" class="form-control" min="0" step="0.5">
+    </div>
+
+    <div class="form-group">
+      <label for="monthlyWage">月額賃金（固定的給与）</label>
+      <input id="monthlyWage" type="number" formControlName="monthlyWage" class="form-control" min="0" step="1">
+    </div>
+
+    <div class="form-group">
+      <label for="expectedEmploymentMonths">雇用見込期間（月）</label>
+      <input id="expectedEmploymentMonths" type="number" formControlName="expectedEmploymentMonths" class="form-control" min="0" step="1">
+      <small class="form-text">短時間労働者の場合、2ヶ月超が必要</small>
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="isStudent">
+        学生
+      </label>
+    </div>
+
+    <h3>休職・復職情報</h3>
+    <div class="form-group">
+      <label for="leaveOfAbsenceStart">休職開始日</label>
+      <input id="leaveOfAbsenceStart" formControlName="leaveOfAbsenceStart" type="date" class="form-control" (change)="validateDates()">
+    </div>
+    <div class="form-group">
+      <label for="leaveOfAbsenceEnd">休職終了日</label>
+      <input id="leaveOfAbsenceEnd" formControlName="leaveOfAbsenceEnd" type="date" class="form-control" (change)="validateDates()">
+    </div>
+    <div class="form-group">
+      <label for="returnFromLeaveDate">復職日</label>
+      <input id="returnFromLeaveDate" formControlName="returnFromLeaveDate" type="date" class="form-control" (change)="validateDates()">
+    </div>
+
+    <h3>産前産後休業情報</h3>
+    <div class="form-group">
+      <label for="maternityLeaveStart">産前産後休業開始日</label>
       <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" class="form-control" (change)="validateDates()">
     </div>
     <div class="form-group">
-      <label for="maternityLeaveEnd">産休終了日</label>
+      <label for="maternityLeaveEnd">産前産後休業終了日</label>
       <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" class="form-control" (change)="validateDates()">
     </div>
 
-    <h3>育休情報</h3>
+    <h3>育児休業情報</h3>
     <div class="form-group">
-      <label for="childcareLeaveStart">育休開始日</label>
+      <label for="childcareLeaveStart">育児休業開始日</label>
       <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" class="form-control" (change)="validateDates()">
     </div>
     <div class="form-group">
-      <label for="childcareLeaveEnd">育休終了日</label>
+      <label for="childcareLeaveEnd">育児休業終了日</label>
       <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" class="form-control" (change)="validateDates()">
     </div>
     <div class="form-group">
@@ -56,18 +116,28 @@
       </label>
     </div>
 
-    <button type="submit" [disabled]="form.invalid" class="btn-primary">更新する</button>
+    <!-- 自動判定結果の表示 -->
+    <div *ngIf="eligibilityStatus || ageInfo" class="info-box" style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-radius: 4px;">
+      <h4>自動判定結果</h4>
+      <p *ngIf="ageInfo"><strong>年齢:</strong> {{ ageInfo }}</p>
+      <p *ngIf="eligibilityStatus"><strong>社会保険対象区分:</strong> {{ eligibilityStatus }}</p>
+      <p *ngIf="insuranceStatus.health"><strong>健康保険:</strong> {{ insuranceStatus.health }}</p>
+      <p *ngIf="insuranceStatus.care"><strong>介護保険:</strong> {{ insuranceStatus.care }}</p>
+      <p *ngIf="insuranceStatus.pension"><strong>厚生年金:</strong> {{ insuranceStatus.pension }}</p>
+    </div>
+
+    <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">更新する</button>
   </form>
 
   <!-- エラー・警告メッセージ -->
-  <div *ngIf="errorMessages?.length" class="error-box">
+  <div *ngIf="errorMessages?.length" class="error-box" style="margin-top: 1rem;">
     <h4>エラー</h4>
     <ul>
       <li *ngFor="let err of errorMessages">{{ err }}</li>
     </ul>
   </div>
 
-  <div *ngIf="warningMessages?.length" class="warning-box">
+  <div *ngIf="warningMessages?.length" class="warning-box" style="margin-top: 1rem;">
     <h4>警告</h4>
     <ul>
       <li *ngFor="let w of warningMessages">{{ w }}</li>

@@ -7,6 +7,7 @@ import { EmployeeEligibilityService, EmployeeEligibilityResult } from '../../../
 import { MonthlySalaryService } from '../../../services/monthly-salary.service';
 import { SettingsService } from '../../../services/settings.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
+import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
 import { Employee } from '../../../models/employee.model';
 
 interface EmployeeDisplayInfo {
@@ -49,6 +50,7 @@ export class EmployeeListPageComponent implements OnInit {
     private monthlySalaryService: MonthlySalaryService,
     private settingsService: SettingsService,
     private salaryCalculationService: SalaryCalculationService,
+    private employeeLifecycleService: EmployeeLifecycleService,
     private router: Router
   ) {}
 
@@ -78,6 +80,8 @@ export class EmployeeListPageComponent implements OnInit {
       );
 
       // 当月の保険料を計算
+      // 注: payment-summary-calculation.service.tsは全従業員の年間データを計算するサービスで、
+      // 従業員一覧画面で当月だけを取得するには重いため、SalaryCalculationServiceを直接使用
       let currentMonthPremium = null;
       try {
         const salaryData = await this.monthlySalaryService.getEmployeeSalary(
@@ -154,8 +158,26 @@ export class EmployeeListPageComponent implements OnInit {
         }
       }
       
-      // 休職中（無給期間）の判定
-      // TODO: 休職情報がEmployeeモデルに追加されたら実装
+      // 休職中の判定（復職日が設定されていて、復職日が未来の場合）
+      if (emp.returnFromLeaveDate) {
+        const returnDate = new Date(emp.returnFromLeaveDate);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        returnDate.setHours(0, 0, 0, 0);
+        
+        // 復職日が未来なら休職中
+        if (returnDate > today) {
+          // 当月が休職期間中かどうかを判定
+          const currentDate = new Date(this.currentYear, this.currentMonth - 1, 1);
+          const returnDateStart = new Date(returnDate);
+          returnDateStart.setDate(1); // 復職日の月初日
+          
+          // 復職日が当月より未来なら休職中
+          if (returnDateStart > currentDate) {
+            notes.push('休職中');
+          }
+        }
+      }
 
       this.employeeDisplayInfos.push({
         employee: emp,

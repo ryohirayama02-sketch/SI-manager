@@ -25,8 +25,76 @@ export class SettingsService {
     await setDoc(ref, settings, { merge: true });
   }
 
+  /**
+   * 給与月の判定方法を取得する
+   * @returns 'payDate' | 'closingDate'（デフォルト: 'payDate'）
+   */
+  async getSalaryMonthRule(): Promise<string> {
+    const ref = doc(this.firestore, 'settings/global/salaryMonthRule');
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      return data['salaryMonthRule'] || 'payDate';
+    }
+    // データがない場合はデフォルト値を返す
+    return 'payDate';
+  }
+
+  /**
+   * 給与月の判定方法を保存する
+   * @param rule 'payDate' | 'closingDate'
+   */
+  async saveSalaryMonthRule(rule: string): Promise<void> {
+    const ref = doc(this.firestore, 'settings/global/salaryMonthRule');
+    await setDoc(ref, { salaryMonthRule: rule }, { merge: true });
+  }
+
+  /**
+   * 料率バージョン情報を取得する
+   * @param year 年度（文字列）
+   * @returns applyFromMonth（改定月）とversionId
+   */
+  async getRateVersionInfo(year: string): Promise<{ applyFromMonth: number; versionId: string }> {
+    const ref = doc(this.firestore, `rates/${year}`);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const data = snap.data();
+      const applyFromMonth = data['applyFromMonth'] || 4;
+      const versionId = data['versionId'] || `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
+      return { applyFromMonth, versionId };
+    }
+    // データがない場合はデフォルト値（4月）を返す
+    return { applyFromMonth: 4, versionId: `v${year}-04` };
+  }
+
+  /**
+   * 料率バージョン情報を保存する
+   * @param year 年度（文字列）
+   * @param applyFromMonth 改定月（1〜12）
+   */
+  async saveRateVersionInfo(year: string, applyFromMonth: number): Promise<void> {
+    const versionId = `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
+    const ref = doc(this.firestore, `rates/${year}`);
+    await setDoc(ref, {
+      applyFromMonth,
+      versionId,
+      createdAt: new Date()
+    }, { merge: true });
+  }
+
   async getRates(year: string, prefecture: string, payMonth?: string): Promise<any | null> {
-    // 既存の単一ドキュメント構造との互換性チェック
+    // バージョン情報を取得
+    const versionInfo = await this.getRateVersionInfo(year);
+    const versionId = versionInfo.versionId;
+    
+    // 新しい構造から取得: rates/{year}/versions/{versionId}/prefectures/{prefecture}
+    const ref = doc(this.firestore, `rates/${year}/versions/${versionId}/prefectures/${prefecture}`);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return snap.data();
+    }
+
+    // 既存の単一ドキュメント構造との互換性チェック（後方互換性のため）
     const legacyRef = doc(this.firestore, `rates/${year}/prefectures/${prefecture}`);
     const legacySnap = await getDoc(legacyRef);
     if (legacySnap.exists()) {
@@ -37,7 +105,7 @@ export class SettingsService {
       }
     }
 
-    // 新しいサブコレクション構造から取得
+    // 新しいサブコレクション構造から取得（後方互換性のため）
     const versionsRef = collection(this.firestore, `rates/${year}/prefectures/${prefecture}/versions`);
     
     if (payMonth) {
@@ -66,10 +134,18 @@ export class SettingsService {
   }
 
   async saveRates(year: string, prefecture: string, data: Rate): Promise<void> {
-    // effectiveFromが指定されていない場合は年度初日（4月）として扱う
-    const effectiveFrom = data.effectiveFrom || `${year}-04`;
-    const ref = doc(this.firestore, `rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`);
+    // バージョン情報を取得
+    const versionInfo = await this.getRateVersionInfo(year);
+    const versionId = versionInfo.versionId;
+    
+    // 新しい構造に保存: rates/{year}/versions/{versionId}/prefectures/{prefecture}
+    const ref = doc(this.firestore, `rates/${year}/versions/${versionId}/prefectures/${prefecture}`);
+    const effectiveFrom = data.effectiveFrom || `${year}-${versionInfo.applyFromMonth.toString().padStart(2, '0')}`;
     await setDoc(ref, { ...data, effectiveFrom }, { merge: true });
+    
+    // 後方互換性のため、既存の構造にも保存
+    const legacyRef = doc(this.firestore, `rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`);
+    await setDoc(legacyRef, { ...data, effectiveFrom }, { merge: true });
   }
 
   async getStandardTable(year: number): Promise<any[]> {

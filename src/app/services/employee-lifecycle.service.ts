@@ -116,6 +116,108 @@ export class EmployeeLifecycleService {
 
     return true; // 退職月でない場合は月末在籍あり
   }
+
+  /**
+   * 従業員情報の日付整合性をチェック
+   * @param employee 従業員情報
+   * @returns エラーメッセージと警告メッセージの配列
+   */
+  validateEmployeeDates(employee: {
+    birthDate?: string;
+    joinDate?: string;
+    retireDate?: string;
+    maternityLeaveStart?: string;
+    maternityLeaveEnd?: string;
+    childcareLeaveStart?: string;
+    childcareLeaveEnd?: string;
+    returnFromLeaveDate?: string;
+    leaveOfAbsenceStart?: string;
+    leaveOfAbsenceEnd?: string;
+    childcareNotificationSubmitted?: boolean;
+    childcareLivingTogether?: boolean;
+  }): { errors: string[]; warnings: string[] } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    const birthDate = employee.birthDate ? new Date(employee.birthDate) : null;
+    const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
+    const retireDate = employee.retireDate ? new Date(employee.retireDate) : null;
+    const maternityLeaveStart = employee.maternityLeaveStart ? new Date(employee.maternityLeaveStart) : null;
+    const maternityLeaveEnd = employee.maternityLeaveEnd ? new Date(employee.maternityLeaveEnd) : null;
+    const childcareLeaveStart = employee.childcareLeaveStart ? new Date(employee.childcareLeaveStart) : null;
+    const childcareLeaveEnd = employee.childcareLeaveEnd ? new Date(employee.childcareLeaveEnd) : null;
+    const returnFromLeaveDate = employee.returnFromLeaveDate ? new Date(employee.returnFromLeaveDate) : null;
+    const leaveOfAbsenceStart = employee.leaveOfAbsenceStart ? new Date(employee.leaveOfAbsenceStart) : null;
+    const leaveOfAbsenceEnd = employee.leaveOfAbsenceEnd ? new Date(employee.leaveOfAbsenceEnd) : null;
+
+    // 入社日が生年月日より後かチェック
+    if (birthDate && joinDate) {
+      if (joinDate < birthDate) {
+        errors.push('入社日は生年月日より後である必要があります');
+      }
+    }
+
+    // 退職日が入社日より後かチェック
+    if (joinDate && retireDate) {
+      if (retireDate < joinDate) {
+        errors.push('退職日は入社日より後である必要があります');
+      }
+    }
+
+    // 産休開始日 < 終了日
+    if (maternityLeaveStart && maternityLeaveEnd) {
+      if (maternityLeaveEnd < maternityLeaveStart) {
+        errors.push('産休終了日は開始日より後である必要があります');
+      }
+    }
+
+    // 育休開始日 < 終了日
+    if (childcareLeaveStart && childcareLeaveEnd) {
+      if (childcareLeaveEnd < childcareLeaveStart) {
+        errors.push('育休終了日は開始日より後である必要があります');
+      }
+    }
+
+    // 産休・育休の日付整合性チェック
+    if (maternityLeaveStart && maternityLeaveEnd && childcareLeaveStart && childcareLeaveEnd) {
+      const daysBetween = (childcareLeaveStart.getTime() - maternityLeaveEnd.getTime()) / (1000 * 60 * 60 * 24);
+      if (daysBetween > 30) {
+        errors.push('産休・育休の設定が矛盾しています（産休終了日と育休開始日の間が30日を超えています）');
+      }
+    }
+
+    // 復職日が入社日より後かチェック
+    if (joinDate && returnFromLeaveDate) {
+      if (returnFromLeaveDate < joinDate) {
+        errors.push('復職日は入社日より後である必要があります');
+      }
+    }
+
+    // 復職日が退職日より前かチェック
+    if (retireDate && returnFromLeaveDate) {
+      if (returnFromLeaveDate >= retireDate) {
+        errors.push('復職日は退職日より前である必要があります');
+      }
+    }
+
+    // 休職開始日 < 終了日
+    if (leaveOfAbsenceStart && leaveOfAbsenceEnd) {
+      if (leaveOfAbsenceEnd < leaveOfAbsenceStart) {
+        errors.push('休職終了日は開始日より後である必要があります');
+      }
+    }
+
+    // 育休期間中なのに届出未提出または子と同居していない場合の警告
+    if (childcareLeaveStart && childcareLeaveEnd) {
+      const isNotificationSubmitted = employee.childcareNotificationSubmitted === true;
+      const isLivingTogether = employee.childcareLivingTogether === true;
+      if (!isNotificationSubmitted || !isLivingTogether) {
+        warnings.push('育休期間が設定されていますが、届出未提出または子と同居していない場合、保険料免除の対象外となります');
+      }
+    }
+
+    return { errors, warnings };
+  }
 }
 
 

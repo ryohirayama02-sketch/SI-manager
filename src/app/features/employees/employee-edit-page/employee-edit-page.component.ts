@@ -3,6 +3,10 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
+import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
+import { EmployeeEligibilityService } from '../../../services/employee-eligibility.service';
+import { SalaryCalculationService } from '../../../services/salary-calculation.service';
+import { Employee } from '../../../models/employee.model';
 
 @Component({
   selector: 'app-employee-edit-page',
@@ -16,24 +20,53 @@ export class EmployeeEditPageComponent implements OnInit {
   form: any;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
+  
+  // 自動判定結果の表示用
+  eligibilityStatus: string = '';
+  ageInfo: string = '';
+  insuranceStatus: {
+    health: string;
+    care: string;
+    pension: string;
+  } = { health: '', care: '', pension: '' };
+  
+  // 標準報酬履歴（read-only）
+  standardMonthlyRemunerationHistory: string = '';
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
     private fb: FormBuilder,
-    private employeeService: EmployeeService
+    private employeeService: EmployeeService,
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private salaryCalculationService: SalaryCalculationService
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
       birthDate: ['', Validators.required],
-      hireDate: ['', Validators.required],
-      shortTimeWorker: [false],
+      joinDate: ['', Validators.required],
+      retireDate: [''],
+      isShortTime: [false],
+      prefecture: ['tokyo'],
+      weeklyHours: [null],
+      monthlyWage: [null],
+      expectedEmploymentMonths: [null],
+      isStudent: [false],
+      leaveOfAbsenceStart: [''],
+      leaveOfAbsenceEnd: [''],
+      returnFromLeaveDate: [''],
       maternityLeaveStart: [''],
       maternityLeaveEnd: [''],
       childcareLeaveStart: [''],
       childcareLeaveEnd: [''],
       childcareNotificationSubmitted: [false],
       childcareLivingTogether: [false],
+    });
+
+    // フォーム値変更時に自動判定を実行
+    this.form.valueChanges.subscribe(() => {
+      this.updateAutoDetection();
     });
   }
 
@@ -46,8 +79,17 @@ export class EmployeeEditPageComponent implements OnInit {
       this.form.patchValue({
         name: data.name || '',
         birthDate: data.birthDate || '',
-        hireDate: data.hireDate || '',
-        shortTimeWorker: data.shortTimeWorker || false,
+        joinDate: data.joinDate || data.hireDate || '',
+        retireDate: data.retireDate || '',
+        isShortTime: data.isShortTime || data.shortTimeWorker || false,
+        prefecture: data.prefecture || 'tokyo',
+        weeklyHours: data.weeklyHours || null,
+        monthlyWage: data.monthlyWage || null,
+        expectedEmploymentMonths: data.expectedEmploymentMonths || null,
+        isStudent: data.isStudent || false,
+        leaveOfAbsenceStart: data.leaveOfAbsenceStart || '',
+        leaveOfAbsenceEnd: data.leaveOfAbsenceEnd || '',
+        returnFromLeaveDate: data.returnFromLeaveDate || '',
         maternityLeaveStart: data.maternityLeaveStart || '',
         maternityLeaveEnd: data.maternityLeaveEnd || '',
         childcareLeaveStart: data.childcareLeaveStart || '',
@@ -55,72 +97,116 @@ export class EmployeeEditPageComponent implements OnInit {
         childcareNotificationSubmitted: data.childcareNotificationSubmitted || false,
         childcareLivingTogether: data.childcareLivingTogether || false
       });
+
+      // 標準報酬履歴の表示
+      if (data.acquisitionStandard) {
+        this.standardMonthlyRemunerationHistory = `資格取得時決定: ${data.acquisitionStandard.toLocaleString('ja-JP')}円（等級${data.acquisitionGrade || '-'}）`;
+      } else if (data.standardMonthlyRemuneration) {
+        this.standardMonthlyRemunerationHistory = `標準報酬月額: ${data.standardMonthlyRemuneration.toLocaleString('ja-JP')}円`;
+      } else {
+        this.standardMonthlyRemunerationHistory = '未設定';
+      }
+
+      // 初期表示時に自動判定を実行
+      this.updateAutoDetection();
+    }
+  }
+
+  updateAutoDetection(): void {
+    const value = this.form.value;
+    
+    if (!value.birthDate) {
+      this.eligibilityStatus = '';
+      this.ageInfo = '';
+      this.insuranceStatus = { health: '', care: '', pension: '' };
+      return;
+    }
+
+    // 年齢計算（SalaryCalculationServiceを使用）
+    const age = this.salaryCalculationService.calculateAge(value.birthDate);
+    this.ageInfo = `${age}歳`;
+
+    // 年齢到達による保険料停止判定
+    if (age >= 75) {
+      this.insuranceStatus.health = '停止（75歳以上）';
+      this.insuranceStatus.care = '停止（75歳以上）';
+      this.insuranceStatus.pension = age >= 70 ? '停止（70歳以上）' : '加入可能';
+    } else if (age >= 70) {
+      this.insuranceStatus.health = '加入可能';
+      this.insuranceStatus.care = age >= 65 ? '第1号被保険者' : (age >= 40 ? 'あり（40〜64歳）' : 'なし');
+      this.insuranceStatus.pension = '停止（70歳以上）';
+    } else if (age >= 65) {
+      this.insuranceStatus.health = '加入可能';
+      this.insuranceStatus.care = '第1号被保険者';
+      this.insuranceStatus.pension = '加入可能';
+    } else if (age >= 40) {
+      this.insuranceStatus.health = '加入可能';
+      this.insuranceStatus.care = 'あり（40〜64歳）';
+      this.insuranceStatus.pension = '加入可能';
+    } else {
+      this.insuranceStatus.health = '加入可能';
+      this.insuranceStatus.care = 'なし';
+      this.insuranceStatus.pension = '加入可能';
+    }
+
+    // 加入判定（EmployeeEligibilityServiceを使用）
+    if (value.joinDate && value.weeklyHours !== null && value.weeklyHours !== undefined) {
+      const workInfo = {
+        weeklyHours: value.weeklyHours,
+        monthlyWage: value.monthlyWage,
+        expectedEmploymentMonths: value.expectedEmploymentMonths,
+        isStudent: value.isStudent,
+      };
+      
+      const tempEmployee: Partial<Employee> = {
+        birthDate: value.birthDate,
+        joinDate: value.joinDate,
+        retireDate: value.retireDate,
+        isShortTime: value.isShortTime,
+        weeklyHours: value.weeklyHours,
+        monthlyWage: value.monthlyWage,
+        expectedEmploymentMonths: value.expectedEmploymentMonths,
+        isStudent: value.isStudent,
+      };
+      
+      const eligibility = this.employeeEligibilityService.checkEligibility(
+        tempEmployee as Employee,
+        workInfo
+      );
+
+      if (eligibility.candidateFlag) {
+        this.eligibilityStatus = '加入候補者（3ヶ月連続で実働20時間以上）';
+      } else if (eligibility.healthInsuranceEligible || eligibility.pensionEligible) {
+        if (value.isShortTime || (value.weeklyHours >= 20 && value.weeklyHours < 30)) {
+          this.eligibilityStatus = '短時間対象（加入対象）';
+        } else {
+          this.eligibilityStatus = '加入対象';
+        }
+      } else {
+        this.eligibilityStatus = '非対象';
+      }
+    } else {
+      this.eligibilityStatus = '';
     }
   }
 
   validateDates(): void {
-    this.errorMessages = [];
-    this.warningMessages = [];
+    const value = this.form.value;
+    const validationResult = this.employeeLifecycleService.validateEmployeeDates({
+      birthDate: value.birthDate,
+      joinDate: value.joinDate,
+      retireDate: value.retireDate,
+      maternityLeaveStart: value.maternityLeaveStart,
+      maternityLeaveEnd: value.maternityLeaveEnd,
+      childcareLeaveStart: value.childcareLeaveStart,
+      childcareLeaveEnd: value.childcareLeaveEnd,
+      returnFromLeaveDate: value.returnFromLeaveDate,
+      childcareNotificationSubmitted: value.childcareNotificationSubmitted,
+      childcareLivingTogether: value.childcareLivingTogether,
+    });
 
-    const birthDate = this.form.get('birthDate')?.value;
-    const hireDate = this.form.get('hireDate')?.value;
-    const maternityLeaveStart = this.form.get('maternityLeaveStart')?.value;
-    const maternityLeaveEnd = this.form.get('maternityLeaveEnd')?.value;
-    const childcareLeaveStart = this.form.get('childcareLeaveStart')?.value;
-    const childcareLeaveEnd = this.form.get('childcareLeaveEnd')?.value;
-    const childcareNotificationSubmitted = this.form.get('childcareNotificationSubmitted')?.value;
-    const childcareLivingTogether = this.form.get('childcareLivingTogether')?.value;
-
-    // 入社日が生年月日より後かチェック
-    if (birthDate && hireDate) {
-      const birth = new Date(birthDate);
-      const hire = new Date(hireDate);
-      if (hire < birth) {
-        this.errorMessages.push('入社日は生年月日より後である必要があります');
-      }
-    }
-
-    // 産休・育休の日付整合性チェック
-    if (maternityLeaveStart && maternityLeaveEnd && childcareLeaveStart && childcareLeaveEnd) {
-      const matStart = new Date(maternityLeaveStart);
-      const matEnd = new Date(maternityLeaveEnd);
-      const childStart = new Date(childcareLeaveStart);
-      const childEnd = new Date(childcareLeaveEnd);
-
-      if (matStart <= childEnd && matEnd >= childStart) {
-        const daysBetween = (childStart.getTime() - matEnd.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysBetween > 30) {
-          this.errorMessages.push('産休・育休の設定が矛盾しています');
-        }
-      }
-    }
-
-    // 産休開始日 < 終了日
-    if (maternityLeaveStart && maternityLeaveEnd) {
-      const start = new Date(maternityLeaveStart);
-      const end = new Date(maternityLeaveEnd);
-      if (end < start) {
-        this.errorMessages.push('産休終了日は開始日より後である必要があります');
-      }
-    }
-
-    // 育休開始日 < 終了日
-    if (childcareLeaveStart && childcareLeaveEnd) {
-      const start = new Date(childcareLeaveStart);
-      const end = new Date(childcareLeaveEnd);
-      if (end < start) {
-        this.errorMessages.push('育休終了日は開始日より後である必要があります');
-      }
-    }
-
-    // 育休期間中なのに届出未提出または子と同居していない場合の警告
-    if (childcareLeaveStart && childcareLeaveEnd) {
-      const isNotificationSubmitted = childcareNotificationSubmitted === true;
-      const isLivingTogether = childcareLivingTogether === true;
-      if (!isNotificationSubmitted || !isLivingTogether) {
-        this.warningMessages.push('育休期間が設定されていますが、届出未提出または子と同居していない場合、保険料免除の対象外となります');
-      }
-    }
+    this.errorMessages = validationResult.errors;
+    this.warningMessages = validationResult.warnings;
   }
 
   async updateEmployee(): Promise<void> {
@@ -129,7 +215,55 @@ export class EmployeeEditPageComponent implements OnInit {
       return;
     }
     if (!this.employeeId || !this.form.valid) return;
-    await this.employeeService.updateEmployee(this.employeeId, this.form.value);
+
+    const value = this.form.value;
+    const updateData: any = {
+      name: value.name,
+      birthDate: value.birthDate,
+      joinDate: value.joinDate,
+      isShortTime: value.isShortTime ?? false,
+      prefecture: value.prefecture || 'tokyo',
+      isStudent: value.isStudent ?? false,
+      childcareNotificationSubmitted: value.childcareNotificationSubmitted ?? false,
+      childcareLivingTogether: value.childcareLivingTogether ?? false,
+    };
+
+    // 値がある場合のみ追加（undefinedを除外）
+    if (value.retireDate) {
+      updateData.retireDate = value.retireDate;
+    }
+    if (value.weeklyHours) {
+      updateData.weeklyHours = value.weeklyHours;
+    }
+    if (value.monthlyWage) {
+      updateData.monthlyWage = value.monthlyWage;
+    }
+    if (value.expectedEmploymentMonths) {
+      updateData.expectedEmploymentMonths = value.expectedEmploymentMonths;
+    }
+    if (value.leaveOfAbsenceStart) {
+      updateData.leaveOfAbsenceStart = value.leaveOfAbsenceStart;
+    }
+    if (value.leaveOfAbsenceEnd) {
+      updateData.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd;
+    }
+    if (value.returnFromLeaveDate) {
+      updateData.returnFromLeaveDate = value.returnFromLeaveDate;
+    }
+    if (value.maternityLeaveStart) {
+      updateData.maternityLeaveStart = value.maternityLeaveStart;
+    }
+    if (value.maternityLeaveEnd) {
+      updateData.maternityLeaveEnd = value.maternityLeaveEnd;
+    }
+    if (value.childcareLeaveStart) {
+      updateData.childcareLeaveStart = value.childcareLeaveStart;
+    }
+    if (value.childcareLeaveEnd) {
+      updateData.childcareLeaveEnd = value.childcareLeaveEnd;
+    }
+
+    await this.employeeService.updateEmployee(this.employeeId, updateData);
     this.router.navigate([`/employees/${this.employeeId}`]);
   }
 }

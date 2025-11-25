@@ -27,5 +27,6 @@ export interface Bonus {
   isOverAge75?: boolean; // 75歳到達
   isSalaryInsteadOfBonus?: boolean; // 給与扱いフラグ
   exemptReason?: string; // 免除理由
+  notes?: string; // 備考
 }
 

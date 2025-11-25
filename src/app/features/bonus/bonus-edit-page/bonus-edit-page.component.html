@@ -1,0 +1,161 @@
+<h2>賞与編集</h2>
+
+<div class="form-section card">
+  <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <div class="form-group">
+      <label for="employee">従業員</label>
+      <input
+        type="text"
+        [value]="employee?.name || ''"
+        class="form-control"
+        readonly
+        disabled
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="payDate">支給日 <span class="required">*</span></label>
+      <input
+        id="payDate"
+        type="date"
+        formControlName="payDate"
+        (change)="onInputChange()"
+        class="form-control"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="amount">賞与額 <span class="required">*</span></label>
+      <input
+        id="amount"
+        type="text"
+        [value]="bonusAmountDisplay"
+        (input)="onBonusAmountInput($event)"
+        (blur)="onBonusAmountBlur($event)"
+        class="form-control"
+        placeholder="賞与額を入力"
+        required
+      />
+    </div>
+
+    <div class="form-group">
+      <label for="notes">備考</label>
+      <textarea
+        id="notes"
+        formControlName="notes"
+        class="form-control"
+        rows="3"
+      ></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn-primary" [disabled]="form.invalid">更新</button>
+      <button type="button" class="btn-secondary" (click)="onCancel()">キャンセル</button>
+    </div>
+  </form>
+</div>
+
+<!-- 計算結果表示 -->
+<div *ngIf="calculationResult as cr" class="calculation-card card">
+  <!-- エラー・警告メッセージ -->
+  <div *ngIf="cr.errorMessages?.length" class="error-box">
+    <h4>エラー</h4>
+    <ul>
+      <li *ngFor="let err of cr.errorMessages">{{ err }}</li>
+    </ul>
+  </div>
+
+  <div *ngIf="cr.warningMessages?.length" class="warning-box">
+    <h4>警告</h4>
+    <ul>
+      <li *ngFor="let w of cr.warningMessages">{{ w }}</li>
+    </ul>
+  </div>
+
+  <h3>保険料計算結果</h3>
+
+  <!-- 標準賞与額・上限調整結果 -->
+  <div class="info-section">
+    <h4>標準賞与額・上限調整結果</h4>
+    <div class="calculation-item">
+      <span class="label">標準賞与額：</span>
+      <span class="value highlight readonly-value">{{ cr.standardBonus | number : "1.0-0" }}円</span>
+    </div>
+    <div
+      class="calculation-item"
+      *ngIf="cr.cappedBonusHealth !== cr.standardBonus"
+    >
+      <span class="label">健保・介保上限適用後：</span>
+      <span class="value readonly-value">{{ cr.cappedBonusHealth | number : "1.0-0" }}円</span>
+    </div>
+    <div
+      class="calculation-item"
+      *ngIf="cr.cappedBonusPension !== cr.standardBonus"
+    >
+      <span class="label">厚年上限適用後：</span>
+      <span class="value readonly-value">{{ cr.cappedBonusPension | number : "1.0-0" }}円</span>
+    </div>
+  </div>
+
+  <!-- 保険料一覧 -->
+  <div class="info-section">
+    <h4>保険料一覧</h4>
+    <div class="calculation-item">
+      <span class="label">健康保険（本人）：</span>
+      <span class="value readonly-value">{{ cr.healthEmployee | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">健康保険（会社）：</span>
+      <span class="value readonly-value">{{ cr.healthEmployer | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">介護保険（本人）：</span>
+      <span class="value readonly-value">{{ cr.careEmployee | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">介護保険（会社）：</span>
+      <span class="value readonly-value">{{ cr.careEmployer | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">厚生年金（本人）：</span>
+      <span class="value readonly-value">{{ cr.pensionEmployee | number : "1.0-0" }}円</span>
+    </div>
+    <div class="calculation-item">
+      <span class="label">厚生年金（会社）：</span>
+      <span class="value readonly-value">{{ cr.pensionEmployer | number : "1.0-0" }}円</span>
+    </div>
+  </div>
+
+  <!-- 特記事項 -->
+  <div
+    class="special-notes"
+    *ngIf="
+      cr.isExempted || cr.isRetiredNoLastDay || cr.isOverAge70 || cr.isOverAge75 || cr.exemptReason || cr.isSalaryInsteadOfBonus
+    "
+  >
+    <h4>特記事項</h4>
+    <div class="warning-card" *ngIf="cr.exemptReason">
+      <span class="warning-text">{{ cr.exemptReason }}</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isSalaryInsteadOfBonus">
+      <span class="warning-text">{{ cr.reason_bonus_to_salary_text }}</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isRetiredNoLastDay">
+      <span class="warning-text">月末在籍がないため健保・介保保険料0円</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isOverAge70">
+      <span class="warning-text">70歳到達月のため厚生年金保険料停止</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isOverAge75">
+      <span class="warning-text">75歳到達月のため健保・介保保険料停止</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isExempted">
+      <span class="warning-text exempt">免除中</span>
+    </div>
+    <div class="warning-card" *ngIf="cr.isSalaryInsteadOfBonus">
+      <span class="warning-text salary-mode">給与扱い</span>
+    </div>
+  </div>
+</div>
+

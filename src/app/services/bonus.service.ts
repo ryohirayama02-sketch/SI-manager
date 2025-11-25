@@ -7,7 +7,10 @@ import {
   where,
   getDocs,
   doc,
+  getDoc,
   setDoc,
+  updateDoc,
+  deleteDoc,
 } from '@angular/fire/firestore';
 import { Timestamp, serverTimestamp } from 'firebase/firestore';
 import { Bonus } from '../models/bonus.model';
@@ -167,5 +170,80 @@ export class BonusService {
       }
       return allBonuses;
     }
+  }
+
+  /**
+   * 賞与を削除する
+   * @param year 年度
+   * @param employeeId 従業員ID
+   * @param bonusId 賞与ID（ドキュメントID）
+   */
+  async deleteBonus(year: number, employeeId: string, bonusId: string): Promise<void> {
+    const ref = doc(
+      this.firestore,
+      `bonus/${year}/employees/${employeeId}/items/${bonusId}`
+    );
+    await deleteDoc(ref);
+  }
+
+  /**
+   * 賞与を1件取得する
+   * @param year 年度
+   * @param employeeId 従業員ID
+   * @param bonusId 賞与ID（ドキュメントID）
+   * @returns 賞与データ
+   */
+  async getBonus(year: number, employeeId: string, bonusId: string): Promise<Bonus | null> {
+    const ref = doc(
+      this.firestore,
+      `bonus/${year}/employees/${employeeId}/items/${bonusId}`
+    );
+    const snapshot = await getDoc(ref);
+    if (snapshot.exists()) {
+      return { id: snapshot.id, ...snapshot.data() } as Bonus;
+    }
+    return null;
+  }
+
+  /**
+   * 賞与を1件取得する（年度を自動検索）
+   * @param employeeId 従業員ID
+   * @param bonusId 賞与ID（ドキュメントID）
+   * @returns 賞与データと年度のタプル
+   */
+  async getBonusWithYear(employeeId: string, bonusId: string): Promise<{ bonus: Bonus; year: number } | null> {
+    // 現在年度±2年の範囲で検索
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+      const bonus = await this.getBonus(year, employeeId, bonusId);
+      if (bonus) {
+        return { bonus, year };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 賞与を更新する
+   * @param year 年度
+   * @param employeeId 従業員ID
+   * @param bonusId 賞与ID（ドキュメントID）
+   * @param data 更新データ
+   */
+  async updateBonus(year: number, employeeId: string, bonusId: string, data: Partial<Bonus>): Promise<void> {
+    const ref = doc(
+      this.firestore,
+      `bonus/${year}/employees/${employeeId}/items/${bonusId}`
+    );
+    
+    // undefinedの値を除外
+    const cleanData: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        cleanData[key] = value;
+      }
+    }
+    
+    await updateDoc(ref, cleanData);
   }
 }

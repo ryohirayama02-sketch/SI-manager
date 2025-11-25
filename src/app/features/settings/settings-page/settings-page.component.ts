@@ -20,6 +20,7 @@ export class SettingsPageComponent implements OnInit {
   prefecture = 'tokyo';
   form: any;
   settingsForm: FormGroup;
+  rateVersionForm: FormGroup;
   standardTable: FormArray;
   standardTableForm: any;
   salaryItems: FormArray;
@@ -42,7 +43,10 @@ export class SettingsPageComponent implements OnInit {
       pension_employer: [0, Validators.required],
     });
     this.settingsForm = this.fb.group({
-      payrollMonthRule: ['payday', Validators.required]
+      salaryMonthRule: ['payDate', Validators.required]
+    });
+    this.rateVersionForm = this.fb.group({
+      applyFromMonth: [4, [Validators.required, Validators.min(1), Validators.max(12)]]
     });
     this.standardTable = this.fb.array([]);
     this.standardTableForm = this.fb.group({
@@ -172,8 +176,29 @@ export class SettingsPageComponent implements OnInit {
         effectiveFrom: `${this.year}-04`
       });
     }
-    const settings = await this.settingsService.loadSettings();
-    this.settingsForm.patchValue(settings);
+    
+    // 給与月の判定方法をロード
+    const salaryMonthRule = await this.settingsService.getSalaryMonthRule();
+    this.settingsForm.patchValue({ salaryMonthRule });
+    
+    // 変更時に自動保存
+    this.settingsForm.get('salaryMonthRule')?.valueChanges.subscribe(async (value) => {
+      if (value) {
+        await this.settingsService.saveSalaryMonthRule(value);
+      }
+    });
+    
+    // 適用開始月（改定月）をロード
+    const versionInfo = await this.settingsService.getRateVersionInfo(this.year);
+    this.rateVersionForm.patchValue({ applyFromMonth: versionInfo.applyFromMonth });
+    
+    // 変更時に自動保存
+    this.rateVersionForm.get('applyFromMonth')?.valueChanges.subscribe(async (value) => {
+      if (value && value >= 1 && value <= 12) {
+        await this.settingsService.saveRateVersionInfo(this.year, value);
+      }
+    });
+    
     await this.loadStandardTable();
     await this.loadSalaryItems();
   }
@@ -239,10 +264,8 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async saveSettings(): Promise<void> {
-    const settings: Settings = {
-      payrollMonthRule: this.settingsForm.get('payrollMonthRule')?.value || 'payday'
-    };
-    await this.settingsService.saveSettings(settings);
+    const salaryMonthRule = this.settingsForm.get('salaryMonthRule')?.value || 'payDate';
+    await this.settingsService.saveSalaryMonthRule(salaryMonthRule);
     alert('設定を保存しました');
   }
 

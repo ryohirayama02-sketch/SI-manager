@@ -201,3 +201,54 @@
   </ng-template>
 </div>
 
+<!-- 賞与一覧 -->
+<div class="bonus-list-section card" *ngIf="selectedEmployeeId">
+  <h3>賞与一覧（{{ year }}年度）</h3>
+  
+  <div *ngIf="bonusList.length === 0" class="no-data-message" style="padding: 2rem; text-align: center; color: #666;">
+    賞与データがありません
+  </div>
+
+  <table class="bonus-list" *ngIf="bonusList.length > 0">
+    <thead>
+      <tr>
+        <th>支給日</th>
+        <th>賞与額</th>
+        <th>標準賞与額</th>
+        <th>健康保険<br>本人/会社</th>
+        <th>介護保険<br>本人/会社</th>
+        <th>厚生年金<br>本人/会社</th>
+        <th>合計</th>
+        <th>状態</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let bonus of bonusList">
+        <td>{{ bonus.payDate }}</td>
+        <td>{{ bonus.amount | number:'1.0-0' }}円</td>
+        <td>{{ bonus.standardBonusAmount || 0 | number:'1.0-0' }}円</td>
+        <td>
+          {{ bonus.healthEmployee || 0 | number:'1.0-0' }} / {{ bonus.healthEmployer || 0 | number:'1.0-0' }}
+        </td>
+        <td>
+          {{ bonus.careEmployee || 0 | number:'1.0-0' }} / {{ bonus.careEmployer || 0 | number:'1.0-0' }}
+        </td>
+        <td>
+          {{ bonus.pensionEmployee || 0 | number:'1.0-0' }} / {{ bonus.pensionEmployer || 0 | number:'1.0-0' }}
+        </td>
+        <td>{{ getBonusTotal(bonus) | number:'1.0-0' }}円</td>
+        <td>
+          <span *ngIf="bonus.isExempted || bonus.isExempt" class="exempt">免除中</span>
+          <span *ngIf="bonus.isSalaryInsteadOfBonus" class="salary-mode">給与扱い</span>
+          <span *ngIf="!bonus.isExempted && !bonus.isExempt && !bonus.isSalaryInsteadOfBonus">-</span>
+        </td>
+        <td>
+          <a [routerLink]="['/bonus', bonus.employeeId, bonus.id, 'edit']" class="btn-link" style="margin-right: 0.5rem;">編集</a>
+          <button (click)="deleteBonus(bonus)" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.9rem;">削除</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+

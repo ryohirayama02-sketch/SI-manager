@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { EmployeeService } from '../../services/employee.service';
 import { BonusService } from '../../services/bonus.service';
 import { SettingsService } from '../../services/settings.service';
@@ -11,7 +12,7 @@ import { Bonus } from '../../models/bonus.model';
 @Component({
   selector: 'app-bonus-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './bonus-page.component.html',
   styleUrl: './bonus-page.component.css'
 })
@@ -28,6 +29,9 @@ export class BonusPageComponent implements OnInit {
 
   // 計算結果（次のStepで使用）
   calculationResult: BonusCalculationResult | null = null;
+
+  // 賞与一覧
+  bonusList: Bonus[] = [];
 
   constructor(
     private employeeService: EmployeeService,
@@ -77,6 +81,59 @@ export class BonusPageComponent implements OnInit {
 
   async onInputChange(): Promise<void> {
     await this.updateBonusCalculation();
+    // 従業員選択時に賞与一覧を読み込み
+    if (this.selectedEmployeeId) {
+      await this.loadBonusList();
+    } else {
+      this.bonusList = [];
+    }
+  }
+
+  async loadBonusList(): Promise<void> {
+    if (!this.selectedEmployeeId) {
+      this.bonusList = [];
+      return;
+    }
+
+    try {
+      const bonuses = await this.bonusService.loadBonus(this.year, this.selectedEmployeeId);
+      // 支給日の降順でソート（新しい順）
+      this.bonusList = bonuses.sort((a, b) => {
+        const dateA = new Date(a.payDate).getTime();
+        const dateB = new Date(b.payDate).getTime();
+        return dateB - dateA; // 降順
+      });
+    } catch (error) {
+      console.error('賞与一覧の取得エラー:', error);
+      this.bonusList = [];
+    }
+  }
+
+  async deleteBonus(bonus: Bonus): Promise<void> {
+    if (!confirm(`賞与（${bonus.payDate}、${this.formatAmount(bonus.amount)}円）を削除しますか？`)) {
+      return;
+    }
+
+    try {
+      if (!bonus.id) {
+        alert('削除対象の賞与IDが取得できませんでした');
+        return;
+      }
+      await this.bonusService.deleteBonus(this.year, bonus.employeeId, bonus.id);
+      alert('賞与データを削除しました');
+      // 一覧を再読み込み
+      await this.loadBonusList();
+    } catch (error) {
+      console.error('賞与削除エラー:', error);
+      alert('削除に失敗しました');
+    }
+  }
+
+  getBonusTotal(bonus: Bonus): number {
+    const healthTotal = (bonus.healthEmployee || 0) + (bonus.healthEmployer || 0);
+    const careTotal = (bonus.careEmployee || 0) + (bonus.careEmployer || 0);
+    const pensionTotal = (bonus.pensionEmployee || 0) + (bonus.pensionEmployer || 0);
+    return healthTotal + careTotal + pensionTotal;
   }
 
   async updateBonusCalculation(): Promise<void> {
@@ -161,6 +218,9 @@ export class BonusPageComponent implements OnInit {
       await this.bonusService.saveBonus(this.year, bonus);
       alert('賞与データを保存しました');
       
+      // 賞与一覧を再読み込み（フォームリセット前に実行）
+      await this.loadBonusList();
+      
       // フォームリセット
       this.selectedEmployeeId = '';
       this.bonusAmount = null;
@@ -168,6 +228,7 @@ export class BonusPageComponent implements OnInit {
       this.paymentMonth = 1;
       this.isExempt = false;
       this.calculationResult = null;
+      this.bonusList = [];
     } catch (error) {
       console.error('賞与登録エラー:', error);
       alert('登録に失敗しました');

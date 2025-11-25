@@ -143,3 +143,54 @@
   margin: 0;
   font-size: 1.1rem;
 }
+
+.premium-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.premium-table th,
+.premium-table td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: center;
+}
+
+.premium-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.premium-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.exempt-row {
+  background-color: #fff8e1;
+}
+
+.exempt-row td {
+  color: #ff6b00;
+}
+
+.total-row {
+  background-color: #e3f2fd;
+  font-weight: bold;
+}
+
+.total-row td {
+  border-top: 2px solid #2196f3;
+}
+
+.no-data-row td {
+  text-align: center;
+  padding: 1rem;
+  color: #666;
+}
+
+.exempt-text {
+  color: #ff6b00;
+  font-weight: bold;
+}

@@ -2,6 +2,7 @@
 
 <div class="card">
   <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <h3>基本情報</h3>
     <div class="form-group">
       <label for="name">氏名 <span class="required">*</span></label>
       <input id="name" type="text" formControlName="name" class="form-control" required>
@@ -10,6 +11,7 @@
     <div class="form-group">
       <label for="birthDate">生年月日 <span class="required">*</span></label>
       <input id="birthDate" type="date" formControlName="birthDate" class="form-control" required (change)="validate()">
+      <small *ngIf="ageInfo" class="form-text">現在の年齢: {{ ageInfo }}</small>
     </div>
 
     <div class="form-group">
@@ -18,24 +20,118 @@
     </div>
 
     <div class="form-group">
+      <label for="retireDate">退職日</label>
+      <input id="retireDate" type="date" formControlName="retireDate" class="form-control" (change)="validate()">
+    </div>
+
+    <div class="form-group">
+      <label for="prefecture">事業所の都道府県</label>
+      <select id="prefecture" formControlName="prefecture" class="form-control">
+        <option value="tokyo">東京都</option>
+        <option value="hokkaido">北海道</option>
+        <option value="osaka">大阪府</option>
+      </select>
+    </div>
+
+    <h3>労働条件</h3>
+    <div class="form-group">
       <label>
         <input type="checkbox" formControlName="isShortTime">
         短時間労働者
       </label>
     </div>
 
-    <button type="submit" [disabled]="form.invalid" class="btn-primary">登録</button>
+    <div class="form-group">
+      <label for="weeklyHours">週所定労働時間</label>
+      <input id="weeklyHours" type="number" formControlName="weeklyHours" class="form-control" min="0" step="0.5">
+    </div>
+
+    <div class="form-group">
+      <label for="monthlyWage">月額賃金（固定的給与）</label>
+      <input id="monthlyWage" type="number" formControlName="monthlyWage" class="form-control" min="0" step="1">
+    </div>
+
+    <div class="form-group">
+      <label for="expectedEmploymentMonths">雇用見込期間（月）</label>
+      <input id="expectedEmploymentMonths" type="number" formControlName="expectedEmploymentMonths" class="form-control" min="0" step="1">
+      <small class="form-text">短時間労働者の場合、2ヶ月超が必要</small>
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="isStudent">
+        学生
+      </label>
+    </div>
+
+    <h3>休職・復職情報</h3>
+    <div class="form-group">
+      <label for="leaveOfAbsenceStart">休職開始日</label>
+      <input id="leaveOfAbsenceStart" type="date" formControlName="leaveOfAbsenceStart" class="form-control" (change)="validate()">
+    </div>
+    <div class="form-group">
+      <label for="leaveOfAbsenceEnd">休職終了日</label>
+      <input id="leaveOfAbsenceEnd" type="date" formControlName="leaveOfAbsenceEnd" class="form-control" (change)="validate()">
+    </div>
+    <div class="form-group">
+      <label for="returnFromLeaveDate">復職日</label>
+      <input id="returnFromLeaveDate" type="date" formControlName="returnFromLeaveDate" class="form-control" (change)="validate()">
+    </div>
+
+    <h3>産前産後休業情報</h3>
+    <div class="form-group">
+      <label for="maternityLeaveStart">産前産後休業開始日</label>
+      <input id="maternityLeaveStart" type="date" formControlName="maternityLeaveStart" class="form-control" (change)="validate()">
+    </div>
+    <div class="form-group">
+      <label for="maternityLeaveEnd">産前産後休業終了日</label>
+      <input id="maternityLeaveEnd" type="date" formControlName="maternityLeaveEnd" class="form-control" (change)="validate()">
+    </div>
+
+    <h3>育児休業情報</h3>
+    <div class="form-group">
+      <label for="childcareLeaveStart">育児休業開始日</label>
+      <input id="childcareLeaveStart" type="date" formControlName="childcareLeaveStart" class="form-control" (change)="validate()">
+    </div>
+    <div class="form-group">
+      <label for="childcareLeaveEnd">育児休業終了日</label>
+      <input id="childcareLeaveEnd" type="date" formControlName="childcareLeaveEnd" class="form-control" (change)="validate()">
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="childcareNotificationSubmitted">
+        育児休業取得届の提出済
+      </label>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="childcareLivingTogether">
+        子と同居している（養育している）
+      </label>
+    </div>
+
+    <!-- 自動判定結果の表示 -->
+    <div *ngIf="eligibilityStatus || ageInfo" class="info-box" style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-radius: 4px;">
+      <h4>自動判定結果</h4>
+      <p *ngIf="ageInfo"><strong>年齢:</strong> {{ ageInfo }}</p>
+      <p *ngIf="eligibilityStatus"><strong>社会保険対象区分:</strong> {{ eligibilityStatus }}</p>
+      <p *ngIf="insuranceStatus.health"><strong>健康保険:</strong> {{ insuranceStatus.health }}</p>
+      <p *ngIf="insuranceStatus.care"><strong>介護保険:</strong> {{ insuranceStatus.care }}</p>
+      <p *ngIf="insuranceStatus.pension"><strong>厚生年金:</strong> {{ insuranceStatus.pension }}</p>
+    </div>
+
+    <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">登録</button>
   </form>
 
   <!-- エラー・警告メッセージ -->
-  <div *ngIf="errorMessages?.length" class="error-box">
+  <div *ngIf="errorMessages?.length" class="error-box" style="margin-top: 1rem;">
     <h4>エラー</h4>
     <ul>
       <li *ngFor="let err of errorMessages">{{ err }}</li>
     </ul>
   </div>
 
-  <div *ngIf="warningMessages?.length" class="warning-box">
+  <div *ngIf="warningMessages?.length" class="warning-box" style="margin-top: 1rem;">
     <h4>警告</h4>
     <ul>
       <li *ngFor="let w of warningMessages">{{ w }}</li>
