@@ -87,6 +87,14 @@ export class SettingsPageComponent implements OnInit {
     { code: 'okinawa', name: '沖縄県' }
   ];
 
+  getPrefectureListColumn1(): any[] {
+    return this.prefectureList.slice(0, Math.ceil(this.prefectureList.length / 2));
+  }
+
+  getPrefectureListColumn2(): any[] {
+    return this.prefectureList.slice(Math.ceil(this.prefectureList.length / 2));
+  }
+
   constructor(
     private fb: FormBuilder,
     private settingsService: SettingsService

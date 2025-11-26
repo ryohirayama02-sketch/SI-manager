@@ -38,39 +38,77 @@
 
   <!-- 健康保険（47都道府県） -->
   <h3>健康保険（協会けんぽ）</h3>
-  <div style="overflow-x: auto; margin-bottom: 1.5rem;">
-    <table class="rate-table">
-      <thead>
-        <tr>
-          <th style="min-width: 100px;">都道府県</th>
-          <th style="min-width: 80px;">健保_本人</th>
-          <th style="min-width: 80px;">健保_会社</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let pref of prefectureList">
-          <td>{{ pref.name }}</td>
-          <td>
-            <input 
-              type="number" 
-              [value]="prefectureRates[pref.code]?.health_employee || 0"
-              (input)="onHealthEmployeeInput(pref.code, $event)"
-              (blur)="savePrefectureRate(pref.code)"
-              class="form-control rate-input"
-              min="0" max="1" step="0.0001">
-          </td>
-          <td>
-            <input 
-              type="number" 
-              [value]="prefectureRates[pref.code]?.health_employer || 0"
-              (input)="onHealthEmployerInput(pref.code, $event)"
-              (blur)="savePrefectureRate(pref.code)"
-              class="form-control rate-input"
-              min="0" max="1" step="0.0001">
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+    <!-- 左列 -->
+    <div style="overflow-x: auto;">
+      <table class="rate-table">
+        <thead>
+          <tr>
+            <th style="min-width: 100px;">都道府県</th>
+            <th style="min-width: 80px;">健保_本人</th>
+            <th style="min-width: 80px;">健保_会社</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let pref of getPrefectureListColumn1()">
+            <td>{{ pref.name }}</td>
+            <td>
+              <input 
+                type="number" 
+                [value]="prefectureRates[pref.code]?.health_employee || 0"
+                (input)="onHealthEmployeeInput(pref.code, $event)"
+                (blur)="savePrefectureRate(pref.code)"
+                class="form-control rate-input"
+                min="0" max="1" step="0.0001">
+            </td>
+            <td>
+              <input 
+                type="number" 
+                [value]="prefectureRates[pref.code]?.health_employer || 0"
+                (input)="onHealthEmployerInput(pref.code, $event)"
+                (blur)="savePrefectureRate(pref.code)"
+                class="form-control rate-input"
+                min="0" max="1" step="0.0001">
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- 右列 -->
+    <div style="overflow-x: auto;">
+      <table class="rate-table">
+        <thead>
+          <tr>
+            <th style="min-width: 100px;">都道府県</th>
+            <th style="min-width: 80px;">健保_本人</th>
+            <th style="min-width: 80px;">健保_会社</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let pref of getPrefectureListColumn2()">
+            <td>{{ pref.name }}</td>
+            <td>
+              <input 
+                type="number" 
+                [value]="prefectureRates[pref.code]?.health_employee || 0"
+                (input)="onHealthEmployeeInput(pref.code, $event)"
+                (blur)="savePrefectureRate(pref.code)"
+                class="form-control rate-input"
+                min="0" max="1" step="0.0001">
+            </td>
+            <td>
+              <input 
+                type="number" 
+                [value]="prefectureRates[pref.code]?.health_employer || 0"
+                (input)="onHealthEmployerInput(pref.code, $event)"
+                (blur)="savePrefectureRate(pref.code)"
+                class="form-control rate-input"
+                min="0" max="1" step="0.0001">
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- 介護保険（全国一律） -->
