@@ -162,50 +162,67 @@
   </div>
 </div>
 
-<h2>標準報酬月額テーブル</h2>
+<h2>
+  標準報酬月額テーブル
+  <button 
+    type="button" 
+    (click)="isStandardTableExpanded = !isStandardTableExpanded"
+    style="margin-left: 1rem; padding: 0.25rem 0.5rem; font-size: 0.85rem; border: 1px solid #ccc; background: #f5f5f5; cursor: pointer; border-radius: 4px;">
+    {{ isStandardTableExpanded ? '折り畳む' : '展開する' }}
+  </button>
+</h2>
 
-<div class="card">
-  <div class="form-group">
-    <label>年度：</label>
-    <select [(ngModel)]="gradeYear" (change)="onGradeYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-      <option *ngFor="let y of availableGradeYears" [value]="y.toString()">{{ y }}年</option>
-    </select>
-  </div>
-  <div class="info-label">
-    標準報酬月額テーブルは上限＝次の等級の下限になるように編集してください。等級が連続していない場合はエラーが表示されます。
+<div class="card" *ngIf="isStandardTableExpanded">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label>年度：</label>
+      <select [(ngModel)]="gradeYear" (change)="onGradeYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let y of availableGradeYears" [value]="y.toString()">{{ y }}年</option>
+      </select>
+    </div>
+    <span style="font-size: 0.85rem; color: #666;">単位：円</span>
   </div>
   <form [formGroup]="standardTableForm">
     <div formArrayName="standardTable">
-      <div *ngFor="let row of standardTable.controls; let i = index" [formGroupName]="i" class="row-card">
-        <h4>等級 {{ row.get('rank')?.value }}</h4>
-        <div class="form-group">
-          <label>下限：</label>
-          <input 
-            type="text" 
-            [value]="getAmountDisplayValue(i, 'lower')"
-            (input)="onAmountInput(i, 'lower', $event)"
-            (blur)="onAmountBlur(i, 'lower', $event)"
-            class="form-control"> 円
-        </div>
-        <div class="form-group">
-          <label>上限：</label>
-          <input 
-            type="text" 
-            [value]="getAmountDisplayValue(i, 'upper')"
-            (input)="onAmountInput(i, 'upper', $event)"
-            (blur)="onAmountBlur(i, 'upper', $event)"
-            class="form-control"> 円
-        </div>
-        <div class="form-group">
-          <label>標準報酬月額：</label>
-          <input 
-            type="text" 
-            [value]="getAmountDisplayValue(i, 'standard')"
-            (input)="onAmountInput(i, 'standard', $event)"
-            (blur)="onAmountBlur(i, 'standard', $event)"
-            class="form-control"> 円
-        </div>
-      </div>
+      <table class="grade-table">
+        <thead>
+          <tr>
+            <th>等級</th>
+            <th>標準報酬月額</th>
+            <th>下限</th>
+            <th>上限</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of standardTable.controls; let i = index" [formGroupName]="i">
+            <td>{{ row.get('rank')?.value }}</td>
+            <td>
+              <input 
+                type="text" 
+                [value]="getAmountDisplayValue(i, 'standard')"
+                (input)="onAmountInput(i, 'standard', $event)"
+                (blur)="onAmountBlur(i, 'standard', $event)"
+                class="form-control">
+            </td>
+            <td>
+              <input 
+                type="text" 
+                [value]="getAmountDisplayValue(i, 'lower')"
+                (input)="onAmountInput(i, 'lower', $event)"
+                (blur)="onAmountBlur(i, 'lower', $event)"
+                class="form-control">
+            </td>
+            <td>
+              <input 
+                type="text" 
+                [value]="getAmountDisplayValue(i, 'upper')"
+                (input)="onAmountInput(i, 'upper', $event)"
+                (blur)="onAmountBlur(i, 'upper', $event)"
+                class="form-control">
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </form>
 
@@ -228,6 +245,9 @@
     <button (click)="seedStandardTable()" class="btn-primary">標準報酬等級表の初期データを一括登録（50等級）</button>
     <button (click)="saveStandardTable()" class="btn-success">標準報酬月額テーブルを保存する</button>
   </div>
+</div>
+<div class="card" *ngIf="!isStandardTableExpanded" style="padding: 1rem; text-align: center; color: #666;">
+  <p>標準報酬月額テーブルは折り畳まれています。「展開する」ボタンをクリックして表示してください。</p>
 </div>
 
 <h2>給与項目マスタ</h2>

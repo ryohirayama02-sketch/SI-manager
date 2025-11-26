@@ -30,6 +30,7 @@ export class SettingsPageComponent implements OnInit {
   salaryItemsForm: FormGroup;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
+  isStandardTableExpanded: boolean = true;
 
   constructor(
     private fb: FormBuilder,
