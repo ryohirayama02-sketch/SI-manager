@@ -1,3 +1,30 @@
+.alert-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.alert-table th,
+.alert-table td {
+  padding: 8px;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+.alert-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.alert-row {
+  /* 随時改定対象の行全体を少し目立たせる */
+  background-color: #fff8e1;
+}
+
+.large-change-row {
+  /* 等級差が2以上のケースをさらに強調 */
+  font-weight: bold;
+}
+
 .alerts-dashboard {
   padding: 1rem;
 }

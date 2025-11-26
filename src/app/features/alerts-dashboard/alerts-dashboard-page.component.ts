@@ -1,7 +1,21 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { AlertItemListComponent } from './alert-item-list/alert-item-list.component';
+import { SuijiService } from '../../services/suiji.service';
+import { EmployeeService } from '../../services/employee.service';
+import { MonthlySalaryService } from '../../services/monthly-salary.service';
+import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
+import { NotificationCalculationService } from '../../services/notification-calculation.service';
+import { NotificationFormatService } from '../../services/notification-format.service';
+import { SettingsService } from '../../services/settings.service';
+import { BonusService } from '../../services/bonus.service';
+import { SuijiKouhoResult } from '../../services/salary-calculation.service';
+import { NotificationDecisionResult } from '../../services/notification-decision.service';
+import { Employee } from '../../models/employee.model';
+import { Bonus } from '../../models/bonus.model';
 
 export interface AlertItem {
   id: string;
@@ -11,117 +25,231 @@ export interface AlertItem {
   targetMonth: string;
 }
 
+// 前月比差額を含む拡張型
+interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
+  diffPrev?: number | null;
+}
+
 @Component({
   selector: 'app-alerts-dashboard-page',
   standalone: true,
-  imports: [CommonModule, RouterModule, AlertItemListComponent],
+  imports: [CommonModule, FormsModule, RouterModule, AlertItemListComponent],
   templateUrl: './alerts-dashboard-page.component.html',
   styleUrl: './alerts-dashboard-page.component.css'
 })
-export class AlertsDashboardPageComponent {
-  activeTab: 'suiji' | 'notifications' = 'notifications';
+export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
+  activeTab: 'suiji' | 'notifications' = 'suiji';
   
-  // 仮データ（14種類のアラート）
-  mockAlerts: AlertItem[] = [
-    {
-      id: '1',
-      employeeName: '佐藤太郎',
-      alertType: '資格取得届',
-      comment: '新規入社により資格取得',
-      targetMonth: '2025年4月'
-    },
-    {
-      id: '2',
-      employeeName: '田中花子',
-      alertType: '資格喪失届',
-      comment: '退職により資格喪失',
-      targetMonth: '2025年5月'
-    },
-    {
-      id: '3',
-      employeeName: '鈴木一郎',
-      alertType: '算定基礎届（定時決定）',
-      comment: '4〜6月平均による定時決定',
-      targetMonth: '2025年7月'
-    },
-    {
-      id: '4',
-      employeeName: '山田次郎',
-      alertType: '月額変更届（随時改定）',
-      comment: '固定的賃金変動による随時改定',
-      targetMonth: '2025年8月'
-    },
-    {
-      id: '5',
-      employeeName: '高橋三郎',
-      alertType: '賞与支払届',
-      comment: '賞与支給により提出必要',
-      targetMonth: '2025年6月'
-    },
-    {
-      id: '6',
-      employeeName: '伊藤四郎',
-      alertType: '産前産後休業取得届',
-      comment: '産前産後休業開始',
-      targetMonth: '2025年9月'
-    },
-    {
-      id: '7',
-      employeeName: '渡辺五郎',
-      alertType: '産前産後休業終了届',
-      comment: '産前産後休業終了',
-      targetMonth: '2025年12月'
-    },
-    {
-      id: '8',
-      employeeName: '中村六郎',
-      alertType: '育児休業取得届',
-      comment: '育児休業開始',
-      targetMonth: '2025年10月'
-    },
-    {
-      id: '9',
-      employeeName: '小林七郎',
-      alertType: '育児休業終了届',
-      comment: '育児休業終了',
-      targetMonth: '2026年3月'
-    },
-    {
-      id: '10',
-      employeeName: '加藤八郎',
-      alertType: '（短時間労働者）育休の事業主証明書',
-      comment: '短時間労働者の育児休業取得',
-      targetMonth: '2025年11月'
-    },
-    {
-      id: '11',
-      employeeName: '吉田九郎',
-      alertType: '70歳到達（厚年 資格喪失届）',
-      comment: '70歳到達により厚生年金資格喪失',
-      targetMonth: '2025年7月'
-    },
-    {
-      id: '12',
-      employeeName: '山本十郎',
-      alertType: '75歳到達（健保 資格喪失届）',
-      comment: '75歳到達により健康保険資格喪失',
-      targetMonth: '2025年8月'
-    },
-    {
-      id: '13',
-      employeeName: '松本十一郎',
-      alertType: '同月得喪の届出案内',
-      comment: '同月内に資格取得と喪失が発生',
-      targetMonth: '2025年9月'
-    },
-    {
-      id: '14',
-      employeeName: '井上十二郎',
-      alertType: '特定適用事業所パートの資格取得届（週20h超）',
-      comment: '週20時間超のパートタイマーが加入対象',
-      targetMonth: '2025年6月'
+  // 随時改定アラート関連
+  suijiAlerts: SuijiKouhoResultWithDiff[] = [];
+  employees: Employee[] = [];
+  year: number = 2025;
+  availableYears: number[] = [];
+  salaries: {
+    [key: string]: { total: number; fixed: number; variable: number };
+  } = {};
+  salarySubscription: Subscription | null = null;
+  eligibilitySubscription: Subscription | null = null;
+  
+  // 届出アラート関連
+  notificationAlerts: AlertItem[] = [];
+  notificationsByEmployee: { [employeeId: string]: NotificationDecisionResult[] } = {};
+  salaryDataByEmployeeId: { [employeeId: string]: any } = {};
+  bonusesByEmployeeId: { [employeeId: string]: Bonus[] } = {};
+  gradeTable: any[] = [];
+
+  constructor(
+    private suijiService: SuijiService,
+    private employeeService: EmployeeService,
+    private monthlySalaryService: MonthlySalaryService,
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private notificationCalculationService: NotificationCalculationService,
+    private notificationFormatService: NotificationFormatService,
+    private settingsService: SettingsService,
+    private bonusService: BonusService
+  ) {
+    // 年度選択用の年度リストを生成（2023〜2026）
+    for (let y = 2023; y <= 2026; y++) {
+      this.availableYears.push(y);
     }
-  ];
+  }
+
+  async ngOnInit(): Promise<void> {
+    this.employees = await this.employeeService.getAllEmployees();
+    this.gradeTable = await this.settingsService.getStandardTable(this.year);
+    
+    // 給与データと賞与データを読み込み
+    await this.loadSalaryData();
+    await this.loadBonusData();
+    
+    await this.loadSalaries();
+    await this.loadSuijiAlerts(this.year);
+    await this.loadNotificationAlerts();
+    
+    // 給与データの変更を購読
+    this.salarySubscription = this.monthlySalaryService
+      .observeMonthlySalaries(this.year)
+      .subscribe(() => {
+        this.loadSalaries().then(() => {
+          this.loadSuijiAlerts(this.year);
+          this.loadNotificationAlerts();
+        });
+      });
+
+    // 加入区分の変更を購読
+    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
+      this.reloadEligibility();
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.salarySubscription?.unsubscribe();
+    this.eligibilitySubscription?.unsubscribe();
+  }
+
+  async reloadEligibility(): Promise<void> {
+    await this.loadSuijiAlerts(this.year);
+    await this.loadNotificationAlerts();
+  }
+
+  async loadSalaries(): Promise<void> {
+    this.salaries = {};
+    for (const emp of this.employees) {
+      const data = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+      if (!data) continue;
+
+      for (let month = 1; month <= 12; month++) {
+        const monthKey = month.toString();
+        const monthData = data[monthKey];
+        if (monthData) {
+          const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+          const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+          const total = monthData.totalSalary ?? monthData.total ?? fixed + variable;
+          const key = this.getSalaryKey(emp.id, month);
+          this.salaries[key] = { total, fixed, variable };
+        }
+      }
+    }
+  }
+
+  getSalaryKey(employeeId: string, month: number): string {
+    return `${employeeId}_${month}`;
+  }
+
+  async loadSuijiAlerts(year: number): Promise<void> {
+    const loadedAlerts = await this.suijiService.loadAlerts(year);
+    this.suijiAlerts = loadedAlerts.map(alert => ({
+      ...alert,
+      diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth)
+    }));
+  }
+
+  getPrevMonthDiff(employeeId: string, month: number): number | null {
+    const prevMonth = month - 1;
+    if (prevMonth < 1) return null;
+
+    const prevKey = this.getSalaryKey(employeeId, prevMonth);
+    const currKey = this.getSalaryKey(employeeId, month);
+
+    const prev = this.salaries[prevKey];
+    const curr = this.salaries[currKey];
+    if (!prev || !curr) return null;
+
+    const prevTotal = (prev.fixed || 0) + (prev.variable || 0);
+    const currTotal = (curr.fixed || 0) + (curr.variable || 0);
+
+    return currTotal - prevTotal;
+  }
+
+  getEmployeeName(employeeId: string): string {
+    const emp = this.employees.find(e => e.id === employeeId);
+    return emp?.name || employeeId;
+  }
+
+  getStatusText(result: SuijiKouhoResultWithDiff): string {
+    return result.isEligible ? '要提出' : '提出不要';
+  }
+
+  getReasonText(result: SuijiKouhoResultWithDiff): string {
+    return result.reasons.join(' / ');
+  }
+
+  async loadSalaryData(): Promise<void> {
+    this.salaryDataByEmployeeId = {};
+    for (const emp of this.employees) {
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
+      this.salaryDataByEmployeeId[emp.id] = salaryData;
+    }
+  }
+
+  async loadBonusData(): Promise<void> {
+    const bonuses = await this.bonusService.loadBonus(this.year);
+    this.bonusesByEmployeeId = {};
+    for (const bonus of bonuses) {
+      if (!this.bonusesByEmployeeId[bonus.employeeId]) {
+        this.bonusesByEmployeeId[bonus.employeeId] = [];
+      }
+      this.bonusesByEmployeeId[bonus.employeeId].push(bonus);
+    }
+  }
+
+  async loadNotificationAlerts(): Promise<void> {
+    // 届出要否を計算
+    this.notificationsByEmployee = await this.notificationCalculationService.calculateNotificationsBatch(
+      this.employees,
+      this.year,
+      this.gradeTable,
+      this.bonusesByEmployeeId,
+      this.salaryDataByEmployeeId
+    );
+
+    // AlertItemに変換
+    this.notificationAlerts = [];
+    let alertId = 1;
+    for (const emp of this.employees) {
+      const notifications = this.notificationsByEmployee[emp.id] || [];
+      for (const notification of notifications) {
+        if (notification.required) {
+          this.notificationAlerts.push({
+            id: `alert-${alertId++}`,
+            employeeName: emp.name,
+            alertType: this.getNotificationTypeLabel(notification.type),
+            comment: notification.reasons.join(' / '),
+            targetMonth: notification.submitUntil 
+              ? `${this.year}年${new Date(notification.submitUntil).getMonth() + 1}月`
+              : `${this.year}年`
+          });
+        }
+      }
+    }
+  }
+
+  getNotificationTypeLabel(type: 'teiji' | 'suiji' | 'bonus'): string {
+    return this.notificationFormatService.getNotificationTypeLabel(type);
+  }
+
+  async onYearChange(): Promise<void> {
+    this.salarySubscription?.unsubscribe();
+    this.gradeTable = await this.settingsService.getStandardTable(this.year);
+    await this.loadSalaryData();
+    await this.loadBonusData();
+    await this.loadSalaries();
+    await this.loadSuijiAlerts(this.year);
+    await this.loadNotificationAlerts();
+    this.salarySubscription = this.monthlySalaryService
+      .observeMonthlySalaries(this.year)
+      .subscribe(() => {
+        this.loadSalaries().then(() => {
+          this.loadSuijiAlerts(this.year);
+          this.loadNotificationAlerts();
+        });
+      });
+  }
+
+  isLargeChange(diff: number | null | undefined): boolean {
+    if (diff == null) return false;
+    return Math.abs(diff) >= 2;
+  }
 
   setActiveTab(tab: 'suiji' | 'notifications'): void {
     this.activeTab = tab;
