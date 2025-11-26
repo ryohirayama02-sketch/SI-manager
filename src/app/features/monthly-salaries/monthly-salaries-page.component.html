@@ -9,6 +9,50 @@
   </div>
 </div>
 
+<!-- CSVインポート機能 -->
+<div class="card" style="max-width: 600px; margin-bottom: 1rem;">
+  <h4>CSVインポート</h4>
+  <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+    CSV形式で月次給与データを一括インポートできます。<br>
+    形式: 月,従業員,<span *ngFor="let item of salaryItems; let i = index">{{ item.name }}<span *ngIf="i < salaryItems.length - 1">,</span></span><br>
+    <span *ngIf="salaryItems.length > 0">
+      例: 1,若林,<span *ngFor="let item of salaryItems; let i = index">300000<span *ngIf="i < salaryItems.length - 1">,</span></span>
+    </span>
+    <span *ngIf="salaryItems.length === 0" style="color: #dc3545;">
+      先に給与項目マスタを設定してください。
+    </span>
+  </p>
+  <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+    <input type="file" #csvFileInput accept=".csv" (change)="onCsvFileSelected($event)" style="display: none;">
+    <button (click)="csvFileInput.click()" class="btn-secondary">CSVファイルを選択</button>
+    <button (click)="showCsvImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
+  </div>
+  
+  <!-- テキストエリアダイアログ -->
+  <div *ngIf="showCsvImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
+    <label for="csvText">CSVデータを貼り付けてください:</label>
+    <textarea 
+      id="csvText" 
+      [(ngModel)]="csvImportText" 
+      rows="10" 
+      class="form-control" 
+      style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
+      [placeholder]="getCsvPlaceholder()"
+      [ngModelOptions]="{standalone: true}">
+    </textarea>
+    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+      <button (click)="importFromCsvText()" class="btn-primary">インポート</button>
+      <button (click)="showCsvImportDialog = false; csvImportText = ''" class="btn-secondary">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- インポート結果メッセージ -->
+  <div *ngIf="csvImportResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
+       [ngClass]="{'error-box': csvImportResult.type === 'error', 'info-label': csvImportResult.type === 'success'}">
+    <strong>{{ csvImportResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ csvImportResult.message }}
+  </div>
+</div>
+
 <app-error-warning-section
   [employees]="employees"
   [errorMessages]="errorMessages"

@@ -82,6 +82,11 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
 
+  // CSVインポート関連
+  showCsvImportDialog: boolean = false;
+  csvImportText: string = '';
+  csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
+
   constructor(
     private employeeService: EmployeeService,
     private monthlySalaryService: MonthlySalaryService,
@@ -847,5 +852,164 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       );
     }
     return result;
+  }
+
+  // CSVインポート処理
+  onCsvFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      this.csvImportText = text;
+      this.importFromCsvText(this.csvImportText);
+    };
+    reader.readAsText(file);
+  }
+
+  async importFromCsvText(csvText?: string): Promise<void> {
+    // 引数が渡されていない場合は、プロパティから取得
+    const textToImport = csvText || this.csvImportText;
+    
+    if (!textToImport.trim()) {
+      this.csvImportResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      return;
+    }
+    try {
+      const lines = textToImport.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        this.csvImportResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        return;
+      }
+
+      // ヘッダー行をパース
+      const headerLine = lines[0];
+      const headerParts = headerLine.split(',').map(p => p.trim());
+      
+      if (headerParts.length < 3) {
+        this.csvImportResult = { type: 'error', message: 'ヘッダー行が不正です（最低3列必要：月,従業員,項目名...）' };
+        return;
+      }
+
+      // ヘッダーから月と従業員の列インデックスを取得
+      const monthIndex = headerParts.indexOf('月');
+      const employeeIndex = headerParts.indexOf('従業員');
+      
+      if (monthIndex === -1 || employeeIndex === -1) {
+        this.csvImportResult = { type: 'error', message: 'ヘッダーに「月」と「従業員」の列が必要です' };
+        return;
+      }
+
+      // 給与項目名の列インデックスを取得（月と従業員以外）
+      const salaryItemColumns: { index: number; name: string }[] = [];
+      for (let i = 0; i < headerParts.length; i++) {
+        if (i !== monthIndex && i !== employeeIndex) {
+          salaryItemColumns.push({ index: i, name: headerParts[i] });
+        }
+      }
+
+      if (salaryItemColumns.length === 0) {
+        this.csvImportResult = { type: 'error', message: '給与項目が見つかりません' };
+        return;
+      }
+
+      // データ行を処理
+      const dataLines = lines.slice(1);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const line of dataLines) {
+        const parts = line.split(',').map(p => p.trim());
+        
+        if (parts.length < headerParts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 列数が不足しています`);
+          continue;
+        }
+
+        // 月を取得
+        const monthStr = parts[monthIndex];
+        const month = parseInt(monthStr, 10);
+        
+        if (isNaN(month) || month < 1 || month > 12) {
+          errorCount++;
+          errors.push(`行「${line}」: 月が不正です（1〜12の範囲）`);
+          continue;
+        }
+
+        // 従業員名を取得
+        const employeeName = parts[employeeIndex];
+        const employee = this.employees.find(emp => emp.name === employeeName);
+        
+        if (!employee) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員「${employeeName}」が見つかりません`);
+          continue;
+        }
+
+        // 各給与項目の金額を設定
+        for (const itemColumn of salaryItemColumns) {
+          const amountStr = parts[itemColumn.index];
+          const amount = parseFloat(amountStr.replace(/,/g, '')) || 0;
+
+          // 給与項目名から給与項目IDを取得
+          const salaryItem = this.salaryItems.find(item => item.name === itemColumn.name);
+          
+          if (!salaryItem) {
+            errorCount++;
+            errors.push(`行「${line}」: 給与項目「${itemColumn.name}」が見つかりません`);
+            continue;
+          }
+
+          // salaryItemDataに値を設定
+          const key = this.getSalaryItemKey(employee.id, month);
+          if (!this.salaryItemData[key]) {
+            this.salaryItemData[key] = {};
+          }
+          this.salaryItemData[key][salaryItem.id] = amount;
+
+          // 集計・バリデーションを実行
+          await this.onSalaryItemChange({
+            employeeId: employee.id,
+            month: month,
+            itemId: salaryItem.id,
+            value: amount
+          });
+
+          successCount++;
+        }
+      }
+
+      // 結果メッセージ
+      if (errorCount > 0) {
+        this.csvImportResult = {
+          type: 'error',
+          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors.slice(0, 5).join(' / ')}${errors.length > 5 ? ' ...' : ''}`
+        };
+      } else {
+        this.csvImportResult = {
+          type: 'success',
+          message: `${successCount}件のデータをインポートしました`
+        };
+        this.showCsvImportDialog = false;
+        this.csvImportText = '';
+      }
+    } catch (error) {
+      console.error('CSVインポートエラー:', error);
+      this.csvImportResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
+    }
+  }
+
+  // CSVインポート用のプレイスホルダーを生成
+  getCsvPlaceholder(): string {
+    if (this.salaryItems.length === 0) {
+      return '月,従業員,基本給,住宅手当,残業手当\n1,若林,300000,30000,20000\n1,福本,200000,30000,20000';
+    }
+    const header = '月,従業員,' + this.salaryItems.map(item => item.name).join(',');
+    const example = '1,若林,' + this.salaryItems.map(() => '300000').join(',');
+    return `${header}\n${example}\n1,福本,${this.salaryItems.map(() => '200000').join(',')}`;
   }
 }

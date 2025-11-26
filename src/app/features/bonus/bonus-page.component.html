@@ -112,36 +112,41 @@
   </table>
 </div>
 
-<!-- CSVインポート -->
-<div class="card" style="margin-top: 2rem;">
-  <h3>CSVインポート</h3>
-  <p style="color: #666; margin-bottom: 1rem;">
-    CSV形式: employeeId, payDate, bonusAmount, notes<br>
-    例: E001, 2025-06-30, 500000, 夏季賞与
+<!-- CSVインポート機能 -->
+<div class="card" style="max-width: 600px; margin-top: 2rem;">
+  <h4>CSVインポート</h4>
+  <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+    CSV形式で賞与データを一括インポートできます。<br>
+    形式: 年度,支給月,従業員,賞与額（例: 2025年,1月,若林,500000）
   </p>
-  <div class="form-group">
-    <label for="csvFile">CSVファイルを選択：</label>
-    <input
-      id="csvFile"
-      type="file"
-      accept=".csv"
-      (change)="onCsvUpload($event)"
-      class="form-control"
-      style="padding: 0.5rem;"
-    />
+  <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+    <input type="file" #csvFileInput accept=".csv" (change)="onCsvFileSelected($event)" style="display: none;">
+    <button (click)="csvFileInput.click()" class="btn-secondary">CSVファイルを選択</button>
+    <button (click)="showCsvImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
+  </div>
+  
+  <!-- テキストエリアダイアログ -->
+  <div *ngIf="showCsvImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
+    <label for="csvText">CSVデータを貼り付けてください:</label>
+    <textarea 
+      id="csvText" 
+      [(ngModel)]="csvImportText" 
+      rows="10" 
+      class="form-control" 
+      style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
+      placeholder="年度,支給月,従業員,賞与額&#10;2025年,1月,若林,500000&#10;2025年,1月,福本,400000"
+      [ngModelOptions]="{standalone: true}">
+    </textarea>
+    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+      <button (click)="importFromCsvText()" class="btn-primary">インポート</button>
+      <button (click)="showCsvImportDialog = false; csvImportText = ''" class="btn-secondary">キャンセル</button>
+    </div>
   </div>
 
-  <!-- インポート結果表示 -->
-  <div *ngIf="importResult" class="import-result" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
-    <h4>インポート結果</h4>
-    <p><strong>成功:</strong> {{ importResult.successCount }}件</p>
-    <p *ngIf="importResult.errorCount > 0"><strong>失敗:</strong> {{ importResult.errorCount }}件</p>
-    <div *ngIf="importResult.errors.length > 0" style="margin-top: 0.5rem;">
-      <strong>エラー詳細（最大10件）:</strong>
-      <ul style="margin-top: 0.5rem; padding-left: 1.5rem; color: #dc3545;">
-        <li *ngFor="let error of importResult.errors">{{ error }}</li>
-      </ul>
-    </div>
+  <!-- インポート結果メッセージ -->
+  <div *ngIf="csvImportResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
+       [ngClass]="{'error-box': csvImportResult.type === 'error', 'info-label': csvImportResult.type === 'success'}">
+    <strong>{{ csvImportResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ csvImportResult.message }}
   </div>
 </div>
 

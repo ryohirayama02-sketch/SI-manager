@@ -45,6 +45,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
   // CSVインポート結果
   importResult: { successCount: number; errorCount: number; errors: string[] } | null = null;
+  
+  // CSVインポート関連（新フォーマット用）
+  showCsvImportDialog: boolean = false;
+  csvImportText: string = '';
+  csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
 
@@ -543,6 +548,192 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       message += `\n失敗: ${errorCount}件`;
     }
     alert(message);
+  }
+
+  // CSVインポート処理（新フォーマット: 年度,支給月,従業員,賞与額）
+  onCsvFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      this.csvImportText = text;
+      this.importFromCsvText(this.csvImportText);
+    };
+    reader.readAsText(file);
+  }
+
+  async importFromCsvText(csvText?: string): Promise<void> {
+    // 引数が渡されていない場合は、プロパティから取得
+    const textToImport = csvText || this.csvImportText;
+    
+    if (!textToImport.trim()) {
+      this.csvImportResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      return;
+    }
+
+    try {
+      const lines = textToImport.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        this.csvImportResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        return;
+      }
+
+      // ヘッダー行をパース
+      const headerLine = lines[0];
+      const headerParts = headerLine.split(',').map(p => p.trim());
+      
+      if (headerParts.length < 4) {
+        this.csvImportResult = { type: 'error', message: 'ヘッダー行が不正です（4列必要：年度,支給月,従業員,賞与額）' };
+        return;
+      }
+
+      // ヘッダーから各列のインデックスを取得
+      const yearIndex = headerParts.indexOf('年度');
+      const monthIndex = headerParts.indexOf('支給月');
+      const employeeIndex = headerParts.indexOf('従業員');
+      const bonusAmountIndex = headerParts.indexOf('賞与額');
+      
+      if (yearIndex === -1 || monthIndex === -1 || employeeIndex === -1 || bonusAmountIndex === -1) {
+        this.csvImportResult = { type: 'error', message: 'ヘッダーに「年度」「支給月」「従業員」「賞与額」の列が必要です' };
+        return;
+      }
+
+      // データ行を処理
+      const dataLines = lines.slice(1);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      for (const line of dataLines) {
+        const parts = line.split(',').map(p => p.trim());
+        
+        if (parts.length < headerParts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 列数が不足しています`);
+          continue;
+        }
+
+        // 年度を取得（「2025年」形式から「2025」を抽出）
+        const yearStr = parts[yearIndex].replace(/年/g, '').trim();
+        const year = parseInt(yearStr, 10);
+        
+        if (isNaN(year) || year < 2020 || year > 2100) {
+          errorCount++;
+          errors.push(`行「${line}」: 年度が不正です（2020〜2100の範囲）`);
+          continue;
+        }
+
+        // 支給月を取得（「1月」形式から「1」を抽出）
+        const monthStr = parts[monthIndex].replace(/月/g, '').trim();
+        const month = parseInt(monthStr, 10);
+        
+        if (isNaN(month) || month < 1 || month > 12) {
+          errorCount++;
+          errors.push(`行「${line}」: 支給月が不正です（1〜12の範囲）`);
+          continue;
+        }
+
+        // 従業員名を取得
+        const employeeName = parts[employeeIndex];
+        const employee = this.employees.find(emp => emp.name === employeeName);
+        
+        if (!employee) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員「${employeeName}」が見つかりません`);
+          continue;
+        }
+
+        // 賞与額を取得
+        const bonusAmountStr = parts[bonusAmountIndex];
+        const bonusAmount = this.parseAmount(bonusAmountStr);
+        
+        if (isNaN(bonusAmount) || bonusAmount < 0) {
+          errorCount++;
+          errors.push(`行「${line}」: 賞与額が不正です`);
+          continue;
+        }
+
+        // 支給日を生成（月の1日を仮定）
+        const paymentDate = `${year}-${String(month).padStart(2, '0')}-01`;
+
+        // 賞与を計算して保存
+        try {
+          const calculationResult = await this.bonusCalculationService.calculateBonus(
+            employee,
+            employee.id,
+            bonusAmount,
+            paymentDate,
+            year
+          );
+
+          if (!calculationResult) {
+            errorCount++;
+            errors.push(`行「${line}」: 保険料の計算に失敗しました`);
+            continue;
+          }
+
+          // Bonusオブジェクトを作成
+          const bonus: Bonus = {
+            employeeId: employee.id,
+            year: year,
+            month: month,
+            amount: bonusAmount,
+            payDate: paymentDate,
+            createdAt: new Date(),
+            isExempt: calculationResult.isExempted || false,
+            cappedHealth: calculationResult.cappedBonusHealth || 0,
+            cappedPension: calculationResult.cappedBonusPension || 0,
+            healthEmployee: calculationResult.healthEmployee,
+            healthEmployer: calculationResult.healthEmployer,
+            careEmployee: calculationResult.careEmployee,
+            careEmployer: calculationResult.careEmployer,
+            pensionEmployee: calculationResult.pensionEmployee,
+            pensionEmployer: calculationResult.pensionEmployer,
+            standardBonusAmount: calculationResult.standardBonus,
+            cappedBonusHealth: calculationResult.cappedBonusHealth,
+            cappedBonusPension: calculationResult.cappedBonusPension,
+            isExempted: calculationResult.isExempted,
+            isRetiredNoLastDay: calculationResult.isRetiredNoLastDay,
+            isOverAge70: calculationResult.isOverAge70,
+            isOverAge75: calculationResult.isOverAge75,
+            requireReport: calculationResult.requireReport,
+            reportDeadline: calculationResult.reportDeadline || undefined,
+            isSalaryInsteadOfBonus: calculationResult.isSalaryInsteadOfBonus,
+            exemptReason: calculationResult.exemptReason || undefined
+          };
+
+          await this.bonusService.saveBonus(year, bonus);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          errors.push(`行「${line}」: 保存に失敗しました: ${error}`);
+        }
+      }
+
+      // 賞与一覧を再読み込み
+      await this.loadBonusList();
+
+      // 結果メッセージ
+      if (errorCount > 0) {
+        this.csvImportResult = {
+          type: 'error',
+          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors.slice(0, 5).join(' / ')}${errors.length > 5 ? ' ...' : ''}`
+        };
+      } else {
+        this.csvImportResult = {
+          type: 'success',
+          message: `${successCount}件のデータをインポートしました`
+        };
+        this.showCsvImportDialog = false;
+        this.csvImportText = '';
+      }
+    } catch (error) {
+      console.error('CSVインポートエラー:', error);
+      this.csvImportResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
+    }
   }
 }
 

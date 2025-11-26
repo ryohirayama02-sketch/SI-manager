@@ -257,6 +257,21 @@ export class SettingsService {
 
   async saveSalaryItems(year: number, items: SalaryItem[]): Promise<void> {
     const basePath = `settings/${year}/salaryItems`;
+    
+    // 現在保存する項目のIDリスト
+    const currentItemIds = new Set(items.map(item => item.id));
+    
+    // 既存のすべての項目を取得
+    const existingItems = await this.loadSalaryItems(year);
+    
+    // 削除された項目（現在のリストにない項目）を削除
+    for (const existingItem of existingItems) {
+      if (!currentItemIds.has(existingItem.id)) {
+        await this.deleteSalaryItem(year, existingItem.id);
+      }
+    }
+    
+    // 現在の項目を保存
     for (const item of items) {
       const ref = doc(this.firestore, `${basePath}/${item.id}`);
       await setDoc(ref, item, { merge: true });

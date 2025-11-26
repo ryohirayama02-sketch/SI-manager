@@ -266,6 +266,18 @@ export class SettingsPageComponent implements OnInit {
     alert('標準報酬月額テーブルを保存しました');
   }
 
+  clearStandardTable(): void {
+    if (!confirm('標準報酬月額テーブルをすべてクリアしますか？\nこの操作は取り消せません。')) {
+      return;
+    }
+    while (this.standardTable.length !== 0) {
+      this.standardTable.removeAt(0);
+    }
+    this.errorMessages = [];
+    this.warningMessages = [];
+    this.cdr.detectChanges();
+  }
+
   async ngOnInit(): Promise<void> {
     await this.loadAllRates();
     
@@ -412,6 +424,9 @@ export class SettingsPageComponent implements OnInit {
         prefectureMap.set(pref.name, pref.code);
       });
 
+      // 都道府県コードをキーとして重複を防ぐ（同じ都道府県が複数回出現した場合は上書き）
+      const ratesToAdd: Map<string, { health_employee: number; health_employer: number }> = new Map();
+
       for (const line of dataLines) {
         const parts = line.split(',').map(p => p.trim());
         if (parts.length < 3) {
@@ -448,14 +463,22 @@ export class SettingsPageComponent implements OnInit {
           continue;
         }
 
-        // 料率を設定（パーセント形式で保持）
+        // 同じ都道府県が既に存在する場合は上書き（Mapを使用して自動的に上書き）
+        ratesToAdd.set(prefectureCode, {
+          health_employee: employeeRate,
+          health_employer: employerRate
+        });
+        successCount++;
+      }
+
+      // パース済みの料率を設定（パーセント形式で保持）
+      ratesToAdd.forEach((rates, prefectureCode) => {
         if (!this.prefectureRates[prefectureCode]) {
           this.prefectureRates[prefectureCode] = { health_employee: 0, health_employer: 0 };
         }
-        this.prefectureRates[prefectureCode].health_employee = employeeRate;
-        this.prefectureRates[prefectureCode].health_employer = employerRate;
-        successCount++;
-      }
+        this.prefectureRates[prefectureCode].health_employee = rates.health_employee;
+        this.prefectureRates[prefectureCode].health_employer = rates.health_employer;
+      });
 
       // 結果メッセージ
       if (errorCount === 0) {
@@ -643,7 +666,7 @@ export class SettingsPageComponent implements OnInit {
       let successCount = 0;
       let errorCount = 0;
       const errors: string[] = [];
-      const rowsToAdd: any[] = [];
+      const rowsToAdd: Map<number, any> = new Map(); // 等級をキーとして重複を防ぐ
 
       // CSVデータをパースして一時配列に格納
       for (const line of dataLines) {
@@ -689,7 +712,8 @@ export class SettingsPageComponent implements OnInit {
           continue;
         }
 
-        rowsToAdd.push({
+        // 同じ等級が既に存在する場合は上書き（Mapを使用して自動的に上書き）
+        rowsToAdd.set(rank, {
           id: `grade-${rank}`,
           rank: rank,
           standard: standard,
@@ -700,7 +724,7 @@ export class SettingsPageComponent implements OnInit {
       }
 
       // 等級順にソート
-      rowsToAdd.sort((a, b) => a.rank - b.rank);
+      const sortedRows = Array.from(rowsToAdd.values()).sort((a, b) => a.rank - b.rank);
 
       // 既存のテーブルをクリア
       while (this.standardTable.length !== 0) {
@@ -708,7 +732,7 @@ export class SettingsPageComponent implements OnInit {
       }
 
       // ソート済みデータをFormArrayに追加
-      rowsToAdd.forEach(rowData => {
+      sortedRows.forEach(rowData => {
         const row = this.createRow(rowData);
         this.standardTable.push(row);
       });
