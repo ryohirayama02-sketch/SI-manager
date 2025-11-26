@@ -14,24 +14,6 @@
       </p>
       <p><strong>標準報酬月額:</strong> {{ results[emp.id]?.standardMonthlyRemuneration ?? 0 | number:'1.0-0' }} 円（等級: {{ results[emp.id]?.grade ?? '-' }}）</p>
     </div>
-
-    <div class="premium-group" *ngIf="info?.premiums">
-      <h5>健康保険</h5>
-      <p>本人: {{ info?.premiums?.health_employee ?? 0 | number:'1.0-0' }} 円</p>
-      <p>事業主: {{ info?.premiums?.health_employer ?? 0 | number:'1.0-0' }} 円</p>
-    </div>
-
-    <div class="premium-group" *ngIf="info?.premiums && (info?.premiums?.care_employee ?? 0) !== 0">
-      <h5>介護保険</h5>
-      <p>本人: {{ info?.premiums?.care_employee ?? 0 | number:'1.0-0' }} 円</p>
-      <p>事業主: {{ info?.premiums?.care_employer ?? 0 | number:'1.0-0' }} 円</p>
-    </div>
-
-    <div class="premium-group" *ngIf="info?.premiums">
-      <h5>厚生年金</h5>
-      <p>本人: {{ info?.premiums?.pension_employee ?? 0 | number:'1.0-0' }} 円</p>
-      <p>事業主: {{ info?.premiums?.pension_employer ?? 0 | number:'1.0-0' }} 円</p>
-    </div>
   </div>
 </ng-container>
 

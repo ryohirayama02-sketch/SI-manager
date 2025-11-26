@@ -91,18 +91,6 @@ table thead th:first-child {
   font-size: 1.1rem;
 }
 
-.premium-group {
-  margin-top: 8px;
-  padding-top: 4px;
-  border-top: 1px solid #eee;
-}
-
-.premium-group h5 {
-  margin: 6px 0 4px 0;
-  font-size: 1rem;
-  font-weight: bold;
-}
-
 .salary-table-wrapper {
   width: 100%;
   overflow-x: auto;
