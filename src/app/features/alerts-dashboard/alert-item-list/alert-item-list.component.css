@@ -19,38 +19,33 @@
   table-layout: auto;
 }
 
-.alert-table thead {
-  background-color: #f5f5f5;
-}
-
-.alert-table th {
-  padding: 0.75rem;
-  text-align: left;
-  border-bottom: 2px solid #ddd;
-  border-right: 1px solid #ddd;
-  font-weight: bold;
-}
-
-.alert-table th:last-child {
-  border-right: none;
-}
-
-.alert-table tbody tr {
-  border-bottom: 1px solid #eee;
-}
-
-.alert-table tbody tr:hover {
-  background-color: #f9f9f9;
-}
-
+.alert-table th,
 .alert-table td {
-  padding: 0.75rem;
+  padding: 8px;
   text-align: left;
-  border-right: 1px solid #eee;
+  border: 1px solid #ddd;
   vertical-align: top;
 }
 
-.alert-table td:last-child {
-  border-right: none;
+.alert-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
 }
 
+.alert-table tbody tr {
+  /* 届出アラートの行全体を黄色で目立たせる（随時改定アラートと同様） */
+  background-color: #fff8e1;
+}
+
+.alert-table tbody tr:hover {
+  background-color: #fff3cd;
+}
+
+.alert-table tbody tr.selected-row {
+  /* 削除対象に選択された行を視覚的に強調（黄色より優先） */
+  background-color: #ffe6e6;
+}
+
+.alert-table tbody tr.selected-row:hover {
+  background-color: #ffcccc;
+}

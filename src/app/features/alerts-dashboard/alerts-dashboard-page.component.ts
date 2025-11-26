@@ -29,6 +29,7 @@ export interface AlertItem {
 interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
   diffPrev?: number | null;
   id?: string; // FirestoreのドキュメントID
+  year?: number; // 年度情報
 }
 
 @Component({
@@ -45,13 +46,13 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   suijiAlerts: SuijiKouhoResultWithDiff[] = [];
   selectedSuijiAlertIds: Set<string> = new Set();
   employees: Employee[] = [];
-  year: number = 2025;
-  availableYears: number[] = [];
   salaries: {
     [key: string]: { total: number; fixed: number; variable: number };
   } = {};
   salarySubscription: Subscription | null = null;
   eligibilitySubscription: Subscription | null = null;
+  // 全年度の給与データを保持（年度ごとに分離）
+  salariesByYear: { [year: number]: { [key: string]: { total: number; fixed: number; variable: number } } } = {};
   
   // 届出アラート関連
   notificationAlerts: AlertItem[] = [];
@@ -70,35 +71,18 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private notificationFormatService: NotificationFormatService,
     private settingsService: SettingsService,
     private bonusService: BonusService
-  ) {
-    // 年度選択用の年度リストを生成（2023〜2026）
-    for (let y = 2023; y <= 2026; y++) {
-      this.availableYears.push(y);
-    }
-  }
+  ) {}
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
-    this.gradeTable = await this.settingsService.getStandardTable(this.year);
     
-    // 給与データと賞与データを読み込み
-    await this.loadSalaryData();
-    await this.loadBonusData();
+    // 全年度の給与データを読み込み
+    await this.loadAllSalaries();
     
-    await this.loadSalaries();
-    await this.loadSuijiAlerts(this.year);
+    // 全年度のアラートを読み込み
+    await this.loadSuijiAlerts();
     await this.loadNotificationAlerts();
     
-    // 給与データの変更を購読
-    this.salarySubscription = this.monthlySalaryService
-      .observeMonthlySalaries(this.year)
-      .subscribe(() => {
-        this.loadSalaries().then(() => {
-          this.loadSuijiAlerts(this.year);
-          this.loadNotificationAlerts();
-        });
-      });
-
     // 加入区分の変更を購読
     this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
       this.reloadEligibility();
@@ -111,56 +95,76 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async reloadEligibility(): Promise<void> {
-    await this.loadSuijiAlerts(this.year);
+    await this.loadSuijiAlerts();
     await this.loadNotificationAlerts();
   }
 
-  async loadSalaries(): Promise<void> {
-    this.salaries = {};
-    for (const emp of this.employees) {
-      const data = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
-      if (!data) continue;
+  /**
+   * 全年度の給与データを読み込む
+   */
+  async loadAllSalaries(): Promise<void> {
+    this.salariesByYear = {};
+    const years = [2023, 2024, 2025, 2026]; // 取得対象年度
+    
+    for (const year of years) {
+      this.salariesByYear[year] = {};
+      for (const emp of this.employees) {
+        const data = await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+        if (!data) continue;
 
-      for (let month = 1; month <= 12; month++) {
-        const monthKey = month.toString();
-        const monthData = data[monthKey];
-        if (monthData) {
-          const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
-          const variable = monthData.variableSalary ?? monthData.variable ?? 0;
-          const total = monthData.totalSalary ?? monthData.total ?? fixed + variable;
-          const key = this.getSalaryKey(emp.id, month);
-          this.salaries[key] = { total, fixed, variable };
+        for (let month = 1; month <= 12; month++) {
+          const monthKey = month.toString();
+          const monthData = data[monthKey];
+          if (monthData) {
+            const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+            const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+            const total = monthData.totalSalary ?? monthData.total ?? fixed + variable;
+            const key = this.getSalaryKey(emp.id, month);
+            this.salariesByYear[year][key] = { total, fixed, variable };
+          }
         }
       }
     }
+    
+    // 後方互換性のため、最新年度のデータをsalariesにも設定
+    const latestYear = Math.max(...years);
+    this.salaries = this.salariesByYear[latestYear] || {};
+  }
+
+  async loadSalaries(): Promise<void> {
+    // 後方互換性のため残すが、使用しない
+    await this.loadAllSalaries();
   }
 
   getSalaryKey(employeeId: string, month: number): string {
     return `${employeeId}_${month}`;
   }
 
-  async loadSuijiAlerts(year: number): Promise<void> {
-    const loadedAlerts = await this.suijiService.loadAlerts(year);
+  async loadSuijiAlerts(): Promise<void> {
+    const years = [2023, 2024, 2025, 2026]; // 取得対象年度
+    const loadedAlerts = await this.suijiService.loadAllAlerts(years);
+    
     // 存在する従業員のアラートのみをフィルタリング
     const validEmployeeIds = new Set(this.employees.map(e => e.id));
     this.suijiAlerts = loadedAlerts
       .filter((alert: any) => validEmployeeIds.has(alert.employeeId))
       .map((alert: any) => ({
         ...alert,
-        diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth),
+        diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth, alert.year || 2025),
         id: alert.id || this.getSuijiAlertId(alert)
       }));
   }
 
-  getPrevMonthDiff(employeeId: string, month: number): number | null {
+  getPrevMonthDiff(employeeId: string, month: number, year: number): number | null {
     const prevMonth = month - 1;
     if (prevMonth < 1) return null;
 
+    const salaries = this.salariesByYear[year] || {};
     const prevKey = this.getSalaryKey(employeeId, prevMonth);
     const currKey = this.getSalaryKey(employeeId, month);
 
-    const prev = this.salaries[prevKey];
-    const curr = this.salaries[currKey];
+    const prev = salaries[prevKey];
+    const curr = salaries[currKey];
     if (!prev || !curr) return null;
 
     const prevTotal = (prev.fixed || 0) + (prev.variable || 0);
@@ -187,15 +191,28 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async loadSalaryData(): Promise<void> {
+    // 後方互換性のため残すが、実際のデータ読み込みはloadNotificationAlerts内で行う
     this.salaryDataByEmployeeId = {};
-    for (const emp of this.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
-      this.salaryDataByEmployeeId[emp.id] = salaryData;
-    }
   }
 
   async loadBonusData(): Promise<void> {
-    const bonuses = await this.bonusService.loadBonus(this.year);
+    // 後方互換性のため残すが、実際のデータ読み込みはloadNotificationAlerts内で行う
+    this.bonusesByEmployeeId = {};
+  }
+
+  async loadNotificationAlerts(): Promise<void> {
+    // 届出アラートは現在年度のみ計算（必要に応じて全年度対応可能）
+    const currentYear = new Date().getFullYear();
+    this.gradeTable = await this.settingsService.getStandardTable(currentYear);
+    
+    // 給与データと賞与データを読み込み
+    this.salaryDataByEmployeeId = {};
+    for (const emp of this.employees) {
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, currentYear);
+      this.salaryDataByEmployeeId[emp.id] = salaryData;
+    }
+    
+    const bonuses = await this.bonusService.loadBonus(currentYear);
     this.bonusesByEmployeeId = {};
     for (const bonus of bonuses) {
       if (!this.bonusesByEmployeeId[bonus.employeeId]) {
@@ -203,13 +220,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       }
       this.bonusesByEmployeeId[bonus.employeeId].push(bonus);
     }
-  }
-
-  async loadNotificationAlerts(): Promise<void> {
+    
     // 届出要否を計算
     this.notificationsByEmployee = await this.notificationCalculationService.calculateNotificationsBatch(
       this.employees,
-      this.year,
+      currentYear,
       this.gradeTable,
       this.bonusesByEmployeeId,
       this.salaryDataByEmployeeId
@@ -228,8 +243,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             alertType: this.getNotificationTypeLabel(notification.type),
             comment: notification.reasons.join(' / '),
             targetMonth: notification.submitUntil 
-              ? `${this.year}年${new Date(notification.submitUntil).getMonth() + 1}月`
-              : `${this.year}年`
+              ? `${currentYear}年${new Date(notification.submitUntil).getMonth() + 1}月`
+              : `${currentYear}年`
           });
         }
       }
@@ -240,23 +255,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return this.notificationFormatService.getNotificationTypeLabel(type);
   }
 
-  async onYearChange(): Promise<void> {
-    this.salarySubscription?.unsubscribe();
-    this.gradeTable = await this.settingsService.getStandardTable(this.year);
-    await this.loadSalaryData();
-    await this.loadBonusData();
-    await this.loadSalaries();
-    await this.loadSuijiAlerts(this.year);
-    await this.loadNotificationAlerts();
-    this.salarySubscription = this.monthlySalaryService
-      .observeMonthlySalaries(this.year)
-      .subscribe(() => {
-        this.loadSalaries().then(() => {
-          this.loadSuijiAlerts(this.year);
-          this.loadNotificationAlerts();
-        });
-      });
-  }
+  // onYearChangeメソッドは削除（年度選択が不要になったため）
 
   isLargeChange(diff: number | null | undefined): boolean {
     if (diff == null) return false;
@@ -349,8 +348,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         const employeeId = parts[0];
         const changeMonth = parseInt(parts[1], 10);
         
+        const year = alert.year || 2025; // アラートに年度情報が含まれている
         await this.suijiService.deleteAlert(
-          this.year,
+          year,
           employeeId,
           changeMonth
         );
@@ -358,7 +358,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     }
 
     // アラートを再読み込み
-    await this.loadSuijiAlerts(this.year);
+    await this.loadSuijiAlerts();
     this.selectedSuijiAlertIds.clear();
   }
 

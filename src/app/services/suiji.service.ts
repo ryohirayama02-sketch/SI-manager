@@ -229,6 +229,33 @@ export class SuijiService {
   }
 
   /**
+   * 全年度の随時改定アラートをFirestoreから読み込む
+   * @param years 取得対象の年度配列（例: [2023, 2024, 2025, 2026]）
+   * @returns 随時改定候補結果の配列（年度情報を含む）
+   */
+  async loadAllAlerts(years: number[]): Promise<(SuijiKouhoResult & { id: string; year: number })[]> {
+    const allAlerts: (SuijiKouhoResult & { id: string; year: number })[] = [];
+    
+    for (const year of years) {
+      try {
+        const ref = collection(this.firestore, `suiji/${year}/alerts`);
+        const snap = await getDocs(ref);
+        const yearAlerts = snap.docs.map(d => ({
+          ...d.data(),
+          id: d.id,
+          year: year
+        } as SuijiKouhoResult & { id: string; year: number }));
+        allAlerts.push(...yearAlerts);
+      } catch (error) {
+        // 年度のコレクションが存在しない場合はスキップ
+        console.warn(`[suiji-service] 年度 ${year} のアラート取得に失敗:`, error);
+      }
+    }
+    
+    return allAlerts;
+  }
+
+  /**
    * 随時改定アラートをFirestoreから削除する
    * @param year 年度
    * @param employeeId 従業員ID

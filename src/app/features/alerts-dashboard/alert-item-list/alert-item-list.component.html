@@ -10,7 +10,7 @@
       (click)="onDeleteSelected()"
       class="btn-danger"
       style="margin-right: 0.5rem;">
-      選択した{{ selectedAlertIds.size }}件を削除
+      選択した{{ selectedAlertIds.size }}件を削除（非表示にする）
     </button>
     <label style="margin-left: 1rem;">
       <input 
@@ -18,14 +18,14 @@
         [checked]="selectedAlertIds.size === alerts.length && alerts.length > 0"
         (change)="onToggleAllChange($event)"
         style="margin-right: 0.5rem;">
-      すべて選択
+      すべてのアラートを削除対象に選択
     </label>
   </div>
 
   <table *ngIf="alerts.length > 0" class="alert-table">
     <thead>
       <tr>
-        <th style="width: 40px;"></th>
+        <th style="width: 80px; text-align: center;">削除対象</th>
         <th>従業員名</th>
         <th>内容種別</th>
         <th>コメント</th>
@@ -33,12 +33,13 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let alert of alerts">
-        <td style="width: 40px;">
+      <tr *ngFor="let alert of alerts" [class.selected-row]="isSelected(alert.id)">
+        <td style="width: 80px; text-align: center;">
           <input 
             type="checkbox" 
             [checked]="isSelected(alert.id)"
-            (change)="onToggleSelection(alert.id)">
+            (change)="onToggleSelection(alert.id)"
+            title="削除対象に選択">
         </td>
         <td>{{ alert.employeeName }}</td>
         <td>{{ alert.alertType }}</td>

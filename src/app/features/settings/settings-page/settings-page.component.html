@@ -183,7 +183,6 @@
 
     <div class="button-group">
       <button (click)="saveAllRates()" class="btn-primary">すべての料率を保存する</button>
-      <button (click)="seedAllPrefectures()" class="btn-secondary">47都道府県の料率（{{ year }}）を初期投入する</button>
     </div>
   </div>
   <div *ngIf="!isRateSettingsExpanded" style="padding: 1rem; text-align: center; color: #666;">
@@ -274,7 +273,6 @@
   </div>
 
     <div style="margin-top: 1rem; display: flex; gap: 1rem;">
-      <button (click)="seedStandardTable()" class="btn-primary">標準報酬等級表の初期データを一括登録（50等級）</button>
       <button (click)="saveStandardTable()" class="btn-success">標準報酬月額テーブルを保存する</button>
     </div>
   </div>
@@ -307,20 +305,31 @@
   </div>
   <form [formGroup]="salaryItemsForm">
     <div formArrayName="salaryItems">
-      <div *ngFor="let item of salaryItems.controls; let i = index" [formGroupName]="i" class="row-card">
-        <div class="form-group">
-          <label>項目名：</label>
-          <input type="text" formControlName="name" class="form-control" placeholder="例：基本給" required>
-        </div>
-        <div class="form-group">
-          <label>種別：</label>
-          <select formControlName="type" class="form-control" required>
-            <option value="fixed">固定</option>
-            <option value="variable">非固定</option>
-          </select>
-        </div>
-        <button type="button" (click)="removeSalaryItem(i)" class="btn-secondary" style="margin-top: 0.5rem;">削除</button>
-      </div>
+      <table class="salary-items-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+        <thead>
+          <tr>
+            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd; background-color: #f5f5f5;">項目名</th>
+            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd; background-color: #f5f5f5;">種別</th>
+            <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd; background-color: #f5f5f5;">削除</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of salaryItems.controls; let i = index" [formGroupName]="i">
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+              <input type="text" formControlName="name" class="form-control" placeholder="例：基本給" required style="width: 100%;">
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee;">
+              <select formControlName="type" class="form-control" required style="width: 100%;">
+                <option value="fixed">固定</option>
+                <option value="variable">非固定</option>
+              </select>
+            </td>
+            <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">
+              <button type="button" (click)="removeSalaryItem(i)" class="btn-secondary">削除</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
     </form>
     <button type="button" (click)="addSalaryItem()" class="btn-primary" style="margin-top: 1rem;">項目を追加</button>

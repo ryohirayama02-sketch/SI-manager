@@ -18,18 +18,6 @@
 
   <div class="tab-content">
     <div *ngIf="activeTab === 'suiji'" class="tab-pane">
-      <div class="card" style="max-width: 400px; margin-bottom: 1rem;">
-        <div class="form-group">
-          <label>年度：</label>
-          <select [(ngModel)]="year"
-                  (change)="onYearChange()"
-                  class="form-control"
-                  [ngModelOptions]="{ standalone: true }">
-            <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
-          </select>
-        </div>
-      </div>
-
       <div class="card">
         <div *ngIf="suijiAlerts.length === 0" class="info-label">
           随時改定候補はありません。
@@ -41,7 +29,7 @@
             (click)="deleteSelectedSuijiAlerts()"
             class="btn-danger"
             style="margin-right: 0.5rem;">
-            選択した{{ selectedSuijiAlertIds.size }}件を削除
+            選択した{{ selectedSuijiAlertIds.size }}件を削除（非表示にする）
           </button>
           <label style="margin-left: 1rem;">
             <input 
@@ -49,14 +37,15 @@
               [checked]="selectedSuijiAlertIds.size === suijiAlerts.length && suijiAlerts.length > 0"
               (change)="toggleAllSuijiAlertsChange($event)"
               style="margin-right: 0.5rem;">
-            すべて選択
+            すべてのアラートを削除対象に選択
           </label>
         </div>
         
         <table class="alert-table" *ngIf="suijiAlerts.length > 0">
           <thead>
             <tr>
-              <th style="width: 40px;"></th>
+              <th style="width: 80px; text-align: center;">削除対象</th>
+              <th>年度</th>
               <th>従業員</th>
               <th>変動月</th>
               <th>前月比</th>
@@ -73,14 +62,17 @@
             <tr *ngFor="let alert of suijiAlerts; let i = index"
                 [ngClass]="{
                   'alert-row': alert.isEligible,
-                  'large-change-row': isLargeChange(alert.diff)
+                  'large-change-row': isLargeChange(alert.diff),
+                  'selected-row': isSuijiAlertSelected(getSuijiAlertId(alert))
                 }">
-              <td style="width: 40px;">
+              <td style="width: 80px; text-align: center;">
                 <input 
                   type="checkbox" 
                   [checked]="isSuijiAlertSelected(getSuijiAlertId(alert))"
-                  (change)="toggleSuijiAlertSelection(getSuijiAlertId(alert))">
+                  (change)="toggleSuijiAlertSelection(getSuijiAlertId(alert))"
+                  title="削除対象に選択">
               </td>
+              <td>{{ alert.year || '-' }}年</td>
               <td>
                 <span *ngIf="alert.isEligible">⚠️ </span>
                 {{ getEmployeeName(alert.employeeId) }}

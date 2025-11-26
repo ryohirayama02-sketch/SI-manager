@@ -32,6 +32,15 @@
   font-weight: bold;
 }
 
+.alert-table tbody tr.selected-row {
+  /* 削除対象に選択された行を視覚的に強調 */
+  background-color: #ffe6e6;
+}
+
+.alert-table tbody tr.selected-row:hover {
+  background-color: #ffcccc;
+}
+
 .alerts-dashboard {
   padding: 1rem;
 }
