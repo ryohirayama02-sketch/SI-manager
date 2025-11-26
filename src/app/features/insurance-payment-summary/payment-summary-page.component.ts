@@ -50,8 +50,8 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 })
 export class PaymentSummaryPageComponent implements OnInit {
   employees: Employee[] = [];
-  year: number = new Date().getFullYear();
-  selectedMonth: number | 'all' | string = 'all';
+  year: number = 2025;
+  selectedMonth: number | 'all' | string = new Date().getMonth() + 1;
   selectedEmployeeIds: string[] = [];
   prefecture: string = 'tokyo';
   rates: any = null;

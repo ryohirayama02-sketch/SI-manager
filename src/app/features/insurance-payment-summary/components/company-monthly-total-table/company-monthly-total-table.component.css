@@ -12,8 +12,8 @@
 .payment-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;
-  min-width: 600px;
+  table-layout: auto;
+  min-width: 900px;
 }
 
 .payment-table thead {
@@ -24,11 +24,12 @@
 }
 
 .payment-table th {
-  padding: 8px;
-  text-align: left;
+  padding: 6px 4px;
+  text-align: center;
   font-weight: bold;
-  font-size: 1rem;
-  width: 20%;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .payment-table tbody tr {
@@ -44,22 +45,28 @@
 }
 
 .payment-table td {
-  padding: 8px;
+  padding: 4px 2px;
   text-align: left;
-  width: 20%;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .month-cell {
   font-weight: 500;
   color: #333;
-  width: 20%;
+  font-size: 0.9rem;
+  min-width: 60px;
+  max-width: 80px;
 }
 
 .amount-cell {
   text-align: right;
   font-family: "Courier New", monospace;
   color: #333;
-  width: 20%;
+  font-size: 0.8rem;
+  min-width: 90px;
+  max-width: 120px;
+  padding-right: 4px;
 }
 
 .amount-cell.total-cell {
@@ -77,13 +84,13 @@
 }
 
 .payment-table tfoot .total-row td {
-  padding: 14px 16px;
-  font-size: 1.05em;
+  padding: 6px 4px;
+  font-size: 0.9rem;
 }
 
 .payment-table tfoot .total-cell {
   color: #007bff;
-  font-size: 1.1em;
+  font-size: 0.9rem;
 }
 
 .bonus-month-row {
@@ -104,14 +111,16 @@
 }
 
 .stop-info {
-  margin-top: 4px;
+  margin-top: 2px;
   color: #856404;
-  font-size: 0.85rem;
+  font-size: 0.7rem;
+  line-height: 1.1;
 }
 
 .stop-info small {
   display: block;
   color: #856404;
+  white-space: normal;
 }
 
 @media (max-width: 768px) {

@@ -160,12 +160,6 @@
   [annualTotalCare]="annualTotals.care"
   [annualTotalPension]="annualTotals.pension"
   [annualTotal]="annualTotals.total"
+  [bonusAnnualTotals]="bonusAnnualTotals"
 ></app-company-monthly-total-table>
 
-<!-- 従業員ごとの届出要否 -->
-<app-employee-notification-panel
-  *ngFor="let emp of getFilteredEmployees()"
-  [employee]="emp"
-  [notifications]="notificationsByEmployee[emp.id] || []"
-  [getNotificationTypeLabel]="getNotificationTypeLabel.bind(this)"
-></app-employee-notification-panel>

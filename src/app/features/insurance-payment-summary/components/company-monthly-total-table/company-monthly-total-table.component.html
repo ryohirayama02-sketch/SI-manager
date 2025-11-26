@@ -1,13 +1,19 @@
 <div class="card" *ngIf="companyMonthlyTotals.length > 0">
-  <h3>会社全体の月次保険料合計（本人分＋会社負担分）（{{ year }}年度）</h3>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+    <h3 style="margin: 0;">月別の保険料一覧（本人分＋会社負担分）（{{ year }}年度）</h3>
+    <span style="font-size: 0.85rem; color: #666;">単位：円</span>
+  </div>
   <div class="table-wrapper">
     <table class="payment-table">
     <thead>
       <tr>
         <th>月</th>
-        <th>健康保険</th>
-        <th>介護保険</th>
-        <th>厚生年金</th>
+        <th>月次<br>健康保険</th>
+        <th>月次<br>介護保険</th>
+        <th>月次<br>厚生年金</th>
+        <th>賞与<br>健康保険</th>
+        <th>賞与<br>介護保険</th>
+        <th>賞与<br>厚生年金</th>
         <th>合計</th>
       </tr>
     </thead>
@@ -54,31 +60,49 @@
           </div>
         </td>
         <td class="amount-cell">
-          {{ total.healthTotal | number : "1.0-0" }}円
+          {{ total.healthTotal | number : "1.0-0" }}
         </td>
-        <td class="amount-cell">{{ total.careTotal | number : "1.0-0" }}円</td>
+        <td class="amount-cell">{{ total.careTotal | number : "1.0-0" }}</td>
         <td class="amount-cell">
-          {{ total.pensionTotal | number : "1.0-0" }}円
+          {{ total.pensionTotal | number : "1.0-0" }}
+        </td>
+        <td class="amount-cell">
+          {{ getBonusTotalForMonth(total.month, 'health') | number : "1.0-0" }}
+        </td>
+        <td class="amount-cell">
+          {{ getBonusTotalForMonth(total.month, 'care') | number : "1.0-0" }}
+        </td>
+        <td class="amount-cell">
+          {{ getBonusTotalForMonth(total.month, 'pension') | number : "1.0-0" }}
         </td>
         <td class="amount-cell total-cell">
-          {{ total.total | number : "1.0-0" }}円
+          {{ (total.total + getBonusTotalForMonth(total.month, 'total')) | number : "1.0-0" }}
         </td>
       </tr>
     </tbody>
       <tfoot>
         <tr class="total-row">
-          <td class="month-cell">年間合計</td>
+          <td class="month-cell"><strong>年間合計</strong></td>
           <td class="amount-cell total-cell">
-            {{ annualTotalHealth | number : "1.0-0" }}円
+            <strong>{{ annualTotalHealth | number : "1.0-0" }}</strong>
           </td>
           <td class="amount-cell total-cell">
-            {{ annualTotalCare | number : "1.0-0" }}円
+            <strong>{{ annualTotalCare | number : "1.0-0" }}</strong>
           </td>
           <td class="amount-cell total-cell">
-            {{ annualTotalPension | number : "1.0-0" }}円
+            <strong>{{ annualTotalPension | number : "1.0-0" }}</strong>
           </td>
           <td class="amount-cell total-cell">
-            {{ annualTotal | number : "1.0-0" }}円
+            <strong>{{ (bonusAnnualTotals.healthEmployee + bonusAnnualTotals.healthEmployer) | number : "1.0-0" }}</strong>
+          </td>
+          <td class="amount-cell total-cell">
+            <strong>{{ (bonusAnnualTotals.careEmployee + bonusAnnualTotals.careEmployer) | number : "1.0-0" }}</strong>
+          </td>
+          <td class="amount-cell total-cell">
+            <strong>{{ (bonusAnnualTotals.pensionEmployee + bonusAnnualTotals.pensionEmployer) | number : "1.0-0" }}</strong>
+          </td>
+          <td class="amount-cell total-cell">
+            <strong>{{ (annualTotal + bonusAnnualTotals.total) | number : "1.0-0" }}</strong>
           </td>
         </tr>
       </tfoot>

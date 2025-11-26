@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PaymentSummaryYearSelectorComponent {
-  @Input() year: number = new Date().getFullYear();
+  @Input() year: number = 2025;
   @Output() yearChange = new EventEmitter<number>();
 
   onYearChange(event: Event): void {
