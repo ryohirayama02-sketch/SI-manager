@@ -72,8 +72,10 @@ interface EmployeeInsuranceData {
 export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   year: number = new Date().getFullYear();
+  selectedMonth: number | 'all' | string = 'all';
   availableYears: number[] = [];
   insuranceData: { [employeeId: string]: EmployeeInsuranceData } = {};
+  bonusData: { [employeeId: string]: Bonus[] } = {};
   errorMessages: { [employeeId: string]: string[] } = {};
   warningMessages: { [employeeId: string]: string[] } = {};
   // 加入区分購読用
@@ -121,6 +123,52 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   async onYearChange(): Promise<void> {
     // 年度変更時にデータを再読み込み
     await this.loadInsuranceData();
+  }
+
+  onMonthChange(): void {
+    // 月変更時は再読み込み不要（フィルタリングのみ）
+    // selectedMonthを数値に変換（文字列の場合）
+    if (this.selectedMonth !== 'all' && typeof this.selectedMonth === 'string') {
+      this.selectedMonth = Number(this.selectedMonth);
+    }
+  }
+
+  getMonthLabel(): string {
+    if (this.selectedMonth === 'all') {
+      return '';
+    }
+    const month = typeof this.selectedMonth === 'string' ? Number(this.selectedMonth) : this.selectedMonth;
+    return `${month}月`;
+  }
+
+  getFilteredMonthlyPremiums(premiums: MonthlyPremiumData[]): MonthlyPremiumData[] {
+    if (this.selectedMonth === 'all') {
+      return premiums;
+    }
+    const month = typeof this.selectedMonth === 'string' ? Number(this.selectedMonth) : this.selectedMonth;
+    return premiums.filter(p => p.month === month);
+  }
+
+  getFilteredBonus(employeeId: string): Bonus | null {
+    const bonuses = this.bonusData[employeeId] || [];
+    if (this.selectedMonth === 'all') {
+      // 全月選択時は最新1回分を表示
+      return bonuses.length > 0 
+        ? bonuses.sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime())[0]
+        : null;
+    }
+    // 特定月選択時は支給日ベースで該当月の賞与を表示
+    const month = typeof this.selectedMonth === 'string' ? Number(this.selectedMonth) : this.selectedMonth;
+    const filtered = bonuses.filter(b => {
+      if (!b.payDate) return false;
+      // 支給日から年と月を抽出
+      const payDateObj = new Date(b.payDate);
+      const payYear = payDateObj.getFullYear();
+      const payMonth = payDateObj.getMonth() + 1; // getMonth()は0-11なので+1
+      // selectedYearとselectedMonthに完全一致する賞与のみ
+      return payYear === this.year && payMonth === month;
+    });
+    return filtered.length > 0 ? filtered[0] : null;
   }
 
   async loadInsuranceData(): Promise<void> {
@@ -245,6 +293,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       // 賞与データを取得
       console.log(`[insurance-result] 賞与取得: 年度=${this.year}, 従業員ID=${emp.id}`);
       const bonuses = await this.bonusService.getBonusesForResult(emp.id, this.year);
+      this.bonusData[emp.id] = bonuses || [];
       const latestBonus = bonuses && bonuses.length > 0 
         ? bonuses.sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime())[0]
         : null;
@@ -386,6 +435,131 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
   getInsuranceData(employeeId: string): EmployeeInsuranceData | null {
     return this.insuranceData[employeeId] || null;
+  }
+
+  getTableRows(): Array<{
+    employee: Employee;
+    monthlyPremium: MonthlyPremiumData | null;
+    bonusPremium: Bonus | null;
+    monthlyTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+    bonusTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+  }> {
+    const rows: Array<{
+      employee: Employee;
+      monthlyPremium: MonthlyPremiumData | null;
+      bonusPremium: Bonus | null;
+      monthlyTotal: {
+        healthEmployee: number;
+        healthEmployer: number;
+        careEmployee: number;
+        careEmployer: number;
+        pensionEmployee: number;
+        pensionEmployer: number;
+        total: number;
+      };
+      bonusTotal: {
+        healthEmployee: number;
+        healthEmployer: number;
+        careEmployee: number;
+        careEmployer: number;
+        pensionEmployee: number;
+        pensionEmployer: number;
+        total: number;
+      };
+    }> = [];
+
+    for (const emp of this.employees) {
+      const data = this.getInsuranceData(emp.id);
+      if (!data) continue;
+
+      const filteredMonthly = this.getFilteredMonthlyPremiums(data.monthlyPremiums);
+      const monthlyPremium = filteredMonthly.length > 0 ? filteredMonthly[0] : null;
+      const bonusPremium = this.getFilteredBonus(emp.id);
+
+      // 月次合計（選択月の1件分、または全月合計）
+      const monthlyTotal = monthlyPremium ? {
+        healthEmployee: monthlyPremium.healthEmployee,
+        healthEmployer: monthlyPremium.healthEmployer,
+        careEmployee: monthlyPremium.careEmployee,
+        careEmployer: monthlyPremium.careEmployer,
+        pensionEmployee: monthlyPremium.pensionEmployee,
+        pensionEmployer: monthlyPremium.pensionEmployer,
+        total: monthlyPremium.total,
+      } : {
+        healthEmployee: 0,
+        healthEmployer: 0,
+        careEmployee: 0,
+        careEmployer: 0,
+        pensionEmployee: 0,
+        pensionEmployer: 0,
+        total: 0,
+      };
+
+      // 全月選択時は年間合計を使用
+      if (this.selectedMonth === 'all') {
+        monthlyTotal.healthEmployee = data.monthlyTotal.healthEmployee;
+        monthlyTotal.healthEmployer = data.monthlyTotal.healthEmployer;
+        monthlyTotal.careEmployee = data.monthlyTotal.careEmployee;
+        monthlyTotal.careEmployer = data.monthlyTotal.careEmployer;
+        monthlyTotal.pensionEmployee = data.monthlyTotal.pensionEmployee;
+        monthlyTotal.pensionEmployer = data.monthlyTotal.pensionEmployer;
+        monthlyTotal.total = data.monthlyTotal.total;
+      }
+
+      // 賞与合計
+      const bonusTotal = bonusPremium ? {
+        healthEmployee: bonusPremium.healthEmployee || 0,
+        healthEmployer: bonusPremium.healthEmployer || 0,
+        careEmployee: bonusPremium.careEmployee || 0,
+        careEmployer: bonusPremium.careEmployer || 0,
+        pensionEmployee: bonusPremium.pensionEmployee || 0,
+        pensionEmployer: bonusPremium.pensionEmployer || 0,
+        total: (bonusPremium.healthEmployee || 0) + (bonusPremium.healthEmployer || 0) +
+               (bonusPremium.careEmployee || 0) + (bonusPremium.careEmployer || 0) +
+               (bonusPremium.pensionEmployee || 0) + (bonusPremium.pensionEmployer || 0),
+      } : {
+        healthEmployee: 0,
+        healthEmployer: 0,
+        careEmployee: 0,
+        careEmployer: 0,
+        pensionEmployee: 0,
+        pensionEmployer: 0,
+        total: 0,
+      };
+
+      rows.push({
+        employee: emp,
+        monthlyPremium,
+        bonusPremium,
+        monthlyTotal,
+        bonusTotal,
+      });
+    }
+
+    return rows;
+  }
+
+  hasBonusColumn(): boolean {
+    return this.employees.some(emp => {
+      const bonus = this.getFilteredBonus(emp.id);
+      return bonus !== null;
+    });
   }
 }
 

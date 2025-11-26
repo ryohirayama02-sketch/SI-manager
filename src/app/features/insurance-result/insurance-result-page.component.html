@@ -1,11 +1,20 @@
 <h2>社会保険料計算結果</h2>
 
 <div class="card" style="margin-bottom: 1rem;">
-  <div class="form-group">
-    <label>年度：</label>
-    <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-      <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
-    </select>
+  <div style="display: flex; gap: 1rem;">
+    <div class="form-group">
+      <label>年度：</label>
+      <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>月：</label>
+      <select [(ngModel)]="selectedMonth" (change)="onMonthChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+        <option value="all">全月（1-12）</option>
+        <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">{{ m }}月</option>
+      </select>
+    </div>
   </div>
 </div>
 
@@ -17,218 +26,73 @@
   <p>データがありません</p>
 </div>
 
-<div *ngFor="let emp of employees" class="card">
-  <h3>{{ emp.name }} の年間保険料（{{ year }}年度）</h3>
-
-  <!-- エラー・警告メッセージ -->
-  <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
-    <h4>エラー</h4>
-    <ul>
-      <li *ngFor="let err of errorMessages[emp.id] ?? []">{{ err }}</li>
-    </ul>
-  </div>
-
-  <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
-    <h4>警告</h4>
-    <ul>
-      <li *ngFor="let w of warningMessages[emp.id] ?? []">{{ w }}</li>
-    </ul>
-  </div>
-
-  <!-- 休職中の徴収不能アラート -->
-  <div *ngIf="getInsuranceData(emp.id)?.hasLeaveOfAbsence" class="warning-box" style="background-color: #fff3cd; border-color: #ffc107;">
-    <h4>⚠️ 休職中の徴収不能アラート</h4>
-    <p>本人負担の徴収ができない可能性があります（休職期間: {{ emp.leaveOfAbsenceStart }} 〜 {{ emp.leaveOfAbsenceEnd }}）</p>
-  </div>
-
-  <!-- 月次給与の保険料 -->
-  <div class="monthly-section" *ngIf="getInsuranceData(emp.id) as data">
-    <h4>月次報酬保険料（{{ year }}年度）</h4>
-    
-    <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
-      <thead>
-        <tr>
-          <th>月</th>
-          <th>標準報酬等級</th>
-          <th>標準報酬月額</th>
-          <th>健康保険<br>本人</th>
-          <th>健康保険<br>会社</th>
-          <th>介護保険<br>本人</th>
-          <th>介護保険<br>会社</th>
-          <th>厚生年金<br>本人</th>
-          <th>厚生年金<br>会社</th>
-          <th>合計</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let premium of data.monthlyPremiums" [ngClass]="{ 'exempt-row': premium.isExempt }">
-          <td>{{ premium.month }}月</td>
-          <td>{{ premium.grade ? premium.grade + '等級' : '-' }}</td>
-          <td>{{ premium.standardMonthlyRemuneration | number:'1.0-0' }}円</td>
-          <td>{{ premium.healthEmployee | number:'1.0-0' }}円</td>
-          <td>{{ premium.healthEmployer | number:'1.0-0' }}円</td>
-          <td>{{ premium.careEmployee | number:'1.0-0' }}円</td>
-          <td>{{ premium.careEmployer | number:'1.0-0' }}円</td>
-          <td>{{ premium.pensionEmployee | number:'1.0-0' }}円</td>
-          <td>{{ premium.pensionEmployer | number:'1.0-0' }}円</td>
-          <td>
-            <span *ngIf="premium.isExempt" style="color: #ff6b00; font-weight: bold;">免除中</span>
-            <span *ngIf="!premium.isExempt">{{ premium.total | number:'1.0-0' }}円</span>
-          </td>
-        </tr>
-        <tr *ngIf="data.monthlyPremiums.length === 0" class="no-data-row">
-          <td colspan="10" style="text-align: center; padding: 1rem;">月次給与データがありません</td>
-        </tr>
-        <tr class="total-row">
-          <td colspan="3"><strong>月次合計</strong></td>
-          <td><strong>{{ data.monthlyTotal.healthEmployee | number:'1.0-0' }}円</strong></td>
-          <td><strong>{{ data.monthlyTotal.healthEmployer | number:'1.0-0' }}円</strong></td>
-          <td><strong>{{ data.monthlyTotal.careEmployee | number:'1.0-0' }}円</strong></td>
-          <td><strong>{{ data.monthlyTotal.careEmployer | number:'1.0-0' }}円</strong></td>
-          <td><strong>{{ data.monthlyTotal.pensionEmployee | number:'1.0-0' }}円</strong></td>
-          <td><strong>{{ data.monthlyTotal.pensionEmployer | number:'1.0-0' }}円</strong></td>
-          <td><strong>{{ data.monthlyTotal.total | number:'1.0-0' }}円</strong></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- 賞与保険料 -->
-  <div class="bonus-section" *ngIf="getInsuranceData(emp.id) as data">
-    <h4>賞与保険料（{{ year }}年度）</h4>
-
-    <!-- 最新1回分の賞与（既存表示をここに移す） -->
-    <div *ngIf="data.latestBonus as latestBonus" class="latest-bonus-block">
-      <p style="margin-bottom: 1rem;">最新1回分の賞与: {{ latestBonus.amount | number:'1.0-0' }}円（{{ latestBonus.month }}月支給）</p>
-
-      <div class="premium-group">
-        <h5>健康保険</h5>
-        <div class="calculation-item">
-          <span class="label">本人：</span>
-          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-            {{ latestBonus.isExempted ? '免除中' : (latestBonus.healthEmployee ?? 0 | number:'1.0-0') + '円' }}
+<div *ngIf="employees.length > 0" class="card">
+  <h3>社会保険料計算結果（{{ year }}年度{{ getMonthLabel() }}）</h3>
+  
+  <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+    <thead>
+      <tr>
+        <th>氏名</th>
+        <th>健康保険<br>本人/会社</th>
+        <th>介護保険<br>本人/会社</th>
+        <th>厚生年金<br>本人/会社</th>
+        <th *ngIf="hasBonusColumn()">賞与 健康保険<br>本人/会社</th>
+        <th *ngIf="hasBonusColumn()">賞与 介護保険<br>本人/会社</th>
+        <th *ngIf="hasBonusColumn()">賞与 厚生年金<br>本人/会社</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let row of getTableRows()" [ngClass]="{ 'exempt-row': row.monthlyPremium?.isExempt }">
+        <td>{{ row.employee.name }}</td>
+        <td>
+          <span *ngIf="row.monthlyPremium?.isExempt" style="color: #ff6b00; font-weight: bold;">免除中</span>
+          <span *ngIf="!row.monthlyPremium?.isExempt">
+            {{ row.monthlyTotal.healthEmployee | number:'1.0-0' }} / {{ row.monthlyTotal.healthEmployer | number:'1.0-0' }}
           </span>
-        </div>
-        <div class="calculation-item">
-          <span class="label">会社：</span>
-          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-            {{ latestBonus.isExempted ? '免除中' : (latestBonus.healthEmployer ?? 0 | number:'1.0-0') + '円' }}
+        </td>
+        <td>
+          <span *ngIf="row.monthlyPremium?.isExempt" style="color: #ff6b00; font-weight: bold;">免除中</span>
+          <span *ngIf="!row.monthlyPremium?.isExempt">
+            {{ row.monthlyTotal.careEmployee | number:'1.0-0' }} / {{ row.monthlyTotal.careEmployer | number:'1.0-0' }}
           </span>
-        </div>
-      </div>
-
-      <div
-        class="premium-group"
-        *ngIf="
-          (latestBonus.careEmployee ?? 0) > 0 ||
-          (latestBonus.careEmployer ?? 0) > 0 ||
-          latestBonus.isExempted
-        "
-      >
-        <h5>介護保険</h5>
-        <div class="calculation-item">
-          <span class="label">本人：</span>
-          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-            {{ latestBonus.isExempted ? '免除中' : (latestBonus.careEmployee ?? 0 | number:'1.0-0') + '円' }}
+        </td>
+        <td>
+          <span *ngIf="row.monthlyPremium?.isExempt" style="color: #ff6b00; font-weight: bold;">免除中</span>
+          <span *ngIf="!row.monthlyPremium?.isExempt">
+            {{ row.monthlyTotal.pensionEmployee | number:'1.0-0' }} / {{ row.monthlyTotal.pensionEmployer | number:'1.0-0' }}
           </span>
-        </div>
-        <div class="calculation-item">
-          <span class="label">会社：</span>
-          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-            {{ latestBonus.isExempted ? '免除中' : (latestBonus.careEmployer ?? 0 | number:'1.0-0') + '円' }}
+        </td>
+        <td *ngIf="hasBonusColumn()">
+          <span *ngIf="row.bonusPremium">
+            <span *ngIf="row.bonusPremium.isExempted">免除中</span>
+            <span *ngIf="!row.bonusPremium.isExempted">
+              {{ row.bonusTotal.healthEmployee | number:'1.0-0' }} / {{ row.bonusTotal.healthEmployer | number:'1.0-0' }}
+            </span>
           </span>
-        </div>
-      </div>
-
-      <div class="premium-group">
-        <h5>厚生年金</h5>
-        <div class="calculation-item">
-          <span class="label">本人：</span>
-          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-            {{ latestBonus.isExempted ? '免除中' : (latestBonus.pensionEmployee ?? 0 | number:'1.0-0') + '円' }}
+          <span *ngIf="!row.bonusPremium">-</span>
+        </td>
+        <td *ngIf="hasBonusColumn()">
+          <span *ngIf="row.bonusPremium">
+            <span *ngIf="row.bonusPremium.isExempted">免除中</span>
+            <span *ngIf="!row.bonusPremium.isExempted">
+              {{ row.bonusTotal.careEmployee | number:'1.0-0' }} / {{ row.bonusTotal.careEmployer | number:'1.0-0' }}
+            </span>
           </span>
-        </div>
-        <div class="calculation-item">
-          <span class="label">会社：</span>
-          <span class="value" [ngClass]="{ 'exempt-text': latestBonus.isExempted }">
-            {{ latestBonus.isExempted ? '免除中' : (latestBonus.pensionEmployer ?? 0 | number:'1.0-0') + '円' }}
+          <span *ngIf="!row.bonusPremium">-</span>
+        </td>
+        <td *ngIf="hasBonusColumn()">
+          <span *ngIf="row.bonusPremium">
+            <span *ngIf="row.bonusPremium.isExempted">免除中</span>
+            <span *ngIf="!row.bonusPremium.isExempted">
+              {{ row.bonusTotal.pensionEmployee | number:'1.0-0' }} / {{ row.bonusTotal.pensionEmployer | number:'1.0-0' }}
+            </span>
           </span>
-        </div>
-      </div>
-
-      <div *ngIf="latestBonus.isExempted && latestBonus.exemptReason" class="info-box" style="margin-top: 1rem; padding: 0.75rem; background-color: #e3f2fd; border-radius: 4px;">
-        <p><strong>免除理由:</strong> {{ latestBonus.exemptReason }}</p>
-      </div>
-    </div>
-
-    <!-- ★ 新規：賞与年間合計 -->
-    <div class="bonus-total-section" *ngIf="data.bonusTotal" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ddd;">
-      <h5>賞与年間合計</h5>
-
-      <div class="calculation-item">
-        <span class="label">健康保険（本人）：</span>
-        <span class="value">{{ data.bonusTotal.healthEmployee | number:'1.0-0' }}円</span>
-      </div>
-      <div class="calculation-item">
-        <span class="label">健康保険（会社）：</span>
-        <span class="value">{{ data.bonusTotal.healthEmployer | number:'1.0-0' }}円</span>
-      </div>
-
-      <div class="calculation-item">
-        <span class="label">介護保険（本人）：</span>
-        <span class="value">{{ data.bonusTotal.careEmployee | number:'1.0-0' }}円</span>
-      </div>
-      <div class="calculation-item">
-        <span class="label">介護保険（会社）：</span>
-        <span class="value">{{ data.bonusTotal.careEmployer | number:'1.0-0' }}円</span>
-      </div>
-
-      <div class="calculation-item">
-        <span class="label">厚生年金（本人）：</span>
-        <span class="value">{{ data.bonusTotal.pensionEmployee | number:'1.0-0' }}円</span>
-      </div>
-      <div class="calculation-item">
-        <span class="label">厚生年金（会社）：</span>
-        <span class="value">{{ data.bonusTotal.pensionEmployer | number:'1.0-0' }}円</span>
-      </div>
-
-      <div class="calculation-item" style="border-top: 1px solid #ccc; margin-top: 0.5rem; padding-top: 0.5rem;">
-        <span class="label"><strong>賞与合計：</strong></span>
-        <span class="value"><strong>{{ data.bonusTotal.total | number:'1.0-0' }}円</strong></span>
-      </div>
-    </div>
-  </div>
-
-  <!-- 年間合計（給与＋賞与） -->
-  <div class="total-section" *ngIf="getInsuranceData(emp.id) as data">
-    <h4>年間合計（給与＋賞与）</h4>
-    <div class="calculation-item">
-      <span class="label">健康保険（本人）：</span>
-      <span class="value highlight">{{ data.grandTotal.healthEmployee | number:'1.0-0' }}円</span>
-    </div>
-    <div class="calculation-item">
-      <span class="label">健康保険（会社）：</span>
-      <span class="value highlight">{{ data.grandTotal.healthEmployer | number:'1.0-0' }}円</span>
-    </div>
-    <div class="calculation-item" *ngIf="data.grandTotal.careEmployee > 0 || data.grandTotal.careEmployer > 0">
-      <span class="label">介護保険（本人）：</span>
-      <span class="value highlight">{{ data.grandTotal.careEmployee | number:'1.0-0' }}円</span>
-    </div>
-    <div class="calculation-item" *ngIf="data.grandTotal.careEmployee > 0 || data.grandTotal.careEmployer > 0">
-      <span class="label">介護保険（会社）：</span>
-      <span class="value highlight">{{ data.grandTotal.careEmployer | number:'1.0-0' }}円</span>
-    </div>
-    <div class="calculation-item">
-      <span class="label">厚生年金（本人）：</span>
-      <span class="value highlight">{{ data.grandTotal.pensionEmployee | number:'1.0-0' }}円</span>
-    </div>
-    <div class="calculation-item">
-      <span class="label">厚生年金（会社）：</span>
-      <span class="value highlight">{{ data.grandTotal.pensionEmployer | number:'1.0-0' }}円</span>
-    </div>
-    <div class="calculation-item" style="border-top: 2px solid #333; margin-top: 0.5rem; padding-top: 0.5rem;">
-      <span class="label"><strong>総合計：</strong></span>
-      <span class="value highlight" style="font-size: 1.2em;"><strong>{{ data.grandTotal.total | number:'1.0-0' }}円</strong></span>
-    </div>
-  </div>
+          <span *ngIf="!row.bonusPremium">-</span>
+        </td>
+      </tr>
+      <tr *ngIf="getTableRows().length === 0" class="no-data-row">
+        <td [attr.colspan]="hasBonusColumn() ? 7 : 4" style="text-align: center; padding: 1rem;">データがありません</td>
+      </tr>
+    </tbody>
+  </table>
 </div>
