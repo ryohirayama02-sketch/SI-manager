@@ -31,7 +31,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   bonusAmount: number | null = null;
   bonusAmountDisplay: string = ''; // カンマ付き表示用
   paymentMonth: number = 1;
-  isExempt: boolean = false;
   rates: any = null;
   year: number = new Date().getFullYear();
   availableYears: number[] = [];
@@ -89,7 +88,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           paymentDate,
           this.year
         );
-        this.isExempt = this.calculationResult?.isExempted || false;
       }
     }
   }
@@ -240,6 +238,19 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     return healthTotal + careTotal + pensionTotal;
   }
 
+  getExemptNote(bonus: Bonus): string {
+    if (bonus.exemptReason) {
+      if (bonus.exemptReason.includes('産前産後休業中')) {
+        return '免除：産休中';
+      } else if (bonus.exemptReason.includes('育児休業中')) {
+        return '免除：育休中';
+      }
+      // その他の免除理由がある場合は簡潔に表示
+      return '免除中';
+    }
+    return '免除中';
+  }
+
   async updateBonusCalculation(): Promise<void> {
     if (!this.selectedEmployeeId || this.bonusAmount === null || this.bonusAmount < 0 || !this.rates) {
       this.calculationResult = null;
@@ -295,7 +306,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       amount: this.bonusAmount!,
       payDate: paymentDate,
       createdAt: new Date(),
-      isExempt: this.isExempt || this.calculationResult.isExempted || false,
+      isExempt: this.calculationResult.isExempted || false,
       cappedHealth: this.calculationResult.cappedBonusHealth || 0,
       cappedPension: this.calculationResult.cappedBonusPension || 0,
       // 既存フィールド（後方互換性）
@@ -332,7 +343,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       this.bonusAmount = null;
       this.bonusAmountDisplay = '';
       this.paymentMonth = 1;
-      this.isExempt = false;
       this.calculationResult = null;
       this.bonusList = [];
       this.filteredBonuses = [];
