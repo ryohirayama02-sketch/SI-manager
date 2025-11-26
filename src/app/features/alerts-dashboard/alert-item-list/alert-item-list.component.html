@@ -1,9 +1,10 @@
 <div class="alert-item-list">
-  <div *ngIf="alerts.length === 0" class="no-alerts">
-    届出アラートはありません。
-  </div>
+  <div class="card">
+    <div *ngIf="alerts.length === 0" class="no-alerts">
+      届出アラートはありません。
+    </div>
 
-  <div *ngIf="alerts.length > 0" style="margin-bottom: 1rem;">
+    <div *ngIf="alerts.length > 0" style="margin-bottom: 1rem;">
     <button 
       *ngIf="selectedAlertIds.size > 0"
       (click)="onDeleteSelected()"
@@ -46,5 +47,6 @@
       </tr>
     </tbody>
   </table>
+  </div>
 </div>
 

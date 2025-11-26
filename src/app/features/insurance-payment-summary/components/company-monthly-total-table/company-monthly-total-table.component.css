@@ -61,9 +61,8 @@
 
 .amount-cell {
   text-align: right;
-  font-family: "Courier New", monospace;
   color: #333;
-  font-size: 0.8rem;
+  font-size: 1rem;
   min-width: 90px;
   max-width: 120px;
   padding-right: 4px;
@@ -85,12 +84,12 @@
 
 .payment-table tfoot .total-row td {
   padding: 6px 4px;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .payment-table tfoot .total-cell {
   color: #007bff;
-  font-size: 0.9rem;
+  font-size: 1rem;
 }
 
 .bonus-month-row {

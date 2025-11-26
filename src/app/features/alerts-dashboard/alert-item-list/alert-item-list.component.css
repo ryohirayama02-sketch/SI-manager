@@ -1,3 +1,8 @@
+/* 届出アラートのcardは従業員一覧画面と同じ幅に統一 */
+:host ::ng-deep .card {
+  max-width: 1400px;
+}
+
 .alert-item-list {
   margin-top: 1rem;
 }

@@ -141,11 +141,15 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   async loadSuijiAlerts(year: number): Promise<void> {
     const loadedAlerts = await this.suijiService.loadAlerts(year);
-    this.suijiAlerts = loadedAlerts.map((alert: any) => ({
-      ...alert,
-      diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth),
-      id: alert.id || this.getSuijiAlertId(alert)
-    }));
+    // 存在する従業員のアラートのみをフィルタリング
+    const validEmployeeIds = new Set(this.employees.map(e => e.id));
+    this.suijiAlerts = loadedAlerts
+      .filter((alert: any) => validEmployeeIds.has(alert.employeeId))
+      .map((alert: any) => ({
+        ...alert,
+        diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth),
+        id: alert.id || this.getSuijiAlertId(alert)
+      }));
   }
 
   getPrevMonthDiff(employeeId: string, month: number): number | null {
@@ -167,6 +171,10 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   getEmployeeName(employeeId: string): string {
     const emp = this.employees.find(e => e.id === employeeId);
+    if (!emp) {
+      console.warn(`[alerts-dashboard] 従業員が見つかりません: employeeId=${employeeId}, 従業員数=${this.employees.length}`);
+      console.log(`[alerts-dashboard] 現在の従業員リスト:`, this.employees.map(e => ({ id: e.id, name: e.name })));
+    }
     return emp?.name || employeeId;
   }
 
