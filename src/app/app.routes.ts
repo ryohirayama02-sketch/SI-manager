@@ -87,9 +87,7 @@ export const routes: Routes = [
   },
   {
     path: '',
-    // 【一時無効化】ログイン画面ではなく従業員一覧をデフォルトに変更
-    // TODO: ログイン機能を有効化する際は '/login' に戻す
-    redirectTo: '/employees',
+    redirectTo: '/login',
     pathMatch: 'full',
   },
 ];

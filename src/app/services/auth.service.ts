@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 
 import {
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut,
@@ -29,7 +30,7 @@ export class AuthService {
     return this._auth;
   }
 
-  async signInWithGoogle(): Promise<void> {
+  async signInWithGoogle(): Promise<User> {
     console.log('[AuthService] signInWithGoogle: ===== 開始 =====');
     console.log('[AuthService] signInWithGoogle: Auth インスタンス確認', {
       hasAuth: !!this.auth,
@@ -39,17 +40,22 @@ export class AuthService {
     const provider = new GoogleAuthProvider();
     console.log('[AuthService] signInWithGoogle: GoogleAuthProvider 作成完了');
     console.log(
-      '[AuthService] signInWithGoogle: signInWithRedirect を呼び出し'
+      '[AuthService] signInWithGoogle: signInWithPopup を呼び出し'
     );
 
     try {
-      await signInWithRedirect(this.auth, provider);
+      const result = await signInWithPopup(this.auth, provider);
       console.log(
-        '[AuthService] signInWithGoogle: signInWithRedirect 完了（このログは通常表示されない）'
+        '[AuthService] signInWithGoogle: signInWithPopup 成功',
+        {
+          uid: result.user.uid,
+          email: result.user.email,
+        }
       );
+      return result.user;
     } catch (error) {
       console.error(
-        '[AuthService] signInWithGoogle: signInWithRedirect エラー',
+        '[AuthService] signInWithGoogle: signInWithPopup エラー',
         error
       );
       throw error;
@@ -145,17 +151,10 @@ export class AuthService {
   }
 
   async signOut(): Promise<void> {
-    // 【一時無効化】ログアウト機能を一時停止中
-    // TODO: ログイン機能を有効化する際は、以下のコメントアウトを解除して使用
-    /*
     console.log('[AuthService] signOut: ログアウト処理を開始');
     await signOut(this.auth);
     console.log('[AuthService] signOut: ログアウト完了');
     this.router.navigate(['/login']);
-    */
-
-    // 一時的にログアウト処理を無効化（ログイン画面へのリダイレクトをスキップ）
-    console.log('[AuthService] 【一時無効化】ログアウト処理をスキップ');
   }
 
   getCurrentUser(): User | null {
@@ -168,16 +167,6 @@ export class AuthService {
   }
 
   getAuthState() {
-    // 【一時無効化】ログイン機能を一時停止中
-    // TODO: ログイン機能を有効化する際は、以下のコメントアウトを解除して使用
-    /*
     return authState(this.auth as any);
-    */
-
-    // 一時的に常に認証済みとして扱う（ダミーユーザーオブジェクトを返す）
-    console.log(
-      '[AuthService] 【一時無効化】getAuthState: 認証チェックをスキップ（常にtrue）'
-    );
-    return of({ uid: 'temp-user', email: 'temp@example.com' } as any);
   }
 }

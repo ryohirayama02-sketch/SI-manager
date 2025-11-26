@@ -9,6 +9,6 @@
     >
       {{ isLoading ? "ログイン中..." : "Googleでログイン" }}
     </button>
-    <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
+    <div *ngIf="errorMessage" class="error-message" style="white-space: pre-line;">{{ errorMessage }}</div>
   </div>
 </div>
