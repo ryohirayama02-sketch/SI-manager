@@ -3,9 +3,28 @@
     届出アラートはありません。
   </div>
 
+  <div *ngIf="alerts.length > 0" style="margin-bottom: 1rem;">
+    <button 
+      *ngIf="selectedAlertIds.size > 0"
+      (click)="onDeleteSelected()"
+      class="btn-danger"
+      style="margin-right: 0.5rem;">
+      選択した{{ selectedAlertIds.size }}件を削除
+    </button>
+    <label style="margin-left: 1rem;">
+      <input 
+        type="checkbox" 
+        [checked]="selectedAlertIds.size === alerts.length && alerts.length > 0"
+        (change)="onToggleAllChange($event)"
+        style="margin-right: 0.5rem;">
+      すべて選択
+    </label>
+  </div>
+
   <table *ngIf="alerts.length > 0" class="alert-table">
     <thead>
       <tr>
+        <th style="width: 40px;"></th>
         <th>従業員名</th>
         <th>内容種別</th>
         <th>コメント</th>
@@ -13,10 +32,18 @@
       </tr>
     </thead>
     <tbody>
-      <app-alert-item-row 
-        *ngFor="let alert of alerts" 
-        [alert]="alert">
-      </app-alert-item-row>
+      <tr *ngFor="let alert of alerts">
+        <td style="width: 40px;">
+          <input 
+            type="checkbox" 
+            [checked]="isSelected(alert.id)"
+            (change)="onToggleSelection(alert.id)">
+        </td>
+        <td>{{ alert.employeeName }}</td>
+        <td>{{ alert.alertType }}</td>
+        <td>{{ alert.comment }}</td>
+        <td>{{ alert.targetMonth }}</td>
+      </tr>
     </tbody>
   </table>
 </div>

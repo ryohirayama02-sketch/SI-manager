@@ -1,4 +1,10 @@
 <tr>
+  <td style="width: 40px;">
+    <input 
+      type="checkbox" 
+      [checked]="isSelected"
+      (change)="onToggleSelection(alert.id)">
+  </td>
   <td>{{ alert.employeeName }}</td>
   <td>{{ alert.alertType }}</td>
   <td>{{ alert.comment }}</td>

@@ -11,5 +11,7 @@ import { AlertItem } from '../alerts-dashboard-page.component';
 })
 export class AlertItemRowComponent {
   @Input() alert!: AlertItem;
+  @Input() isSelected: boolean = false;
+  @Input() onToggleSelection: (alertId: string) => void = () => {};
 }
 

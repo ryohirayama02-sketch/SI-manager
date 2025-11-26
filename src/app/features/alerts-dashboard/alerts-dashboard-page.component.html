@@ -35,9 +35,28 @@
           随時改定候補はありません。
         </div>
         
+        <div *ngIf="suijiAlerts.length > 0" style="margin-bottom: 1rem;">
+          <button 
+            *ngIf="selectedSuijiAlertIds.size > 0"
+            (click)="deleteSelectedSuijiAlerts()"
+            class="btn-danger"
+            style="margin-right: 0.5rem;">
+            選択した{{ selectedSuijiAlertIds.size }}件を削除
+          </button>
+          <label style="margin-left: 1rem;">
+            <input 
+              type="checkbox" 
+              [checked]="selectedSuijiAlertIds.size === suijiAlerts.length && suijiAlerts.length > 0"
+              (change)="toggleAllSuijiAlertsChange($event)"
+              style="margin-right: 0.5rem;">
+            すべて選択
+          </label>
+        </div>
+        
         <table class="alert-table" *ngIf="suijiAlerts.length > 0">
           <thead>
             <tr>
+              <th style="width: 40px;"></th>
               <th>従業員</th>
               <th>変動月</th>
               <th>前月比</th>
@@ -51,11 +70,17 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let alert of suijiAlerts"
+            <tr *ngFor="let alert of suijiAlerts; let i = index"
                 [ngClass]="{
                   'alert-row': alert.isEligible,
                   'large-change-row': isLargeChange(alert.diff)
                 }">
+              <td style="width: 40px;">
+                <input 
+                  type="checkbox" 
+                  [checked]="isSuijiAlertSelected(getSuijiAlertId(alert))"
+                  (change)="toggleSuijiAlertSelection(getSuijiAlertId(alert))">
+              </td>
               <td>
                 <span *ngIf="alert.isEligible">⚠️ </span>
                 {{ getEmployeeName(alert.employeeId) }}
@@ -81,7 +106,14 @@
     </div>
 
     <div *ngIf="activeTab === 'notifications'" class="tab-pane">
-      <app-alert-item-list [alerts]="notificationAlerts"></app-alert-item-list>
+      <app-alert-item-list 
+        [alerts]="notificationAlerts"
+        [selectedAlertIds]="selectedNotificationAlertIds"
+        [onToggleSelection]="toggleNotificationAlertSelection.bind(this)"
+        [onToggleAll]="toggleAllNotificationAlerts.bind(this)"
+        [onDeleteSelected]="deleteSelectedNotificationAlerts.bind(this)"
+        [isSelected]="isNotificationAlertSelected.bind(this)">
+      </app-alert-item-list>
     </div>
   </div>
 </div>

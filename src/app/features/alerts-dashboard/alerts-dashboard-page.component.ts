@@ -28,6 +28,7 @@ export interface AlertItem {
 // 前月比差額を含む拡張型
 interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
   diffPrev?: number | null;
+  id?: string; // FirestoreのドキュメントID
 }
 
 @Component({
@@ -42,6 +43,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   
   // 随時改定アラート関連
   suijiAlerts: SuijiKouhoResultWithDiff[] = [];
+  selectedSuijiAlertIds: Set<string> = new Set();
   employees: Employee[] = [];
   year: number = 2025;
   availableYears: number[] = [];
@@ -53,6 +55,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   
   // 届出アラート関連
   notificationAlerts: AlertItem[] = [];
+  selectedNotificationAlertIds: Set<string> = new Set();
   notificationsByEmployee: { [employeeId: string]: NotificationDecisionResult[] } = {};
   salaryDataByEmployeeId: { [employeeId: string]: any } = {};
   bonusesByEmployeeId: { [employeeId: string]: Bonus[] } = {};
@@ -138,9 +141,10 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   async loadSuijiAlerts(year: number): Promise<void> {
     const loadedAlerts = await this.suijiService.loadAlerts(year);
-    this.suijiAlerts = loadedAlerts.map(alert => ({
+    this.suijiAlerts = loadedAlerts.map((alert: any) => ({
       ...alert,
-      diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth)
+      diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth),
+      id: alert.id || this.getSuijiAlertId(alert)
     }));
   }
 
@@ -253,6 +257,120 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   setActiveTab(tab: 'suiji' | 'notifications'): void {
     this.activeTab = tab;
+  }
+
+  // 随時改定アラートの選択管理
+  toggleSuijiAlertSelection(alertId: string): void {
+    if (this.selectedSuijiAlertIds.has(alertId)) {
+      this.selectedSuijiAlertIds.delete(alertId);
+    } else {
+      this.selectedSuijiAlertIds.add(alertId);
+    }
+  }
+
+  toggleAllSuijiAlerts(checked: boolean): void {
+    if (checked) {
+      this.suijiAlerts.forEach(alert => {
+        const alertId = this.getSuijiAlertId(alert);
+        this.selectedSuijiAlertIds.add(alertId);
+      });
+    } else {
+      this.selectedSuijiAlertIds.clear();
+    }
+  }
+
+  toggleAllSuijiAlertsChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.toggleAllSuijiAlerts(target.checked);
+  }
+
+  isSuijiAlertSelected(alertId: string): boolean {
+    return this.selectedSuijiAlertIds.has(alertId);
+  }
+
+  getSuijiAlertId(alert: SuijiKouhoResultWithDiff): string {
+    // FirestoreのドキュメントIDがあればそれを使用、なければ生成
+    if (alert.id) {
+      return alert.id;
+    }
+    return `${alert.employeeId}_${alert.changeMonth}_${alert.applyStartMonth}`;
+  }
+
+  // 届出アラートの選択管理
+  toggleNotificationAlertSelection(alertId: string): void {
+    if (this.selectedNotificationAlertIds.has(alertId)) {
+      this.selectedNotificationAlertIds.delete(alertId);
+    } else {
+      this.selectedNotificationAlertIds.add(alertId);
+    }
+  }
+
+  toggleAllNotificationAlerts(checked: boolean): void {
+    if (checked) {
+      this.notificationAlerts.forEach(alert => {
+        this.selectedNotificationAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedNotificationAlertIds.clear();
+    }
+  }
+
+  isNotificationAlertSelected(alertId: string): boolean {
+    return this.selectedNotificationAlertIds.has(alertId);
+  }
+
+  // 随時改定アラートの削除
+  async deleteSelectedSuijiAlerts(): Promise<void> {
+    const selectedIds = Array.from(this.selectedSuijiAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の随時改定アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを削除
+    for (const alertId of selectedIds) {
+      const alert = this.suijiAlerts.find(a => this.getSuijiAlertId(a) === alertId);
+      if (alert) {
+        // FirestoreのドキュメントIDを使用（形式: employeeId_changeMonth）
+        const docId = alert.id || `${alert.employeeId}_${alert.changeMonth}`;
+        const parts = docId.split('_');
+        const employeeId = parts[0];
+        const changeMonth = parseInt(parts[1], 10);
+        
+        await this.suijiService.deleteAlert(
+          this.year,
+          employeeId,
+          changeMonth
+        );
+      }
+    }
+
+    // アラートを再読み込み
+    await this.loadSuijiAlerts(this.year);
+    this.selectedSuijiAlertIds.clear();
+  }
+
+  // 届出アラートの削除
+  deleteSelectedNotificationAlerts(): void {
+    const selectedIds = Array.from(this.selectedNotificationAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の届出アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.notificationAlerts = this.notificationAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedNotificationAlertIds.clear();
   }
 }
 

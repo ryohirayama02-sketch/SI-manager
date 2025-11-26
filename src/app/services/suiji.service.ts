@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, setDoc, collection, getDocs } from '@angular/fire/firestore';
+import { Firestore, doc, setDoc, deleteDoc, collection, getDocs } from '@angular/fire/firestore';
 import { MonthlySalaryData } from '../models/monthly-salary.model';
 import { SalaryItem } from '../models/salary-item.model';
 import { FixedChangeResult } from '../models/suiji.model';
@@ -222,10 +222,22 @@ export class SuijiService {
    * @param year 年度
    * @returns 随時改定候補結果の配列
    */
-  async loadAlerts(year: number): Promise<SuijiKouhoResult[]> {
+  async loadAlerts(year: number): Promise<(SuijiKouhoResult & { id: string })[]> {
     const ref = collection(this.firestore, `suiji/${year}/alerts`);
     const snap = await getDocs(ref);
-    return snap.docs.map(d => d.data() as SuijiKouhoResult);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id } as SuijiKouhoResult & { id: string }));
+  }
+
+  /**
+   * 随時改定アラートをFirestoreから削除する
+   * @param year 年度
+   * @param employeeId 従業員ID
+   * @param changeMonth 変動月
+   */
+  async deleteAlert(year: number, employeeId: string, changeMonth: number): Promise<void> {
+    const docId = `${employeeId}_${changeMonth}`;
+    const ref = doc(this.firestore, `suiji/${year}/alerts/${docId}`);
+    await deleteDoc(ref);
   }
 
   /**
