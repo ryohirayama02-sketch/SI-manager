@@ -16,6 +16,17 @@
   (yearChange)="onYearChange($event)"
 ></app-payment-summary-year-selector>
 
+<!-- 月選択 -->
+<div class="card" style="margin-bottom: 1rem;">
+  <div class="form-group">
+    <label>月：</label>
+    <select [(ngModel)]="selectedMonth" (change)="onMonthChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <option value="all">全月（1-12）</option>
+      <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">{{ m }}月</option>
+    </select>
+  </div>
+</div>
+
 <!-- 従業員セレクタ -->
 <app-payment-summary-employee-selector
   [employees]="employees"
@@ -23,18 +34,109 @@
   (selectionChange)="onEmployeeSelectionChange($event)"
 ></app-payment-summary-employee-selector>
 
+<!-- 集計値表示（指定月の合計のみ） -->
+<div class="card" style="margin-bottom: 1rem;">
+  <h3>集計結果（{{ year }}年度{{ selectedMonth === 'all' ? '全月' : selectedMonth + '月' }}）</h3>
+  
+  <div *ngIf="getMonthlyTotals(year, selectedMonth) as monthlyTotals">
+    <h4>月次報酬分</h4>
+    <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+      <thead>
+        <tr>
+          <th>保険種類</th>
+          <th>本人合計</th>
+          <th>会社合計</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>健康保険</td>
+          <td>{{ monthlyTotals.healthEmployee | number:'1.0-0' }}円</td>
+          <td>{{ monthlyTotals.healthEmployer | number:'1.0-0' }}円</td>
+        </tr>
+        <tr>
+          <td>介護保険</td>
+          <td>{{ monthlyTotals.careEmployee | number:'1.0-0' }}円</td>
+          <td>{{ monthlyTotals.careEmployer | number:'1.0-0' }}円</td>
+        </tr>
+        <tr>
+          <td>厚生年金</td>
+          <td>{{ monthlyTotals.pensionEmployee | number:'1.0-0' }}円</td>
+          <td>{{ monthlyTotals.pensionEmployer | number:'1.0-0' }}円</td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>月次総額</strong></td>
+          <td><strong>{{ monthlyTotals.totalEmployee | number:'1.0-0' }}円</strong></td>
+          <td><strong>{{ monthlyTotals.totalEmployer | number:'1.0-0' }}円</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div *ngIf="getBonusTotals(year, selectedMonth) as bonusTotals" style="margin-top: 1.5rem;">
+    <h4>賞与保険料</h4>
+    <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+      <thead>
+        <tr>
+          <th>保険種類</th>
+          <th>本人合計</th>
+          <th>会社合計</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>健康保険</td>
+          <td>{{ bonusTotals.healthEmployee | number:'1.0-0' }}円</td>
+          <td>{{ bonusTotals.healthEmployer | number:'1.0-0' }}円</td>
+        </tr>
+        <tr>
+          <td>介護保険</td>
+          <td>{{ bonusTotals.careEmployee | number:'1.0-0' }}円</td>
+          <td>{{ bonusTotals.careEmployer | number:'1.0-0' }}円</td>
+        </tr>
+        <tr>
+          <td>厚生年金</td>
+          <td>{{ bonusTotals.pensionEmployee | number:'1.0-0' }}円</td>
+          <td>{{ bonusTotals.pensionEmployer | number:'1.0-0' }}円</td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>賞与合計</strong></td>
+          <td><strong>{{ bonusTotals.totalEmployee | number:'1.0-0' }}円</strong></td>
+          <td><strong>{{ bonusTotals.totalEmployer | number:'1.0-0' }}円</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div *ngIf="getFinalTotals() as finalTotals" style="margin-top: 1.5rem;">
+    <h4>最終総計</h4>
+    <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>会社負担総計（報酬分＋賞与分）</td>
+          <td><strong>{{ finalTotals.companyTotal | number:'1.0-0' }}円</strong></td>
+        </tr>
+        <tr>
+          <td>従業員負担総計（報酬分＋賞与分）</td>
+          <td><strong>{{ finalTotals.employeeTotal | number:'1.0-0' }}円</strong></td>
+        </tr>
+        <tr class="total-row">
+          <td><strong>総支払額（本人＋会社）</strong></td>
+          <td><strong>{{ finalTotals.grandTotal | number:'1.0-0' }}円</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
 <!-- 年間警告パネル -->
 <app-annual-warning-panel [warnings]="warnings"></app-annual-warning-panel>
-
-<!-- 会社全体の年間保険料合計（本人分＋会社負担分） -->
-<app-annual-bonus-summary
-  [year]="year"
-  [bonusAnnualTotals]="bonusAnnualTotals"
-  [annualTotalHealth]="annualTotals.health"
-  [annualTotalCare]="annualTotals.care"
-  [annualTotalPension]="annualTotals.pension"
-  [annualTotal]="annualTotals.total"
-></app-annual-bonus-summary>
 
 <div *ngIf="employees.length === 0" class="no-data-message">
   <p>データがありません</p>
@@ -59,15 +161,6 @@
   [annualTotalPension]="annualTotals.pension"
   [annualTotal]="annualTotals.total"
 ></app-company-monthly-total-table>
-
-<!-- 従業員ごとの月次報酬保険料 -->
-<app-monthly-premium-table
-  *ngFor="let emp of getFilteredEmployees()"
-  [employee]="emp"
-  [year]="year"
-  [monthlyPremiumRows]="monthlyPremiumsByEmployee[emp.id] || []"
-  [hasNotes]="hasNotesForEmployee(emp.id)"
-></app-monthly-premium-table>
 
 <!-- 従業員ごとの届出要否 -->
 <app-employee-notification-panel
