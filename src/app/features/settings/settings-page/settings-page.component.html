@@ -26,6 +26,9 @@
 <h2>保険料率の設定</h2>
 
 <div class="card">
+  <div class="info-label">
+    年度ごとに使用する社会保険料率（健保・介護・厚年）を登録してください。
+  </div>
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
     <div class="form-group" style="margin-bottom: 0;">
       <label>年度：</label>
@@ -33,7 +36,6 @@
         <option *ngFor="let y of availableYears" [value]="y.toString()">{{ y }}年</option>
       </select>
     </div>
-    <span style="font-size: 0.85rem; color: #666;">単位：%</span>
   </div>
 
   <!-- 健康保険（47都道府県） -->
@@ -178,6 +180,9 @@
 </h2>
 
 <div class="card" *ngIf="isStandardTableExpanded">
+  <div class="info-label">
+    標準報酬月額の等級表を設定してください。
+  </div>
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
     <div class="form-group" style="margin-bottom: 0;">
       <label>年度：</label>
@@ -258,14 +263,16 @@
 <h2>給与項目マスタ</h2>
 
 <div class="card">
-  <div class="form-group">
-    <label>年度：</label>
-    <select [(ngModel)]="salaryItemsYear" (change)="onSalaryItemsYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-      <option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}年</option>
-    </select>
-  </div>
   <div class="info-label">
     給与項目を「固定（fixed）」「非固定（variable）」で分類して管理します。
+  </div>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label>年度：</label>
+      <select [(ngModel)]="salaryItemsYear" (change)="onSalaryItemsYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}年</option>
+      </select>
+    </div>
   </div>
   <form [formGroup]="salaryItemsForm">
     <div formArrayName="salaryItems">
