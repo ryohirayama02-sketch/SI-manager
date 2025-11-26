@@ -178,19 +178,16 @@ export class SuijiService {
     // 12を超える場合は翌年扱いだが、今回は月のみ計算でOK
     const normalizedApplyMonth = applyStartMonth > 12 ? applyStartMonth - 12 : applyStartMonth;
 
-    // 判定理由を設定
+    // 判定理由を設定（シンプルに）
     const reasons: string[] = [];
-    reasons.push(`固定的賃金が${change.fixedBefore.toLocaleString()}円から${change.fixedAfter.toLocaleString()}円に変動`);
-    reasons.push(`変動月（${change.changeMonth}月）を含む3か月平均: ${average.toLocaleString()}円`);
-    reasons.push(`現行等級: ${currentGrade} → 新等級: ${newGrade}（等級差: ${diff}）`);
 
     // 随時改定の成立可否を判定（等級差が2以上）
     const isEligible = diff >= 2;
 
     if (isEligible) {
-      reasons.push(`等級差が2以上（${diff}）のため、随時改定が成立`);
+      reasons.push(`等級差${diff}で成立`);
     } else {
-      reasons.push(`等級差が1以下（${diff}）のため、随時改定は不成立`);
+      reasons.push(`等級差${diff}で不成立`);
     }
 
     return {

@@ -10,18 +10,18 @@
 
     <div class="form-group">
       <label for="birthDate">生年月日 <span class="required">*</span></label>
-      <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required (change)="validateDates()">
+      <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required (change)="validateDates()" max="9999-12-31">
       <small *ngIf="ageInfo" class="form-text">現在の年齢: {{ ageInfo }}</small>
     </div>
 
     <div class="form-group">
       <label for="joinDate">入社日 <span class="required">*</span></label>
-      <input id="joinDate" formControlName="joinDate" type="date" class="form-control" required (change)="validateDates()">
+      <input id="joinDate" formControlName="joinDate" type="date" class="form-control" required (change)="validateDates()" max="9999-12-31">
     </div>
 
     <div class="form-group">
       <label for="retireDate">退職日</label>
-      <input id="retireDate" formControlName="retireDate" type="date" class="form-control" (change)="validateDates()">
+      <input id="retireDate" formControlName="retireDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
 
     <div class="form-group">
@@ -117,35 +117,35 @@
     <h3>休職・復職情報</h3>
     <div class="form-group">
       <label for="leaveOfAbsenceStart">休職開始日</label>
-      <input id="leaveOfAbsenceStart" formControlName="leaveOfAbsenceStart" type="date" class="form-control" (change)="validateDates()">
+      <input id="leaveOfAbsenceStart" formControlName="leaveOfAbsenceStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
     <div class="form-group">
       <label for="leaveOfAbsenceEnd">休職終了日</label>
-      <input id="leaveOfAbsenceEnd" formControlName="leaveOfAbsenceEnd" type="date" class="form-control" (change)="validateDates()">
+      <input id="leaveOfAbsenceEnd" formControlName="leaveOfAbsenceEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
     <div class="form-group">
       <label for="returnFromLeaveDate">復職日</label>
-      <input id="returnFromLeaveDate" formControlName="returnFromLeaveDate" type="date" class="form-control" (change)="validateDates()">
+      <input id="returnFromLeaveDate" formControlName="returnFromLeaveDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
 
     <h3>産前産後休業情報</h3>
     <div class="form-group">
       <label for="maternityLeaveStart">産前産後休業開始日</label>
-      <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" class="form-control" (change)="validateDates()">
+      <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
     <div class="form-group">
       <label for="maternityLeaveEnd">産前産後休業終了日</label>
-      <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" class="form-control" (change)="validateDates()">
+      <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
 
     <h3>育児休業情報</h3>
     <div class="form-group">
       <label for="childcareLeaveStart">育児休業開始日</label>
-      <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" class="form-control" (change)="validateDates()">
+      <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
     <div class="form-group">
       <label for="childcareLeaveEnd">育児休業終了日</label>
-      <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" class="form-control" (change)="validateDates()">
+      <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
     </div>
     <div class="form-group">
       <label>
