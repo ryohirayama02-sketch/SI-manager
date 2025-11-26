@@ -20,17 +20,9 @@
     <tbody>
       <tr
         *ngFor="let total of companyMonthlyTotals"
-        [class.bonus-month-row]="bonusByMonth[total.month]"
       >
         <td class="month-cell">
           {{ total.month }}月
-          <span *ngIf="bonusByMonth[total.month]" class="bonus-mark">★</span>
-          <span
-            *ngIf="bonusByMonth[total.month]"
-            class="bonus-info"
-            [title]="getBonusTooltip(total.month)"
-            >ℹ️</span
-          >
           <div *ngIf="monthlyTotals[total.month]?.isRetired" class="stop-info">
             <small>資格喪失月：保険料なし</small>
           </div>

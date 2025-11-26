@@ -1,9 +1,14 @@
+/* 賞与入力画面のcardは従業員一覧画面と同じ幅に統一 */
+:host ::ng-deep .card {
+  max-width: 1400px;
+}
+
 .bonus-form {
-  max-width: 600px;
+  max-width: 1400px;
 }
 
 .calculation-card {
-  max-width: 600px;
+  max-width: 1400px;
   margin: 2rem auto;
   padding: 0;
   background: #ffffff;
@@ -170,7 +175,7 @@
 }
 
 .error-box {
-  max-width: 600px;
+  max-width: 1400px;
   margin: 1rem auto;
   padding: 16px;
   background: #f8d7da;
@@ -197,7 +202,7 @@
 }
 
 .warning-box {
-  max-width: 600px;
+  max-width: 1400px;
   margin: 1rem auto;
   padding: 16px;
   background: #fff5e6;

@@ -34,12 +34,12 @@
     <thead>
       <tr>
         <th>氏名</th>
-        <th>健康保険<br>本人/会社</th>
-        <th>介護保険<br>本人/会社</th>
-        <th>厚生年金<br>本人/会社</th>
-        <th *ngIf="hasBonusColumn()">賞与 健康保険<br>本人/会社</th>
-        <th *ngIf="hasBonusColumn()">賞与 介護保険<br>本人/会社</th>
-        <th *ngIf="hasBonusColumn()">賞与 厚生年金<br>本人/会社</th>
+        <th>健康保険 本人/会社</th>
+        <th>介護保険 本人/会社</th>
+        <th>厚生年金 本人/会社</th>
+        <th *ngIf="hasBonusColumn()">賞与 健康保険 本人/会社</th>
+        <th *ngIf="hasBonusColumn()">賞与 介護保険 本人/会社</th>
+        <th *ngIf="hasBonusColumn()">賞与 厚生年金 本人/会社</th>
       </tr>
     </thead>
     <tbody>
@@ -101,19 +101,27 @@
 <!-- 全月選択時（1-12）のブロック表示 -->
 <div *ngIf="employees.length > 0 && selectedMonth === 'all'">
   <div *ngFor="let emp of employees" class="card" style="margin-bottom: 1.5rem;">
-    <h3>{{ emp.name }} の年間保険料（{{ year }}年度）</h3>
+    <h3 
+      class="collapsible-header"
+      (click)="expandedEmployees[emp.id] = !expandedEmployees[emp.id]"
+      [class.expanded]="expandedEmployees[emp.id]"
+      style="cursor: pointer; user-select: none; display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem 0; font-size: 1.3rem; font-weight: bold;">
+      <span class="collapse-icon">{{ expandedEmployees[emp.id] ? '▼' : '▶' }}</span>
+      <span>{{ emp.name }} の年間保険料（{{ year }}年度）</span>
+    </h3>
     
     <!-- 月次保険料（1-12月） -->
-    <div *ngIf="getInsuranceData(emp.id) as data">
+    <div *ngIf="expandedEmployees[emp.id]">
+      <ng-container *ngIf="getInsuranceData(emp.id) as data">
       <h4>月次報酬保険料</h4>
       <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
         <thead>
           <tr>
             <th>月</th>
-            <th>健康保険<br>本人/会社</th>
-            <th>介護保険<br>本人/会社</th>
-            <th>厚生年金<br>本人/会社</th>
-            <th>月合計<br>本人/会社</th>
+            <th>健康保険 本人/会社</th>
+            <th>介護保険 本人/会社</th>
+            <th>厚生年金 本人/会社</th>
+            <th>月合計 本人/会社</th>
           </tr>
         </thead>
         <tbody>
@@ -166,9 +174,9 @@
             <tr>
               <th>支給月</th>
               <th>賞与額</th>
-              <th>健康保険<br>本人/会社</th>
-              <th>介護保険<br>本人/会社</th>
-              <th>厚生年金<br>本人/会社</th>
+              <th>健康保険 本人/会社</th>
+              <th>介護保険 本人/会社</th>
+              <th>厚生年金 本人/会社</th>
               <th>合計</th>
             </tr>
           </thead>
@@ -204,6 +212,7 @@
           </tbody>
         </table>
       </div>
+      </ng-container>
     </div>
   </div>
 </div>

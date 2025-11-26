@@ -1,5 +1,10 @@
 /* グローバルスタイルを使用 */
 
+/* 集計画面のcardは従業員一覧画面と同じ幅に統一 */
+:host ::ng-deep .card {
+  max-width: 1400px;
+}
+
 .card {
   overflow-x: auto;
 }
@@ -78,7 +83,7 @@
 }
 
 .no-data-message {
-  max-width: 800px;
+  max-width: 1400px;
   margin: 2rem auto;
   padding: 2rem;
   text-align: center;
@@ -247,7 +252,7 @@
 }
 
 .annual-summary-table {
-  max-width: 600px;
+  max-width: 1400px;
 }
 
 .annual-summary-table .label-cell {

@@ -1,5 +1,17 @@
 /* グローバルスタイルを使用 */
 
+/* 保険料計算結果画面のcardは従業員一覧画面と同じ幅に統一 */
+:host ::ng-deep .card {
+  max-width: 1400px;
+}
+
+/* info-labelも同じ幅に統一 */
+:host ::ng-deep .info-label {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .monthly-section {
   margin-bottom: 2rem;
   padding: 1rem;
@@ -193,4 +205,30 @@
 .exempt-text {
   color: #ff6b00;
   font-weight: bold;
+}
+
+/* 折り畳み可能なヘッダー */
+.collapsible-header {
+  transition: color 0.2s ease;
+}
+
+.collapsible-header:hover {
+  color: #007bff;
+}
+
+.collapsible-header .collapse-icon {
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+  font-size: 0.8em;
+  transition: transform 0.2s ease;
+  color: #666;
+}
+
+.collapsible-header.expanded .collapse-icon {
+  color: #007bff;
+}
+
+.collapsible-header:hover .collapse-icon {
+  color: #007bff;
 }

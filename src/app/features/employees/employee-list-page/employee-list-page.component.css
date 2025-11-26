@@ -1,5 +1,10 @@
 /* グローバルスタイルを使用 */
 
+/* 従業員一覧画面のcardは横幅を広げる */
+:host ::ng-deep .card {
+  max-width: 1400px;
+}
+
 .btn-create {
   margin-bottom: 1rem;
 }
@@ -36,14 +41,22 @@
 
 .employee-table th,
 .employee-table td {
-  padding: 0.75rem;
+  padding: 0.5rem 0.4rem;
   border: 1px solid #ddd;
   text-align: left;
+  font-size: 0.9rem;
 }
 
 .employee-table th {
   background-color: #f5f5f5;
   font-weight: bold;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.4rem;
+  white-space: nowrap;
+}
+
+.employee-table td {
+  white-space: nowrap;
 }
 
 .employee-table tbody tr:hover {

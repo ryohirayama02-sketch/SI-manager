@@ -80,6 +80,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   warningMessages: { [employeeId: string]: string[] } = {};
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
+  // 各従業員の展開状態を管理
+  expandedEmployees: { [employeeId: string]: boolean } = {};
 
   constructor(
     private employeeService: EmployeeService,

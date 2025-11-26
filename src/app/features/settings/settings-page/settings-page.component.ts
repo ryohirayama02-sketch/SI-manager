@@ -30,7 +30,10 @@ export class SettingsPageComponent implements OnInit {
   salaryItemsForm: FormGroup;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
-  isStandardTableExpanded: boolean = true;
+  isStandardTableExpanded: boolean = false;
+  isBasicSettingsExpanded: boolean = false;
+  isRateSettingsExpanded: boolean = false;
+  isSalaryItemsExpanded: boolean = false;
   
   // 47都道府県の料率データ
   prefectureRates: { [prefecture: string]: { health_employee: number; health_employer: number } } = {};

@@ -14,6 +14,8 @@ export class PaymentSummaryEmployeeSelectorComponent {
   @Input() employees: Employee[] = [];
   @Input() selectedEmployeeIds: string[] = [];
   @Output() selectionChange = new EventEmitter<string[]>();
+  
+  isExpanded: boolean = false;
 
   onEmployeeToggle(employeeId: string, event: Event): void {
     const target = event.target as HTMLInputElement;

@@ -80,3 +80,33 @@
   text-align: right;
   font-size: 0.85rem;
 }
+
+/* 折り畳み可能なヘッダー */
+.collapsible-header {
+  transition: color 0.2s ease;
+  padding: 0;
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.collapsible-header:hover {
+  color: #007bff;
+}
+
+.collapsible-header .collapse-icon {
+  display: inline-block;
+  width: 1.2em;
+  text-align: center;
+  font-size: 0.8em;
+  transition: transform 0.2s ease;
+  color: #666;
+}
+
+.collapsible-header.expanded .collapse-icon {
+  color: #007bff;
+}
+
+.collapsible-header:hover .collapse-icon {
+  color: #007bff;
+}

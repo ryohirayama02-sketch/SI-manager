@@ -52,6 +52,7 @@ export class PaymentSummaryPageComponent implements OnInit {
   employees: Employee[] = [];
   year: number = 2025;
   selectedMonth: number | 'all' | string = new Date().getMonth() + 1;
+  availableYears: number[] = [];
   selectedEmployeeIds: string[] = [];
   prefecture: string = 'tokyo';
   rates: any = null;
@@ -176,7 +177,13 @@ export class PaymentSummaryPageComponent implements OnInit {
     private paymentSummaryFormatService: PaymentSummaryFormatService,
     private notificationFormatService: NotificationFormatService,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    // 年度選択用のリストを初期化
+    const currentYear = new Date().getFullYear();
+    for (let i = currentYear - 5; i <= currentYear + 1; i++) {
+      this.availableYears.push(i);
+    }
+  }
 
   async ngOnInit(): Promise<void> {
     this.isLoading = true;
@@ -191,11 +198,11 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
   }
 
-  async onYearChange(newYear: number): Promise<void> {
+  async onYearChange(): Promise<void> {
+    this.year = Number(this.year);
     this.isLoading = true;
     this.cdr.markForCheck();
     try {
-      this.year = newYear;
       // 年度変更時に選択状態を全従業員にリセット
       this.selectedEmployeeIds = this.employees.map((emp) => emp.id);
       // キャッシュをクリア
