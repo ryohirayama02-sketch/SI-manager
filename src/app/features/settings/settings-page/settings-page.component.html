@@ -23,142 +23,109 @@
   </form>
 </div>
 
-<h2>保険料率の設定（{{ year }}年）</h2>
+<h2>保険料率の設定</h2>
 
 <div class="card">
-  <div class="form-group">
-    <label>年度：</label>
-    <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{ standalone: true }">
-      <option *ngFor="let y of availableYears" [value]="y.toString()">{{ y }}年</option>
-    </select>
-  </div>
-
-  <div class="info-label">
-    各保険の料率を0以上1以下の範囲で入力してください。
-  </div>
-  
-  <!-- 適用開始月（改定月）管理 -->
-  <div class="form-group" style="margin-bottom: 1.5rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
-    <label><strong>適用開始月（改定月）：</strong></label>
-    <form [formGroup]="rateVersionForm">
-      <select formControlName="applyFromMonth" class="form-control" style="max-width: 200px; display: inline-block; margin-left: 0.5rem;">
-        <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">{{ m }}月</option>
-      </select>
-    </form>
-    <small class="form-text" style="display: block; margin-top: 0.5rem;">この年度の料率改定が適用される月を選択してください（例：4月改定の場合は4を選択）</small>
-  </div>
-  
-  <form [formGroup]="form" (ngSubmit)="save()">
-    <div class="form-group">
-      <label>都道府県：</label>
-      <select formControlName="prefecture" (change)="onPrefectureChange()" class="form-control">
-        <option value="hokkaido">北海道</option>
-        <option value="aomori">青森県</option>
-        <option value="iwate">岩手県</option>
-        <option value="miyagi">宮城県</option>
-        <option value="akita">秋田県</option>
-        <option value="yamagata">山形県</option>
-        <option value="fukushima">福島県</option>
-        <option value="ibaraki">茨城県</option>
-        <option value="tochigi">栃木県</option>
-        <option value="gunma">群馬県</option>
-        <option value="saitama">埼玉県</option>
-        <option value="chiba">千葉県</option>
-        <option value="tokyo">東京都</option>
-        <option value="kanagawa">神奈川県</option>
-        <option value="niigata">新潟県</option>
-        <option value="toyama">富山県</option>
-        <option value="ishikawa">石川県</option>
-        <option value="fukui">福井県</option>
-        <option value="yamanashi">山梨県</option>
-        <option value="nagano">長野県</option>
-        <option value="gifu">岐阜県</option>
-        <option value="shizuoka">静岡県</option>
-        <option value="aichi">愛知県</option>
-        <option value="mie">三重県</option>
-        <option value="shiga">滋賀県</option>
-        <option value="kyoto">京都府</option>
-        <option value="osaka">大阪府</option>
-        <option value="hyogo">兵庫県</option>
-        <option value="nara">奈良県</option>
-        <option value="wakayama">和歌山県</option>
-        <option value="tottori">鳥取県</option>
-        <option value="shimane">島根県</option>
-        <option value="okayama">岡山県</option>
-        <option value="hiroshima">広島県</option>
-        <option value="yamaguchi">山口県</option>
-        <option value="tokushima">徳島県</option>
-        <option value="kagawa">香川県</option>
-        <option value="ehime">愛媛県</option>
-        <option value="kochi">高知県</option>
-        <option value="fukuoka">福岡県</option>
-        <option value="saga">佐賀県</option>
-        <option value="nagasaki">長崎県</option>
-        <option value="kumamoto">熊本県</option>
-        <option value="oita">大分県</option>
-        <option value="miyazaki">宮崎県</option>
-        <option value="kagoshima">鹿児島県</option>
-        <option value="okinawa">沖縄県</option>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label>年度：</label>
+      <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let y of availableYears" [value]="y.toString()">{{ y }}年</option>
       </select>
     </div>
-
-    <div class="form-group">
-      <label>適用開始月：</label>
-      <input type="month" formControlName="effectiveFrom" class="form-control" required>
-      <small class="form-text">例：2025-04（年度内で複数の料率を管理できます）</small>
-    </div>
-
-    <h3>健康保険</h3>
-    <div class="form-group">
-      <label>本人料率：</label>
-      <input type="number" formControlName="health_employee" class="form-control" min="0" max="1" step="0.0001">
-    </div>
-    <div class="form-group">
-      <label>事業主料率：</label>
-      <input type="number" formControlName="health_employer" class="form-control" min="0" max="1" step="0.0001">
-    </div>
-
-    <h3>介護保険</h3>
-    <div class="form-group">
-      <label>本人料率：</label>
-      <input type="number" formControlName="care_employee" class="form-control" min="0" max="1" step="0.0001">
-    </div>
-    <div class="form-group">
-      <label>事業主料率：</label>
-      <input type="number" formControlName="care_employer" class="form-control" min="0" max="1" step="0.0001">
-    </div>
-
-    <h3>厚生年金</h3>
-    <div class="form-group">
-      <label>本人料率：</label>
-      <input type="number" formControlName="pension_employee" class="form-control" min="0" max="1" step="0.0001">
-    </div>
-    <div class="form-group">
-      <label>事業主料率：</label>
-      <input type="number" formControlName="pension_employer" class="form-control" min="0" max="1" step="0.0001">
-    </div>
-
-    <button type="submit" class="btn-primary">保存する</button>
-  </form>
-
-  <!-- エラー・警告メッセージ -->
-  <div *ngIf="errorMessages?.length" class="error-box">
-    <h4>エラー</h4>
-    <ul>
-      <li *ngFor="let err of errorMessages">{{ err }}</li>
-    </ul>
+    <span style="font-size: 0.85rem; color: #666;">単位：%</span>
   </div>
 
-  <div *ngIf="warningMessages?.length" class="warning-box">
-    <h4>警告</h4>
-    <ul>
-      <li *ngFor="let w of warningMessages">{{ w }}</li>
-    </ul>
+  <!-- 健康保険（47都道府県） -->
+  <h3>健康保険（協会けんぽ）</h3>
+  <div style="overflow-x: auto; margin-bottom: 1.5rem;">
+    <table class="rate-table">
+      <thead>
+        <tr>
+          <th style="min-width: 100px;">都道府県</th>
+          <th style="min-width: 80px;">健保_本人</th>
+          <th style="min-width: 80px;">健保_会社</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let pref of prefectureList">
+          <td>{{ pref.name }}</td>
+          <td>
+            <input 
+              type="number" 
+              [value]="prefectureRates[pref.code]?.health_employee || 0"
+              (input)="onHealthEmployeeInput(pref.code, $event)"
+              (blur)="savePrefectureRate(pref.code)"
+              class="form-control rate-input"
+              min="0" max="1" step="0.0001">
+          </td>
+          <td>
+            <input 
+              type="number" 
+              [value]="prefectureRates[pref.code]?.health_employer || 0"
+              (input)="onHealthEmployerInput(pref.code, $event)"
+              (blur)="savePrefectureRate(pref.code)"
+              class="form-control rate-input"
+              min="0" max="1" step="0.0001">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 介護保険（全国一律） -->
+  <h3>介護保険（全国一律）</h3>
+  <div class="card" style="max-width: 500px; margin-bottom: 1.5rem;">
+    <div class="form-group">
+      <label>本人料率：</label>
+      <input 
+        type="number" 
+        [(ngModel)]="careRates.care_employee"
+        (blur)="saveAllRates()"
+        class="form-control" 
+        min="0" max="1" step="0.0001"
+        [ngModelOptions]="{standalone: true}">
+    </div>
+    <div class="form-group">
+      <label>事業主料率：</label>
+      <input 
+        type="number" 
+        [(ngModel)]="careRates.care_employer"
+        (blur)="saveAllRates()"
+        class="form-control" 
+        min="0" max="1" step="0.0001"
+        [ngModelOptions]="{standalone: true}">
+    </div>
+  </div>
+
+  <!-- 厚生年金（全国一律） -->
+  <h3>厚生年金（全国一律）</h3>
+  <div class="card" style="max-width: 500px; margin-bottom: 1.5rem;">
+    <div class="form-group">
+      <label>本人料率：</label>
+      <input 
+        type="number" 
+        [(ngModel)]="pensionRates.pension_employee"
+        (blur)="saveAllRates()"
+        class="form-control" 
+        min="0" max="1" step="0.0001"
+        [ngModelOptions]="{standalone: true}">
+    </div>
+    <div class="form-group">
+      <label>事業主料率：</label>
+      <input 
+        type="number" 
+        [(ngModel)]="pensionRates.pension_employer"
+        (blur)="saveAllRates()"
+        class="form-control" 
+        min="0" max="1" step="0.0001"
+        [ngModelOptions]="{standalone: true}">
+    </div>
   </div>
 
   <div class="button-group">
-    <button (click)="seedTokyo()" class="btn-secondary">東京都の料率（2025）を初期投入する</button>
-    <button (click)="seedAllPrefectures()" class="btn-secondary">47都道府県の料率（2025）を初期投入する</button>
+    <button (click)="saveAllRates()" class="btn-primary">すべての料率を保存する</button>
+    <button (click)="seedAllPrefectures()" class="btn-secondary">47都道府県の料率（{{ year }}）を初期投入する</button>
   </div>
 </div>
 

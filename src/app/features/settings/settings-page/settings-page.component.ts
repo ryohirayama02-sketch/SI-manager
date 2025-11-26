@@ -31,6 +31,61 @@ export class SettingsPageComponent implements OnInit {
   errorMessages: string[] = [];
   warningMessages: string[] = [];
   isStandardTableExpanded: boolean = true;
+  
+  // 47都道府県の料率データ
+  prefectureRates: { [prefecture: string]: { health_employee: number; health_employer: number } } = {};
+  careRates: { care_employee: number; care_employer: number } = { care_employee: 0, care_employer: 0 };
+  pensionRates: { pension_employee: number; pension_employer: number } = { pension_employee: 0, pension_employer: 0 };
+  
+  prefectureList = [
+    { code: 'hokkaido', name: '北海道' },
+    { code: 'aomori', name: '青森県' },
+    { code: 'iwate', name: '岩手県' },
+    { code: 'miyagi', name: '宮城県' },
+    { code: 'akita', name: '秋田県' },
+    { code: 'yamagata', name: '山形県' },
+    { code: 'fukushima', name: '福島県' },
+    { code: 'ibaraki', name: '茨城県' },
+    { code: 'tochigi', name: '栃木県' },
+    { code: 'gunma', name: '群馬県' },
+    { code: 'saitama', name: '埼玉県' },
+    { code: 'chiba', name: '千葉県' },
+    { code: 'tokyo', name: '東京都' },
+    { code: 'kanagawa', name: '神奈川県' },
+    { code: 'niigata', name: '新潟県' },
+    { code: 'toyama', name: '富山県' },
+    { code: 'ishikawa', name: '石川県' },
+    { code: 'fukui', name: '福井県' },
+    { code: 'yamanashi', name: '山梨県' },
+    { code: 'nagano', name: '長野県' },
+    { code: 'gifu', name: '岐阜県' },
+    { code: 'shizuoka', name: '静岡県' },
+    { code: 'aichi', name: '愛知県' },
+    { code: 'mie', name: '三重県' },
+    { code: 'shiga', name: '滋賀県' },
+    { code: 'kyoto', name: '京都府' },
+    { code: 'osaka', name: '大阪府' },
+    { code: 'hyogo', name: '兵庫県' },
+    { code: 'nara', name: '奈良県' },
+    { code: 'wakayama', name: '和歌山県' },
+    { code: 'tottori', name: '鳥取県' },
+    { code: 'shimane', name: '島根県' },
+    { code: 'okayama', name: '岡山県' },
+    { code: 'hiroshima', name: '広島県' },
+    { code: 'yamaguchi', name: '山口県' },
+    { code: 'tokushima', name: '徳島県' },
+    { code: 'kagawa', name: '香川県' },
+    { code: 'ehime', name: '愛媛県' },
+    { code: 'kochi', name: '高知県' },
+    { code: 'fukuoka', name: '福岡県' },
+    { code: 'saga', name: '佐賀県' },
+    { code: 'nagasaki', name: '長崎県' },
+    { code: 'kumamoto', name: '熊本県' },
+    { code: 'oita', name: '大分県' },
+    { code: 'miyazaki', name: '宮崎県' },
+    { code: 'kagoshima', name: '鹿児島県' },
+    { code: 'okinawa', name: '沖縄県' }
+  ];
 
   constructor(
     private fb: FormBuilder,
@@ -180,18 +235,7 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
-    const data = await this.settingsService.getRates(this.year, this.prefecture);
-    if (data) {
-      this.form.patchValue({
-        ...data,
-        prefecture: this.prefecture,
-        effectiveFrom: data.effectiveFrom || `${this.year}-04`
-      });
-    } else {
-      this.form.patchValue({
-        effectiveFrom: `${this.year}-04`
-      });
-    }
+    await this.loadAllRates();
     
     // 給与月の判定方法をロード
     const salaryMonthRule = await this.settingsService.getSalaryMonthRule();
@@ -222,24 +266,73 @@ export class SettingsPageComponent implements OnInit {
     await this.loadSalaryItems();
   }
 
-  async onYearChange(): Promise<void> {
-    // 料率と改定月を再読み込み
-    const data = await this.settingsService.getRates(this.year, this.prefecture);
-    if (data) {
-      this.form.patchValue({
-        ...data,
-        prefecture: this.prefecture,
-        effectiveFrom: data.effectiveFrom || `${this.year}-04`
-      });
-    } else {
-      this.form.patchValue({
-        effectiveFrom: `${this.year}-04`
-      });
+  async loadAllRates(): Promise<void> {
+    // 47都道府県の健康保険料率を取得
+    this.prefectureRates = {};
+    for (const pref of this.prefectureList) {
+      const data = await this.settingsService.getRates(this.year, pref.code);
+      if (data) {
+        this.prefectureRates[pref.code] = {
+          health_employee: data.health_employee || 0,
+          health_employer: data.health_employer || 0
+        };
+      } else {
+        this.prefectureRates[pref.code] = { health_employee: 0, health_employer: 0 };
+      }
     }
     
-    // 適用開始月（改定月）を再読み込み
-    const versionInfo = await this.settingsService.getRateVersionInfo(this.year);
-    this.rateVersionForm.patchValue({ applyFromMonth: versionInfo.applyFromMonth });
+    // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため）
+    const careData = await this.settingsService.getRates(this.year, 'tokyo');
+    if (careData) {
+      this.careRates = {
+        care_employee: careData.care_employee || 0,
+        care_employer: careData.care_employer || 0
+      };
+      this.pensionRates = {
+        pension_employee: careData.pension_employee || 0,
+        pension_employer: careData.pension_employer || 0
+      };
+    }
+  }
+
+  async onYearChange(): Promise<void> {
+    await this.loadAllRates();
+  }
+
+  onHealthEmployeeInput(prefecture: string, event: Event): void {
+    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
+    if (!this.prefectureRates[prefecture]) {
+      this.prefectureRates[prefecture] = { health_employee: 0, health_employer: 0 };
+    }
+    this.prefectureRates[prefecture].health_employee = value;
+  }
+
+  onHealthEmployerInput(prefecture: string, event: Event): void {
+    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
+    if (!this.prefectureRates[prefecture]) {
+      this.prefectureRates[prefecture] = { health_employee: 0, health_employer: 0 };
+    }
+    this.prefectureRates[prefecture].health_employer = value;
+  }
+
+  async savePrefectureRate(prefecture: string): Promise<void> {
+    const rate = this.prefectureRates[prefecture] || { health_employee: 0, health_employer: 0 };
+    await this.settingsService.saveRates(this.year, prefecture, {
+      health_employee: rate.health_employee || 0,
+      health_employer: rate.health_employer || 0,
+      care_employee: this.careRates.care_employee || 0,
+      care_employer: this.careRates.care_employer || 0,
+      pension_employee: this.pensionRates.pension_employee || 0,
+      pension_employer: this.pensionRates.pension_employer || 0,
+      effectiveFrom: `${this.year}-04`
+    } as Rate);
+  }
+
+  async saveAllRates(): Promise<void> {
+    for (const pref of this.prefectureList) {
+      await this.savePrefectureRate(pref.code);
+    }
+    alert('47都道府県の料率を保存しました');
   }
 
   async onPrefectureChange(): Promise<void> {
@@ -298,8 +391,10 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async seedAllPrefectures(): Promise<void> {
+    const yearNum = parseInt(this.year, 10);
     await this.settingsService.seedRatesAllPrefectures2025();
-    alert('47都道府県の2025年度料率を登録しました');
+    await this.loadAllRates();
+    alert(`47都道府県の${yearNum}年度料率を登録しました`);
   }
 
   async saveSettings(): Promise<void> {
