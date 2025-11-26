@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SettingsService } from '../../../services/settings.service';
@@ -35,10 +35,30 @@ export class SettingsPageComponent implements OnInit {
   isRateSettingsExpanded: boolean = false;
   isSalaryItemsExpanded: boolean = false;
   
-  // 47都道府県の料率データ
+  // CSVインポート関連（保険料率用）
+  showImportDialog: boolean = false;
+  csvImportText: string = '';
+  importResult: { type: 'success' | 'error'; message: string } | null = null;
+  
+  // CSVインポート関連（標準報酬月額テーブル用）
+  showStandardTableImportDialog: boolean = false;
+  standardTableCsvImportText: string = '';
+  standardTableImportResult: { type: 'success' | 'error'; message: string } | null = null;
+  
+  // 47都道府県の料率データ（パーセント形式で保持）
   prefectureRates: { [prefecture: string]: { health_employee: number; health_employer: number } } = {};
   careRates: { care_employee: number; care_employer: number } = { care_employee: 0, care_employer: 0 };
   pensionRates: { pension_employee: number; pension_employer: number } = { pension_employee: 0, pension_employer: 0 };
+  
+  // パーセント→小数変換ヘルパー
+  private percentToDecimal(percent: number): number {
+    return percent / 100;
+  }
+  
+  // 小数→パーセント変換ヘルパー
+  private decimalToPercent(decimal: number): number {
+    return decimal * 100;
+  }
   
   prefectureList = [
     { code: 'hokkaido', name: '北海道' },
@@ -100,7 +120,8 @@ export class SettingsPageComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private cdr: ChangeDetectorRef
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
     const currentYear = new Date().getFullYear();
@@ -278,30 +299,30 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async loadAllRates(): Promise<void> {
-    // 47都道府県の健康保険料率を取得
+    // 47都道府県の健康保険料率を取得（小数→パーセント変換）
     this.prefectureRates = {};
     for (const pref of this.prefectureList) {
       const data = await this.settingsService.getRates(this.year, pref.code);
       if (data) {
         this.prefectureRates[pref.code] = {
-          health_employee: data.health_employee || 0,
-          health_employer: data.health_employer || 0
+          health_employee: this.decimalToPercent(data.health_employee || 0),
+          health_employer: this.decimalToPercent(data.health_employer || 0)
         };
       } else {
         this.prefectureRates[pref.code] = { health_employee: 0, health_employer: 0 };
       }
     }
     
-    // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため）
+    // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため、小数→パーセント変換）
     const careData = await this.settingsService.getRates(this.year, 'tokyo');
     if (careData) {
       this.careRates = {
-        care_employee: careData.care_employee || 0,
-        care_employer: careData.care_employer || 0
+        care_employee: this.decimalToPercent(careData.care_employee || 0),
+        care_employer: this.decimalToPercent(careData.care_employer || 0)
       };
       this.pensionRates = {
-        pension_employee: careData.pension_employee || 0,
-        pension_employer: careData.pension_employer || 0
+        pension_employee: this.decimalToPercent(careData.pension_employee || 0),
+        pension_employer: this.decimalToPercent(careData.pension_employer || 0)
       };
     }
   }
@@ -315,6 +336,7 @@ export class SettingsPageComponent implements OnInit {
     if (!this.prefectureRates[prefecture]) {
       this.prefectureRates[prefecture] = { health_employee: 0, health_employer: 0 };
     }
+    // パーセント形式で保持
     this.prefectureRates[prefecture].health_employee = value;
   }
 
@@ -323,18 +345,20 @@ export class SettingsPageComponent implements OnInit {
     if (!this.prefectureRates[prefecture]) {
       this.prefectureRates[prefecture] = { health_employee: 0, health_employer: 0 };
     }
+    // パーセント形式で保持
     this.prefectureRates[prefecture].health_employer = value;
   }
 
   async savePrefectureRate(prefecture: string): Promise<void> {
     const rate = this.prefectureRates[prefecture] || { health_employee: 0, health_employer: 0 };
+    // パーセント→小数変換して保存
     await this.settingsService.saveRates(this.year, prefecture, {
-      health_employee: rate.health_employee || 0,
-      health_employer: rate.health_employer || 0,
-      care_employee: this.careRates.care_employee || 0,
-      care_employer: this.careRates.care_employer || 0,
-      pension_employee: this.pensionRates.pension_employee || 0,
-      pension_employer: this.pensionRates.pension_employer || 0,
+      health_employee: this.percentToDecimal(rate.health_employee || 0),
+      health_employer: this.percentToDecimal(rate.health_employer || 0),
+      care_employee: this.percentToDecimal(this.careRates.care_employee || 0),
+      care_employer: this.percentToDecimal(this.careRates.care_employer || 0),
+      pension_employee: this.percentToDecimal(this.pensionRates.pension_employee || 0),
+      pension_employer: this.percentToDecimal(this.pensionRates.pension_employer || 0),
       effectiveFrom: `${this.year}-04`
     } as Rate);
   }
@@ -343,7 +367,112 @@ export class SettingsPageComponent implements OnInit {
     for (const pref of this.prefectureList) {
       await this.savePrefectureRate(pref.code);
     }
-    alert('47都道府県の料率を保存しました');
+    alert('保険料率を保存しました');
+  }
+
+  // CSVインポート機能
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files.length > 0) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        this.importFromCsvText(text);
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+  }
+
+  importFromText(): void {
+    if (!this.csvImportText.trim()) {
+      this.importResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      return;
+    }
+    this.importFromCsvText(this.csvImportText);
+  }
+
+  importFromCsvText(csvText: string): void {
+    try {
+      const lines = csvText.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        this.importResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        return;
+      }
+
+      // ヘッダー行をスキップ
+      const dataLines = lines.slice(1);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+
+      // 都道府県名→コードのマッピングを作成
+      const prefectureMap = new Map<string, string>();
+      this.prefectureList.forEach(pref => {
+        prefectureMap.set(pref.name, pref.code);
+      });
+
+      for (const line of dataLines) {
+        const parts = line.split(',').map(p => p.trim());
+        if (parts.length < 3) {
+          errorCount++;
+          errors.push(`行「${line}」: 列数が不足しています（3列必要）`);
+          continue;
+        }
+
+        const prefectureName = parts[0];
+        const employeeRateStr = parts[1];
+        const employerRateStr = parts[2];
+
+        // 都道府県コードを取得
+        const prefectureCode = prefectureMap.get(prefectureName);
+        if (!prefectureCode) {
+          errorCount++;
+          errors.push(`行「${line}」: 都道府県名「${prefectureName}」が見つかりません`);
+          continue;
+        }
+
+        // 数値に変換（パーセント形式）
+        const employeeRate = parseFloat(employeeRateStr);
+        const employerRate = parseFloat(employerRateStr);
+
+        if (isNaN(employeeRate) || isNaN(employerRate)) {
+          errorCount++;
+          errors.push(`行「${line}」: 料率が数値ではありません`);
+          continue;
+        }
+
+        if (employeeRate < 0 || employeeRate > 100 || employerRate < 0 || employerRate > 100) {
+          errorCount++;
+          errors.push(`行「${line}」: 料率は0〜100%の範囲で入力してください`);
+          continue;
+        }
+
+        // 料率を設定（パーセント形式で保持）
+        if (!this.prefectureRates[prefectureCode]) {
+          this.prefectureRates[prefectureCode] = { health_employee: 0, health_employer: 0 };
+        }
+        this.prefectureRates[prefectureCode].health_employee = employeeRate;
+        this.prefectureRates[prefectureCode].health_employer = employerRate;
+        successCount++;
+      }
+
+      // 結果メッセージ
+      if (errorCount === 0) {
+        this.importResult = { type: 'success', message: `${successCount}件の料率をインポートしました` };
+        this.showImportDialog = false;
+        this.csvImportText = '';
+      } else {
+        const errorMsg = errors.slice(0, 5).join('\n');
+        const moreErrors = errors.length > 5 ? `\n...他${errors.length - 5}件のエラー` : '';
+        this.importResult = { 
+          type: 'error', 
+          message: `成功: ${successCount}件、エラー: ${errorCount}件\n${errorMsg}${moreErrors}` 
+        };
+      }
+    } catch (error) {
+      this.importResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
+    }
   }
 
   async onPrefectureChange(): Promise<void> {
@@ -475,6 +604,138 @@ export class SettingsPageComponent implements OnInit {
     } catch (error) {
       console.error('標準報酬等級表の一括登録エラー:', error);
       alert('標準報酬等級表の一括登録に失敗しました');
+    }
+  }
+
+  // 標準報酬月額テーブルCSVインポート関連
+  onStandardTableFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      this.standardTableCsvImportText = text;
+      this.importStandardTableFromCsvText(text);
+    };
+    reader.readAsText(file);
+  }
+
+  importStandardTableFromText(): void {
+    if (!this.standardTableCsvImportText.trim()) {
+      this.standardTableImportResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      return;
+    }
+    this.importStandardTableFromCsvText(this.standardTableCsvImportText);
+  }
+
+  importStandardTableFromCsvText(csvText: string): void {
+    try {
+      const lines = csvText.split('\n').filter(line => line.trim());
+      if (lines.length < 2) {
+        this.standardTableImportResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        return;
+      }
+
+      // ヘッダー行をスキップ
+      const dataLines = lines.slice(1);
+      let successCount = 0;
+      let errorCount = 0;
+      const errors: string[] = [];
+      const rowsToAdd: any[] = [];
+
+      // CSVデータをパースして一時配列に格納
+      for (const line of dataLines) {
+        const parts = line.split(',').map(p => p.trim());
+        if (parts.length < 4) {
+          errorCount++;
+          errors.push(`行「${line}」: 列数が不足しています（4列必要：等級,標準報酬月額,下限,上限）`);
+          continue;
+        }
+
+        const rankStr = parts[0];
+        const standardStr = parts[1];
+        const lowerStr = parts[2];
+        const upperStr = parts[3];
+
+        // 数値に変換
+        const rank = parseInt(rankStr, 10);
+        const standard = parseInt(standardStr.replace(/,/g, ''), 10);
+        const lower = parseInt(lowerStr.replace(/,/g, ''), 10);
+        const upper = parseInt(upperStr.replace(/,/g, ''), 10);
+
+        if (isNaN(rank) || isNaN(standard) || isNaN(lower) || isNaN(upper)) {
+          errorCount++;
+          errors.push(`行「${line}」: 数値が不正です`);
+          continue;
+        }
+
+        if (rank < 1 || rank > 50) {
+          errorCount++;
+          errors.push(`行「${line}」: 等級は1〜50の範囲で入力してください`);
+          continue;
+        }
+
+        if (lower < 0 || upper < 0 || standard < 0) {
+          errorCount++;
+          errors.push(`行「${line}」: 金額は0以上で入力してください`);
+          continue;
+        }
+
+        if (lower >= upper) {
+          errorCount++;
+          errors.push(`行「${line}」: 下限は上限より小さくする必要があります`);
+          continue;
+        }
+
+        rowsToAdd.push({
+          id: `grade-${rank}`,
+          rank: rank,
+          standard: standard,
+          lower: lower,
+          upper: upper
+        });
+        successCount++;
+      }
+
+      // 等級順にソート
+      rowsToAdd.sort((a, b) => a.rank - b.rank);
+
+      // 既存のテーブルをクリア
+      while (this.standardTable.length !== 0) {
+        this.standardTable.removeAt(0);
+      }
+
+      // ソート済みデータをFormArrayに追加
+      rowsToAdd.forEach(rowData => {
+        const row = this.createRow(rowData);
+        this.standardTable.push(row);
+      });
+
+      // バリデーション実行
+      this.validateStandardTable();
+
+      // 変更検知を確実にする
+      this.cdr.detectChanges();
+
+      // 結果メッセージ
+      if (errorCount > 0) {
+        this.standardTableImportResult = {
+          type: 'error',
+          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors.slice(0, 5).join(' / ')}${errors.length > 5 ? ' ...' : ''}`
+        };
+      } else {
+        this.standardTableImportResult = {
+          type: 'success',
+          message: `${successCount}件のデータをインポートしました`
+        };
+        this.showStandardTableImportDialog = false;
+        this.standardTableCsvImportText = '';
+      }
+    } catch (error) {
+      console.error('CSVインポートエラー:', error);
+      this.standardTableImportResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
     }
   }
 }

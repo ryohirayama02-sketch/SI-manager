@@ -73,22 +73,28 @@
           <tr *ngFor="let pref of getPrefectureListColumn1()">
             <td>{{ pref.name }}</td>
             <td>
-              <input 
-                type="number" 
-                [value]="prefectureRates[pref.code]?.health_employee || 0"
-                (input)="onHealthEmployeeInput(pref.code, $event)"
-                (blur)="savePrefectureRate(pref.code)"
-                class="form-control rate-input"
-                min="0" max="1" step="0.0001">
+              <div style="display: flex; align-items: center;">
+                <input 
+                  type="number" 
+                  [value]="prefectureRates[pref.code]?.health_employee || 0"
+                  (input)="onHealthEmployeeInput(pref.code, $event)"
+                  (blur)="savePrefectureRate(pref.code)"
+                  class="form-control rate-input"
+                  min="0" max="100" step="0.0001">
+                <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              </div>
             </td>
             <td>
-              <input 
-                type="number" 
-                [value]="prefectureRates[pref.code]?.health_employer || 0"
-                (input)="onHealthEmployerInput(pref.code, $event)"
-                (blur)="savePrefectureRate(pref.code)"
-                class="form-control rate-input"
-                min="0" max="1" step="0.0001">
+              <div style="display: flex; align-items: center;">
+                <input 
+                  type="number" 
+                  [value]="prefectureRates[pref.code]?.health_employer || 0"
+                  (input)="onHealthEmployerInput(pref.code, $event)"
+                  (blur)="savePrefectureRate(pref.code)"
+                  class="form-control rate-input"
+                  min="0" max="100" step="0.0001">
+                <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -108,22 +114,28 @@
           <tr *ngFor="let pref of getPrefectureListColumn2()">
             <td>{{ pref.name }}</td>
             <td>
-              <input 
-                type="number" 
-                [value]="prefectureRates[pref.code]?.health_employee || 0"
-                (input)="onHealthEmployeeInput(pref.code, $event)"
-                (blur)="savePrefectureRate(pref.code)"
-                class="form-control rate-input"
-                min="0" max="1" step="0.0001">
+              <div style="display: flex; align-items: center;">
+                <input 
+                  type="number" 
+                  [value]="prefectureRates[pref.code]?.health_employee || 0"
+                  (input)="onHealthEmployeeInput(pref.code, $event)"
+                  (blur)="savePrefectureRate(pref.code)"
+                  class="form-control rate-input"
+                  min="0" max="100" step="0.0001">
+                <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              </div>
             </td>
             <td>
-              <input 
-                type="number" 
-                [value]="prefectureRates[pref.code]?.health_employer || 0"
-                (input)="onHealthEmployerInput(pref.code, $event)"
-                (blur)="savePrefectureRate(pref.code)"
-                class="form-control rate-input"
-                min="0" max="1" step="0.0001">
+              <div style="display: flex; align-items: center;">
+                <input 
+                  type="number" 
+                  [value]="prefectureRates[pref.code]?.health_employer || 0"
+                  (input)="onHealthEmployerInput(pref.code, $event)"
+                  (blur)="savePrefectureRate(pref.code)"
+                  class="form-control rate-input"
+                  min="0" max="100" step="0.0001">
+                <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -136,23 +148,27 @@
   <div class="card" style="max-width: 500px; margin-bottom: 1.5rem;">
     <div class="form-group">
       <label>本人料率：</label>
-      <input 
-        type="number" 
-        [(ngModel)]="careRates.care_employee"
-        (blur)="saveAllRates()"
-        class="form-control" 
-        min="0" max="1" step="0.0001"
-        [ngModelOptions]="{standalone: true}">
+      <div style="display: flex; align-items: center;">
+        <input 
+          type="number" 
+          [(ngModel)]="careRates.care_employee"
+          class="form-control" 
+          min="0" max="100" step="0.0001"
+          [ngModelOptions]="{standalone: true}">
+        <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+      </div>
     </div>
     <div class="form-group">
       <label>事業主料率：</label>
-      <input 
-        type="number" 
-        [(ngModel)]="careRates.care_employer"
-        (blur)="saveAllRates()"
-        class="form-control" 
-        min="0" max="1" step="0.0001"
-        [ngModelOptions]="{standalone: true}">
+      <div style="display: flex; align-items: center;">
+        <input 
+          type="number" 
+          [(ngModel)]="careRates.care_employer"
+          class="form-control" 
+          min="0" max="100" step="0.0001"
+          [ngModelOptions]="{standalone: true}">
+        <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+      </div>
     </div>
   </div>
 
@@ -161,28 +177,70 @@
   <div class="card" style="max-width: 500px; margin-bottom: 1.5rem;">
     <div class="form-group">
       <label>本人料率：</label>
-      <input 
-        type="number" 
-        [(ngModel)]="pensionRates.pension_employee"
-        (blur)="saveAllRates()"
-        class="form-control" 
-        min="0" max="1" step="0.0001"
-        [ngModelOptions]="{standalone: true}">
+      <div style="display: flex; align-items: center;">
+        <input 
+          type="number" 
+          [(ngModel)]="pensionRates.pension_employee"
+          class="form-control" 
+          min="0" max="100" step="0.0001"
+          [ngModelOptions]="{standalone: true}">
+        <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+      </div>
     </div>
     <div class="form-group">
       <label>事業主料率：</label>
-      <input 
-        type="number" 
-        [(ngModel)]="pensionRates.pension_employer"
-        (blur)="saveAllRates()"
-        class="form-control" 
-        min="0" max="1" step="0.0001"
-        [ngModelOptions]="{standalone: true}">
+      <div style="display: flex; align-items: center;">
+        <input 
+          type="number" 
+          [(ngModel)]="pensionRates.pension_employer"
+          class="form-control" 
+          min="0" max="100" step="0.0001"
+          [ngModelOptions]="{standalone: true}">
+        <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+      </div>
     </div>
     </div>
 
-    <div class="button-group">
+    <div class="button-group" style="margin-bottom: 1rem;">
       <button (click)="saveAllRates()" class="btn-primary">すべての料率を保存する</button>
+    </div>
+
+    <!-- CSVインポート機能 -->
+    <div class="card" style="margin-top: 1rem; padding: 1rem;">
+      <h4>CSVインポート</h4>
+      <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+        CSV形式で都道府県別の料率を一括インポートできます。<br>
+        形式: 都道府県,従業員負担,会社負担（例: 北海道,5.155,5.155）※パーセント形式で入力してください
+      </p>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <input type="file" #fileInput accept=".csv" (change)="onFileSelected($event)" style="display: none;">
+        <button (click)="fileInput.click()" class="btn-secondary">CSVファイルを選択</button>
+        <button (click)="showImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
+      </div>
+      
+      <!-- テキストエリアダイアログ -->
+      <div *ngIf="showImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
+        <label for="csvText">CSVデータを貼り付けてください:</label>
+        <textarea 
+          id="csvText" 
+          [(ngModel)]="csvImportText" 
+          rows="10" 
+          class="form-control" 
+          style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
+          placeholder="都道府県,従業員負担,会社負担&#10;北海道,5.155,5.155&#10;青森県,5.155,5.155"
+          [ngModelOptions]="{standalone: true}">
+        </textarea>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button (click)="importFromText()" class="btn-primary">インポート</button>
+          <button (click)="showImportDialog = false; csvImportText = ''" class="btn-secondary">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- インポート結果メッセージ -->
+      <div *ngIf="importResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
+           [ngClass]="{'error-box': importResult.type === 'error', 'info-label': importResult.type === 'success'}">
+        <strong>{{ importResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ importResult.message }}
+      </div>
     </div>
   </div>
   <div *ngIf="!isRateSettingsExpanded" style="padding: 1rem; text-align: center; color: #666;">
@@ -274,6 +332,44 @@
 
     <div style="margin-top: 1rem; display: flex; gap: 1rem;">
       <button (click)="saveStandardTable()" class="btn-success">標準報酬月額テーブルを保存する</button>
+    </div>
+
+    <!-- CSVインポート機能 -->
+    <div class="card" style="margin-top: 1rem; padding: 1rem;">
+      <h4>CSVインポート</h4>
+      <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
+        CSV形式で標準報酬月額テーブルを一括インポートできます。<br>
+        形式: 等級,標準報酬月額(円),報酬月額下限(円),報酬月額上限(円未満)（例: 1,58000,0,63000）
+      </p>
+      <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+        <input type="file" #standardTableFileInput accept=".csv" (change)="onStandardTableFileSelected($event)" style="display: none;">
+        <button (click)="standardTableFileInput.click()" class="btn-secondary">CSVファイルを選択</button>
+        <button (click)="showStandardTableImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
+      </div>
+      
+      <!-- テキストエリアダイアログ -->
+      <div *ngIf="showStandardTableImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
+        <label for="standardTableCsvText">CSVデータを貼り付けてください:</label>
+        <textarea 
+          id="standardTableCsvText" 
+          [(ngModel)]="standardTableCsvImportText" 
+          rows="10" 
+          class="form-control" 
+          style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
+          placeholder="等級,標準報酬月額(円),報酬月額下限(円),報酬月額上限(円未満)&#10;1,58000,0,63000&#10;2,68000,63000,73000"
+          [ngModelOptions]="{standalone: true}">
+        </textarea>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button (click)="importStandardTableFromText()" class="btn-primary">インポート</button>
+          <button (click)="showStandardTableImportDialog = false; standardTableCsvImportText = ''" class="btn-secondary">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- インポート結果メッセージ -->
+      <div *ngIf="standardTableImportResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
+           [ngClass]="{'error-box': standardTableImportResult.type === 'error', 'info-label': standardTableImportResult.type === 'success'}">
+        <strong>{{ standardTableImportResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ standardTableImportResult.message }}
+      </div>
     </div>
   </div>
   
