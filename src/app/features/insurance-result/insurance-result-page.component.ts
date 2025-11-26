@@ -561,6 +561,22 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       return bonus !== null;
     });
   }
+
+  getYearBonuses(employeeId: string): Bonus[] {
+    const bonuses = this.bonusData[employeeId] || [];
+    // 該当年度の賞与を支給月順にソートして返す
+    return bonuses
+      .filter(b => {
+        if (!b.payDate) return false;
+        const payDateObj = new Date(b.payDate);
+        return payDateObj.getFullYear() === this.year;
+      })
+      .sort((a, b) => {
+        const monthA = a.month || (b.payDate ? new Date(a.payDate).getMonth() + 1 : 0);
+        const monthB = b.month || (b.payDate ? new Date(b.payDate).getMonth() + 1 : 0);
+        return monthA - monthB;
+      });
+  }
 }
 
 
