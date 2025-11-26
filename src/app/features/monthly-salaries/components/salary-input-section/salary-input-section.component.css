@@ -11,3 +11,53 @@
   color: #444;
 }
 
+/* テーブルセルの改行防止と列幅調整 */
+.salary-table td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  line-height: 1.2;
+  min-width: 80px;
+  max-width: 100px;
+}
+
+.salary-table th {
+  white-space: nowrap;
+  padding: 4px 6px;
+  line-height: 1.2;
+  min-width: 80px;
+  max-width: 100px;
+}
+
+.salary-table input[type="text"] {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  text-align: right;
+}
+
+.salary-table .sticky-col {
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.salary-table .sticky-col:first-child {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+.salary-table .sticky-col:nth-child(2) {
+  min-width: 150px;
+  max-width: 180px;
+}
+
+.salary-table .sticky-col:nth-child(2) div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+

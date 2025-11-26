@@ -2,17 +2,6 @@
   <strong>重要:</strong> 4〜6月の値は算定基礎届の判定に使用されます。給与項目ごとに金額を入力してください。
 </div>
 
-<div class="card" style="max-width: 400px;">
-  <div class="form-group">
-    <label>都道府県：</label>
-    <select [value]="prefecture" (change)="onPrefectureChange($event)" name="prefecture" class="form-control">
-      <option value="tokyo">東京都</option>
-      <option value="hokkaido">北海道</option>
-      <option value="osaka">大阪府</option>
-    </select>
-  </div>
-</div>
-
 <div class="legend">
   ■ 復職後3ヶ月の期間（随時改定が発生しやすい期間）
 </div>
@@ -38,8 +27,7 @@
             {{ emp.name }}
           </td>
           <td class="sticky-col">
-            {{ item.name }}
-            <small style="display: block; color: #666;">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small>
+            <div style="white-space: nowrap;">{{ item.name }} <small style="color: #666;">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small></div>
           </td>
           <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m), 'exempt-month': isExemptMonth(emp.id, m) }">
             <!-- 免除月の場合 -->

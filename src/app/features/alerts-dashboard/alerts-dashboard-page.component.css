@@ -1,0 +1,32 @@
+.alerts-dashboard {
+  padding: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid #ddd;
+}
+
+.tab-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab-button.active {
+  border-bottom-color: #007bff;
+  font-weight: bold;
+}
+
+.tab-content {
+  margin-top: 1rem;
+}
+
+.tab-pane {
+  padding: 1rem 0;
+}
+

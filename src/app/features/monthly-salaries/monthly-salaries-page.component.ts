@@ -50,7 +50,6 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   salaries: {
     [key: string]: { total: number; fixed: number; variable: number };
   } = {};
-  prefecture = 'tokyo';
   year: number = new Date().getFullYear();
   availableYears: number[] = [];
   rates: any = null;
@@ -180,9 +179,13 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async loadRatesAndGradeTable(): Promise<void> {
+    // 従業員の都道府県を取得（最初の従業員の都道府県を使用、デフォルトはtokyo）
+    const prefecture = this.employees.length > 0 && this.employees[0].prefecture
+      ? this.employees[0].prefecture
+      : 'tokyo';
     this.rates = await this.settingsService.getRates(
       this.year.toString(),
-      this.prefecture
+      prefecture
     );
     this.gradeTable = await this.settingsService.getStandardTable(this.year);
     console.log(
@@ -206,11 +209,6 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       this.calculateTeijiKettei(emp.id);
     }
     await this.updateAllCalculatedInfo();
-  }
-
-  onPrefectureChange(prefecture: string): void {
-    this.prefecture = prefecture;
-    this.reloadRates();
   }
 
   getSalaryKey(employeeId: string, month: number): string {

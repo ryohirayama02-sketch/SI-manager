@@ -15,7 +15,6 @@ export class SalaryInputSectionComponent {
   @Input() salaryItems: SalaryItem[] = [];
   @Input() months: number[] = [];
   @Input() salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
-  @Input() prefecture: string = 'tokyo';
   @Input() rehabHighlightMonths: { [employeeId: string]: number[] } = {};
   @Input() exemptMonths: { [employeeId: string]: number[] } = {};
 
@@ -25,7 +24,6 @@ export class SalaryInputSectionComponent {
     itemId: string;
     value: string | number;
   }>();
-  @Output() prefectureChange = new EventEmitter<string>();
 
   getSalaryItemKey(employeeId: string, month: number): string {
     return `${employeeId}_${month}`;
@@ -87,11 +85,6 @@ export class SalaryInputSectionComponent {
     value: string | number
   ): void {
     this.salaryItemChange.emit({ employeeId, month, itemId, value });
-  }
-
-  onPrefectureChange(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.prefectureChange.emit(select.value);
   }
 
   getRehabHighlightMonths(employee: Employee): number[] {

@@ -10,6 +10,7 @@ import { BonusEditPageComponent } from './features/bonus/bonus-edit-page/bonus-e
 import { InsuranceResultPageComponent } from './features/insurance-result/insurance-result-page.component';
 import { PaymentSummaryPageComponent } from './features/insurance-payment-summary/payment-summary-page.component';
 import { MonthlyChangeAlertPageComponent } from './features/monthly-change-alert/monthly-change-alert-page.component';
+import { AlertsDashboardPageComponent } from './features/alerts-dashboard/alerts-dashboard-page.component';
 import { LoginPageComponent } from './pages/login/login-page.component';
 import { RoomEnterPageComponent } from './pages/room-enter/room-enter-page.component';
 import { authGuard } from './guards/auth.guard';
@@ -77,6 +78,11 @@ export const routes: Routes = [
   {
     path: 'monthly-change-alert',
     component: MonthlyChangeAlertPageComponent,
+    canActivate: [authGuard, roomGuard],
+  },
+  {
+    path: 'alerts',
+    component: AlertsDashboardPageComponent,
     canActivate: [authGuard, roomGuard],
   },
   {

@@ -1,0 +1,30 @@
+<div class="alerts-dashboard">
+  <h2>届出アラート</h2>
+
+  <div class="tabs">
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'suiji'"
+      (click)="setActiveTab('suiji')">
+      随時改定アラート
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'notifications'"
+      (click)="setActiveTab('notifications')">
+      届出アラート
+    </button>
+  </div>
+
+  <div class="tab-content">
+    <div *ngIf="activeTab === 'suiji'" class="tab-pane">
+      <p>随時改定アラートは別画面で確認できます。</p>
+      <a routerLink="/monthly-change-alert">随時改定アラート画面へ</a>
+    </div>
+
+    <div *ngIf="activeTab === 'notifications'" class="tab-pane">
+      <app-alert-item-list [alerts]="mockAlerts"></app-alert-item-list>
+    </div>
+  </div>
+</div>
+

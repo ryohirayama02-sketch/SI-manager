@@ -1,0 +1,23 @@
+<div class="alert-item-list">
+  <div *ngIf="alerts.length === 0" class="no-alerts">
+    届出アラートはありません。
+  </div>
+
+  <table *ngIf="alerts.length > 0" class="alert-table">
+    <thead>
+      <tr>
+        <th>従業員名</th>
+        <th>内容種別</th>
+        <th>コメント</th>
+        <th>対象月</th>
+      </tr>
+    </thead>
+    <tbody>
+      <app-alert-item-row 
+        *ngFor="let alert of alerts" 
+        [alert]="alert">
+      </app-alert-item-row>
+    </tbody>
+  </table>
+</div>
+
