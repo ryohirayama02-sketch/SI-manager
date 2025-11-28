@@ -446,10 +446,9 @@
       </div>
       
       <!-- 事業所一覧 -->
-      <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-top: 1rem;">
-        <div class="card" style="max-height: 500px; overflow-y: auto;">
+      <div class="office-master-grid">
+        <div class="card office-list-card">
           <h3 style="margin-top: 0;">事業所一覧</h3>
-          <button (click)="addNewOffice()" class="btn-primary" style="margin-bottom: 1rem; width: 100%;">新規追加</button>
           <div *ngIf="offices.length === 0" style="padding: 1rem; text-align: center; color: #666;">
             事業所が登録されていません
           </div>
@@ -464,7 +463,7 @@
         </div>
         
         <!-- 事業所編集フォーム -->
-        <div class="card">
+        <div class="card office-form-card">
           <h3 style="margin-top: 0;">{{ selectedOffice ? '事業所情報の編集' : '事業所情報の新規登録' }}</h3>
           <form [formGroup]="officeForm">
             <div class="form-group">

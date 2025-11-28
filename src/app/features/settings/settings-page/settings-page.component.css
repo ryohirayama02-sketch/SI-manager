@@ -150,6 +150,38 @@
 }
 
 /* 事業所マスタ関連 */
+.office-master-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.office-list-card {
+  max-height: 500px;
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.office-form-card {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 事業所フォームの入力フィールドを広く */
+.office-form-card .form-group {
+  max-width: 800px;
+}
+
+.office-form-card .form-control {
+  width: 100%;
+  max-width: 100%;
+}
+
 .office-item {
   transition: background-color 0.2s;
 }
