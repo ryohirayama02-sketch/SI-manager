@@ -3,6 +3,7 @@
 /* 従業員一覧画面のcardは横幅を広げる */
 :host ::ng-deep .card {
   max-width: 1400px;
+  overflow-x: auto;
 }
 
 .btn-create {
@@ -37,6 +38,7 @@
 .employee-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 1200px; /* 最小幅を設定してテーブルが縮みすぎないようにする */
 }
 
 .employee-table th,
@@ -57,6 +59,11 @@
 
 .employee-table td {
   white-space: nowrap;
+}
+
+/* カード内のテーブルコンテナ */
+.card {
+  overflow-x: auto;
 }
 
 .employee-table tbody tr:hover {
