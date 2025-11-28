@@ -23,69 +23,100 @@ export class LoginPageComponent implements OnInit, OnDestroy {
     console.log('[LoginPage] ngOnInit: 初期化開始');
     console.log('[LoginPage] ngOnInit: 現在のURL', window.location.href);
 
-    // 認証状態を監視
-    console.log('[LoginPage] ngOnInit: 認証状態の監視を開始');
-    const authState$ = this.authService.getAuthState();
-    console.log('[LoginPage] ngOnInit: authState$ 取得', {
-      hasAuthState: !!authState$,
-    });
-
-    if (authState$) {
-      console.log('[LoginPage] ngOnInit: authState$ の subscribe を開始');
-      this.authSubscription = authState$.subscribe({
-        next: (user: User | null) => {
-          console.log('[LoginPage] ===== 認証状態変化 =====', {
-            hasUser: !!user,
-            uid: user?.uid,
-            email: user?.email,
-          });
+    // Firebase Appの初期化を待つため、少し遅延させる
+    setTimeout(() => {
+      try {
+        // リダイレクト結果を確認
+        // 【一時無効化】ログイン機能をコメントアウト
+        /*
+        this.authService.handleRedirectResult().then((user) => {
           if (user) {
-            console.log('[LoginPage] 認証成功を検知 → /room-enter へ遷移');
-            this.router.navigate(['/room-enter']);
-          } else {
-            console.log('[LoginPage] 認証状態: 未認証');
+            console.log('[LoginPage] ngOnInit: リダイレクト認証成功', {
+              uid: user.uid,
+              email: user.email,
+            });
+            const roomId = sessionStorage.getItem('roomId');
+            if (roomId) {
+              this.router.navigate(['/employees']);
+            } else {
+              this.router.navigate(['/room-enter']);
+            }
           }
-        },
-        error: (error) => {
-          console.error('[LoginPage] ===== 認証状態エラー =====', error);
-        },
-        complete: () => {
-          console.log('[LoginPage] 認証状態監視: 完了');
-        },
-      });
-    } else {
-      console.warn(
-        '[LoginPage] ngOnInit: authState$ が null のため監視をスキップ'
-      );
-    }
+        }).catch((error) => {
+          console.error('[LoginPage] ngOnInit: リダイレクト結果の処理エラー', error);
+        });
+        */
 
-    // 既に認証済みの場合はルーム入室画面へ
-    const currentUser = this.authService.getCurrentUser();
-    console.log(
-      '[LoginPage] ngOnInit: 現在のユーザー状態',
-      currentUser ? '認証済み' : '未認証'
-    );
+        // 【一時無効化】ログイン機能をコメントアウト
+        /*
+        // 認証状態を監視
+        console.log('[LoginPage] ngOnInit: 認証状態の監視を開始');
+        const authState$ = this.authService.getAuthState();
+        console.log('[LoginPage] ngOnInit: authState$ 取得', {
+          hasAuthState: !!authState$,
+        });
 
-    if (currentUser) {
-      const roomId = sessionStorage.getItem('roomId');
-      console.log(
-        '[LoginPage] ngOnInit: roomId確認',
-        roomId ? `あり: ${roomId}` : 'なし'
-      );
-      if (roomId) {
+        if (authState$) {
+          console.log('[LoginPage] ngOnInit: authState$ の subscribe を開始');
+          this.authSubscription = authState$.subscribe({
+            next: (user: User | null) => {
+              console.log('[LoginPage] ===== 認証状態変化 =====', {
+                hasUser: !!user,
+                uid: user?.uid,
+                email: user?.email,
+              });
+              if (user) {
+                console.log('[LoginPage] 認証成功を検知 → /room-enter へ遷移');
+                this.router.navigate(['/room-enter']);
+              } else {
+                console.log('[LoginPage] 認証状態: 未認証');
+              }
+            },
+            error: (error) => {
+              console.error('[LoginPage] ===== 認証状態エラー =====', error);
+            },
+            complete: () => {
+              console.log('[LoginPage] 認証状態監視: 完了');
+            },
+          });
+        } else {
+          console.warn(
+            '[LoginPage] ngOnInit: authState$ が null のため監視をスキップ'
+          );
+        }
+
+        // 既に認証済みの場合はルーム入室画面へ
+        const currentUser = this.authService.getCurrentUser();
         console.log(
-          '[LoginPage] ngOnInit: 認証済み・ルーム入室済み → /employees へ遷移'
+          '[LoginPage] ngOnInit: 現在のユーザー状態',
+          currentUser ? '認証済み' : '未認証'
         );
-        this.router.navigate(['/employees']);
-        return;
-      } else {
-        console.log(
-          '[LoginPage] ngOnInit: 認証済み・ルーム未入室 → /room-enter へ遷移'
-        );
-        this.router.navigate(['/room-enter']);
-        return;
+
+        if (currentUser) {
+          const roomId = sessionStorage.getItem('roomId');
+          console.log(
+            '[LoginPage] ngOnInit: roomId確認',
+            roomId ? `あり: ${roomId}` : 'なし'
+          );
+          if (roomId) {
+            console.log(
+              '[LoginPage] ngOnInit: 認証済み・ルーム入室済み → /employees へ遷移'
+            );
+            this.router.navigate(['/employees']);
+            return;
+          } else {
+            console.log(
+              '[LoginPage] ngOnInit: 認証済み・ルーム未入室 → /room-enter へ遷移'
+            );
+            this.router.navigate(['/room-enter']);
+            return;
+          }
+        }
+        */
+      } catch (error) {
+        console.error('[LoginPage] ngOnInit: 認証状態の取得エラー', error);
       }
-    }
+    }, 100); // 100ms遅延
 
     console.log(
       '[LoginPage] ngOnInit: ログイン画面を表示'
@@ -96,6 +127,8 @@ export class LoginPageComponent implements OnInit, OnDestroy {
     this.authSubscription?.unsubscribe();
   }
 
+  // 【一時無効化】ログイン機能をコメントアウト
+  /*
   async onGoogleSignIn(): Promise<void> {
     console.log(
       '[LoginPage] onGoogleSignIn: ===== Googleログインボタンクリック ====='
@@ -108,16 +141,14 @@ export class LoginPageComponent implements OnInit, OnDestroy {
       console.log('[LoginPage] onGoogleSignIn: isLoading を true に設定');
       console.log('[LoginPage] onGoogleSignIn: signInWithGoogle を呼び出し');
 
-      const user = await this.authService.signInWithGoogle();
+      // signInWithRedirectはリダイレクトするため、この行には到達しない
+      // リダイレクト後、handleRedirectResult()で認証結果を取得する
+      await this.authService.signInWithGoogle();
       
-      console.log('[LoginPage] onGoogleSignIn: ログイン成功', {
-        uid: user.uid,
-        email: user.email,
-      });
-
-      // 認証成功後、ルーム入室画面へ遷移（認証状態の監視で自動的に遷移するが、念のため）
+      // この行には到達しない（リダイレクトされるため）
+      // もしこの行に到達した場合は、リダイレクトが失敗している可能性がある
+      console.warn('[LoginPage] onGoogleSignIn: 警告 - リダイレクトされませんでした');
       this.isLoading = false;
-      this.router.navigate(['/room-enter']);
     } catch (error: any) {
       console.error(
         '[LoginPage] onGoogleSignIn: ===== エラー発生 =====',
@@ -135,12 +166,7 @@ export class LoginPageComponent implements OnInit, OnDestroy {
       if (error?.code === 'auth/network-request-failed') {
         errorMsg = 'ネットワークエラーが発生しました。以下の点を確認してください:\n' +
           '1. インターネット接続を確認してください\n' +
-          '2. ブラウザのポップアップブロック設定を確認してください\n' +
-          '3. Firebase Consoleで「localhost」が承認済みドメインに追加されているか確認してください';
-      } else if (error?.code === 'auth/popup-blocked') {
-        errorMsg = 'ポップアップがブロックされました。ブラウザの設定でポップアップを許可してください。';
-      } else if (error?.code === 'auth/popup-closed-by-user') {
-        errorMsg = 'ポップアップが閉じられました。再度お試しください。';
+          '2. Firebase Consoleで「localhost」が承認済みドメインに追加されているか確認してください';
       } else if (error?.message) {
         errorMsg = 'ログインに失敗しました: ' + error.message;
       }
@@ -149,4 +175,5 @@ export class LoginPageComponent implements OnInit, OnDestroy {
       this.isLoading = false;
     }
   }
+  */
 }

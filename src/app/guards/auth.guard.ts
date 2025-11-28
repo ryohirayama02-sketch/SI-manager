@@ -4,6 +4,11 @@ import { AuthService } from '../services/auth.service';
 import { map } from 'rxjs/operators';
 
 export const authGuard: CanActivateFn = (route, state) => {
+  // 【一時無効化】ログイン機能をコメントアウト - 常にアクセスを許可
+  console.log('[AuthGuard] 【一時無効化】認証チェックをスキップ（常に許可）', { path: state.url });
+  return true;
+
+  /*
   const authService = inject(AuthService);
   const router = inject(Router);
 
@@ -26,4 +31,5 @@ export const authGuard: CanActivateFn = (route, state) => {
       }
     })
   );
+  */
 };

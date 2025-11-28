@@ -1,11 +1,14 @@
 <nav *ngIf="isAuthenticated" class="navbar">
   <div class="nav-container">
+    <a routerLink="/alerts" routerLinkActive="active">
+      アラート
+    </a>
     <a
       routerLink="/employees"
       routerLinkActive="active"
       [routerLinkActiveOptions]="{ exact: false }"
     >
-      従業員一覧
+      従業員
     </a>
     <a routerLink="/monthly-salaries" routerLinkActive="active"> 月次給与 </a>
     <a routerLink="/bonus" routerLinkActive="active"> 賞与 </a>
@@ -13,10 +16,7 @@
     <a routerLink="/insurance-payment-summary" routerLinkActive="active">
       集計
     </a>
-    <a routerLink="/alerts" routerLinkActive="active">
-      アラート
-    </a>
-    <a routerLink="/settings" routerLinkActive="active"> 設定 </a>
+    <a routerLink="/settings" routerLinkActive="active"> 設定・マスタ </a>
     <button class="logout-button" (click)="onLogout()">ログアウト</button>
   </div>
 </nav>

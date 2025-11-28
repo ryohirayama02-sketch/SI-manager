@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { FirebaseApp } from '@angular/fire/app';
+import { getApp } from '@angular/fire/app';
 
 import {
   GoogleAuthProvider,
@@ -12,7 +14,6 @@ import {
   Auth,
 } from 'firebase/auth';
 
-import { FirebaseApp } from '@angular/fire/app';
 import { authState } from '@angular/fire/auth';
 import { of } from 'rxjs';
 
@@ -22,42 +23,33 @@ export class AuthService {
   private firebaseApp = inject(FirebaseApp);
   private _auth: Auth | null = null;
 
+  // ✅ getterで遅延実行（Firebase App初期化後に実行される）
   private get auth(): Auth {
     if (!this._auth) {
-      console.log('[AuthService] Firebase Auth インスタンスを初期化');
-      this._auth = getAuth(this.firebaseApp);
+      try {
+        // Firebase Appが初期化されているか確認
+        const app = getApp();
+        this._auth = getAuth(app);
+      } catch (error) {
+        console.error('[AuthService] Firebase Appが初期化されていません', error);
+        throw error;
+      }
     }
     return this._auth;
   }
 
-  async signInWithGoogle(): Promise<User> {
+  async signInWithGoogle(): Promise<void> {
     console.log('[AuthService] signInWithGoogle: ===== 開始 =====');
-    console.log('[AuthService] signInWithGoogle: Auth インスタンス確認', {
-      hasAuth: !!this.auth,
-      appName: this.auth.app?.name,
-    });
-
     const provider = new GoogleAuthProvider();
-    console.log('[AuthService] signInWithGoogle: GoogleAuthProvider 作成完了');
-    console.log(
-      '[AuthService] signInWithGoogle: signInWithPopup を呼び出し'
-    );
+    console.log('[AuthService] signInWithGoogle: signInWithRedirect を呼び出し');
 
     try {
-      const result = await signInWithPopup(this.auth, provider);
-      console.log(
-        '[AuthService] signInWithGoogle: signInWithPopup 成功',
-        {
-          uid: result.user.uid,
-          email: result.user.email,
-        }
-      );
-      return result.user;
+      // signInWithRedirectはリダイレクトするため、Promiseは解決されない
+      // リダイレクト後、handleRedirectResult()で認証結果を取得する
+      await signInWithRedirect(this.auth, provider);
+      console.log('[AuthService] signInWithGoogle: signInWithRedirect 実行完了（リダイレクト中）');
     } catch (error) {
-      console.error(
-        '[AuthService] signInWithGoogle: signInWithPopup エラー',
-        error
-      );
+      console.error('[AuthService] signInWithGoogle: signInWithRedirect エラー', error);
       throw error;
     }
   }
@@ -158,15 +150,26 @@ export class AuthService {
   }
 
   getCurrentUser(): User | null {
-    const user = this.auth.currentUser;
-    console.log(
-      '[AuthService] getCurrentUser:',
-      user ? { uid: user.uid, email: user.email } : 'null'
-    );
-    return user;
+    try {
+      const user = this.auth.currentUser;
+      console.log(
+        '[AuthService] getCurrentUser:',
+        user ? { uid: user.uid, email: user.email } : 'null'
+      );
+      return user;
+    } catch (error) {
+      console.error('[AuthService] getCurrentUser: エラー', error);
+      return null;
+    }
   }
 
   getAuthState() {
-    return authState(this.auth as any);
+    try {
+      return authState(this.auth as any);
+    } catch (error) {
+      console.error('[AuthService] getAuthState: エラー', error);
+      // エラーが発生した場合は空のObservableを返す
+      return of(null);
+    }
   }
 }

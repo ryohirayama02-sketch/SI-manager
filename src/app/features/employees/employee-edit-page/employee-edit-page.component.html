@@ -1,7 +1,35 @@
 <h2>従業員情報の編集</h2>
 
 <div class="card">
+  <!-- タブナビゲーション -->
+  <div class="tabs">
+    <button 
+      type="button"
+      class="tab-button" 
+      [class.active]="activeTab === 'basic'"
+      (click)="activeTab = 'basic'">
+      基本情報
+    </button>
+    <button 
+      type="button"
+      class="tab-button" 
+      [class.active]="activeTab === 'family'"
+      (click)="activeTab = 'family'">
+      家族情報
+    </button>
+    <button 
+      type="button"
+      class="tab-button" 
+      [class.active]="activeTab === 'history'"
+      (click)="activeTab = 'history'">
+      標準報酬履歴・社保加入履歴
+    </button>
+  </div>
+
+  <!-- タブコンテンツ -->
   <form [formGroup]="form" (ngSubmit)="updateEmployee()">
+    <!-- 基本情報タブ -->
+    <div *ngIf="activeTab === 'basic'" class="tab-content">
     <h3>基本情報</h3>
     <div class="form-group">
       <label for="name">氏名 <span class="required">*</span></label>
@@ -75,12 +103,6 @@
         <option value="kagoshima">鹿児島県</option>
         <option value="okinawa">沖縄県</option>
       </select>
-    </div>
-
-    <h3>標準報酬履歴（読み取り専用）</h3>
-    <div class="form-group">
-      <label>標準報酬月額</label>
-      <input type="text" [value]="standardMonthlyRemunerationHistory" class="form-control" readonly>
     </div>
 
     <h3>労働条件</h3>
@@ -170,7 +192,28 @@
       <p *ngIf="insuranceStatus.pension"><strong>厚生年金:</strong> {{ insuranceStatus.pension }}</p>
     </div>
 
-    <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">更新する</button>
+      <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">更新する</button>
+    </div>
+
+    <!-- 家族情報タブ -->
+    <div *ngIf="activeTab === 'family'" class="tab-content">
+      <h3>家族情報</h3>
+      <p class="info-text">家族情報の登録機能は今後実装予定です。</p>
+      <!-- TODO: 家族情報の入力フォームを実装 -->
+    </div>
+
+    <!-- 標準報酬履歴・社保加入履歴タブ -->
+    <div *ngIf="activeTab === 'history'" class="tab-content">
+      <h3>標準報酬履歴</h3>
+      <div class="form-group">
+        <label>標準報酬月額</label>
+        <input type="text" [value]="standardMonthlyRemunerationHistory" class="form-control" readonly>
+      </div>
+      
+      <h3 style="margin-top: 2rem;">社保加入履歴</h3>
+      <p class="info-text">社保加入履歴の詳細表示機能は今後実装予定です。</p>
+      <!-- TODO: 社保加入履歴の時系列表示を実装 -->
+    </div>
   </form>
 
   <!-- エラー・警告メッセージ -->

@@ -37,6 +37,9 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
 
+  // タブ管理
+  activeTab: 'basic' | 'family' | 'history' = 'basic';
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,

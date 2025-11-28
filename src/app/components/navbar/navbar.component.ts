@@ -93,8 +93,16 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.routerSubscription?.unsubscribe();
   }
 
+  // 【一時無効化】ログイン機能をコメントアウト
+  /*
   onLogout(): void {
     sessionStorage.removeItem('roomId');
     this.authService.signOut();
+  }
+  */
+  onLogout(): void {
+    // 一時的にルームIDのみ削除（ログアウト機能は無効化）
+    sessionStorage.removeItem('roomId');
+    console.log('[Navbar] 【一時無効化】ログアウト機能をスキップ（roomIdのみ削除）');
   }
 }
