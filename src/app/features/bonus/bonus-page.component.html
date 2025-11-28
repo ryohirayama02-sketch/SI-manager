@@ -1,152 +1,32 @@
 <h2>賞与入力</h2>
 
-<form (ngSubmit)="onSubmit()" class="bonus-form card">
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-    <div class="form-group" style="margin-bottom: 0;">
-      <label>年度：</label>
-      <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-        <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
-      </select>
-    </div>
-    <div class="form-group" style="margin-bottom: 0;">
-      <label for="paymentMonth">支給月 <span class="required">*</span></label>
-      <select
-        id="paymentMonth"
-        [(ngModel)]="paymentMonth"
-        (change)="onMonthChange(paymentMonth)"
-        name="paymentMonth"
-        class="form-control"
-        required
-      >
-        <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">
-          {{ m }}月
-        </option>
-      </select>
-    </div>
-  </div>
-  
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
-    <div class="form-group" style="margin-bottom: 0;">
-      <label for="employee">従業員 <span class="required">*</span></label>
-      <select
-        id="employee"
-        [(ngModel)]="selectedEmployeeId"
-        (change)="onInputChange()"
-        name="employee"
-        class="form-control"
-        required
-      >
-        <option value="">選択してください</option>
-        <option *ngFor="let emp of employees" [value]="emp.id">
-          {{ emp.name }}
-        </option>
-      </select>
-    </div>
-    <div class="form-group" style="margin-bottom: 0;">
-      <label for="bonusAmount">賞与額 <span class="required">*</span></label>
-      <input
-        id="bonusAmount"
-        type="text"
-        [value]="bonusAmountDisplay"
-        (input)="onBonusAmountInput($event)"
-        (blur)="onBonusAmountBlur($event)"
-        name="bonusAmount"
-        placeholder="賞与額を入力"
-        class="form-control"
-        required
-      />
-    </div>
-  </div>
+<app-bonus-input-form
+  [employees]="employees"
+  [year]="year"
+  [availableYears]="availableYears"
+  [selectedEmployeeId]="selectedEmployeeId"
+  [bonusAmount]="bonusAmount"
+  [bonusAmountDisplay]="bonusAmountDisplay"
+  [paymentMonth]="paymentMonth"
+  [calculationResult]="calculationResult"
+  (yearChange)="onYearChangeEvent($event)"
+  (monthChange)="onMonthChangeEvent($event)"
+  (employeeChange)="onEmployeeChange($event)"
+  (bonusAmountChange)="onBonusAmountInputChange($event)"
+  (bonusAmountDisplayChange)="onBonusAmountDisplayChange($event)"
+  (submit)="onSubmitEvent()">
+</app-bonus-input-form>
 
-  <button type="submit" class="btn-primary">保存</button>
-</form>
+<app-bonus-list
+  [filteredBonuses]="filteredBonuses"
+  [year]="year"
+  [selectedEmployeeId]="selectedEmployeeId"
+  (deleteBonus)="onDeleteBonus($event)">
+</app-bonus-list>
 
-<!-- 賞与一覧 -->
-<div class="bonus-list-section card" *ngIf="selectedEmployeeId">
-  <h3>賞与一覧（{{ year }}年度）</h3>
-  
-  <div *ngIf="filteredBonuses.length === 0" class="no-data-message" style="padding: 2rem; text-align: center; color: #666;">
-    賞与データがありません
-  </div>
-
-  <table class="bonus-list" *ngIf="filteredBonuses.length > 0">
-    <thead>
-      <tr>
-        <th>支給日</th>
-        <th>賞与額</th>
-        <th>健康保険<br>本人/会社</th>
-        <th>介護保険<br>本人/会社</th>
-        <th>厚生年金<br>本人/会社</th>
-        <th>合計</th>
-        <th>備考</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let bonus of filteredBonuses">
-        <td>{{ bonus.payDate }}</td>
-        <td>{{ bonus.amount | number:'1.0-0' }}円</td>
-        <td>
-          {{ bonus.healthEmployee || 0 | number:'1.0-0' }} / {{ bonus.healthEmployer || 0 | number:'1.0-0' }}
-        </td>
-        <td>
-          {{ bonus.careEmployee || 0 | number:'1.0-0' }} / {{ bonus.careEmployer || 0 | number:'1.0-0' }}
-        </td>
-        <td>
-          {{ bonus.pensionEmployee || 0 | number:'1.0-0' }} / {{ bonus.pensionEmployer || 0 | number:'1.0-0' }}
-        </td>
-        <td>{{ getBonusTotal(bonus) | number:'1.0-0' }}円</td>
-        <td>
-          <span *ngIf="bonus.isExempted || bonus.isExempt" class="exempt">
-            {{ getExemptNote(bonus) }}
-          </span>
-          <span *ngIf="bonus.isSalaryInsteadOfBonus" class="salary-mode">給与扱い</span>
-          <span *ngIf="!bonus.isExempted && !bonus.isExempt && !bonus.isSalaryInsteadOfBonus">-</span>
-        </td>
-        <td>
-          <a [routerLink]="['/bonus', bonus.employeeId, bonus.id, 'edit']" [queryParams]="{year: year}" class="btn-link" style="margin-right: 0.5rem;">編集</a>
-          <button (click)="deleteBonus(bonus)" class="btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.9rem;">削除</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-<!-- CSVインポート機能 -->
-<div class="card" style="max-width: 600px; margin-top: 2rem;">
-  <h4>CSVインポート</h4>
-  <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-    CSV形式で賞与データを一括インポートできます。<br>
-    形式: 年度,支給月,従業員,賞与額（例: 2025年,1月,若林,500000）
-  </p>
-  <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-    <input type="file" #csvFileInput accept=".csv" (change)="onCsvFileSelected($event)" style="display: none;">
-    <button (click)="csvFileInput.click()" class="btn-secondary">CSVファイルを選択</button>
-    <button (click)="showCsvImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
-  </div>
-  
-  <!-- テキストエリアダイアログ -->
-  <div *ngIf="showCsvImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
-    <label for="csvText">CSVデータを貼り付けてください:</label>
-    <textarea 
-      id="csvText" 
-      [(ngModel)]="csvImportText" 
-      rows="10" 
-      class="form-control" 
-      style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
-      placeholder="年度,支給月,従業員,賞与額&#10;2025年,1月,若林,500000&#10;2025年,1月,福本,400000"
-      [ngModelOptions]="{standalone: true}">
-    </textarea>
-    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-      <button (click)="importFromCsvText()" class="btn-primary">インポート</button>
-      <button (click)="showCsvImportDialog = false; csvImportText = ''" class="btn-secondary">キャンセル</button>
-    </div>
-  </div>
-
-  <!-- インポート結果メッセージ -->
-  <div *ngIf="csvImportResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
-       [ngClass]="{'error-box': csvImportResult.type === 'error', 'info-label': csvImportResult.type === 'success'}">
-    <strong>{{ csvImportResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ csvImportResult.message }}
-  </div>
-</div>
+<app-bonus-csv-import
+  [csvImportResult]="csvImportResult"
+  (csvTextImport)="onCsvTextImport($event)"
+  (closeDialog)="onCsvImportClose()">
+</app-bonus-csv-import>
 

@@ -40,7 +40,7 @@ interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
   styleUrl: './alerts-dashboard-page.component.css'
 })
 export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
-  activeTab: 'suiji' | 'notifications' = 'suiji';
+  activeTab: 'schedule' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
   
   // 随時改定アラート関連
   suijiAlerts: SuijiKouhoResultWithDiff[] = [];
@@ -262,7 +262,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return Math.abs(diff) >= 2;
   }
 
-  setActiveTab(tab: 'suiji' | 'notifications'): void {
+  setActiveTab(tab: 'schedule' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): void {
     this.activeTab = tab;
   }
 

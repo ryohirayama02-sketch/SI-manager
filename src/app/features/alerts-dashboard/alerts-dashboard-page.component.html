@@ -4,19 +4,51 @@
   <div class="tabs">
     <button 
       class="tab-button" 
+      [class.active]="activeTab === 'schedule'"
+      (click)="setActiveTab('schedule')">
+      届出スケジュール
+    </button>
+    <button 
+      class="tab-button" 
       [class.active]="activeTab === 'suiji'"
       (click)="setActiveTab('suiji')">
       随時改定アラート
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'notifications'"
-      (click)="setActiveTab('notifications')">
-      届出アラート
+      [class.active]="activeTab === 'teiji'"
+      (click)="setActiveTab('teiji')">
+      定時決定（算定基礎届）
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'age'"
+      (click)="setActiveTab('age')">
+      年齢到達・資格変更
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'leave'"
+      (click)="setActiveTab('leave')">
+      産休・育休・休職
+    </button>
+    <button 
+      class="tab-button" 
+      [class.active]="activeTab === 'family'"
+      (click)="setActiveTab('family')">
+      扶養・氏名・住所変更
     </button>
   </div>
 
   <div class="tab-content">
+    <!-- 届出スケジュール（マンスリーカレンダー）タブ -->
+    <div *ngIf="activeTab === 'schedule'" class="tab-pane">
+      <div class="card">
+        <p class="info-text">届出スケジュール（マンスリーカレンダー）の実装は今後予定です。</p>
+      </div>
+    </div>
+
+    <!-- 随時改定アラートタブ -->
     <div *ngIf="activeTab === 'suiji'" class="tab-pane">
       <div class="card">
         <div *ngIf="suijiAlerts.length === 0" class="info-label">
@@ -95,15 +127,32 @@
       </div>
     </div>
 
-    <div *ngIf="activeTab === 'notifications'" class="tab-pane">
-      <app-alert-item-list 
-        [alerts]="notificationAlerts"
-        [selectedAlertIds]="selectedNotificationAlertIds"
-        [onToggleSelection]="toggleNotificationAlertSelection.bind(this)"
-        [onToggleAll]="toggleAllNotificationAlerts.bind(this)"
-        [onDeleteSelected]="deleteSelectedNotificationAlerts.bind(this)"
-        [isSelected]="isNotificationAlertSelected.bind(this)">
-      </app-alert-item-list>
+    <!-- 定時決定（算定基礎届）対象者一覧タブ -->
+    <div *ngIf="activeTab === 'teiji'" class="tab-pane">
+      <div class="card">
+        <p class="info-text">定時決定（算定基礎届）対象者一覧の実装は今後予定です。</p>
+      </div>
+    </div>
+
+    <!-- 年齢到達・資格変更アラートタブ -->
+    <div *ngIf="activeTab === 'age'" class="tab-pane">
+      <div class="card">
+        <p class="info-text">年齢到達・資格変更アラートの実装は今後予定です。</p>
+      </div>
+    </div>
+
+    <!-- 産休・育休・休職アラートタブ -->
+    <div *ngIf="activeTab === 'leave'" class="tab-pane">
+      <div class="card">
+        <p class="info-text">産休・育休・休職アラートの実装は今後予定です。</p>
+      </div>
+    </div>
+
+    <!-- 扶養・氏名・住所変更アラートタブ -->
+    <div *ngIf="activeTab === 'family'" class="tab-pane">
+      <div class="card">
+        <p class="info-text">扶養・氏名・住所変更アラートの実装は今後予定です。</p>
+      </div>
     </div>
   </div>
 </div>

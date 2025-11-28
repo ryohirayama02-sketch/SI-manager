@@ -10,18 +10,22 @@ import { BonusCalculationService, BonusCalculationResult } from '../../services/
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
+import { BonusInputFormComponent } from './components/bonus-input-form/bonus-input-form.component';
+import { BonusListComponent } from './components/bonus-list/bonus-list.component';
+import { BonusCsvImportComponent } from './components/bonus-csv-import/bonus-csv-import.component';
 
-interface ParsedBonus {
-  employeeId: string;
-  payDate: string;
-  bonusAmount: number;
-  notes?: string;
-}
 
 @Component({
   selector: 'app-bonus-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    BonusInputFormComponent,
+    BonusListComponent,
+    BonusCsvImportComponent
+  ],
   templateUrl: './bonus-page.component.html',
   styleUrl: './bonus-page.component.css'
 })
@@ -43,11 +47,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   bonusList: Bonus[] = [];
   filteredBonuses: Bonus[] = [];
 
-  // CSVインポート結果
-  importResult: { successCount: number; errorCount: number; errors: string[] } | null = null;
-  
-  // CSVインポート関連（新フォーマット用）
-  showCsvImportDialog: boolean = false;
+  // CSVインポート関連
   csvImportText: string = '';
   csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
   // 加入区分購読用
@@ -68,7 +68,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     this.employees = await this.employeeService.getAllEmployees();
     this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
     // 初期表示時にカンマ付きで表示
-    this.bonusAmountDisplay = this.formatAmount(this.bonusAmount);
+    if (this.bonusAmount !== null && this.bonusAmount !== undefined && this.bonusAmount !== 0) {
+      this.bonusAmountDisplay = this.bonusAmount.toLocaleString('ja-JP');
+    } else {
+      this.bonusAmountDisplay = '';
+    }
 
     // 加入区分の変更を購読
     this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
@@ -97,13 +101,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  formatAmount(value: number | null | undefined): string {
-    if (value === null || value === undefined || value === 0) {
-      return '';
-    }
-    return value.toLocaleString('ja-JP');
-  }
-
   parseAmount(value: string): number {
     // カンマを削除して数値に変換
     const numStr = value.replace(/,/g, '');
@@ -111,22 +108,18 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     return isNaN(num) ? 0 : num;
   }
 
-  onBonusAmountInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value;
-    const numValue = this.parseAmount(value);
-    this.bonusAmount = numValue;
-    this.bonusAmountDisplay = this.formatAmount(numValue);
-    input.value = this.bonusAmountDisplay;
+  onBonusAmountInputChange(amount: number): void {
+    this.bonusAmount = amount;
     this.onInputChange();
   }
 
-  onBonusAmountBlur(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const numValue = this.parseAmount(input.value);
-    this.bonusAmount = numValue;
-    this.bonusAmountDisplay = this.formatAmount(numValue);
-    input.value = this.bonusAmountDisplay;
+  onBonusAmountDisplayChange(display: string): void {
+    this.bonusAmountDisplay = display;
+  }
+
+  async onEmployeeChange(employeeId: string): Promise<void> {
+    this.selectedEmployeeId = employeeId;
+    await this.onInputChange();
   }
 
   async onInputChange(): Promise<void> {
@@ -140,28 +133,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onMonthChange(month: number): Promise<void> {
-    // 支給月から年度を自動判定しない（ユーザーが選択した年度を維持）
-    // コメントアウト：支給月変更時に年度を自動変更すると、ユーザーが選択した年度が上書きされてしまう
-    /*
-    // 支給月が1-3月の場合、年度は前年（会計年度4月始まり）
-    // 支給月が4-12月の場合、年度は当年
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
-    
-    if (month >= 1 && month <= 3) {
-      // 1-3月は前年度
-      this.year = currentYear - 1;
-    } else if (month >= 4 && month <= 12) {
-      // 4-12月は当年
-      this.year = currentYear;
-    } else {
-      // 不正な値の場合は現在年度を維持
-      this.year = currentYear;
-    }
-    */
-    
+  async onMonthChangeEvent(month: number): Promise<void> {
+    this.paymentMonth = month;
     console.log(`[bonus-page] 支給月変更: 月=${month}, 現在の年度=${this.year}`);
     
     // 年度変更時に料率を再取得（年度は変更しない）
@@ -176,7 +149,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onYearChange(): Promise<void> {
+  async onYearChangeEvent(year: number): Promise<void> {
+    this.year = year;
     // 年度変更時に料率を再取得
     this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
     // 賞与一覧を再読み込み
@@ -214,8 +188,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async deleteBonus(bonus: Bonus): Promise<void> {
-    if (!confirm(`賞与（${bonus.payDate}、${this.formatAmount(bonus.amount)}円）を削除しますか？`)) {
+  async onDeleteBonus(bonus: Bonus): Promise<void> {
+    if (!confirm(`賞与（${bonus.payDate}、${bonus.amount.toLocaleString('ja-JP')}円）を削除しますか？`)) {
       return;
     }
 
@@ -236,25 +210,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  getBonusTotal(bonus: Bonus): number {
-    const healthTotal = (bonus.healthEmployee || 0) + (bonus.healthEmployer || 0);
-    const careTotal = (bonus.careEmployee || 0) + (bonus.careEmployer || 0);
-    const pensionTotal = (bonus.pensionEmployee || 0) + (bonus.pensionEmployer || 0);
-    return healthTotal + careTotal + pensionTotal;
-  }
-
-  getExemptNote(bonus: Bonus): string {
-    if (bonus.exemptReason) {
-      if (bonus.exemptReason.includes('産前産後休業中')) {
-        return '免除：産休中';
-      } else if (bonus.exemptReason.includes('育児休業中')) {
-        return '免除：育休中';
-      }
-      // その他の免除理由がある場合は簡潔に表示
-      return '免除中';
-    }
-    return '免除中';
-  }
 
   async updateBonusCalculation(): Promise<void> {
     if (!this.selectedEmployeeId || this.bonusAmount === null || this.bonusAmount < 0 || !this.rates) {
@@ -280,7 +235,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     );
   }
 
-  async onSubmit(): Promise<void> {
+  async onSubmitEvent(): Promise<void> {
     // バリデーション
     if (!this.selectedEmployeeId) {
       alert('従業員を選択してください');
@@ -357,212 +312,16 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // CSVインポート関連
-  onCsvUpload(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      if (!text) {
-        alert('ファイルの読み込みに失敗しました');
-        return;
-      }
-
-      try {
-        const parsed = this.parseCsv(text);
-        await this.importBonuses(parsed);
-      } catch (error) {
-        console.error('CSVインポートエラー:', error);
-        alert('CSVの処理中にエラーが発生しました');
-      }
-    };
-    reader.readAsText(file, 'UTF-8');
-
-    // 同じファイルを再度選択できるようにリセット
-    input.value = '';
-  }
-
-  parseCsv(text: string): ParsedBonus[] {
-    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    if (lines.length === 0) {
-      return [];
-    }
-
-    // 1行目はヘッダーとしてスキップ
-    const dataLines = lines.slice(1);
-    const parsed: ParsedBonus[] = [];
-
-    for (let i = 0; i < dataLines.length; i++) {
-      const line = dataLines[i];
-      const columns = line.split(',').map(col => col.trim());
-
-      // 最低限の列数チェック（employeeId, payDate, bonusAmount は必須）
-      if (columns.length < 3) {
-        continue;
-      }
-
-      const employeeId = columns[0];
-      const payDate = columns[1];
-      const bonusAmountStr = columns[2];
-      const notes = columns[3] || '';
-
-      // バリデーション
-      if (!employeeId || employeeId === '') {
-        continue; // スキップ
-      }
-
-      // 日付形式チェック
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      if (!dateRegex.test(payDate)) {
-        continue; // スキップ
-      }
-
-      // 数値チェック
-      const bonusAmount = this.parseAmount(bonusAmountStr);
-      if (isNaN(bonusAmount) || bonusAmount < 0) {
-        continue; // スキップ
-      }
-
-      parsed.push({
-        employeeId,
-        payDate,
-        bonusAmount,
-        notes
-      });
-    }
-
-    return parsed;
-  }
-
-  async importBonuses(parsed: ParsedBonus[]): Promise<void> {
-    if (parsed.length === 0) {
-      alert('有効なデータがありませんでした');
-      return;
-    }
-
-    let successCount = 0;
-    let errorCount = 0;
-    const errors: string[] = [];
-
-    // 料率が未取得の場合は取得
-    if (!this.rates) {
-      this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
-    }
-
-    for (const item of parsed) {
-      try {
-        // 従業員を検索
-        const employee = this.employees.find(e => e.id === item.employeeId);
-        if (!employee) {
-          errorCount++;
-          errors.push(`${item.employeeId}: 従業員が見つかりません`);
-          continue;
-        }
-
-        // 賞与計算を実行
-        // 支給日から年度を取得
-        const payDateObj = new Date(item.payDate);
-        const bonusYear = payDateObj.getFullYear();
-        const calculationResult = await this.bonusCalculationService.calculateBonus(
-          employee,
-          item.employeeId,
-          item.bonusAmount,
-          item.payDate,
-          bonusYear
-        );
-
-        if (!calculationResult) {
-          errorCount++;
-          errors.push(`${item.employeeId} (${item.payDate}): 保険料の計算に失敗しました`);
-          continue;
-        }
-
-        // payDateから月を抽出（payDateObjは既に416行目で宣言済み）
-        const month = payDateObj.getMonth() + 1;
-
-        // Bonusオブジェクトを作成
-        const bonus: Bonus = {
-          employeeId: item.employeeId,
-          year: this.year,
-          month: month,
-          amount: item.bonusAmount,
-          payDate: item.payDate,
-          createdAt: new Date(),
-          notes: item.notes || undefined,
-          isExempt: calculationResult.isExempted || false,
-          cappedHealth: calculationResult.cappedBonusHealth || 0,
-          cappedPension: calculationResult.cappedBonusPension || 0,
-          healthEmployee: calculationResult.healthEmployee,
-          healthEmployer: calculationResult.healthEmployer,
-          careEmployee: calculationResult.careEmployee,
-          careEmployer: calculationResult.careEmployer,
-          pensionEmployee: calculationResult.pensionEmployee,
-          pensionEmployer: calculationResult.pensionEmployer,
-          standardBonusAmount: calculationResult.standardBonus,
-          cappedBonusHealth: calculationResult.cappedBonusHealth,
-          cappedBonusPension: calculationResult.cappedBonusPension,
-          isExempted: calculationResult.isExempted,
-          isRetiredNoLastDay: calculationResult.isRetiredNoLastDay,
-          isOverAge70: calculationResult.isOverAge70,
-          isOverAge75: calculationResult.isOverAge75,
-          requireReport: calculationResult.requireReport,
-          reportDeadline: calculationResult.reportDeadline || undefined,
-          isSalaryInsteadOfBonus: calculationResult.isSalaryInsteadOfBonus,
-          exemptReason: calculationResult.exemptReason
-        };
-
-        // Firestoreに保存
-        await this.bonusService.saveBonus(this.year, bonus);
-        successCount++;
-      } catch (error) {
-        errorCount++;
-        errors.push(`${item.employeeId} (${item.payDate}): ${error instanceof Error ? error.message : '登録エラー'}`);
-        console.error(`賞与インポートエラー (${item.employeeId}):`, error);
-      }
-    }
-
-    // 結果を表示
-    this.showImportResult(successCount, errorCount, errors);
-
-    // 一覧を再読み込み（選択中の従業員がいる場合）
-    if (this.selectedEmployeeId) {
-      await this.loadBonusList();
-    }
-  }
-
-  showImportResult(successCount: number, errorCount: number, errors: string[]): void {
-    this.importResult = {
-      successCount,
-      errorCount,
-      errors: errors.slice(0, 10) // 最大10件まで表示
-    };
-
-    // 結果メッセージを表示
-    let message = `インポート完了\n成功: ${successCount}件`;
-    if (errorCount > 0) {
-      message += `\n失敗: ${errorCount}件`;
-    }
-    alert(message);
-  }
 
   // CSVインポート処理（新フォーマット: 年度,支給月,従業員,賞与額）
-  onCsvFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+  async onCsvTextImport(csvText: string): Promise<void> {
+    this.csvImportText = csvText;
+    await this.importFromCsvText(csvText);
+  }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      this.csvImportText = text;
-      this.importFromCsvText(this.csvImportText);
-    };
-    reader.readAsText(file);
+  onCsvImportClose(): void {
+    this.csvImportText = '';
+    this.csvImportResult = null;
   }
 
   async importFromCsvText(csvText?: string): Promise<void> {
@@ -727,7 +486,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           type: 'success',
           message: `${successCount}件のデータをインポートしました`
         };
-        this.showCsvImportDialog = false;
         this.csvImportText = '';
       }
     } catch (error) {

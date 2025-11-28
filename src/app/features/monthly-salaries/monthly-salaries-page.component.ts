@@ -25,6 +25,7 @@ import {
 import { SalaryInputSectionComponent } from './components/salary-input-section/salary-input-section.component';
 import { CalculationResultSectionComponent } from './components/calculation-result-section/calculation-result-section.component';
 import { ErrorWarningSectionComponent } from './components/error-warning-section/error-warning-section.component';
+import { SalaryCsvImportComponent } from './components/salary-csv-import/salary-csv-import.component';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -36,6 +37,7 @@ import { FormsModule } from '@angular/forms';
     SalaryInputSectionComponent,
     CalculationResultSectionComponent,
     ErrorWarningSectionComponent,
+    SalaryCsvImportComponent,
   ],
   templateUrl: './monthly-salaries-page.component.html',
   styleUrl: './monthly-salaries-page.component.css',
@@ -83,7 +85,6 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   eligibilitySubscription: Subscription | null = null;
 
   // CSVインポート関連
-  showCsvImportDialog: boolean = false;
   csvImportText: string = '';
   csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
 
@@ -855,18 +856,14 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   // CSVインポート処理
-  onCsvFileSelected(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file) return;
+  async onCsvTextImport(csvText: string): Promise<void> {
+    this.csvImportText = csvText;
+    await this.importFromCsvText(csvText);
+  }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      this.csvImportText = text;
-      this.importFromCsvText(this.csvImportText);
-    };
-    reader.readAsText(file);
+  onCsvImportClose(): void {
+    this.csvImportText = '';
+    this.csvImportResult = null;
   }
 
   async importFromCsvText(csvText?: string): Promise<void> {
@@ -994,7 +991,6 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
           type: 'success',
           message: `${successCount}件のデータをインポートしました`
         };
-        this.showCsvImportDialog = false;
         this.csvImportText = '';
       }
     } catch (error) {
@@ -1003,13 +999,4 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // CSVインポート用のプレイスホルダーを生成
-  getCsvPlaceholder(): string {
-    if (this.salaryItems.length === 0) {
-      return '月,従業員,基本給,住宅手当,残業手当\n1,若林,300000,30000,20000\n1,福本,200000,30000,20000';
-    }
-    const header = '月,従業員,' + this.salaryItems.map(item => item.name).join(',');
-    const example = '1,若林,' + this.salaryItems.map(() => '300000').join(',');
-    return `${header}\n${example}\n1,福本,${this.salaryItems.map(() => '200000').join(',')}`;
-  }
 }

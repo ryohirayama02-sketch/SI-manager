@@ -1,0 +1,67 @@
+<form (ngSubmit)="onSubmit()" class="bonus-form card">
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label>年度：</label>
+      <select 
+        [ngModel]="year" 
+        (ngModelChange)="onYearChange($event)" 
+        class="form-control" 
+        [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label for="paymentMonth">支給月 <span class="required">*</span></label>
+      <select
+        id="paymentMonth"
+        [ngModel]="paymentMonth"
+        (ngModelChange)="onMonthChange($event)"
+        name="paymentMonth"
+        class="form-control"
+        [ngModelOptions]="{standalone: true}"
+        required
+      >
+        <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">
+          {{ m }}月
+        </option>
+      </select>
+    </div>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+    <div class="form-group" style="margin-bottom: 0;">
+      <label for="employee">従業員 <span class="required">*</span></label>
+      <select
+        id="employee"
+        [ngModel]="selectedEmployeeId"
+        (ngModelChange)="onEmployeeChange($event)"
+        name="employee"
+        class="form-control"
+        [ngModelOptions]="{standalone: true}"
+        required
+      >
+        <option value="">選択してください</option>
+        <option *ngFor="let emp of employees" [value]="emp.id">
+          {{ emp.name }}
+        </option>
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom: 0;">
+      <label for="bonusAmount">賞与額 <span class="required">*</span></label>
+      <input
+        id="bonusAmount"
+        type="text"
+        [value]="bonusAmountDisplay"
+        (input)="onBonusAmountInput($event)"
+        (blur)="onBonusAmountBlur($event)"
+        name="bonusAmount"
+        placeholder="賞与額を入力"
+        class="form-control"
+        required
+      />
+    </div>
+  </div>
+
+  <button type="submit" class="btn-primary">保存</button>
+</form>
+
