@@ -27,9 +27,9 @@
   </div>
 
   <!-- タブコンテンツ -->
-  <form [formGroup]="form" (ngSubmit)="updateEmployee()">
-    <!-- 基本情報タブ -->
-    <div *ngIf="activeTab === 'basic'" class="tab-content">
+  <!-- 基本情報タブ -->
+  <div *ngIf="activeTab === 'basic'" class="tab-content">
+    <form [formGroup]="form" (ngSubmit)="updateEmployee()">
     <h3>個人情報</h3>
     <div class="form-group">
       <label for="name">氏名（漢字） <span class="required">*</span></label>
@@ -317,11 +317,12 @@
       <p *ngIf="insuranceStatus.pension"><strong>厚生年金:</strong> {{ insuranceStatus.pension }}</p>
     </div>
 
-      <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">更新する</button>
-    </div>
+      <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">保存</button>
+    </form>
+  </div>
 
-    <!-- 家族情報タブ -->
-    <div *ngIf="activeTab === 'family'" class="tab-content">
+  <!-- 家族情報タブ -->
+  <div *ngIf="activeTab === 'family'" class="tab-content">
       <h3>家族情報</h3>
 
       <!-- 扶養見直しアラート -->
@@ -336,7 +337,7 @@
 
       <!-- 家族情報一覧 -->
       <div style="margin-bottom: 1rem;">
-        <button (click)="showAddFamilyForm()" class="btn-primary">家族情報を追加</button>
+        <button type="button" (click)="showAddFamilyForm($event)" class="btn-primary">家族情報を追加</button>
       </div>
 
       <table class="table" *ngIf="familyMembers.length > 0" style="margin-bottom: 1rem;">
@@ -366,8 +367,8 @@
             <td>{{ member.supportStartDate || '-' }}</td>
             <td>{{ member.supportEndDate || '-' }}</td>
             <td>
-              <button (click)="showEditFamilyForm(member)" class="btn-secondary" style="margin-right: 0.5rem;">編集</button>
-              <button (click)="deleteFamilyMember(member.id!)" class="btn-danger">削除</button>
+              <button type="button" (click)="showEditFamilyForm(member, $event)" class="btn-secondary" style="margin-right: 0.5rem;">編集</button>
+              <button type="button" (click)="deleteFamilyMember(member.id!, $event)" class="btn-danger">削除</button>
             </td>
           </tr>
         </tbody>
@@ -378,7 +379,7 @@
       <!-- 家族情報入力フォーム -->
       <div *ngIf="showFamilyForm" class="card" style="margin-top: 1rem;">
         <h4>{{ editingFamilyMember ? '家族情報の編集' : '家族情報の追加' }}</h4>
-        <form [formGroup]="familyForm" (ngSubmit)="saveFamilyMember()">
+        <form [formGroup]="familyForm" (ngSubmit)="$event.preventDefault(); $event.stopPropagation();">
           <div class="form-group">
             <label for="familyName">氏名 <span class="required">*</span></label>
             <input id="familyName" formControlName="name" type="text" class="form-control" required>
@@ -437,7 +438,7 @@
           </div>
 
           <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-            <button type="submit" [disabled]="familyForm.invalid" class="btn-primary">保存</button>
+            <button type="button" (click)="saveFamilyMember($event)" [disabled]="familyForm.invalid" class="btn-primary">保存</button>
             <button type="button" (click)="cancelFamilyForm()" class="btn-secondary">キャンセル</button>
           </div>
         </form>
@@ -448,7 +449,7 @@
     <div *ngIf="activeTab === 'history'" class="tab-content">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <h3>標準報酬履歴・社保加入履歴</h3>
-        <button (click)="generateHistories()" class="btn-secondary">履歴を自動生成</button>
+        <button type="button" (click)="generateHistories($event)" class="btn-secondary">履歴を自動生成</button>
       </div>
 
       <!-- 標準報酬履歴 -->
@@ -505,8 +506,7 @@
         </tbody>
       </table>
       <p *ngIf="getFilteredInsuranceHistories().length === 0" class="info-text">社保加入履歴が登録されていません。「履歴を自動生成」ボタンをクリックして生成してください。</p>
-    </div>
-  </form>
+  </div>
 
   <!-- エラー・警告メッセージ -->
   <div *ngIf="errorMessages?.length" class="error-box" style="margin-top: 1rem;">

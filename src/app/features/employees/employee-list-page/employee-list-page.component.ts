@@ -26,6 +26,12 @@ interface EmployeeDisplayInfo {
   notes: string[]; // 備考欄用
   standardMonthlyRemuneration: number | null; // 標準報酬月額（月次給与データから計算）
   grade: number | null; // 等級
+  leaveStatus?: {
+    status: 'maternity' | 'childcare' | 'leave' | 'none';
+    startDate: string | null;
+    endDate: string | null;
+  };
+  hasCollectionImpossibleAlert?: boolean;
 }
 
 @Component({
@@ -38,6 +44,9 @@ interface EmployeeDisplayInfo {
 export class EmployeeListPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   employeeDisplayInfos: EmployeeDisplayInfo[] = [];
+  
+  // タブ管理
+  activeTab: 'all' | 'onLeave' = 'all';
   
   // フィルター用
   filterName: string = '';
@@ -248,6 +257,10 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         }
       }
 
+      // 休業情報を取得
+      const leaveStatus = this.getCurrentLeaveStatus(emp);
+      const hasCollectionImpossibleAlert = await this.hasCollectionImpossibleAlert(emp);
+
       this.employeeDisplayInfos.push({
         employee: emp,
         eligibility,
@@ -255,6 +268,8 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         notes,
         standardMonthlyRemuneration,
         grade,
+        leaveStatus,
+        hasCollectionImpossibleAlert,
       });
     }
   }
@@ -350,8 +365,180 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     return '未加入';
   }
 
+  /**
+   * 指定年月における休業ステータスを取得
+   */
+  getLeaveStatusForMonth(employee: Employee, year: number, month: number): {
+    status: 'maternity' | 'childcare' | 'leave' | 'none';
+    startDate: string | null;
+    endDate: string | null;
+  } {
+    const targetDate = new Date(year, month - 1, 1);
+    const targetEndDate = new Date(year, month, 0); // その月の最終日
+
+    // 産前産後休業中
+    if (employee.maternityLeaveStart && employee.maternityLeaveEnd) {
+      const start = new Date(employee.maternityLeaveStart);
+      const end = new Date(employee.maternityLeaveEnd);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      if (targetDate <= end && targetEndDate >= start) {
+        return {
+          status: 'maternity',
+          startDate: employee.maternityLeaveStart,
+          endDate: employee.maternityLeaveEnd
+        };
+      }
+    }
+
+    // 育児休業中
+    if (employee.childcareLeaveStart && employee.childcareLeaveEnd) {
+      const start = new Date(employee.childcareLeaveStart);
+      const end = new Date(employee.childcareLeaveEnd);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      if (targetDate <= end && targetEndDate >= start) {
+        return {
+          status: 'childcare',
+          startDate: employee.childcareLeaveStart,
+          endDate: employee.childcareLeaveEnd
+        };
+      }
+    }
+
+    // 無給休職中（leaveOfAbsenceStart と leaveOfAbsenceEnd の期間内）
+    if (employee.leaveOfAbsenceStart && employee.leaveOfAbsenceEnd) {
+      const start = new Date(employee.leaveOfAbsenceStart);
+      const end = new Date(employee.leaveOfAbsenceEnd);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      if (targetDate <= end && targetEndDate >= start) {
+        return {
+          status: 'leave',
+          startDate: employee.leaveOfAbsenceStart,
+          endDate: employee.leaveOfAbsenceEnd
+        };
+      }
+    }
+
+    // 無給休職中（returnFromLeaveDate が未来の場合）
+    if (employee.returnFromLeaveDate) {
+      const returnDate = new Date(employee.returnFromLeaveDate);
+      returnDate.setHours(0, 0, 0, 0);
+      const targetDateStart = new Date(year, month - 1, 1);
+      if (returnDate > targetDateStart) {
+        return {
+          status: 'leave',
+          startDate: employee.leaveOfAbsenceStart || null,
+          endDate: employee.returnFromLeaveDate
+        };
+      }
+    }
+
+    return { status: 'none', startDate: null, endDate: null };
+  }
+
+  /**
+   * 現在の休業ステータスを取得
+   */
+  getCurrentLeaveStatus(employee: Employee): {
+    status: 'maternity' | 'childcare' | 'leave' | 'none';
+    startDate: string | null;
+    endDate: string | null;
+  } {
+    return this.getLeaveStatusForMonth(employee, this.currentYear, this.currentMonth);
+  }
+
+  /**
+   * 休業ステータスのラベルを取得
+   */
+  getLeaveStatusLabel(status: 'maternity' | 'childcare' | 'leave' | 'none'): string {
+    switch (status) {
+      case 'maternity':
+        return '産休中';
+      case 'childcare':
+        return '育休中';
+      case 'leave':
+        return '休職中';
+      default:
+        return '-';
+    }
+  }
+
+  /**
+   * 徴収不能アラートがあるかチェック
+   */
+  async hasCollectionImpossibleAlert(employee: Employee): Promise<boolean> {
+    // 無給休職中の場合
+    const leaveStatus = this.getCurrentLeaveStatus(employee);
+    if (leaveStatus.status === 'leave') {
+      return true;
+    }
+
+    // 給与 < 本人負担保険料の月があるかチェック
+    try {
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, this.currentYear);
+      if (!salaryData) return false;
+
+      const monthKey = this.currentMonth.toString();
+      const monthData = salaryData[monthKey];
+      if (!monthData) return false;
+
+      const totalSalary = monthData.totalSalary ?? monthData.total ?? 0;
+      if (totalSalary === 0) return true; // 無給の場合は徴収不能
+
+      // 保険料を計算
+      const gradeTable = await this.settingsService.getStandardTable(this.currentYear);
+      const fixedSalary = monthData.fixedSalary ?? monthData.fixed ?? 0;
+      const variableSalary = monthData.variableSalary ?? monthData.variable ?? 0;
+
+      if (fixedSalary > 0 || variableSalary > 0) {
+        const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
+          employee,
+          this.currentYear,
+          this.currentMonth,
+          fixedSalary,
+          variableSalary,
+          gradeTable
+        );
+
+        const totalEmployeePremium = premiums.health_employee + premiums.care_employee + premiums.pension_employee;
+        if (totalSalary < totalEmployeePremium) {
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error(`従業員 ${employee.id} の徴収不能チェックエラー:`, error);
+    }
+
+    return false;
+  }
+
+  /**
+   * 休業中かどうかを判定する
+   */
+  isOnLeave(employee: Employee): boolean {
+    const leaveStatus = this.getCurrentLeaveStatus(employee);
+    return leaveStatus.status !== 'none';
+  }
+
+  /**
+   * 休業者の一覧を取得
+   */
+  getOnLeaveEmployees(): EmployeeDisplayInfo[] {
+    return this.employeeDisplayInfos.filter((info) => this.isOnLeave(info.employee));
+  }
+
   getFilteredEmployees(): EmployeeDisplayInfo[] {
-    return this.employeeDisplayInfos.filter((info) => {
+    // タブに応じてフィルタリング
+    let targetInfos: EmployeeDisplayInfo[];
+    if (this.activeTab === 'onLeave') {
+      targetInfos = this.getOnLeaveEmployees();
+    } else {
+      targetInfos = this.employeeDisplayInfos;
+    }
+
+    return targetInfos.filter((info) => {
       // 名前フィルター
       if (this.filterName && !info.employee.name.includes(this.filterName)) {
         return false;
@@ -379,7 +566,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   goDetail(id: string): void {
-    this.router.navigate(['/employees', id]);
+    this.router.navigate(['/employees', id, 'edit']);
   }
 
   goCreate(): void {

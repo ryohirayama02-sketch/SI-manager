@@ -9,14 +9,46 @@ export class FamilyMemberService {
   /**
    * 家族情報を保存
    */
-  async saveFamilyMember(familyMember: FamilyMember): Promise<void> {
-    const ref = doc(this.firestore, 'familyMembers', familyMember.id || `temp_${Date.now()}`);
-    const data = {
-      ...familyMember,
+  async saveFamilyMember(familyMember: FamilyMember): Promise<string> {
+    // IDが存在しない場合は新規作成（Firestoreが自動生成）
+    let docId: string;
+    if (familyMember.id) {
+      docId = familyMember.id;
+    } else {
+      // 新規作成時はランダムなIDを生成
+      const newRef = doc(collection(this.firestore, 'familyMembers'));
+      docId = newRef.id;
+    }
+    
+    const ref = doc(this.firestore, 'familyMembers', docId);
+    // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
+    const data: any = {
+      employeeId: familyMember.employeeId,
+      name: familyMember.name,
+      birthDate: familyMember.birthDate,
+      relationship: familyMember.relationship,
+      livingTogether: familyMember.livingTogether,
+      isThirdCategory: familyMember.isThirdCategory,
       updatedAt: new Date(),
       createdAt: familyMember.createdAt || new Date()
     };
+    
+    // 値がある場合のみ追加
+    if (familyMember.expectedIncome !== null && familyMember.expectedIncome !== undefined) {
+      data.expectedIncome = familyMember.expectedIncome;
+    }
+    if (familyMember.supportStartDate) {
+      data.supportStartDate = familyMember.supportStartDate;
+    }
+    if (familyMember.supportEndDate) {
+      data.supportEndDate = familyMember.supportEndDate;
+    }
+    if (familyMember.changeDate) {
+      data.changeDate = familyMember.changeDate;
+    }
+    
     await setDoc(ref, data, { merge: true });
+    return docId;
   }
 
   /**
@@ -34,9 +66,43 @@ export class FamilyMemberService {
    */
   async getFamilyMembersByEmployeeId(employeeId: string): Promise<FamilyMember[]> {
     const ref = collection(this.firestore, 'familyMembers');
-    const q = query(ref, where('employeeId', '==', employeeId), orderBy('createdAt', 'asc'));
+    const q = query(ref, where('employeeId', '==', employeeId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FamilyMember));
+    const members = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // FirestoreのTimestampをDateに変換
+      let createdAt: Date | undefined;
+      if (data['createdAt']) {
+        if (data['createdAt'].toDate) {
+          createdAt = data['createdAt'].toDate();
+        } else if (data['createdAt'] instanceof Date) {
+          createdAt = data['createdAt'];
+        }
+      }
+      let updatedAt: Date | undefined;
+      if (data['updatedAt']) {
+        if (data['updatedAt'].toDate) {
+          updatedAt = data['updatedAt'].toDate();
+        } else if (data['updatedAt'] instanceof Date) {
+          updatedAt = data['updatedAt'];
+        }
+      }
+      return { 
+        id: doc.id, 
+        ...data,
+        createdAt,
+        updatedAt
+      } as FamilyMember;
+    });
+    // クライアント側でソート（createdAtでソート、なければnameでソート）
+    return members.sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        const aTime = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const bTime = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return aTime - bTime;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
   }
 
   /**
@@ -52,10 +118,23 @@ export class FamilyMemberService {
    */
   async saveFamilyMemberHistory(history: FamilyMemberHistory): Promise<void> {
     const ref = doc(this.firestore, 'familyMemberHistories', history.id || `temp_${Date.now()}`);
-    const data = {
-      ...history,
+    // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
+    const data: any = {
+      familyMemberId: history.familyMemberId,
+      employeeId: history.employeeId,
+      changeDate: history.changeDate,
+      changeType: history.changeType,
       createdAt: history.createdAt || new Date()
     };
+    
+    // 値がある場合のみ追加
+    if (history.previousValue !== null && history.previousValue !== undefined) {
+      data.previousValue = history.previousValue;
+    }
+    if (history.newValue !== null && history.newValue !== undefined) {
+      data.newValue = history.newValue;
+    }
+    
     await setDoc(ref, data, { merge: true });
   }
 
@@ -64,9 +143,33 @@ export class FamilyMemberService {
    */
   async getFamilyMemberHistories(familyMemberId: string): Promise<FamilyMemberHistory[]> {
     const ref = collection(this.firestore, 'familyMemberHistories');
-    const q = query(ref, where('familyMemberId', '==', familyMemberId), orderBy('changeDate', 'desc'));
+    const q = query(ref, where('familyMemberId', '==', familyMemberId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FamilyMemberHistory));
+    const histories = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // FirestoreのTimestampをDateに変換
+      let createdAt: Date;
+      if (data['createdAt']) {
+        if (data['createdAt'].toDate) {
+          createdAt = data['createdAt'].toDate();
+        } else if (data['createdAt'] instanceof Date) {
+          createdAt = data['createdAt'];
+        } else {
+          createdAt = new Date();
+        }
+      } else {
+        createdAt = new Date();
+      }
+      return { 
+        id: doc.id, 
+        ...data,
+        createdAt
+      } as FamilyMemberHistory;
+    });
+    // クライアント側でソート（changeDateで降順ソート）
+    return histories.sort((a, b) => {
+      return b.changeDate.localeCompare(a.changeDate);
+    });
   }
 
   /**

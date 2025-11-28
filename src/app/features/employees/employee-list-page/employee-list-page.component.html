@@ -1,5 +1,23 @@
 <h2>従業員一覧</h2>
 
+<!-- タブナビゲーション -->
+<div class="tabs">
+  <button 
+    type="button"
+    class="tab-button" 
+    [class.active]="activeTab === 'all'"
+    (click)="activeTab = 'all'">
+    全従業員
+  </button>
+  <button 
+    type="button"
+    class="tab-button" 
+    [class.active]="activeTab === 'onLeave'"
+    (click)="activeTab = 'onLeave'">
+    休業者一覧
+  </button>
+</div>
+
 <div class="card" style="margin-bottom: 1rem;">
   <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
     <button (click)="goCreate()" class="btn-primary btn-create">
@@ -12,7 +30,7 @@
         <input type="text" [(ngModel)]="filterName" placeholder="名前で検索" class="form-control" style="width: 200px;">
       </label>
       
-      <label>
+      <label *ngIf="activeTab === 'all'">
         対象区分：
         <select [(ngModel)]="filterEligibilityStatus" class="form-control" style="width: 150px;">
           <option value="all">すべて</option>
@@ -27,7 +45,8 @@
 </div>
 
 <div class="card">
-  <table class="employee-table" style="width: 100%; border-collapse: collapse;">
+  <!-- 全従業員タブのテーブル -->
+  <table *ngIf="activeTab === 'all'" class="employee-table" style="width: 100%; border-collapse: collapse;">
     <thead>
       <tr>
         <th>名前</th>
@@ -90,6 +109,55 @@
             {{ note }}<span *ngIf="!last">、</span>
           </span>
           <span *ngIf="info.notes.length === 0">-</span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 休業者一覧タブのテーブル -->
+  <table *ngIf="activeTab === 'onLeave'" class="employee-table" style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr>
+        <th>名前</th>
+        <th>休業ステータス</th>
+        <th>産前産後休業<br>開始日</th>
+        <th>産前産後休業<br>終了日</th>
+        <th>育児休業<br>開始日</th>
+        <th>育児休業<br>終了日</th>
+        <th>無給休職<br>開始日</th>
+        <th>無給休職<br>終了日</th>
+        <th>健保・厚年<br>保険料免除</th>
+        <th>徴収不能<br>アラート</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let info of getFilteredEmployees()" 
+          (click)="goDetail(info.employee.id)" 
+          style="cursor: pointer;">
+        <td>{{ info.employee.name }}</td>
+        <td>
+          <span *ngIf="info.leaveStatus">
+            {{ getLeaveStatusLabel(info.leaveStatus.status) }}
+          </span>
+          <span *ngIf="!info.leaveStatus">-</span>
+        </td>
+        <td>{{ info.employee.maternityLeaveStart || '-' }}</td>
+        <td>{{ info.employee.maternityLeaveEnd || '-' }}</td>
+        <td>{{ info.employee.childcareLeaveStart || '-' }}</td>
+        <td>{{ info.employee.childcareLeaveEnd || '-' }}</td>
+        <td>{{ info.employee.leaveOfAbsenceStart || '-' }}</td>
+        <td>{{ info.employee.leaveOfAbsenceEnd || info.employee.returnFromLeaveDate || '-' }}</td>
+        <td>
+          <span *ngIf="info.leaveStatus && (info.leaveStatus.status === 'maternity' || info.leaveStatus.status === 'childcare')" style="color: #28a745; font-weight: bold;">
+            免除
+          </span>
+          <span *ngIf="!info.leaveStatus || (info.leaveStatus.status !== 'maternity' && info.leaveStatus.status !== 'childcare')">-</span>
+        </td>
+        <td>
+          <span *ngIf="info.hasCollectionImpossibleAlert" style="color: #dc3545; font-weight: bold;">
+            ⚠️ 徴収不能
+          </span>
+          <span *ngIf="!info.hasCollectionImpossibleAlert">-</span>
         </td>
       </tr>
     </tbody>

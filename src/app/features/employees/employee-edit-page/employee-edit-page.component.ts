@@ -57,7 +57,7 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   familyMembers: FamilyMember[] = [];
   showFamilyForm: boolean = false;
   editingFamilyMember: FamilyMember | null = null;
-  familyForm: any;
+  familyForm: any = null;
   supportReviewAlerts: FamilyMember[] = [];
 
   // 標準報酬履歴・社保加入履歴関連
@@ -495,7 +495,7 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     if (value.childcareLeaveEnd) updateData.childcareLeaveEnd = value.childcareLeaveEnd;
 
     await this.employeeService.updateEmployee(this.employeeId, updateData);
-    this.router.navigate([`/employees/${this.employeeId}`]);
+    alert('保存しました');
   }
 
   // 家族情報関連メソッド
@@ -505,7 +505,25 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     this.supportReviewAlerts = this.familyMemberService.getSupportReviewAlerts(this.familyMembers);
   }
 
-  showAddFamilyForm(): void {
+  showAddFamilyForm(event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    // フォームが初期化されていない場合は初期化
+    if (!this.familyForm) {
+      this.familyForm = this.fb.group({
+        name: ['', Validators.required],
+        birthDate: ['', Validators.required],
+        relationship: ['', Validators.required],
+        livingTogether: [true],
+        expectedIncome: [null],
+        isThirdCategory: [false],
+        supportStartDate: [''],
+        supportEndDate: [''],
+        changeDate: ['']
+      });
+    }
     this.editingFamilyMember = null;
     this.familyForm.reset({
       livingTogether: true,
@@ -514,7 +532,11 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     this.showFamilyForm = true;
   }
 
-  showEditFamilyForm(member: FamilyMember): void {
+  showEditFamilyForm(member: FamilyMember, event?: Event): void {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     this.editingFamilyMember = member;
     this.familyForm.patchValue({
       name: member.name,
@@ -536,43 +558,63 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     this.familyForm.reset();
   }
 
-  async saveFamilyMember(): Promise<void> {
-    if (!this.employeeId || !this.familyForm.valid) return;
-
-    const value = this.familyForm.value;
-    const familyMember: FamilyMember = {
-      id: this.editingFamilyMember?.id,
-      employeeId: this.employeeId,
-      name: value.name,
-      birthDate: value.birthDate,
-      relationship: value.relationship,
-      livingTogether: value.livingTogether,
-      expectedIncome: value.expectedIncome || null,
-      isThirdCategory: value.isThirdCategory,
-      supportStartDate: value.supportStartDate || undefined,
-      supportEndDate: value.supportEndDate || undefined,
-      changeDate: value.changeDate || undefined
-    };
-
-    await this.familyMemberService.saveFamilyMember(familyMember);
-    
-    // 履歴を保存
-    if (value.changeDate) {
-      await this.familyMemberService.saveFamilyMemberHistory({
-        familyMemberId: familyMember.id || '',
-        employeeId: this.employeeId,
-        changeDate: value.changeDate,
-        changeType: this.editingFamilyMember ? 'update' : 'start',
-        newValue: familyMember,
-        createdAt: new Date()
-      });
+  async saveFamilyMember(event?: Event): Promise<void> {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (!this.employeeId || !this.familyForm.valid) {
+      if (!this.familyForm.valid) {
+        alert('必須項目を入力してください');
+      }
+      return;
     }
 
-    await this.loadFamilyMembers();
-    this.cancelFamilyForm();
+    try {
+      const value = this.familyForm.value;
+      const familyMember: FamilyMember = {
+        id: this.editingFamilyMember?.id,
+        employeeId: this.employeeId,
+        name: value.name,
+        birthDate: value.birthDate,
+        relationship: value.relationship,
+        livingTogether: value.livingTogether,
+        expectedIncome: value.expectedIncome || null,
+        isThirdCategory: value.isThirdCategory,
+        supportStartDate: value.supportStartDate || undefined,
+        supportEndDate: value.supportEndDate || undefined,
+        changeDate: value.changeDate || undefined
+      };
+
+      const savedId = await this.familyMemberService.saveFamilyMember(familyMember);
+      familyMember.id = savedId;
+      
+      // 履歴を保存
+      if (value.changeDate) {
+        await this.familyMemberService.saveFamilyMemberHistory({
+          familyMemberId: savedId,
+          employeeId: this.employeeId,
+          changeDate: value.changeDate,
+          changeType: this.editingFamilyMember ? 'update' : 'start',
+          newValue: familyMember,
+          createdAt: new Date()
+        });
+      }
+
+      await this.loadFamilyMembers();
+      this.cancelFamilyForm();
+      alert('家族情報を保存しました');
+    } catch (error) {
+      console.error('家族情報の保存エラー:', error);
+      alert('家族情報の保存に失敗しました: ' + (error as Error).message);
+    }
   }
 
-  async deleteFamilyMember(memberId: string): Promise<void> {
+  async deleteFamilyMember(memberId: string, event?: Event): Promise<void> {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (!confirm('この家族情報を削除しますか？')) return;
     await this.familyMemberService.deleteFamilyMember(memberId);
     await this.loadFamilyMembers();
@@ -593,7 +635,11 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     this.insuranceStatusHistories = await this.standardRemunerationHistoryService.getInsuranceStatusHistories(this.employeeId);
   }
 
-  async generateHistories(): Promise<void> {
+  async generateHistories(event?: Event): Promise<void> {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
     if (!this.employeeId) return;
     
     const employee = await this.employeeService.getEmployeeById(this.employeeId);

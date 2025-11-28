@@ -20,11 +20,23 @@ export class StandardRemunerationHistoryService {
    */
   async saveStandardRemunerationHistory(history: StandardRemunerationHistory): Promise<void> {
     const ref = doc(this.firestore, 'standardRemunerationHistories', history.id || `temp_${Date.now()}`);
-    const data = {
-      ...history,
+    // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
+    const data: any = {
+      employeeId: history.employeeId,
+      applyStartYear: history.applyStartYear,
+      applyStartMonth: history.applyStartMonth,
+      grade: history.grade,
+      standardMonthlyRemuneration: history.standardMonthlyRemuneration,
+      determinationReason: history.determinationReason,
       updatedAt: new Date(),
       createdAt: history.createdAt || new Date()
     };
+    
+    // 値がある場合のみ追加
+    if (history.memo) {
+      data.memo = history.memo;
+    }
+    
     await setDoc(ref, data, { merge: true });
   }
 
@@ -33,9 +45,41 @@ export class StandardRemunerationHistoryService {
    */
   async getStandardRemunerationHistories(employeeId: string): Promise<StandardRemunerationHistory[]> {
     const ref = collection(this.firestore, 'standardRemunerationHistories');
-    const q = query(ref, where('employeeId', '==', employeeId), orderBy('applyStartYear', 'desc'), orderBy('applyStartMonth', 'desc'));
+    const q = query(ref, where('employeeId', '==', employeeId));
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StandardRemunerationHistory));
+    const histories = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // FirestoreのTimestampをDateに変換
+      let createdAt: Date | undefined;
+      if (data['createdAt']) {
+        if (data['createdAt'].toDate) {
+          createdAt = data['createdAt'].toDate();
+        } else if (data['createdAt'] instanceof Date) {
+          createdAt = data['createdAt'];
+        }
+      }
+      let updatedAt: Date | undefined;
+      if (data['updatedAt']) {
+        if (data['updatedAt'].toDate) {
+          updatedAt = data['updatedAt'].toDate();
+        } else if (data['updatedAt'] instanceof Date) {
+          updatedAt = data['updatedAt'];
+        }
+      }
+      return { 
+        id: doc.id, 
+        ...data,
+        createdAt,
+        updatedAt
+      } as StandardRemunerationHistory;
+    });
+    // クライアント側でソート（applyStartYear, applyStartMonthで降順ソート）
+    return histories.sort((a, b) => {
+      if (a.applyStartYear !== b.applyStartYear) {
+        return b.applyStartYear - a.applyStartYear;
+      }
+      return b.applyStartMonth - a.applyStartMonth;
+    });
   }
 
   /**
@@ -101,12 +145,26 @@ export class StandardRemunerationHistoryService {
    * 社保加入履歴を保存
    */
   async saveInsuranceStatusHistory(history: InsuranceStatusHistory): Promise<void> {
-    const ref = doc(this.firestore, 'insuranceStatusHistories', history.id || `temp_${Date.now()}`);
-    const data = {
-      ...history,
+    // 一意のIDを生成（employeeId_year_month）
+    const docId = history.id || `${history.employeeId}_${history.year}_${history.month}`;
+    const ref = doc(this.firestore, 'insuranceStatusHistories', docId);
+    // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
+    const data: any = {
+      employeeId: history.employeeId,
+      year: history.year,
+      month: history.month,
+      healthInsuranceStatus: history.healthInsuranceStatus,
+      careInsuranceStatus: history.careInsuranceStatus,
+      pensionInsuranceStatus: history.pensionInsuranceStatus,
       updatedAt: new Date(),
       createdAt: history.createdAt || new Date()
     };
+    
+    // 値がある場合のみ追加
+    if (history.ageMilestone !== null && history.ageMilestone !== undefined) {
+      data.ageMilestone = history.ageMilestone;
+    }
+    
     await setDoc(ref, data, { merge: true });
   }
 
@@ -115,12 +173,46 @@ export class StandardRemunerationHistoryService {
    */
   async getInsuranceStatusHistories(employeeId: string, year?: number): Promise<InsuranceStatusHistory[]> {
     const ref = collection(this.firestore, 'insuranceStatusHistories');
-    let q = query(ref, where('employeeId', '==', employeeId), orderBy('year', 'desc'), orderBy('month', 'desc'));
+    let q;
     if (year) {
-      q = query(ref, where('employeeId', '==', employeeId), where('year', '==', year), orderBy('month', 'desc'));
+      q = query(ref, where('employeeId', '==', employeeId), where('year', '==', year));
+    } else {
+      q = query(ref, where('employeeId', '==', employeeId));
     }
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InsuranceStatusHistory));
+    const histories = snapshot.docs.map(doc => {
+      const data = doc.data();
+      // FirestoreのTimestampをDateに変換
+      let createdAt: Date | undefined;
+      if (data['createdAt']) {
+        if (data['createdAt'].toDate) {
+          createdAt = data['createdAt'].toDate();
+        } else if (data['createdAt'] instanceof Date) {
+          createdAt = data['createdAt'];
+        }
+      }
+      let updatedAt: Date | undefined;
+      if (data['updatedAt']) {
+        if (data['updatedAt'].toDate) {
+          updatedAt = data['updatedAt'].toDate();
+        } else if (data['updatedAt'] instanceof Date) {
+          updatedAt = data['updatedAt'];
+        }
+      }
+      return { 
+        id: doc.id, 
+        ...data,
+        createdAt,
+        updatedAt
+      } as InsuranceStatusHistory;
+    });
+    // クライアント側でソート（year, monthで降順ソート）
+    return histories.sort((a, b) => {
+      if (a.year !== b.year) {
+        return b.year - a.year;
+      }
+      return b.month - a.month;
+    });
   }
 
   /**
@@ -192,21 +284,23 @@ export class StandardRemunerationHistoryService {
           }
         }
 
-        // 既存の履歴を確認
-        const existingHistories = await this.getInsuranceStatusHistories(employeeId, year);
-        const exists = existingHistories.some(h => h.year === year && h.month === month);
-
-        if (!exists) {
-          await this.saveInsuranceStatusHistory({
-            employeeId,
-            year,
-            month,
-            healthInsuranceStatus: healthStatus,
-            careInsuranceStatus: careStatus,
-            pensionInsuranceStatus: pensionStatus,
-            ageMilestone
-          });
-        }
+        // 既存の履歴を確認（employeeId + year + monthで一意に特定）
+        const existingDocId = `${employeeId}_${year}_${month}`;
+        const existingRef = doc(this.firestore, 'insuranceStatusHistories', existingDocId);
+        const existingSnap = await getDoc(existingRef);
+        
+        // 既存の履歴がない場合も、ある場合も更新（状態が変わっている可能性があるため）
+        // IDを指定することで、同じ年月の履歴が重複しないようにする
+        await this.saveInsuranceStatusHistory({
+          id: existingDocId,
+          employeeId,
+          year,
+          month,
+          healthInsuranceStatus: healthStatus,
+          careInsuranceStatus: careStatus,
+          pensionInsuranceStatus: pensionStatus,
+          ageMilestone
+        });
       }
     }
   }
