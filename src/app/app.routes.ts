@@ -6,6 +6,7 @@ import { EmployeeEditPageComponent } from './features/employees/employee-edit-pa
 import { MonthlySalariesPageComponent } from './features/monthly-salaries/monthly-salaries-page.component';
 import { SettingsPageComponent } from './features/settings/settings-page/settings-page.component';
 import { BonusPageComponent } from './features/bonus/bonus-page.component';
+import { SalaryBonusPageComponent } from './features/salary-bonus/salary-bonus-page.component';
 import { BonusEditPageComponent } from './features/bonus/bonus-edit-page/bonus-edit-page.component';
 import { InsuranceResultPageComponent } from './features/insurance-result/insurance-result-page.component';
 import { PaymentSummaryPageComponent } from './features/insurance-payment-summary/payment-summary-page.component';
@@ -43,6 +44,11 @@ export const routes: Routes = [
   {
     path: 'employees/:id',
     component: EmployeeDetailPageComponent,
+    canActivate: [authGuard, roomGuard],
+  },
+  {
+    path: 'salary-bonus',
+    component: SalaryBonusPageComponent,
     canActivate: [authGuard, roomGuard],
   },
   {

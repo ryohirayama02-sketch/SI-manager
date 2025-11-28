@@ -1,0 +1,31 @@
+<h2>給与・賞与</h2>
+
+<!-- タブナビゲーション -->
+<div class="tabs-container">
+  <div class="tabs">
+    <button 
+      type="button"
+      class="tab-button" 
+      [class.active]="activeTab === 'salary'"
+      (click)="activeTab = 'salary'">
+      月次給与
+    </button>
+    <button 
+      type="button"
+      class="tab-button" 
+      [class.active]="activeTab === 'bonus'"
+      (click)="activeTab = 'bonus'">
+      賞与
+    </button>
+  </div>
+</div>
+
+<!-- タブコンテンツ -->
+<div *ngIf="activeTab === 'salary'" class="tab-content">
+  <app-monthly-salaries-page></app-monthly-salaries-page>
+</div>
+
+<div *ngIf="activeTab === 'bonus'" class="tab-content">
+  <app-bonus-page></app-bonus-page>
+</div>
+
