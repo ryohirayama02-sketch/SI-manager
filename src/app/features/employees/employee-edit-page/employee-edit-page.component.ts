@@ -12,9 +12,11 @@ import { SettingsService } from '../../../services/settings.service';
 import { SuijiService } from '../../../services/suiji.service';
 import { FamilyMemberService } from '../../../services/family-member.service';
 import { StandardRemunerationHistoryService } from '../../../services/standard-remuneration-history.service';
+import { OfficeService } from '../../../services/office.service';
 import { Employee } from '../../../models/employee.model';
 import { FamilyMember } from '../../../models/family-member.model';
 import { StandardRemunerationHistory, InsuranceStatusHistory } from '../../../models/standard-remuneration-history.model';
+import { Office } from '../../../models/office.model';
 
 @Component({
   selector: 'app-employee-edit-page',
@@ -65,6 +67,9 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   insuranceStatusHistories: InsuranceStatusHistory[] = [];
   selectedHistoryYear: number = new Date().getFullYear();
 
+  // 事業所マスタ関連
+  offices: Office[] = [];
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -77,7 +82,8 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     private settingsService: SettingsService,
     private suijiService: SuijiService,
     private familyMemberService: FamilyMemberService,
-    private standardRemunerationHistoryService: StandardRemunerationHistoryService
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
+    private officeService: OfficeService
   ) {
     this.form = this.fb.group({
       // 個人情報
@@ -129,9 +135,26 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     this.form.valueChanges.subscribe(() => {
       this.updateAutoDetection();
     });
+
+    // 事業所選択時に都道府県を自動設定
+    this.form.get('officeNumber')?.valueChanges.subscribe((officeNumber: string) => {
+      if (officeNumber) {
+        const selectedOffice = this.offices.find(office => office.officeNumber === officeNumber);
+        if (selectedOffice && selectedOffice.prefecture) {
+          this.form.patchValue({ prefecture: selectedOffice.prefecture }, { emitEvent: false });
+        }
+      }
+    });
+  }
+
+  async loadOffices(): Promise<void> {
+    this.offices = await this.officeService.getAllOffices();
   }
 
   async ngOnInit(): Promise<void> {
+    // 事業所一覧を読み込み
+    await this.loadOffices();
+
     this.employeeId = this.route.snapshot.paramMap.get('id');
     if (!this.employeeId) return;
 

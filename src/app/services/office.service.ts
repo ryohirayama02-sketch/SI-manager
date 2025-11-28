@@ -32,6 +32,9 @@ export class OfficeService {
     if (office.corporateNumber !== null && office.corporateNumber !== undefined) {
       dataToSave.corporateNumber = office.corporateNumber;
     }
+    if (office.prefecture !== null && office.prefecture !== undefined) {
+      dataToSave.prefecture = office.prefecture;
+    }
     if (office.address !== null && office.address !== undefined) {
       dataToSave.address = office.address;
     }

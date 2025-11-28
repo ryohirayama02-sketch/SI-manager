@@ -19,7 +19,8 @@ export interface Employee {
   expectedEmploymentMonths?: number; // 雇用見込期間（月）
   isStudent?: boolean; // 学生かどうか
   consecutiveMonthsOver20Hours?: number; // 連続で20時間以上働いた月数
-  prefecture?: string; // 事業所の都道府県（tokyo/hokkaido/osakaなど）
+  officeNumber?: string; // 事業所番号（事業所マスタと紐づけ）
+  prefecture?: string; // 事業所の都道府県（tokyo/hokkaido/osakaなど）- 事業所選択時に自動設定
   leaveOfAbsenceStart?: string; // 休職開始日（YYYY-MM-DD）
   leaveOfAbsenceEnd?: string; // 休職終了日（YYYY-MM-DD）
   // 資格取得時決定情報

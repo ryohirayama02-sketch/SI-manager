@@ -163,6 +163,7 @@ export class SettingsPageComponent implements OnInit {
       officeCode: [''],
       officeNumber: [''],
       corporateNumber: [''],
+      prefecture: ['tokyo'], // デフォルトは東京都
       address: [''],
       ownerName: ['']
     });
@@ -336,11 +337,14 @@ export class SettingsPageComponent implements OnInit {
         officeCode: office.officeCode || '',
         officeNumber: office.officeNumber || '',
         corporateNumber: office.corporateNumber || '',
+        prefecture: office.prefecture || 'tokyo',
         address: office.address || '',
         ownerName: office.ownerName || ''
       });
     } else {
-      this.officeForm.reset();
+      this.officeForm.reset({
+        prefecture: 'tokyo' // リセット時もデフォルト値を設定
+      });
     }
   }
   
@@ -351,6 +355,7 @@ export class SettingsPageComponent implements OnInit {
       officeCode: value.officeCode || undefined,
       officeNumber: value.officeNumber || undefined,
       corporateNumber: value.corporateNumber || undefined,
+      prefecture: value.prefecture || undefined,
       address: value.address || undefined,
       ownerName: value.ownerName || undefined,
       createdAt: this.selectedOffice?.createdAt || new Date()
