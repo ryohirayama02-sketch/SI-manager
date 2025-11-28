@@ -2,9 +2,11 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SettingsService } from '../../../services/settings.service';
+import { OfficeService } from '../../../services/office.service';
 import { Settings } from '../../../models/settings.model';
 import { Rate } from '../../../models/rate.model';
 import { SalaryItem } from '../../../models/salary-item.model';
+import { Office } from '../../../models/office.model';
 
 @Component({
   selector: 'app-settings-page',
@@ -30,10 +32,13 @@ export class SettingsPageComponent implements OnInit {
   salaryItemsForm: FormGroup;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
-  isStandardTableExpanded: boolean = false;
-  isBasicSettingsExpanded: boolean = false;
-  isRateSettingsExpanded: boolean = false;
-  isSalaryItemsExpanded: boolean = false;
+  // タブ管理
+  activeTab: 'basic' | 'rate' | 'standard' | 'salaryItems' | 'office' = 'basic';
+  
+  // 事業所マスタ関連
+  offices: Office[] = [];
+  selectedOffice: Office | null = null;
+  officeForm: FormGroup;
   
   // CSVインポート関連（保険料率用）
   showImportDialog: boolean = false;
@@ -121,6 +126,7 @@ export class SettingsPageComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private settingsService: SettingsService,
+    private officeService: OfficeService,
     private cdr: ChangeDetectorRef
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
@@ -152,6 +158,13 @@ export class SettingsPageComponent implements OnInit {
     this.salaryItems = this.fb.array([]);
     this.salaryItemsForm = this.fb.group({
       salaryItems: this.salaryItems
+    });
+    this.officeForm = this.fb.group({
+      officeCode: [''],
+      officeNumber: [''],
+      corporateNumber: [''],
+      address: [''],
+      ownerName: ['']
     });
   }
 
@@ -308,6 +321,61 @@ export class SettingsPageComponent implements OnInit {
     
     await this.loadStandardTable();
     await this.loadSalaryItems();
+    await this.loadOffices();
+  }
+  
+  // 事業所マスタ関連メソッド
+  async loadOffices(): Promise<void> {
+    this.offices = await this.officeService.getAllOffices();
+  }
+  
+  selectOffice(office: Office | null): void {
+    this.selectedOffice = office;
+    if (office) {
+      this.officeForm.patchValue({
+        officeCode: office.officeCode || '',
+        officeNumber: office.officeNumber || '',
+        corporateNumber: office.corporateNumber || '',
+        address: office.address || '',
+        ownerName: office.ownerName || ''
+      });
+    } else {
+      this.officeForm.reset();
+    }
+  }
+  
+  async saveOffice(): Promise<void> {
+    const value = this.officeForm.value;
+    const office: Office = {
+      id: this.selectedOffice?.id,
+      officeCode: value.officeCode || undefined,
+      officeNumber: value.officeNumber || undefined,
+      corporateNumber: value.corporateNumber || undefined,
+      address: value.address || undefined,
+      ownerName: value.ownerName || undefined,
+      createdAt: this.selectedOffice?.createdAt || new Date()
+    };
+    
+    await this.officeService.saveOffice(office);
+    alert('事業所マスタを保存しました');
+    await this.loadOffices();
+    this.selectOffice(null);
+  }
+  
+  async deleteOffice(officeId: string): Promise<void> {
+    if (!confirm('この事業所マスタを削除しますか？')) {
+      return;
+    }
+    await this.officeService.deleteOffice(officeId);
+    alert('事業所マスタを削除しました');
+    await this.loadOffices();
+    if (this.selectedOffice?.id === officeId) {
+      this.selectOffice(null);
+    }
+  }
+  
+  addNewOffice(): void {
+    this.selectOffice(null);
   }
 
   async loadAllRates(): Promise<void> {

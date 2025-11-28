@@ -52,6 +52,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
+  // 保存処理の重複実行を防ぐフラグ
+  isSaving: boolean = false;
 
   constructor(
     private employeeService: EmployeeService,
@@ -236,6 +238,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   }
 
   async onSubmitEvent(): Promise<void> {
+    // 重複実行を防ぐ
+    if (this.isSaving) {
+      return;
+    }
+
     // バリデーション
     if (!this.selectedEmployeeId) {
       alert('従業員を選択してください');
@@ -289,6 +296,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       exemptReason: this.calculationResult.exemptReason || undefined
     };
 
+    this.isSaving = true;
     try {
       console.log(`[bonus-page] 賞与保存: 年度=${this.year}, 従業員ID=${this.selectedEmployeeId}, 月=${this.paymentMonth}, 賞与額=${this.bonusAmount}`);
       console.log(`[bonus-page] bonusオブジェクト:`, bonus);
@@ -309,6 +317,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('賞与登録エラー:', error);
       alert('登録に失敗しました');
+    } finally {
+      this.isSaving = false;
     }
   }
 
