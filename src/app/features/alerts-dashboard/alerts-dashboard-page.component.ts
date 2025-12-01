@@ -1362,7 +1362,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
                 familyMemberName: member.name,
                 relationship: relationship,
                 alertType: '子20歳到達',
-                notificationName: '国民年金第2号被保険者関係届（学生の場合）',
+                notificationName: '国民年金 第1号被保険者加入手続き（本人手続き）※学生：学生納付特例申請',
                 alertDate: age20Date,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
