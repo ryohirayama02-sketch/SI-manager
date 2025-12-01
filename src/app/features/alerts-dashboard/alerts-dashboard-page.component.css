@@ -95,3 +95,8 @@
   border-radius: 4px;
 }
 
+.exclusion-candidate {
+  background-color: #fff3cd;
+  font-weight: bold;
+}
+

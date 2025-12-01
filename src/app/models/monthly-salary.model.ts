@@ -8,6 +8,7 @@ export interface MonthlySalaryData {
   fixedTotal: number;
   variableTotal: number;
   total: number;
+  workingDays?: number; // 支払基礎日数
   // 後方互換性のため残す
   fixed?: number;
   variable?: number;

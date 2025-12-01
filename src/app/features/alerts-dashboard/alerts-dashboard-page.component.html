@@ -130,7 +130,88 @@
     <!-- 定時決定（算定基礎届）対象者一覧タブ -->
     <div *ngIf="activeTab === 'teiji'" class="tab-pane">
       <div class="card">
-        <p class="info-text">定時決定（算定基礎届）対象者一覧の実装は今後予定です。</p>
+        <div style="max-width: 400px; margin-bottom: 1rem;">
+          <div class="form-group">
+            <label>年度：</label>
+            <select [(ngModel)]="teijiYear" (change)="onTeijiYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+              <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
+            </select>
+          </div>
+        </div>
+        
+        <h3>算定基礎届対象者一覧</h3>
+        <p class="info-text" style="margin-bottom: 1rem;">
+          支払基礎日数が17日以上の4〜6月の給与所得と平均額を表示します。<br>
+          平均額との差が10%以上の月は算定除外月候補として表示されます。
+        </p>
+        
+        <div *ngIf="teijiKetteiResults.length === 0" class="info-label">
+          算定基礎届の対象者はありません。
+        </div>
+        
+        <table class="alert-table" *ngIf="teijiKetteiResults.length > 0">
+          <thead>
+            <tr>
+              <th>従業員</th>
+              <th>4月給与</th>
+              <th>4月支払基礎日数</th>
+              <th>5月給与</th>
+              <th>5月支払基礎日数</th>
+              <th>6月給与</th>
+              <th>6月支払基礎日数</th>
+              <th>平均額</th>
+              <th>算定除外月</th>
+              <th>算定除外月候補</th>
+              <th>等級</th>
+              <th>標準報酬月額</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let result of teijiKetteiResults"
+                [ngClass]="{
+                  'alert-row': result.exclusionCandidates.length > 0 || result.excludedMonths.length > 0
+                }">
+              <td>
+                <span *ngIf="result.exclusionCandidates.length > 0">⚠️ </span>
+                {{ result.employeeName }}
+              </td>
+              <td [ngClass]="{'exclusion-candidate': result.exclusionCandidates.includes(4)}">
+                {{ result.aprilSalary | number:'1.0-0' }}円
+                <span *ngIf="result.aprilWorkingDays < 17" style="color: #999; font-size: 0.9em;">(日数不足)</span>
+              </td>
+              <td>{{ result.aprilWorkingDays }}日</td>
+              <td [ngClass]="{'exclusion-candidate': result.exclusionCandidates.includes(5)}">
+                {{ result.maySalary | number:'1.0-0' }}円
+                <span *ngIf="result.mayWorkingDays < 17" style="color: #999; font-size: 0.9em;">(日数不足)</span>
+              </td>
+              <td>{{ result.mayWorkingDays }}日</td>
+              <td [ngClass]="{'exclusion-candidate': result.exclusionCandidates.includes(6)}">
+                {{ result.juneSalary | number:'1.0-0' }}円
+                <span *ngIf="result.juneWorkingDays < 17" style="color: #999; font-size: 0.9em;">(日数不足)</span>
+              </td>
+              <td>{{ result.juneWorkingDays }}日</td>
+              <td><strong>{{ result.averageSalary | number:'1.0-0' }}円</strong></td>
+              <td>
+                <span *ngIf="result.excludedMonths.length > 0" style="color: #d32f2f;">
+                  {{ result.excludedMonths.join(', ') }}月
+                </span>
+                <span *ngIf="result.excludedMonths.length === 0">-</span>
+              </td>
+              <td>
+                <span *ngIf="result.exclusionCandidates.length > 0" style="color: #f57c00; font-weight: bold;">
+                  ⚠️ {{ result.exclusionCandidates.join(', ') }}月
+                </span>
+                <span *ngIf="result.exclusionCandidates.length === 0">-</span>
+              </td>
+              <td>{{ result.teijiResult.grade > 0 ? result.teijiResult.grade + '等級' : '-' }}</td>
+              <td>
+                {{ result.teijiResult.standardMonthlyRemuneration > 0 
+                  ? (result.teijiResult.standardMonthlyRemuneration | number:'1.0-0') + '円' 
+                  : '-' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 

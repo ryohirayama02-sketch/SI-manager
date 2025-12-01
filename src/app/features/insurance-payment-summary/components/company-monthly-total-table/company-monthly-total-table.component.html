@@ -44,12 +44,6 @@
           >
             <small>産休：本人負担免除</small>
           </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isChildcareLeave"
-            class="stop-info"
-          >
-            <small>育休：本人負担免除</small>
-          </div>
         </td>
         <td class="amount-cell">
           {{ total.healthTotal | number : "1.0-0" }}

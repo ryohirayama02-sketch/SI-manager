@@ -48,6 +48,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   salaryItems: SalaryItem[] = [];
   // 項目別入力データ: { employeeId_month: { itemId: amount } }
   salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
+  // 支払基礎日数データ: { employeeId_month: days }
+  workingDaysData: { [key: string]: number } = {};
   // 後方互換性のため残す
   salaries: {
     [key: string]: { total: number; fixed: number; variable: number };
@@ -152,6 +154,13 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
         if (!this.salaryItemData[itemKey]) {
           this.salaryItemData[itemKey] = {};
         }
+        // 支払基礎日数も初期化（デフォルト値は月の日数に応じて設定、通常は月末日）
+        const workingDaysKey = this.getWorkingDaysKey(emp.id, month);
+        if (this.workingDaysData[workingDaysKey] === undefined) {
+          // 月の日数をデフォルト値として設定
+          const daysInMonth = new Date(this.year, month, 0).getDate();
+          this.workingDaysData[workingDaysKey] = daysInMonth;
+        }
       }
     }
 
@@ -227,6 +236,10 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     return `${employeeId}_${month}`;
   }
 
+  getWorkingDaysKey(employeeId: string, month: number): string {
+    return `${employeeId}_${month}`;
+  }
+
   async onSalaryItemChange(event: {
     employeeId: string;
     month: number;
@@ -257,6 +270,16 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     }
 
     this.updateRehabSuiji(employeeId);
+  }
+
+  async onWorkingDaysChange(event: {
+    employeeId: string;
+    month: number;
+    value: number;
+  }): Promise<void> {
+    const { employeeId, month, value } = event;
+    const key = this.getWorkingDaysKey(employeeId, month);
+    this.workingDaysData[key] = value;
   }
 
   updateSalaryTotals(employeeId: string, month: number): void {
@@ -459,6 +482,10 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       const payload: any = {};
 
       for (const month of this.months) {
+        // 支払基礎日数を取得（免除月でも取得）
+        const workingDaysKey = this.getWorkingDaysKey(emp.id, month);
+        const workingDays = this.workingDaysData[workingDaysKey] ?? new Date(this.year, month, 0).getDate();
+
         // 免除月の場合はスキップ（0として扱う）
         if (this.exemptMonths[emp.id]?.includes(month)) {
           continue;
@@ -485,6 +512,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
             fixedTotal: totals.fixedTotal,
             variableTotal: totals.variableTotal,
             total: totals.total,
+            workingDays: workingDays,
             // 後方互換性
             fixed: totals.fixedTotal,
             variable: totals.variableTotal,
@@ -509,6 +537,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
               fixedTotal: fixed,
               variableTotal: variable,
               total: total,
+              workingDays: workingDays,
               // 後方互換性
               fixed: fixed,
               variable: variable,
@@ -657,6 +686,18 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
             const salaryKey = this.getSalaryKey(emp.id, month);
             this.salaries[salaryKey] = { total, fixed, variable };
+          }
+          
+          // 支払基礎日数を読み込む
+          const workingDaysKey = this.getWorkingDaysKey(emp.id, month);
+          if (monthData.workingDays !== undefined && monthData.workingDays !== null) {
+            this.workingDaysData[workingDaysKey] = monthData.workingDays;
+          } else {
+            // デフォルト値として月の日数を設定（既存データがない場合のみ）
+            if (this.workingDaysData[workingDaysKey] === undefined) {
+              const daysInMonth = new Date(this.year, month, 0).getDate();
+              this.workingDaysData[workingDaysKey] = daysInMonth;
+            }
           }
         }
       }
@@ -916,16 +957,17 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       // ヘッダーから月と従業員の列インデックスを取得
       const monthIndex = headerParts.indexOf('月');
       const employeeIndex = headerParts.indexOf('従業員');
+      const workingDaysIndex = headerParts.indexOf('支払基礎日数');
       
       if (monthIndex === -1 || employeeIndex === -1) {
         this.csvImportResult = { type: 'error', message: 'ヘッダーに「月」と「従業員」の列が必要です' };
         return;
       }
 
-      // 給与項目名の列インデックスを取得（月と従業員以外）
+      // 給与項目名の列インデックスを取得（月、従業員、支払基礎日数以外）
       const salaryItemColumns: { index: number; name: string }[] = [];
       for (let i = 0; i < headerParts.length; i++) {
-        if (i !== monthIndex && i !== employeeIndex) {
+        if (i !== monthIndex && i !== employeeIndex && i !== workingDaysIndex) {
           salaryItemColumns.push({ index: i, name: headerParts[i] });
         }
       }
@@ -968,6 +1010,16 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
           errorCount++;
           errors.push(`行「${line}」: 従業員「${employeeName}」が見つかりません`);
           continue;
+        }
+
+        // 支払基礎日数を取得（オプション）
+        if (workingDaysIndex !== -1 && parts[workingDaysIndex]) {
+          const workingDaysStr = parts[workingDaysIndex];
+          const workingDays = parseInt(workingDaysStr, 10);
+          if (!isNaN(workingDays) && workingDays >= 0 && workingDays <= 31) {
+            const workingDaysKey = this.getWorkingDaysKey(employee.id, month);
+            this.workingDaysData[workingDaysKey] = workingDays;
+          }
         }
 
         // 各給与項目の金額を設定

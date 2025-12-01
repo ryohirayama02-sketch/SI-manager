@@ -15,6 +15,7 @@ export class SalaryInputSectionComponent {
   @Input() salaryItems: SalaryItem[] = [];
   @Input() months: number[] = [];
   @Input() salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
+  @Input() workingDaysData: { [key: string]: number } = {};
   @Input() rehabHighlightMonths: { [employeeId: string]: number[] } = {};
   @Input() exemptMonths: { [employeeId: string]: number[] } = {};
   @Input() exemptReasons: { [key: string]: string } = {};
@@ -24,6 +25,12 @@ export class SalaryInputSectionComponent {
     month: number;
     itemId: string;
     value: string | number;
+  }>();
+
+  @Output() workingDaysChange = new EventEmitter<{
+    employeeId: string;
+    month: number;
+    value: number;
   }>();
 
   getSalaryItemKey(employeeId: string, month: number): string {
@@ -110,6 +117,54 @@ export class SalaryInputSectionComponent {
       return '育休中';
     }
     return '免除中'; // フォールバック
+  }
+
+  getWorkingDaysKey(employeeId: string, month: number): string {
+    return `${employeeId}_${month}`;
+  }
+
+  getWorkingDays(employeeId: string, month: number): number {
+    const key = this.getWorkingDaysKey(employeeId, month);
+    const value = this.workingDaysData[key];
+    // undefinedの場合は0を返す（0も有効な値）
+    if (value === undefined) {
+      return 0;
+    }
+    // 0以上31以下の範囲に制限
+    return Math.max(0, Math.min(31, value));
+  }
+
+  onWorkingDaysInput(employeeId: string, month: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let value = parseInt(input.value, 10);
+    // 空文字列やNaNの場合は0として扱う
+    if (isNaN(value)) {
+      value = 0;
+    }
+    // 0以上31以下の範囲に制限
+    const clampedValue = Math.max(0, Math.min(31, value));
+    // 入力値が範囲外の場合は表示を更新
+    if (value !== clampedValue) {
+      input.value = clampedValue.toString();
+    }
+    this.onWorkingDaysChange(employeeId, month, clampedValue);
+  }
+
+  onWorkingDaysBlur(employeeId: string, month: number, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    let value = parseInt(input.value, 10);
+    // 空文字列やNaNの場合は0として扱う
+    if (isNaN(value)) {
+      value = 0;
+    }
+    // 0以上31以下の範囲に制限
+    const clampedValue = Math.max(0, Math.min(31, value));
+    input.value = clampedValue.toString();
+    this.onWorkingDaysChange(employeeId, month, clampedValue);
+  }
+
+  onWorkingDaysChange(employeeId: string, month: number, value: number): void {
+    this.workingDaysChange.emit({ employeeId, month, value });
   }
 }
 
