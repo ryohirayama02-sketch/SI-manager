@@ -796,6 +796,41 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     return this.familyMemberService.calculateAge(birthDate);
   }
 
+  /**
+   * 年金区分を取得（20歳未満は「-」）
+   */
+  getPensionCategory(member: FamilyMember): string {
+    const age = this.getFamilyMemberAge(member.birthDate);
+    if (age < 20) {
+      return '-';
+    }
+    return member.isThirdCategory ? '第3号' : '第2号';
+  }
+
+  /**
+   * 満18歳になった年度末（高校卒業日）を取得
+   */
+  getAge18Date(birthDate: string): string {
+    if (!birthDate) return '-';
+    const birth = new Date(birthDate);
+    // 満18歳になる年を計算
+    const age18Year = birth.getFullYear() + 18;
+    // その年の3月31日（年度末）を返す
+    return `${age18Year}-03-31`;
+  }
+
+  /**
+   * 満22歳になった年度末（大学卒業日）を取得
+   */
+  getAge22Date(birthDate: string): string {
+    if (!birthDate) return '-';
+    const birth = new Date(birthDate);
+    // 満22歳になる年を計算
+    const age22Year = birth.getFullYear() + 22;
+    // その年の3月31日（年度末）を返す
+    return `${age22Year}-03-31`;
+  }
+
   // 標準報酬履歴・社保加入履歴関連メソッド
   async loadHistories(): Promise<void> {
     if (!this.employeeId) return;

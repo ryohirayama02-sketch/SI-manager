@@ -305,6 +305,8 @@
             <th>同居区分</th>
             <th>収入見込</th>
             <th>第3号区分</th>
+            <th>高校卒業日（満18歳年度末）</th>
+            <th>大学卒業日（満22歳年度末）</th>
             <th>扶養開始日</th>
             <th>扶養終了日</th>
             <th>操作</th>
@@ -318,7 +320,9 @@
             <td>{{ member.relationship }}</td>
             <td>{{ member.livingTogether ? '同居' : '別居' }}</td>
             <td>{{ member.expectedIncome ? (member.expectedIncome | number:'1.0-0') + '円' : '-' }}</td>
-            <td>{{ member.isThirdCategory ? '第3号' : '第2号' }}</td>
+            <td>{{ getPensionCategory(member) }}</td>
+            <td>{{ getAge18Date(member.birthDate) }}</td>
+            <td>{{ getAge22Date(member.birthDate) }}</td>
             <td>{{ member.supportStartDate || '-' }}</td>
             <td>{{ member.supportEndDate || '-' }}</td>
             <td>
