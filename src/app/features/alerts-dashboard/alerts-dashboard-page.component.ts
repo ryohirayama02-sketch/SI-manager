@@ -45,7 +45,19 @@ interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
   styleUrl: './alerts-dashboard-page.component.css'
 })
 export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
-  activeTab: 'schedule' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
+  activeTab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
+  
+  // 賞与支払届アラート関連
+  bonusReportAlerts: {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    bonusAmount: number;
+    payDate: string; // YYYY-MM-DD
+    submitDeadline: Date; // 提出期限（支給日から5日後）
+    daysUntilDeadline: number; // 提出期限までの日数
+  }[] = [];
+  selectedBonusReportAlertIds: Set<string> = new Set();
   
   // 年度選択関連（算定決定タブ用）
   teijiYear: number = new Date().getFullYear(); // ngOnInitでJSTに更新
@@ -296,6 +308,44 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return result.isEligible ? '要提出' : '提出不要';
   }
 
+  /**
+   * 随時改定の届出提出期日を取得
+   * 適用開始月の前月の月末が提出期日
+   * 例：適用開始月が8月の場合、提出期日は7月31日
+   */
+  getSuijiReportDeadline(alert: SuijiKouhoResultWithDiff): string {
+    if (!alert.applyStartMonth) {
+      return '-';
+    }
+    
+    const year = alert.year || this.getJSTDate().getFullYear();
+    const applyStartMonth = alert.applyStartMonth;
+    
+    // 適用開始月の前月を計算
+    let deadlineMonth = applyStartMonth - 1;
+    let deadlineYear = year;
+    
+    // 1月の場合は前年の12月
+    if (deadlineMonth < 1) {
+      deadlineMonth = 12;
+      deadlineYear = year - 1;
+    }
+    
+    // 前月の月末日を取得
+    const deadlineDate = new Date(deadlineYear, deadlineMonth, 0); // 0日目 = 前月の最終日
+    
+    return this.formatDate(deadlineDate);
+  }
+
+  /**
+   * 定時決定（算定基礎届）の提出期日を取得
+   * 期日は7月10日
+   */
+  getTeijiReportDeadline(year: number): string {
+    const deadlineDate = new Date(year, 6, 10); // 7月 = 6 (0-indexed)
+    return this.formatDate(deadlineDate);
+  }
+
   getReasonText(result: SuijiKouhoResultWithDiff): string {
     return result.reasons.join(' / ');
   }
@@ -372,7 +422,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return Math.abs(diff) >= 2;
   }
 
-  async setActiveTab(tab: 'schedule' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): Promise<void> {
+  async setActiveTab(tab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): Promise<void> {
     this.activeTab = tab;
     // 算定決定タブが選択された場合のみデータを読み込む
     if (tab === 'teiji') {
@@ -381,6 +431,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       await this.loadMaternityChildcareAlerts();
     } else if (tab === 'family') {
       await this.loadSupportAlerts();
+    } else if (tab === 'bonus') {
+      await this.loadBonusReportAlerts();
     }
   }
 
@@ -1575,6 +1627,118 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       alert => !selectedIds.includes(alert.id)
     );
     this.selectedSupportAlertIds.clear();
+  }
+
+  /**
+   * 賞与支払届アラートを読み込む
+   */
+  async loadBonusReportAlerts(): Promise<void> {
+    this.bonusReportAlerts = [];
+    
+    const currentYear = this.getJSTDate().getFullYear();
+    const today = this.getJSTDate();
+    
+    // 全従業員の賞与データを取得
+    for (const emp of this.employees) {
+      const bonuses = await this.bonusService.loadBonus(currentYear, emp.id);
+      
+      for (const bonus of bonuses) {
+        // 賞与額が0の場合はスキップ
+        if (!bonus.amount || bonus.amount === 0) {
+          continue;
+        }
+        
+        if (!bonus.payDate) {
+          continue;
+        }
+        
+        // 支給日をDateオブジェクトに変換
+        const payDate = new Date(bonus.payDate);
+        payDate.setHours(0, 0, 0, 0);
+        
+        // 提出期限を計算（支給日から5日後）
+        const submitDeadline = new Date(payDate);
+        submitDeadline.setDate(submitDeadline.getDate() + 5);
+        submitDeadline.setHours(23, 59, 59, 999);
+        
+        // 提出期限までの日数を計算
+        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // アラートIDを生成（従業員ID_支給日）
+        const alertId = `${bonus.employeeId}_${bonus.payDate}`;
+        
+        this.bonusReportAlerts.push({
+          id: alertId,
+          employeeId: bonus.employeeId,
+          employeeName: emp.name,
+          bonusAmount: bonus.amount,
+          payDate: bonus.payDate,
+          submitDeadline: submitDeadline,
+          daysUntilDeadline: daysUntilDeadline
+        });
+      }
+    }
+    
+    // 提出期限でソート（近い順）
+    this.bonusReportAlerts.sort((a, b) => {
+      return a.submitDeadline.getTime() - b.submitDeadline.getTime();
+    });
+  }
+
+  /**
+   * 賞与支払届アラートの選択管理
+   */
+  toggleBonusReportAlertSelection(alertId: string): void {
+    if (this.selectedBonusReportAlertIds.has(alertId)) {
+      this.selectedBonusReportAlertIds.delete(alertId);
+    } else {
+      this.selectedBonusReportAlertIds.add(alertId);
+    }
+  }
+
+  toggleAllBonusReportAlertsChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    if (target.checked) {
+      this.bonusReportAlerts.forEach(alert => {
+        this.selectedBonusReportAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedBonusReportAlertIds.clear();
+    }
+  }
+
+  isBonusReportAlertSelected(alertId: string): boolean {
+    return this.selectedBonusReportAlertIds.has(alertId);
+  }
+
+  /**
+   * 選択した賞与支払届アラートを削除
+   */
+  deleteSelectedBonusReportAlerts(): void {
+    const selectedIds = Array.from(this.selectedBonusReportAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の賞与支払届アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.bonusReportAlerts = this.bonusReportAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedBonusReportAlertIds.clear();
+  }
+
+  /**
+   * 支給日をフォーマット
+   */
+  formatPayDate(payDateStr: string): string {
+    if (!payDateStr) return '-';
+    const date = new Date(payDateStr);
+    return this.formatDate(date);
   }
 }
 
