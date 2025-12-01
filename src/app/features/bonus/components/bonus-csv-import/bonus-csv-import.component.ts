@@ -45,5 +45,12 @@ export class BonusCsvImportComponent {
     this.csvImportText = '';
     this.closeDialog.emit();
   }
+
+  getCsvPlaceholder(): string {
+    return `支給日,従業員,賞与額
+2025-02-01,山田太郎,500000
+2025-06-01,山田太郎,500000
+2025-10-01,山田太郎,500000`;
+  }
 }
 

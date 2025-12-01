@@ -15,16 +15,68 @@
   (closeDialog)="onCsvImportClose()">
 </app-bonus-csv-import>
 
-<app-bonus-input-table
-  [employees]="employees"
-  [months]="months"
-  [bonusData]="bonusData"
-  [exemptMonths]="exemptMonths"
-  [exemptReasons]="exemptReasons"
-  (bonusChange)="onBonusChange($event)">
-</app-bonus-input-table>
+<div class="card" style="margin-bottom: 1rem;">
+  <button (click)="addBonusColumn()" class="btn-primary" style="margin-bottom: 1rem;">
+    ＋ 賞与入力列を追加
+  </button>
+
+  <div class="bonus-table-wrapper" *ngIf="bonusColumns.length > 0">
+    <table class="bonus-table">
+      <thead>
+        <tr>
+          <th class="sticky-col">従業員</th>
+          <th *ngFor="let column of bonusColumns" class="bonus-column-header">
+            <div class="column-header-content">
+              <div class="pay-date-input">
+                <label>支給日：</label>
+                <input 
+                  type="date" 
+                  [value]="column.payDate"
+                  (change)="onPayDateChange(column.id, $any($event.target).value)"
+                  class="form-control"
+                  style="width: auto; display: inline-block; margin-left: 0.5rem;">
+              </div>
+              <button 
+                (click)="removeBonusColumn(column.id)" 
+                class="btn-danger btn-small"
+                style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.875rem;"
+                [disabled]="!column.payDate">
+                削除
+              </button>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let emp of employees">
+          <td class="sticky-col">{{ emp.name }}</td>
+          <td *ngFor="let column of bonusColumns" [ngClass]="{ 'exempt-month': isExemptMonth(emp.id, column.payDate) }">
+            <!-- 免除月の場合 -->
+            <div *ngIf="isExemptMonth(emp.id, column.payDate)" class="exempt-label">
+              {{ getExemptReason(emp.id, column.payDate) }}
+            </div>
+            <!-- 通常月の場合 -->
+            <input
+              *ngIf="!isExemptMonth(emp.id, column.payDate)"
+              type="text"
+              [value]="formatAmount(getBonusAmount(column.id, emp.id))"
+              (input)="onBonusInput(column.id, emp.id, $event)"
+              (blur)="onBonusBlur(column.id, emp.id, $event)"
+              placeholder="0"
+              class="form-control"
+              [disabled]="!column.payDate"
+            />
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p *ngIf="bonusColumns.length === 0" class="info-text">
+    「賞与入力列を追加」ボタンをクリックして、賞与入力列を追加してください。
+  </p>
+</div>
 
 <button (click)="saveAllBonuses()" class="btn-success" style="margin-top: 1rem;">
   保存する
 </button>
-

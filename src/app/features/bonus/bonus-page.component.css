@@ -291,3 +291,80 @@
   color: white;
 }
 
+.bonus-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.bonus-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.bonus-table th,
+.bonus-table td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: left;
+  vertical-align: top;
+}
+
+.bonus-table th {
+  background-color: #f5f5f5;
+  font-weight: bold;
+}
+
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background-color: white;
+  z-index: 10;
+  min-width: 120px;
+}
+
+.bonus-column-header {
+  min-width: 200px;
+}
+
+.column-header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.pay-date-input {
+  display: flex;
+  align-items: center;
+}
+
+.pay-date-input label {
+  font-size: 0.875rem;
+  font-weight: normal;
+  margin: 0;
+}
+
+.exempt-month {
+  background-color: #fff3cd;
+}
+
+.exempt-label {
+  color: #856404;
+  font-weight: bold;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.btn-small {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.info-text {
+  color: #666;
+  font-style: italic;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+

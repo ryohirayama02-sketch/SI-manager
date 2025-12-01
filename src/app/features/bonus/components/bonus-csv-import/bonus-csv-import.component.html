@@ -2,7 +2,7 @@
   <h4>CSVインポート</h4>
   <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
     CSV形式で賞与データを一括インポートできます。<br>
-    形式: 月,従業員,賞与額（例: 1,若林,500000）
+    形式: 支給日,従業員,賞与額（例: 2025-02-01,若林,500000）
   </p>
   <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
     <input type="file" #csvFileInput accept=".csv" (change)="onCsvFileSelected($event)" style="display: none;">
@@ -19,7 +19,7 @@
       rows="10" 
       class="form-control" 
       style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
-      placeholder="月,従業員,賞与額&#10;1,若林,500000&#10;1,福本,400000"
+      [placeholder]="getCsvPlaceholder()"
       [ngModelOptions]="{standalone: true}">
     </textarea>
     <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
