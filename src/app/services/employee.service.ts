@@ -8,7 +8,7 @@ export class EmployeeService {
 
   constructor(private firestore: Firestore) {}
 
-  async addEmployee(employee: any): Promise<void> {
+  async addEmployee(employee: any): Promise<string> {
     // 後方互換性のため、hireDate → joinDate、shortTimeWorker → isShortTime の変換
     const normalizedEmployee: any = { ...employee };
     if (normalizedEmployee.hireDate && !normalizedEmployee.joinDate) {
@@ -29,7 +29,8 @@ export class EmployeeService {
     }
     
     const col = collection(this.firestore, 'employees');
-    await addDoc(col, cleanEmployee);
+    const docRef = await addDoc(col, cleanEmployee);
+    return docRef.id;
   }
 
   // 全従業員を取得

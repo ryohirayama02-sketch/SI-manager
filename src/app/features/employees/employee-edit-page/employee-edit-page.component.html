@@ -262,16 +262,6 @@
       </label>
     </div>
 
-    <!-- 自動判定結果の表示 -->
-    <div *ngIf="eligibilityStatus || ageInfo" class="info-box" style="margin-top: 1rem; padding: 1rem; background-color: #e3f2fd; border-radius: 4px;">
-      <h4>自動判定結果</h4>
-      <p *ngIf="ageInfo"><strong>年齢:</strong> {{ ageInfo }}</p>
-      <p *ngIf="eligibilityStatus"><strong>社会保険対象区分:</strong> {{ eligibilityStatus }}</p>
-      <p *ngIf="insuranceStatus.health"><strong>健康保険:</strong> {{ insuranceStatus.health }}</p>
-      <p *ngIf="insuranceStatus.care"><strong>介護保険:</strong> {{ insuranceStatus.care }}</p>
-      <p *ngIf="insuranceStatus.pension"><strong>厚生年金:</strong> {{ insuranceStatus.pension }}</p>
-    </div>
-
       <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">保存</button>
     </form>
   </div>
