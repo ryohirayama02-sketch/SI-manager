@@ -34,6 +34,10 @@ export class SalaryInputSectionComponent {
     month: number,
     itemId: string
   ): number {
+    // 免除月の場合は0を返す
+    if (this.isExemptMonth(employeeId, month)) {
+      return 0;
+    }
     const key = this.getSalaryItemKey(employeeId, month);
     return this.salaryItemData[key]?.[itemId] ?? 0;
   }

@@ -6,6 +6,7 @@ import { EmployeeService } from '../../services/employee.service';
 import { BonusService } from '../../services/bonus.service';
 import { SettingsService } from '../../services/settings.service';
 import { BonusCalculationService, BonusCalculationResult } from '../../services/bonus-calculation.service';
+import { SalaryCalculationService } from '../../services/salary-calculation.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
@@ -40,12 +41,15 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
+  // 免除月情報（従業員IDをキーとする）
+  exemptMonths: { [employeeId: string]: number[] } = {};
 
   constructor(
     private employeeService: EmployeeService,
     private bonusService: BonusService,
     private settingsService: SettingsService,
     private bonusCalculationService: BonusCalculationService,
+    private salaryCalculationService: SalaryCalculationService,
     private employeeEligibilityService: EmployeeEligibilityService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
@@ -70,6 +74,9 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
     await this.loadExistingBonuses();
 
+    // 免除月を構築
+    this.buildExemptMonths();
+
     // 加入区分の変更を購読
     this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
       // 加入区分が変更された場合の処理（必要に応じて実装）
@@ -88,6 +95,29 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     // 年度変更時にデータを再読み込み
     this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
     await this.loadExistingBonuses();
+    // 免除月を再構築
+    this.buildExemptMonths();
+  }
+
+  buildExemptMonths(): void {
+    this.exemptMonths = {};
+    for (const emp of this.employees) {
+      this.exemptMonths[emp.id] = [];
+
+      for (const month of this.months) {
+        // 各月の免除判定（Service層のメソッドを使用）
+        const isExempt = this.salaryCalculationService.isExemptMonth(
+          emp,
+          this.year,
+          month
+        );
+        if (isExempt) {
+          if (!this.exemptMonths[emp.id].includes(month)) {
+            this.exemptMonths[emp.id].push(month);
+          }
+        }
+      }
+    }
   }
 
   async loadExistingBonuses(): Promise<void> {
@@ -127,9 +157,16 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     for (const emp of this.employees) {
       for (const month of this.months) {
         const key = this.getBonusKey(emp.id, month);
-        const amount = this.bonusData[key] || 0;
+        let amount = this.bonusData[key] || 0;
 
-        if (amount > 0) {
+        // 免除月の場合は0として明示的に保存（賞与入力画面が免除を判定してデータを保証）
+        if (this.exemptMonths[emp.id]?.includes(month)) {
+          amount = 0;
+          console.log(`[bonus-page] 免除月のため0として保存: 従業員ID=${emp.id}, 月=${month}`);
+        }
+
+        // 賞与額が0より大きい場合、または免除月で0として保存する場合
+        if (amount > 0 || this.exemptMonths[emp.id]?.includes(month)) {
           // 賞与額が入力されている場合のみ保存
           const employee = this.employees.find(e => e.id === emp.id);
           if (!employee) continue;
@@ -205,8 +242,9 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           };
 
           await this.bonusService.saveBonus(this.year, bonus);
-        } else {
-          // 賞与額が0の場合は、既存データがあれば削除
+        } else if (!this.exemptMonths[emp.id]?.includes(month)) {
+          // 賞与額が0で、免除月でない場合は、既存データがあれば削除
+          // 免除月の場合は0として保存済みなので削除しない
           const existingBonuses = await this.bonusService.getBonusesByYear(emp.id, this.year);
           const existingBonus = existingBonuses.find(b => b.month === month);
           if (existingBonus && existingBonus.id) {

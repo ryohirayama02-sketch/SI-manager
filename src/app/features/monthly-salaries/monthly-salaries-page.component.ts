@@ -457,6 +457,11 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       const payload: any = {};
 
       for (const month of this.months) {
+        // 免除月の場合はスキップ（0として扱う）
+        if (this.exemptMonths[emp.id]?.includes(month)) {
+          continue;
+        }
+
         const itemKey = this.getSalaryItemKey(emp.id, month);
         const itemEntries: SalaryItemEntry[] = [];
 

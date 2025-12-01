@@ -140,6 +140,9 @@ export class BonusService {
       }
     });
     
+    // 賞与入力画面で免除期間中の賞与は0として保存されているため、
+    // 他の画面では単純に保存されているデータ（amount=0のものも含む）を参照するだけ
+    // amount=0の賞与は計算時に除外される
     console.log(`[bonus.service] 取得した賞与データ:`, bonuses);
     // デバッグ用：各賞与データの詳細をログ出力
     bonuses.forEach((bonus, index) => {
@@ -271,6 +274,10 @@ export class BonusService {
    * @param year 年度
    * @param employeeId 従業員ID（オプショナル）
    * @returns 賞与データの配列
+   * 
+   * 注意: 賞与入力画面で免除期間中の賞与は0として保存されているため、
+   * このメソッドは単純に保存されているデータを返すだけ。
+   * 免除期間の判定は賞与入力画面で行われる。
    */
   async loadBonus(year: number, employeeId?: string): Promise<Bonus[]> {
     const startDate = `${year}-01-01`;

@@ -13,6 +13,7 @@ export class BonusInputTableComponent {
   @Input() employees: Employee[] = [];
   @Input() months: number[] = [];
   @Input() bonusData: { [key: string]: number } = {}; // { employeeId_month: amount }
+  @Input() exemptMonths: { [employeeId: string]: number[] } = {};
 
   @Output() bonusChange = new EventEmitter<{
     employeeId: string;
@@ -25,6 +26,10 @@ export class BonusInputTableComponent {
   }
 
   getBonusAmount(employeeId: string, month: number): number {
+    // 免除月の場合は0を返す
+    if (this.isExemptMonth(employeeId, month)) {
+      return 0;
+    }
     const key = this.getBonusKey(employeeId, month);
     return this.bonusData[key] ?? 0;
   }
@@ -61,6 +66,10 @@ export class BonusInputTableComponent {
 
   onBonusChange(employeeId: string, month: number, value: number): void {
     this.bonusChange.emit({ employeeId, month, value });
+  }
+
+  isExemptMonth(empId: string, month: number): boolean {
+    return this.exemptMonths[empId]?.includes(month) ?? false;
   }
 }
 

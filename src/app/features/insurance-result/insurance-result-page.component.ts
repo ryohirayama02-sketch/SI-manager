@@ -300,7 +300,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         ? bonuses.sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime())[0]
         : null;
 
-      // 賞与の年間合計を計算
+      // 賞与の年間合計を計算（賞与額が0のものは除外）
       const bonusTotal = {
         healthEmployee: 0,
         healthEmployer: 0,
@@ -312,7 +312,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       };
 
       for (const bonus of bonuses || []) {
-        if (!bonus.isExempted && !bonus.isSalaryInsteadOfBonus) {
+        // 賞与額が0の場合は除外（免除中かどうかに関わらず）
+        if (bonus.amount > 0 && !bonus.isExempted && !bonus.isSalaryInsteadOfBonus) {
           bonusTotal.healthEmployee += bonus.healthEmployee || 0;
           bonusTotal.healthEmployer += bonus.healthEmployer || 0;
           bonusTotal.careEmployee += bonus.careEmployee || 0;
@@ -566,9 +567,14 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
   getYearBonuses(employeeId: string): Bonus[] {
     const bonuses = this.bonusData[employeeId] || [];
-    // 該当年度の賞与を支給月順にソートして返す
+    // 該当年度の賞与を支給月順にソートして返す（賞与額が0のものは除外）
     return bonuses
       .filter(b => {
+        // 賞与額が0の場合は除外（免除中かどうかに関わらず）
+        if (b.amount === 0 || !b.amount) {
+          return false;
+        }
+        
         // bonus.yearフィールドを優先的に使用（賞与入力画面で設定される）
         if (b.year !== undefined && b.year !== null) {
           return b.year === this.year;

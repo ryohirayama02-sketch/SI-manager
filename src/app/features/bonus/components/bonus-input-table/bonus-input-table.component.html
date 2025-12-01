@@ -9,8 +9,14 @@
     <tbody>
       <tr *ngFor="let emp of employees">
         <td class="sticky-col">{{ emp.name }}</td>
-        <td *ngFor="let m of months">
+        <td *ngFor="let m of months" [ngClass]="{ 'exempt-month': isExemptMonth(emp.id, m) }">
+          <!-- 免除月の場合 -->
+          <div *ngIf="isExemptMonth(emp.id, m)" class="exempt-label">
+            免除中
+          </div>
+          <!-- 通常月の場合 -->
           <input
+            *ngIf="!isExemptMonth(emp.id, m)"
             type="text"
             [value]="formatAmount(getBonusAmount(emp.id, m))"
             (input)="onBonusInput(emp.id, m, $event)"
