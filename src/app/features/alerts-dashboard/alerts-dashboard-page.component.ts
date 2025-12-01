@@ -114,6 +114,20 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }[] = [];
   selectedQualificationChangeAlertIds: Set<string> = new Set();
 
+  // 産休育休アラート関連
+  maternityChildcareAlerts: {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    alertType: '産前産後休業取得者申出書' | '産前産後休業終了届' | '育児休業等取得者申出書（保険料免除開始）' | '育児休業等終了届（免除終了）' | '育児休業等取得者申出書（賞与用）';
+    notificationName: string;
+    startDate: Date; // 開始日（産休開始日、育休開始日、産休終了日の翌日、育休終了日の翌日、賞与支給日）
+    submitDeadline: Date; // 提出期限（開始日から5日後）
+    daysUntilDeadline: number; // 提出期限までの日数
+    details: string; // 詳細情報
+  }[] = [];
+  selectedMaternityChildcareAlertIds: Set<string> = new Set();
+
   constructor(
     private suijiService: SuijiService,
     private employeeService: EmployeeService,
@@ -147,6 +161,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadNotificationAlerts();
     await this.loadAgeAlerts();
     await this.loadQualificationChangeAlerts();
+    await this.loadMaternityChildcareAlerts();
     // 算定決定データはタブがアクティブな場合のみ読み込む（初期化時は読み込まない）
     // await this.loadTeijiKetteiData();
     
@@ -920,6 +935,198 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       alert => !selectedIds.includes(alert.id)
     );
     this.selectedQualificationChangeAlertIds.clear();
+  }
+
+  /**
+   * 産休育休アラートを読み込む
+   */
+  async loadMaternityChildcareAlerts(): Promise<void> {
+    this.maternityChildcareAlerts = [];
+    const today = this.getJSTDate();
+    today.setHours(0, 0, 0, 0);
+
+    try {
+      // 現在年度の賞与データを取得（賞与用アラートのため）
+      const currentYear = today.getFullYear();
+      const allBonuses = await this.bonusService.loadBonus(currentYear);
+
+      for (const emp of this.employees) {
+        // ① 産前産後休業取得者申出書 - 産休開始日が記入されていれば常にアラート表示
+        if (emp.maternityLeaveStart) {
+          const startDate = new Date(emp.maternityLeaveStart);
+          startDate.setHours(0, 0, 0, 0);
+          const submitDeadline = new Date(startDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 5);
+          
+          // 記入されていれば常にアラートを表示（時間差に関係なく）
+          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          this.maternityChildcareAlerts.push({
+            id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '産前産後休業取得者申出書',
+            notificationName: '産前産後休業取得者申出書',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `産休開始日: ${this.formatDate(startDate)}`,
+          });
+        }
+
+        // ② 産前産後休業終了届 - 産休終了日が記入されていれば常にアラート表示
+        if (emp.maternityLeaveEnd) {
+          const endDate = new Date(emp.maternityLeaveEnd);
+          endDate.setHours(0, 0, 0, 0);
+          const startDate = new Date(endDate);
+          startDate.setDate(startDate.getDate() + 1); // 終了日の翌日
+          const submitDeadline = new Date(startDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 5);
+          
+          // 記入されていれば常にアラートを表示（時間差に関係なく）
+          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          this.maternityChildcareAlerts.push({
+            id: `maternity_end_${emp.id}_${emp.maternityLeaveEnd}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '産前産後休業終了届',
+            notificationName: '産前産後休業終了届',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `産休終了日: ${this.formatDate(endDate)}`,
+          });
+        }
+
+        // ③ 育児休業等取得者申出書（保険料免除開始） - 育休開始日が記入されていれば常にアラート表示
+        if (emp.childcareLeaveStart) {
+          const startDate = new Date(emp.childcareLeaveStart);
+          startDate.setHours(0, 0, 0, 0);
+          const submitDeadline = new Date(startDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 5);
+          
+          // 記入されていれば常にアラートを表示（時間差に関係なく）
+          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          this.maternityChildcareAlerts.push({
+            id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '育児休業等取得者申出書（保険料免除開始）',
+            notificationName: '育児休業等取得者申出書（保険料免除開始）',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `育休開始日: ${this.formatDate(startDate)}`,
+          });
+        }
+
+        // ④ 育児休業等終了届（免除終了） - 育休終了日が記入されていれば常にアラート表示
+        if (emp.childcareLeaveEnd) {
+          const endDate = new Date(emp.childcareLeaveEnd);
+          endDate.setHours(0, 0, 0, 0);
+          const startDate = new Date(endDate);
+          startDate.setDate(startDate.getDate() + 1); // 終了日の翌日
+          const submitDeadline = new Date(startDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 5);
+          
+          // 記入されていれば常にアラートを表示（時間差に関係なく）
+          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          this.maternityChildcareAlerts.push({
+            id: `childcare_end_${emp.id}_${emp.childcareLeaveEnd}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '育児休業等終了届（免除終了）',
+            notificationName: '育児休業等終了届（免除終了）',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `育休終了日: ${this.formatDate(endDate)}`,
+          });
+        }
+
+        // ⑤ 育児休業等取得者申出書（賞与用） - 賞与支給日が記入されていれば常にアラート表示（同居養育のチェックが無ければ）
+        if (!emp.childcareLivingTogether) {
+          // 該当従業員の賞与データを取得
+          const employeeBonuses = allBonuses.filter(b => b.employeeId === emp.id && b.amount > 0);
+          
+          for (const bonus of employeeBonuses) {
+            if (bonus.payDate) {
+              const payDate = new Date(bonus.payDate);
+              payDate.setHours(0, 0, 0, 0);
+              const submitDeadline = new Date(payDate);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              
+              // 記入されていれば常にアラートを表示（時間差に関係なく）
+              const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+              this.maternityChildcareAlerts.push({
+                id: `childcare_bonus_${emp.id}_${bonus.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                alertType: '育児休業等取得者申出書（賞与用）',
+                notificationName: '育児休業等取得者申出書（賞与用）',
+                startDate: payDate,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `賞与支給日: ${this.formatDate(payDate)}, 賞与額: ${bonus.amount.toLocaleString('ja-JP')}円`,
+              });
+            }
+          }
+        }
+      }
+
+      // 開始日でソート（新しい順）
+      this.maternityChildcareAlerts.sort((a, b) => {
+        return b.startDate.getTime() - a.startDate.getTime();
+      });
+    } catch (error) {
+      console.error('[alerts-dashboard] loadMaternityChildcareAlertsエラー:', error);
+    }
+  }
+
+  // 産休育休アラートの選択管理
+  toggleMaternityChildcareAlertSelection(alertId: string): void {
+    if (this.selectedMaternityChildcareAlertIds.has(alertId)) {
+      this.selectedMaternityChildcareAlertIds.delete(alertId);
+    } else {
+      this.selectedMaternityChildcareAlertIds.add(alertId);
+    }
+  }
+
+  toggleAllMaternityChildcareAlerts(checked: boolean): void {
+    if (checked) {
+      this.maternityChildcareAlerts.forEach(alert => {
+        this.selectedMaternityChildcareAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedMaternityChildcareAlertIds.clear();
+    }
+  }
+
+  toggleAllMaternityChildcareAlertsChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.toggleAllMaternityChildcareAlerts(target.checked);
+  }
+
+  isMaternityChildcareAlertSelected(alertId: string): boolean {
+    return this.selectedMaternityChildcareAlertIds.has(alertId);
+  }
+
+  // 産休育休アラートの削除
+  async deleteSelectedMaternityChildcareAlerts(): Promise<void> {
+    const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の産休育休アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedMaternityChildcareAlertIds.clear();
   }
 }
 
