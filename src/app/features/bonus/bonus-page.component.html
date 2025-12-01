@@ -1,32 +1,28 @@
 <h2>賞与入力</h2>
 
-<app-bonus-input-form
-  [employees]="employees"
-  [year]="year"
-  [availableYears]="availableYears"
-  [selectedEmployeeId]="selectedEmployeeId"
-  [bonusAmount]="bonusAmount"
-  [bonusAmountDisplay]="bonusAmountDisplay"
-  [paymentMonth]="paymentMonth"
-  [calculationResult]="calculationResult"
-  (yearChange)="onYearChangeEvent($event)"
-  (monthChange)="onMonthChangeEvent($event)"
-  (employeeChange)="onEmployeeChange($event)"
-  (bonusAmountChange)="onBonusAmountInputChange($event)"
-  (bonusAmountDisplayChange)="onBonusAmountDisplayChange($event)"
-  (submit)="onSubmitEvent()">
-</app-bonus-input-form>
-
-<app-bonus-list
-  [filteredBonuses]="filteredBonuses"
-  [year]="year"
-  [selectedEmployeeId]="selectedEmployeeId"
-  (deleteBonus)="onDeleteBonus($event)">
-</app-bonus-list>
+<div class="card" style="max-width: 400px; margin-bottom: 1rem;">
+  <div class="form-group">
+    <label>年度：</label>
+    <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
+    </select>
+  </div>
+</div>
 
 <app-bonus-csv-import
   [csvImportResult]="csvImportResult"
   (csvTextImport)="onCsvTextImport($event)"
   (closeDialog)="onCsvImportClose()">
 </app-bonus-csv-import>
+
+<app-bonus-input-table
+  [employees]="employees"
+  [months]="months"
+  [bonusData]="bonusData"
+  (bonusChange)="onBonusChange($event)">
+</app-bonus-input-table>
+
+<button (click)="saveAllBonuses()" class="btn-success" style="margin-top: 1rem;">
+  保存する
+</button>
 

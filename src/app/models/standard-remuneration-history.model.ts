@@ -24,3 +24,5 @@ export interface InsuranceStatusHistory {
   updatedAt?: Date; // 更新日時
 }
 
+
+

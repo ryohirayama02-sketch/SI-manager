@@ -1,0 +1,27 @@
+<div class="bonus-table-wrapper">
+  <table class="bonus-table">
+    <thead>
+      <tr>
+        <th class="sticky-col">従業員</th>
+        <th *ngFor="let m of months">{{ m }}月</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let emp of employees">
+        <td class="sticky-col">{{ emp.name }}</td>
+        <td *ngFor="let m of months">
+          <input
+            type="text"
+            [value]="formatAmount(getBonusAmount(emp.id, m))"
+            (input)="onBonusInput(emp.id, m, $event)"
+            (blur)="onBonusBlur(emp.id, m, $event)"
+            placeholder="0"
+            class="form-control"
+            [name]="'bonus_' + emp.id + '_' + m"
+          />
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+

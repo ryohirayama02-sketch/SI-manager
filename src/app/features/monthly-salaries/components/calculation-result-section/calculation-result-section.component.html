@@ -5,14 +5,14 @@
     <!-- 定時決定結果 -->
     <div *ngIf="results[emp.id]" style="margin-bottom: 1rem; padding: 8px; background: #f0f0f0; border-radius: 4px;">
       <h5 style="margin-top: 0;">定時決定（4〜6月の算定基礎）</h5>
-      <p><strong>4〜6月の平均報酬:</strong> {{ results[emp.id]?.averageSalary ?? 0 | number:'1.0-0' }} 円</p>
+      <p><strong>4〜6月の平均報酬:</strong> {{ results[emp.id].averageSalary ?? 0 | number:'1.0-0' }} 円</p>
       <p *ngIf="results[emp.id] && results[emp.id].excludedMonths && results[emp.id].excludedMonths.length > 0">
-        <strong>算定除外月:</strong> {{ (results[emp.id]?.excludedMonths ?? []).join(', ') }}月
+        <strong>算定除外月:</strong> {{ (results[emp.id].excludedMonths ?? []).join(', ') }}月
       </p>
-      <p *ngIf="!results[emp.id]?.excludedMonths || results[emp.id]?.excludedMonths?.length === 0">
+      <p *ngIf="!results[emp.id].excludedMonths || results[emp.id].excludedMonths.length === 0">
         <strong>算定除外月:</strong> なし
       </p>
-      <p><strong>標準報酬月額:</strong> {{ results[emp.id]?.standardMonthlyRemuneration ?? 0 | number:'1.0-0' }} 円（等級: {{ results[emp.id]?.grade ?? '-' }}）</p>
+      <p><strong>標準報酬月額:</strong> {{ results[emp.id].standardMonthlyRemuneration ?? 0 | number:'1.0-0' }} 円（等級: {{ results[emp.id].grade ?? '-' }}）</p>
     </div>
   </div>
 </ng-container>

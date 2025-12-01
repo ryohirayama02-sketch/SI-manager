@@ -25,3 +25,5 @@ export interface FamilyMemberHistory {
   createdAt: Date; // 作成日時
 }
 
+
+
