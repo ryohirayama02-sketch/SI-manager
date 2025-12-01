@@ -13,6 +13,7 @@ import { SuijiService } from '../../../services/suiji.service';
 import { FamilyMemberService } from '../../../services/family-member.service';
 import { StandardRemunerationHistoryService } from '../../../services/standard-remuneration-history.service';
 import { OfficeService } from '../../../services/office.service';
+import { EmployeeChangeHistoryService } from '../../../services/employee-change-history.service';
 import { Employee } from '../../../models/employee.model';
 import { FamilyMember } from '../../../models/family-member.model';
 import { StandardRemunerationHistory, InsuranceStatusHistory } from '../../../models/standard-remuneration-history.model';
@@ -70,6 +71,8 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   // 事業所マスタ関連
   offices: Office[] = [];
 
+  private originalEmployeeData: any = {}; // 変更前のデータを保持
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -83,7 +86,8 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     private suijiService: SuijiService,
     private familyMemberService: FamilyMemberService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private employeeChangeHistoryService: EmployeeChangeHistoryService
   ) {
     this.form = this.fb.group({
       // 個人情報
@@ -136,13 +140,25 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
       this.updateAutoDetection();
     });
 
-    // 事業所選択時に都道府県を自動設定
+    // 事業所選択時に都道府県を自動設定（必須）
     this.form.get('officeNumber')?.valueChanges.subscribe((officeNumber: string) => {
       if (officeNumber) {
         const selectedOffice = this.offices.find(office => office.officeNumber === officeNumber);
-        if (selectedOffice && selectedOffice.prefecture) {
-          this.form.patchValue({ prefecture: selectedOffice.prefecture }, { emitEvent: false });
+        if (selectedOffice) {
+          if (selectedOffice.prefecture) {
+            // 事業所マスタから都道府県を取得して自動設定
+            this.form.patchValue({ prefecture: selectedOffice.prefecture }, { emitEvent: false });
+          } else {
+            // 事業所は見つかったが都道府県情報がない場合
+            console.warn(`事業所 ${officeNumber} の都道府県情報が設定されていません。事業所マスタで都道府県を設定してください。`);
+          }
+        } else {
+          // 事業所が見つからない場合
+          console.warn(`事業所 ${officeNumber} が事業所マスタに見つかりません。`);
         }
+      } else {
+        // 事業所が未選択の場合は、都道府県もリセット（デフォルト値に戻す）
+        this.form.patchValue({ prefecture: 'tokyo' }, { emitEvent: false });
       }
     });
   }
@@ -160,6 +176,29 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
 
     const data = await this.employeeService.getEmployeeById(this.employeeId);
     if (data) {
+      // 変更前のデータを保存（変更検出用）
+      this.originalEmployeeData = {
+        name: data.name || '',
+        nameKana: (data as any).nameKana || '',
+        gender: (data as any).gender || '',
+        birthDate: data.birthDate || '',
+        address: (data as any).address || '',
+        officeNumber: (data as any).officeNumber || '',
+        prefecture: data.prefecture || 'tokyo',
+        isShortTime: data.isShortTime || data.shortTimeWorker || false,
+        weeklyHours: data.weeklyHours || null,
+      };
+
+      const officeNumber = (data as any).officeNumber || '';
+      // 事業所に基づいて都道府県を自動設定
+      let prefecture = data.prefecture || 'tokyo';
+      if (officeNumber) {
+        const selectedOffice = this.offices.find(office => office.officeNumber === officeNumber);
+        if (selectedOffice && selectedOffice.prefecture) {
+          prefecture = selectedOffice.prefecture;
+        }
+      }
+
       this.form.patchValue({
         // 個人情報
         name: data.name || '',
@@ -176,8 +215,8 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
         expectedEmploymentMonths: data.expectedEmploymentMonths || null,
         isStudent: data.isStudent || false,
         // 所属
-        prefecture: data.prefecture || 'tokyo',
-        officeNumber: (data as any).officeNumber || '',
+        prefecture: prefecture,
+        officeNumber: officeNumber,
         department: (data as any).department || '',
         // 入退社
         joinDate: data.joinDate || data.hireDate || '',
@@ -518,7 +557,117 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     if (value.childcareLeaveEnd) updateData.childcareLeaveEnd = value.childcareLeaveEnd;
 
     await this.employeeService.updateEmployee(this.employeeId, updateData);
+    
+    // 変更履歴を保存
+    await this.detectAndSaveChanges(this.originalEmployeeData, value);
+    
     alert('保存しました');
+  }
+
+  /**
+   * 変更を検出して履歴を保存
+   */
+  private async detectAndSaveChanges(oldData: any, newData: any): Promise<void> {
+    if (!this.employeeId) return;
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD形式
+
+    // 氏名変更
+    if (oldData.name && newData.name && oldData.name !== newData.name) {
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '氏名変更',
+        changeDate: today,
+        oldValue: oldData.name,
+        newValue: newData.name,
+        notificationNames: ['被保険者氏名変更届（健保）', '厚生年金被保険者氏名変更届'],
+      });
+    }
+
+    // 住所変更
+    const oldAddress = oldData.address || '';
+    const newAddress = newData.address || '';
+    if (oldAddress !== newAddress && (oldAddress || newAddress)) {
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '住所変更',
+        changeDate: today,
+        oldValue: oldAddress || '(未設定)',
+        newValue: newAddress || '(未設定)',
+        notificationNames: ['被保険者住所変更届（健保）', '厚生年金被保険者住所変更届'],
+      });
+    }
+
+    // 生年月日訂正
+    if (oldData.birthDate && newData.birthDate && oldData.birthDate !== newData.birthDate) {
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '生年月日訂正',
+        changeDate: today,
+        oldValue: oldData.birthDate,
+        newValue: newData.birthDate,
+        notificationNames: ['生年月日訂正届（健保・厚年）'],
+      });
+    }
+
+    // 性別変更
+    const oldGender = oldData.gender || '';
+    const newGender = newData.gender || '';
+    if (oldGender !== newGender && (oldGender || newGender)) {
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '性別変更',
+        changeDate: today,
+        oldValue: oldGender || '(未設定)',
+        newValue: newGender || '(未設定)',
+        notificationNames: ['被保険者性別変更届（健保）', '厚生年金被保険者 性別変更届'],
+      });
+    }
+
+    // 所属事業所変更（事業所（officeNumber）の変更のみを検出）
+    const oldOfficeNumber = oldData.officeNumber || '';
+    const newOfficeNumber = newData.officeNumber || '';
+    // 事業所が変更された場合のみ検出（都道府県は事業所に連動するため、事業所の変更のみを検出）
+    if (oldOfficeNumber !== newOfficeNumber && (oldOfficeNumber || newOfficeNumber)) {
+      console.log(`[employee-edit] 所属事業所変更を検出: ${oldOfficeNumber} → ${newOfficeNumber}`);
+      const oldPrefecture = oldData.prefecture || '';
+      const newPrefecture = newData.prefecture || '';
+      const oldOfficeInfo = oldOfficeNumber ? `${oldOfficeNumber}${oldPrefecture ? ` (${oldPrefecture})` : ''}` : '(未設定)';
+      const newOfficeInfo = newOfficeNumber ? `${newOfficeNumber}${newPrefecture ? ` (${newPrefecture})` : ''}` : '(未設定)';
+      console.log(`[employee-edit] 変更履歴を保存: 従業員ID=${this.employeeId}, 変更日=${today}, 旧値=${oldOfficeInfo}, 新値=${newOfficeInfo}`);
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '所属事業所変更',
+        changeDate: today,
+        oldValue: oldOfficeInfo,
+        newValue: newOfficeInfo,
+        notificationNames: ['新しい事業所での資格取得届', '元の事業所での資格喪失届'],
+      });
+      console.log(`[employee-edit] 変更履歴の保存が完了しました`);
+    } else {
+      console.log(`[employee-edit] 所属事業所変更なし: 旧=${oldOfficeNumber}, 新=${newOfficeNumber}`);
+    }
+
+    // 適用区分変更（短時間→通常加入など）
+    const oldIsShortTime = oldData.isShortTime || false;
+    const newIsShortTime = newData.isShortTime || false;
+    const oldWeeklyHours = oldData.weeklyHours || null;
+    const newWeeklyHours = newData.weeklyHours || null;
+    
+    // 短時間から通常加入への変更、または週労働時間の変更で加入区分が変わる場合
+    if ((oldIsShortTime !== newIsShortTime) || 
+        (oldWeeklyHours !== newWeeklyHours && oldWeeklyHours !== null && newWeeklyHours !== null)) {
+      const oldStatus = oldIsShortTime ? `短時間労働者 (週${oldWeeklyHours || '?'}時間)` : `通常加入 (週${oldWeeklyHours || '?'}時間)`;
+      const newStatus = newIsShortTime ? `短時間労働者 (週${newWeeklyHours || '?'}時間)` : `通常加入 (週${newWeeklyHours || '?'}時間)`;
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '適用区分変更',
+        changeDate: today,
+        oldValue: oldStatus,
+        newValue: newStatus,
+        notificationNames: ['資格取得届'],
+      });
+    }
   }
 
   // 家族情報関連メソッド

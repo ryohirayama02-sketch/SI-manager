@@ -14,6 +14,9 @@ import { SettingsService } from '../../services/settings.service';
 import { BonusService } from '../../services/bonus.service';
 import { SuijiKouhoResult, TeijiKetteiResult, SalaryCalculationService } from '../../services/salary-calculation.service';
 import { NotificationDecisionResult } from '../../services/notification-decision.service';
+import { EmployeeChangeHistoryService } from '../../services/employee-change-history.service';
+import { EmployeeChangeHistory } from '../../models/employee-change-history.model';
+import { QualificationChangeAlertService } from '../../services/qualification-change-alert.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 
@@ -43,7 +46,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   activeTab: 'schedule' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
   
   // 年度選択関連（算定決定タブ用）
-  teijiYear: number = new Date().getFullYear();
+  teijiYear: number = new Date().getFullYear(); // ngOnInitでJSTに更新
   availableYears: number[] = [];
   
   // 随時改定アラート関連
@@ -83,6 +86,34 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }[] = [];
   isLoadingTeijiKettei: boolean = false; // ローディング中フラグ（重複実行を防ぐ）
 
+  // 年齢到達アラート関連
+  ageAlerts: {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    alertType: '70歳到達' | '75歳到達';
+    notificationName: string; // 届出名前
+    birthDate: string;
+    reachDate: Date; // 到達日（資格喪失日）
+    submitDeadline: Date; // 提出期限
+    daysUntilDeadline: number; // 提出期限までの日数
+  }[] = [];
+  selectedAgeAlertIds: Set<string> = new Set();
+
+  // 資格変更アラート関連
+  qualificationChangeAlerts: {
+    id: string;
+    employeeId: string;
+    employeeName: string;
+    changeType: '氏名変更' | '住所変更' | '生年月日訂正' | '性別変更' | '所属事業所変更' | '適用区分変更';
+    notificationNames: string[]; // 届出名前のリスト
+    changeDate: Date; // 変更があった日
+    submitDeadline: Date; // 提出期限（変更があった日から5日後）
+    daysUntilDeadline: number; // 提出期限までの日数
+    details: string; // 変更詳細（例：「田中太郎 → 佐藤太郎」）
+  }[] = [];
+  selectedQualificationChangeAlertIds: Set<string> = new Set();
+
   constructor(
     private suijiService: SuijiService,
     private employeeService: EmployeeService,
@@ -92,14 +123,16 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private notificationFormatService: NotificationFormatService,
     private settingsService: SettingsService,
     private bonusService: BonusService,
-    private salaryCalculationService: SalaryCalculationService
+    private salaryCalculationService: SalaryCalculationService,
+    private employeeChangeHistoryService: EmployeeChangeHistoryService,
+    private qualificationChangeAlertService: QualificationChangeAlertService
   ) {}
 
   async ngOnInit(): Promise<void> {
     this.employees = await this.employeeService.getAllEmployees();
     
     // 年度選択肢を生成（現在年度から過去5年分）
-    const currentYear = new Date().getFullYear();
+    const currentYear = this.getJSTDate().getFullYear();
     this.availableYears = [];
     for (let i = 0; i < 6; i++) {
       this.availableYears.push(currentYear - i);
@@ -112,6 +145,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     // 全年度のアラートを読み込み
     await this.loadSuijiAlerts();
     await this.loadNotificationAlerts();
+    await this.loadAgeAlerts();
+    await this.loadQualificationChangeAlerts();
     // 算定決定データはタブがアクティブな場合のみ読み込む（初期化時は読み込まない）
     // await this.loadTeijiKetteiData();
     
@@ -129,6 +164,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   async reloadEligibility(): Promise<void> {
     await this.loadSuijiAlerts();
     await this.loadNotificationAlerts();
+    await this.loadAgeAlerts();
+    await this.loadQualificationChangeAlerts();
     // 算定決定データはタブがアクティブな場合のみ読み込む
     if (this.activeTab === 'teiji') {
       await this.loadTeijiKetteiData();
@@ -238,7 +275,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   async loadNotificationAlerts(): Promise<void> {
     // 届出アラートは現在年度のみ計算（必要に応じて全年度対応可能）
-    const currentYear = new Date().getFullYear();
+    const currentYear = this.getJSTDate().getFullYear();
     this.gradeTable = await this.settingsService.getStandardTable(currentYear);
     
     // 給与データと賞与データを読み込み
@@ -595,6 +632,294 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return monthData.totalSalary ?? monthData.total ?? 
            (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
            (monthData.variableSalary ?? monthData.variable ?? 0);
+  }
+
+  /**
+   * 日本時間（JST）の現在日時を取得
+   */
+  private getJSTDate(): Date {
+    const now = new Date();
+    // UTC+9時間（日本時間）に変換
+    const jstOffset = 9 * 60; // 分単位
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const jst = new Date(utc + (jstOffset * 60000));
+    return jst;
+  }
+
+  /**
+   * 年齢到達アラートを読み込む
+   */
+  async loadAgeAlerts(): Promise<void> {
+    this.ageAlerts = [];
+    const today = this.getJSTDate();
+    today.setHours(0, 0, 0, 0);
+
+    for (const emp of this.employees) {
+      if (!emp.birthDate) continue;
+
+      const birthDate = new Date(emp.birthDate);
+      
+      // 70歳到達チェック
+      const age70Date = new Date(birthDate.getFullYear() + 70, birthDate.getMonth(), birthDate.getDate() - 1);
+      const age70AlertStartDate = new Date(age70Date);
+      age70AlertStartDate.setMonth(age70AlertStartDate.getMonth() - 2);
+      
+      if (today >= age70AlertStartDate && today < age70Date) {
+        // 提出期限 = 資格喪失日の5日後
+        const submitDeadline = new Date(age70Date);
+        submitDeadline.setDate(submitDeadline.getDate() + 5);
+        
+        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        this.ageAlerts.push({
+          id: `age70_${emp.id}`,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          alertType: '70歳到達',
+          notificationName: '厚生年金 資格喪失届',
+          birthDate: emp.birthDate,
+          reachDate: age70Date,
+          submitDeadline: submitDeadline,
+          daysUntilDeadline: daysUntilDeadline,
+        });
+      }
+
+      // 75歳到達チェック
+      const age75Date = new Date(birthDate.getFullYear() + 75, birthDate.getMonth(), birthDate.getDate() - 1);
+      const age75AlertStartDate = new Date(age75Date);
+      age75AlertStartDate.setMonth(age75AlertStartDate.getMonth() - 2);
+      
+      if (today >= age75AlertStartDate && today < age75Date) {
+        // 提出期限 = 資格喪失日の5日後
+        const submitDeadline = new Date(age75Date);
+        submitDeadline.setDate(submitDeadline.getDate() + 5);
+        
+        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        this.ageAlerts.push({
+          id: `age75_${emp.id}`,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          alertType: '75歳到達',
+          notificationName: '健保 資格喪失届',
+          birthDate: emp.birthDate,
+          reachDate: age75Date,
+          submitDeadline: submitDeadline,
+          daysUntilDeadline: daysUntilDeadline,
+        });
+      }
+    }
+
+    // 提出期限でソート
+    this.ageAlerts.sort((a, b) => a.submitDeadline.getTime() - b.submitDeadline.getTime());
+  }
+
+  // 年齢到達アラートの選択管理
+  toggleAgeAlertSelection(alertId: string): void {
+    if (this.selectedAgeAlertIds.has(alertId)) {
+      this.selectedAgeAlertIds.delete(alertId);
+    } else {
+      this.selectedAgeAlertIds.add(alertId);
+    }
+  }
+
+  toggleAllAgeAlerts(checked: boolean): void {
+    if (checked) {
+      this.ageAlerts.forEach(alert => {
+        this.selectedAgeAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedAgeAlertIds.clear();
+    }
+  }
+
+  toggleAllAgeAlertsChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.toggleAllAgeAlerts(target.checked);
+  }
+
+  isAgeAlertSelected(alertId: string): boolean {
+    return this.selectedAgeAlertIds.has(alertId);
+  }
+
+  // 年齢到達アラートの削除
+  deleteSelectedAgeAlerts(): void {
+    const selectedIds = Array.from(this.selectedAgeAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の年齢到達アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.ageAlerts = this.ageAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedAgeAlertIds.clear();
+  }
+
+  formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${year}年${month}月${day}日`;
+  }
+
+  formatBirthDate(birthDateString: string): string {
+    const date = new Date(birthDateString);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${year}年${month}月${day}日`;
+  }
+
+  /**
+   * 資格変更アラートを読み込む
+   * 従業員データの変更履歴を確認してアラートを生成
+   */
+  async loadQualificationChangeAlerts(): Promise<void> {
+    this.qualificationChangeAlerts = [];
+    const today = this.getJSTDate();
+    today.setHours(0, 0, 0, 0);
+
+    try {
+      // 削除済みアラートIDを取得
+      const deletedAlertIds = await this.qualificationChangeAlertService.getDeletedAlertIds();
+      console.log(`[alerts-dashboard] 削除済みアラートID数: ${deletedAlertIds.size}`);
+
+      // 変更履歴を取得（変更日から5日以内のもの）
+      const changeHistories = await this.employeeChangeHistoryService.getAllRecentChangeHistory(5);
+      console.log(`[alerts-dashboard] 取得した変更履歴数: ${changeHistories.length}`);
+
+      for (const history of changeHistories) {
+        // アラートIDを生成（一意性を確保）
+        const alertId = history.id || `${history.employeeId}_${history.changeType}_${history.changeDate}`;
+        console.log(`[alerts-dashboard] 変更履歴を処理: ID=${alertId}, 従業員ID=${history.employeeId}, 変更種別=${history.changeType}, 変更日=${history.changeDate}`);
+        
+        // 削除済みアラートはスキップ
+        if (deletedAlertIds.has(alertId)) {
+          console.log(`[alerts-dashboard] 削除済みアラートのためスキップ: ${alertId}`);
+          continue;
+        }
+
+        const changeDate = new Date(history.changeDate);
+        changeDate.setHours(0, 0, 0, 0);
+
+        // 提出期限 = 変更日から5日後
+        const submitDeadline = new Date(changeDate);
+        submitDeadline.setDate(submitDeadline.getDate() + 5);
+
+        // 提出期限までの日数を計算
+        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+        // 従業員名を取得
+        const employee = this.employees.find(emp => emp.id === history.employeeId);
+        const employeeName = employee?.name || '不明';
+
+        // 変更詳細を生成
+        let details = '';
+        if (history.changeType === '氏名変更') {
+          details = `${history.oldValue} → ${history.newValue}`;
+        } else if (history.changeType === '住所変更') {
+          details = `${history.oldValue} → ${history.newValue}`;
+        } else if (history.changeType === '生年月日訂正') {
+          details = `${history.oldValue} → ${history.newValue}`;
+        } else if (history.changeType === '性別変更') {
+          details = `${history.oldValue} → ${history.newValue}`;
+        } else if (history.changeType === '所属事業所変更') {
+          details = `${history.oldValue} → ${history.newValue}`;
+        } else if (history.changeType === '適用区分変更') {
+          details = `${history.oldValue} → ${history.newValue}`;
+        }
+
+        // 既に同じアラートが存在するかチェック（重複を防ぐ）
+        const existingAlert = this.qualificationChangeAlerts.find(
+          alert => alert.id === alertId || 
+          (alert.employeeId === history.employeeId && 
+           alert.changeType === history.changeType && 
+           alert.changeDate.getTime() === changeDate.getTime())
+        );
+        
+        if (!existingAlert) {
+          console.log(`[alerts-dashboard] 新しいアラートを追加: ${alertId}, 従業員=${employeeName}`);
+          this.qualificationChangeAlerts.push({
+            id: alertId,
+            employeeId: history.employeeId,
+            employeeName: employeeName,
+            changeType: history.changeType,
+            notificationNames: history.notificationNames,
+            changeDate: changeDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: details,
+          });
+        } else {
+          console.log(`[alerts-dashboard] 既存のアラートのためスキップ: ${alertId}`);
+        }
+      }
+
+      // 変更日でソート（新しい順）
+      this.qualificationChangeAlerts.sort((a, b) => {
+        return b.changeDate.getTime() - a.changeDate.getTime();
+      });
+    } catch (error) {
+      console.error('[alerts-dashboard] loadQualificationChangeAlertsエラー:', error);
+    }
+  }
+
+  // 資格変更アラートの選択管理
+  toggleQualificationChangeAlertSelection(alertId: string): void {
+    if (this.selectedQualificationChangeAlertIds.has(alertId)) {
+      this.selectedQualificationChangeAlertIds.delete(alertId);
+    } else {
+      this.selectedQualificationChangeAlertIds.add(alertId);
+    }
+  }
+
+  toggleAllQualificationChangeAlerts(checked: boolean): void {
+    if (checked) {
+      this.qualificationChangeAlerts.forEach(alert => {
+        this.selectedQualificationChangeAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedQualificationChangeAlertIds.clear();
+    }
+  }
+
+  toggleAllQualificationChangeAlertsChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.toggleAllQualificationChangeAlerts(target.checked);
+  }
+
+  isQualificationChangeAlertSelected(alertId: string): boolean {
+    return this.selectedQualificationChangeAlertIds.has(alertId);
+  }
+
+  // 資格変更アラートの削除
+  async deleteSelectedQualificationChangeAlerts(): Promise<void> {
+    const selectedIds = Array.from(this.selectedQualificationChangeAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の資格変更アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Firestoreに削除済みとしてマーク
+    for (const alertId of selectedIds) {
+      await this.qualificationChangeAlertService.markAsDeleted(alertId);
+    }
+
+    // 選択されたアラートを配列から削除
+    this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedQualificationChangeAlertIds.clear();
   }
 }
 
