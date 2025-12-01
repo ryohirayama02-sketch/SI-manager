@@ -17,6 +17,7 @@ export class SalaryInputSectionComponent {
   @Input() salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
   @Input() rehabHighlightMonths: { [employeeId: string]: number[] } = {};
   @Input() exemptMonths: { [employeeId: string]: number[] } = {};
+  @Input() exemptReasons: { [key: string]: string } = {};
 
   @Output() salaryItemChange = new EventEmitter<{
     employeeId: string;
@@ -97,6 +98,18 @@ export class SalaryInputSectionComponent {
 
   isExemptMonth(empId: string, month: number): boolean {
     return this.exemptMonths[empId]?.includes(month) ?? false;
+  }
+
+  getExemptLabel(empId: string, month: number): string {
+    const key = `${empId}_${month}`;
+    const reason = this.exemptReasons[key] || '';
+    // 理由から「産休中」「育休中」を判定
+    if (reason.includes('産前産後休業')) {
+      return '産休中';
+    } else if (reason.includes('育児休業')) {
+      return '育休中';
+    }
+    return '免除中'; // フォールバック
   }
 }
 

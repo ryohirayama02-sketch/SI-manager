@@ -1141,6 +1141,17 @@ export class SalaryCalculationService {
     return exemptResult.exempt === true;
   }
 
+  /**
+   * 指定年月の免除理由を取得（産休・育休・休職）
+   * @param emp 従業員情報
+   * @param year 年度
+   * @param month 月（1-12）
+   * @returns 免除結果（理由を含む）
+   */
+  getExemptReasonForMonth(emp: Employee, year: number, month: number): { exempt: boolean; reason: string } {
+    return this.maternityLeaveService.isExemptForSalary(year, month, emp);
+  }
+
   async calculateMonthlyPremiums(
     employee: Employee,
     year: number,

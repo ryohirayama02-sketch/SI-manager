@@ -43,6 +43,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   eligibilitySubscription: Subscription | null = null;
   // 免除月情報（従業員IDをキーとする）
   exemptMonths: { [employeeId: string]: number[] } = {};
+  // 免除理由情報（従業員ID_月をキーとする）
+  exemptReasons: { [key: string]: string } = {};
 
   constructor(
     private employeeService: EmployeeService,
@@ -101,23 +103,39 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
   buildExemptMonths(): void {
     this.exemptMonths = {};
+    this.exemptReasons = {};
     for (const emp of this.employees) {
       this.exemptMonths[emp.id] = [];
 
       for (const month of this.months) {
         // 各月の免除判定（Service層のメソッドを使用）
-        const isExempt = this.salaryCalculationService.isExemptMonth(
+        const exemptResult = this.salaryCalculationService.getExemptReasonForMonth(
           emp,
           this.year,
           month
         );
-        if (isExempt) {
+        if (exemptResult.exempt) {
           if (!this.exemptMonths[emp.id].includes(month)) {
             this.exemptMonths[emp.id].push(month);
           }
+          // 免除理由を保存
+          const key = `${emp.id}_${month}`;
+          this.exemptReasons[key] = exemptResult.reason;
         }
       }
     }
+  }
+  
+  getExemptReason(employeeId: string, month: number): string {
+    const key = `${employeeId}_${month}`;
+    const reason = this.exemptReasons[key] || '';
+    // 理由から「産休中」「育休中」を判定
+    if (reason.includes('産前産後休業')) {
+      return '産休中';
+    } else if (reason.includes('育児休業')) {
+      return '育休中';
+    }
+    return '免除中'; // フォールバック
   }
 
   async loadExistingBonuses(): Promise<void> {
