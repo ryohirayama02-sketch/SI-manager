@@ -49,11 +49,11 @@ export class SalaryCsvImportComponent {
 
   getCsvPlaceholder(): string {
     if (this.salaryItems.length === 0) {
-      return '月,従業員,支払基礎日数,基本給,住宅手当,残業手当\n1,若林,31,300000,30000,20000\n1,福本,31,200000,30000,20000';
+      return '月,従業員,支払基礎日数,基本給,住宅手当,残業手当\n1,若林,20,300000,30000,20000\n1,福本,20,200000,30000,20000';
     }
     const header = '月,従業員,支払基礎日数,' + this.salaryItems.map(item => item.name).join(',');
-    const example = '1,若林,31,' + this.salaryItems.map(() => '300000').join(',');
-    return `${header}\n${example}\n1,福本,31,${this.salaryItems.map(() => '200000').join(',')}`;
+    const example = '1,若林,20,' + this.salaryItems.map(() => '300000').join(',');
+    return `${header}\n${example}\n1,福本,20,${this.salaryItems.map(() => '200000').join(',')}`;
   }
 }
 
