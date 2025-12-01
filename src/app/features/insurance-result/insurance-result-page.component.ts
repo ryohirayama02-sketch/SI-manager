@@ -569,12 +569,20 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     // 該当年度の賞与を支給月順にソートして返す
     return bonuses
       .filter(b => {
-        if (!b.payDate) return false;
-        const payDateObj = new Date(b.payDate);
-        return payDateObj.getFullYear() === this.year;
+        // bonus.yearフィールドを優先的に使用（賞与入力画面で設定される）
+        if (b.year !== undefined && b.year !== null) {
+          return b.year === this.year;
+        }
+        // フォールバック: payDateから年度を判定
+        if (b.payDate) {
+          const payDateObj = new Date(b.payDate);
+          return payDateObj.getFullYear() === this.year;
+        }
+        return false;
       })
       .sort((a, b) => {
-        const monthA = a.month || (b.payDate ? new Date(a.payDate).getMonth() + 1 : 0);
+        // monthフィールドを優先的に使用
+        const monthA = a.month || (a.payDate ? new Date(a.payDate).getMonth() + 1 : 0);
         const monthB = b.month || (b.payDate ? new Date(b.payDate).getMonth() + 1 : 0);
         return monthA - monthB;
       });

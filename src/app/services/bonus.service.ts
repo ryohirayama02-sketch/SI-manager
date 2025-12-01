@@ -12,7 +12,7 @@ import {
   updateDoc,
   deleteDoc,
 } from '@angular/fire/firestore';
-import { Timestamp, serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 import { Bonus } from '../models/bonus.model';
 
 @Injectable({ providedIn: 'root' })
@@ -105,16 +105,61 @@ export class BonusService {
     const ref = collection(this.firestore, path);
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
+    
+    // payDateでフィルタリング（パス構造で年度は既に分離されているが、念のため）
     const q = query(
       ref,
       where('payDate', '>=', startDate),
       where('payDate', '<=', endDate)
     );
+    
     const snapshot = await getDocs(q);
-    const bonuses = snapshot.docs.map(
+    let bonuses = snapshot.docs.map(
       (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
     );
+    
+    // yearフィールドでもフィルタリング（データの整合性を保つため）
+    bonuses = bonuses.filter(bonus => {
+      // yearフィールドを優先的に使用
+      if (bonus.year !== undefined && bonus.year !== null) {
+        return bonus.year === year;
+      }
+      // フォールバック: payDateから年度を判定
+      if (bonus.payDate) {
+        const payDateObj = new Date(bonus.payDate);
+        return payDateObj.getFullYear() === year;
+      }
+      return false;
+    });
+    
+    // yearフィールドがない場合は、payDateから設定（データの整合性を保つため）
+    bonuses.forEach(bonus => {
+      if (!bonus.year && bonus.payDate) {
+        const payDateObj = new Date(bonus.payDate);
+        bonus.year = payDateObj.getFullYear();
+      }
+    });
+    
     console.log(`[bonus.service] 取得した賞与データ:`, bonuses);
+    // デバッグ用：各賞与データの詳細をログ出力
+    bonuses.forEach((bonus, index) => {
+      console.log(`[bonus.service] 賞与データ[${index}]:`, {
+        id: bonus.id,
+        employeeId: bonus.employeeId,
+        year: bonus.year,
+        month: bonus.month,
+        amount: bonus.amount,
+        payDate: bonus.payDate,
+        healthEmployee: bonus.healthEmployee,
+        healthEmployer: bonus.healthEmployer,
+        careEmployee: bonus.careEmployee,
+        careEmployer: bonus.careEmployer,
+        pensionEmployee: bonus.pensionEmployee,
+        pensionEmployer: bonus.pensionEmployer,
+        isExempted: bonus.isExempted,
+        isSalaryInsteadOfBonus: bonus.isSalaryInsteadOfBonus
+      });
+    });
     return bonuses;
   }
 
@@ -131,20 +176,93 @@ export class BonusService {
     );
     const ref = doc(this.firestore, path);
 
-    // undefinedのフィールドを削除（Firestoreはundefinedを保存できない）
+    // undefinedのフィールドを削除し、createdAtを除外（後で正しく処理した値を追加するため）
     const cleanedData: any = {};
+    let rawCreatedAt: any = undefined;
     for (const [key, value] of Object.entries(data)) {
+      // createdAtは別途処理するため除外
+      if (key === 'createdAt') {
+        rawCreatedAt = value;
+        continue;
+      }
       if (value !== undefined) {
         cleanedData[key] = value;
       }
     }
 
+    // createdAtの処理：既存データがある場合は保持、ない場合は新規作成として現在時刻を使用
+    // @angular/fireを使用している場合、Dateオブジェクトをそのまま保存するとFirestoreが自動的にTimestampに変換する
+    let createdAtValue: any;
+    console.log(`[bonus.service] createdAt処理開始:`, { 
+      rawCreatedAt, 
+      type: typeof rawCreatedAt, 
+      isDate: rawCreatedAt instanceof Date,
+      hasToDate: rawCreatedAt && typeof rawCreatedAt === 'object' && 'toDate' in rawCreatedAt,
+      constructor: rawCreatedAt?.constructor?.name
+    });
+    
+    if (rawCreatedAt) {
+      try {
+        // FirestoreのTimestampオブジェクトかどうかを判定（toDateメソッドの存在で判定）
+        if (rawCreatedAt && typeof rawCreatedAt === 'object' && 'toDate' in rawCreatedAt && typeof (rawCreatedAt as any).toDate === 'function') {
+          // FirestoreのTimestampオブジェクトの場合は、Dateに変換（@angular/fireではDateオブジェクトをそのまま保存）
+          const dateValue = (rawCreatedAt as any).toDate();
+          if (dateValue instanceof Date) {
+            createdAtValue = dateValue;
+            console.log(`[bonus.service] Firestore TimestampをDateに変換:`, { dateValue });
+          } else {
+            console.warn(`[bonus.service] toDate()の戻り値がDateではないため、現在時刻を使用:`, dateValue);
+            createdAtValue = new Date();
+          }
+        } else if (rawCreatedAt instanceof Date) {
+          // Dateオブジェクトの場合はそのまま使用
+          createdAtValue = rawCreatedAt;
+          console.log(`[bonus.service] Dateオブジェクトをそのまま使用:`, { createdAtValue });
+        } else if (rawCreatedAt && typeof rawCreatedAt === 'object' && 'seconds' in rawCreatedAt && 'nanoseconds' in rawCreatedAt) {
+          // Timestamp形式のオブジェクト（seconds/nanosecondsプロパティがある場合）
+          // Dateに変換
+          try {
+            const seconds = (rawCreatedAt as any).seconds;
+            createdAtValue = new Date(seconds * 1000);
+            console.log(`[bonus.service] seconds/nanosecondsからDateを作成:`, { seconds, createdAtValue });
+          } catch (error) {
+            console.warn(`[bonus.service] Date作成エラー:`, error);
+            createdAtValue = new Date();
+          }
+        } else {
+          // その他の場合は現在時刻を使用（安全のため）
+          console.warn(`[bonus.service] createdAtが不明な型のため、現在時刻を使用:`, rawCreatedAt);
+          createdAtValue = new Date();
+        }
+      } catch (error) {
+        // エラーが発生した場合は現在時刻を使用
+        console.warn(`[bonus.service] createdAtの変換エラー:`, error, rawCreatedAt);
+        createdAtValue = new Date();
+      }
+    } else {
+      // 新規作成の場合は、既存データがあるかどうかで判定
+      // 既存データがない場合はserverTimestamp()を使用（サーバー側でタイムスタンプを生成）
+      // 既存データがある場合は既存のcreatedAtを使用（上記の処理で変換済み）
+      createdAtValue = undefined; // undefinedにすると、後でserverTimestamp()を使用するか、new Date()を使用する
+      console.log(`[bonus.service] createdAtが未設定のため、undefinedに設定（後で処理）`);
+    }
+    
+    // createdAtがundefinedの場合は、新規作成として現在時刻を使用
+    // ただし、上書き保存の場合は既存のcreatedAtを保持する必要があるため、undefinedのままにしておく
+    // 実際には、既存データがある場合は上記の処理でDateオブジェクトに変換されているはず
+    if (createdAtValue === undefined) {
+      // 新規作成の場合のみ現在時刻を使用
+      createdAtValue = new Date();
+      console.log(`[bonus.service] createdAtがundefinedのため、現在時刻を使用`);
+    }
+
     const bonusData = {
       ...cleanedData,
       year, // パラメータのyearを使用（保存先のパスと一致させる）
-      createdAt: data.createdAt || Timestamp.now(),
+      createdAt: createdAtValue, // 正しく処理したcreatedAtを追加
     };
     console.log(`[bonus.service] 保存データ:`, bonusData);
+    console.log(`[bonus.service] createdAtの最終値:`, { createdAtValue, type: typeof createdAtValue, isDate: createdAtValue instanceof Date });
     await setDoc(ref, bonusData, { merge: true });
   }
 
@@ -155,12 +273,21 @@ export class BonusService {
    * @returns 賞与データの配列
    */
   async loadBonus(year: number, employeeId?: string): Promise<Bonus[]> {
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    
     if (employeeId) {
       const ref = collection(
         this.firestore,
         `bonus/${year}/employees/${employeeId}/items`
       );
-      const snapshot = await getDocs(ref);
+      // payDateでフィルタリング（getBonusesForResultと同様のロジック）
+      const q = query(
+        ref,
+        where('payDate', '>=', startDate),
+        where('payDate', '<=', endDate)
+      );
+      const snapshot = await getDocs(q);
       return snapshot.docs.map(
         (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
       );
@@ -177,7 +304,13 @@ export class BonusService {
           this.firestore,
           `bonus/${year}/employees/${empDoc.id}/items`
         );
-        const itemsSnapshot = await getDocs(itemsRef);
+        // payDateでフィルタリング（getBonusesForResultと同様のロジック）
+        const q = query(
+          itemsRef,
+          where('payDate', '>=', startDate),
+          where('payDate', '<=', endDate)
+        );
+        const itemsSnapshot = await getDocs(q);
         allBonuses.push(
           ...itemsSnapshot.docs.map(
             (doc) => ({ id: doc.id, ...doc.data() } as Bonus)

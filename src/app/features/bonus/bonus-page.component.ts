@@ -91,26 +91,36 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   }
 
   async loadExistingBonuses(): Promise<void> {
-    // 既存の賞与データをクリア
+    // 月次給与入力画面と同じパターン：各従業員ごとにループしてデータを取得
     for (const emp of this.employees) {
-      for (const month of this.months) {
-        const key = this.getBonusKey(emp.id, month);
-        this.bonusData[key] = 0;
+      // 各従業員の賞与データを取得
+      const bonuses = await this.bonusService.loadBonus(this.year, emp.id);
+      console.log(`[bonus-page] 既存賞与データ読み込み: 年度=${this.year}, 従業員ID=${emp.id}, 件数=${bonuses.length}`, bonuses);
+      
+      for (const bonus of bonuses) {
+        // monthが文字列の場合は数値に変換
+        const month = typeof bonus.month === 'string' ? parseInt(bonus.month, 10) : bonus.month;
+        if (isNaN(month) || month < 1 || month > 12) {
+          console.warn(`[bonus-page] 不正なmonth値:`, bonus);
+          continue;
+        }
+        
+        const key = this.getBonusKey(bonus.employeeId, month);
+        // 月次給与入力画面と同じように、直接プロパティを更新
+        this.bonusData[key] = bonus.amount || 0;
+        console.log(`[bonus-page] 賞与データ設定: 従業員ID=${bonus.employeeId}, 月=${month}, 金額=${bonus.amount}, キー=${key}`);
       }
     }
-
-    // 既存の賞与データを読み込む
-    const bonuses = await this.bonusService.loadBonus(this.year);
-    for (const bonus of bonuses) {
-      const key = this.getBonusKey(bonus.employeeId, bonus.month);
-      this.bonusData[key] = bonus.amount || 0;
-    }
+    
+    console.log(`[bonus-page] 読み込み完了: bonusData=`, this.bonusData);
   }
 
   async onBonusChange(event: { employeeId: string; month: number; value: number }): Promise<void> {
     const { employeeId, month, value } = event;
     const key = this.getBonusKey(employeeId, month);
+    // 月次給与入力画面と同じように、直接プロパティを更新
     this.bonusData[key] = value;
+    console.log(`[bonus-page] 賞与変更: 従業員ID=${employeeId}, 月=${month}, 金額=${value}, キー=${key}`);
   }
 
   async saveAllBonuses(): Promise<void> {
@@ -123,6 +133,10 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           // 賞与額が入力されている場合のみ保存
           const employee = this.employees.find(e => e.id === emp.id);
           if (!employee) continue;
+
+          // 既存の賞与データを取得（createdAtを保持するため）
+          const existingBonuses = await this.bonusService.getBonusesByYear(emp.id, this.year);
+          const existingBonus = existingBonuses.find(b => b.month === month);
 
           const paymentDate = `${this.year}-${String(month).padStart(2, '0')}-01`;
 
@@ -140,14 +154,34 @@ export class BonusPageComponent implements OnInit, OnDestroy {
             continue;
           }
 
-          // Bonusオブジェクトを作成
+          // Bonusオブジェクトを作成（既存データがある場合はcreatedAtを保持）
+          // createdAtはFirestoreのTimestampオブジェクトの可能性があるため、Dateに変換するかundefinedにしてsaveBonusで処理させる
+          let createdAtValue: any = undefined;
+          if (existingBonus?.createdAt) {
+            try {
+              // FirestoreのTimestampオブジェクトかどうかを判定
+              if (existingBonus.createdAt && typeof existingBonus.createdAt === 'object' && 'toDate' in existingBonus.createdAt && typeof (existingBonus.createdAt as any).toDate === 'function') {
+                // FirestoreのTimestampオブジェクトの場合はDateに変換
+                createdAtValue = (existingBonus.createdAt as any).toDate();
+              } else if (existingBonus.createdAt instanceof Date) {
+                // Dateオブジェクトの場合はそのまま使用
+                createdAtValue = existingBonus.createdAt;
+              }
+              // その他の場合はundefinedにしてsaveBonusで処理させる
+            } catch (error) {
+              console.warn(`[bonus-page] createdAtの変換エラー:`, error);
+              // エラーが発生した場合はundefinedにしてsaveBonusで処理させる
+            }
+          }
+          
           const bonus: Bonus = {
             employeeId: emp.id,
             year: this.year,
             month: month,
             amount: amount,
             payDate: paymentDate,
-            createdAt: new Date(),
+            // 既存データがある場合はcreatedAtを保持、ない場合はundefinedにしてsaveBonusで処理させる
+            createdAt: createdAtValue,
             isExempt: calculationResult.isExempted || false,
             cappedHealth: calculationResult.cappedBonusHealth || 0,
             cappedPension: calculationResult.cappedBonusPension || 0,
