@@ -160,7 +160,6 @@
               <th>6月給与</th>
               <th>6月支払基礎日数</th>
               <th>平均額</th>
-              <th>算定除外月</th>
               <th>算定除外月候補</th>
               <th>等級</th>
               <th>標準報酬月額</th>
@@ -191,12 +190,6 @@
               </td>
               <td>{{ result.juneWorkingDays }}日</td>
               <td><strong>{{ result.averageSalary | number:'1.0-0' }}円</strong></td>
-              <td>
-                <span *ngIf="result.excludedMonths.length > 0" style="color: #d32f2f;">
-                  {{ result.excludedMonths.join(', ') }}月
-                </span>
-                <span *ngIf="result.excludedMonths.length === 0">-</span>
-              </td>
               <td>
                 <span *ngIf="result.exclusionCandidates.length > 0" style="color: #f57c00; font-weight: bold;">
                   ⚠️ {{ result.exclusionCandidates.join(', ') }}月
