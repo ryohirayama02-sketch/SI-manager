@@ -47,6 +47,15 @@ interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
 export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   activeTab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
   
+  // 届出スケジュール（カレンダー）関連
+  scheduleYear: number = this.getJSTDate().getFullYear();
+  scheduleMonth: number = this.getJSTDate().getMonth() + 1; // 1-12
+  scheduleData: {
+    [dateKey: string]: { // YYYY-MM-DD形式
+      [tabName: string]: number; // タブ名: 件数
+    }
+  } = {};
+  
   // 賞与支払届アラート関連
   bonusReportAlerts: {
     id: string;
@@ -196,8 +205,12 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadAgeAlerts();
     await this.loadQualificationChangeAlerts();
     await this.loadMaternityChildcareAlerts();
+    await this.loadBonusReportAlerts();
     // 算定決定データはタブがアクティブな場合のみ読み込む（初期化時は読み込まない）
     // await this.loadTeijiKetteiData();
+    
+    // 届出スケジュールデータを読み込み
+    await this.loadScheduleData();
     
     // 加入区分の変更を購読
     this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
@@ -1739,6 +1752,282 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     if (!payDateStr) return '-';
     const date = new Date(payDateStr);
     return this.formatDate(date);
+  }
+
+  /**
+   * 届出スケジュールデータを読み込む
+   */
+  async loadScheduleData(): Promise<void> {
+    this.scheduleData = {};
+    
+    // 定時決定データを読み込む（まだ読み込まれていない場合）
+    if (this.teijiKetteiResults.length === 0) {
+      await this.loadTeijiKetteiData();
+    }
+    
+    // 賞与支払届アラート
+    for (const alert of this.bonusReportAlerts) {
+      const dateKey = this.formatDateKey(alert.submitDeadline);
+      if (!this.scheduleData[dateKey]) {
+        this.scheduleData[dateKey] = {};
+      }
+      if (!this.scheduleData[dateKey]['賞与支払届']) {
+        this.scheduleData[dateKey]['賞与支払届'] = 0;
+      }
+      this.scheduleData[dateKey]['賞与支払届']++;
+    }
+    
+    // 随時改定アラート
+    for (const alert of this.suijiAlerts) {
+      if (alert.isEligible && alert.applyStartMonth) {
+        const deadline = this.getSuijiReportDeadlineDate(alert);
+        if (deadline) {
+          const dateKey = this.formatDateKey(deadline);
+          if (!this.scheduleData[dateKey]) {
+            this.scheduleData[dateKey] = {};
+          }
+          if (!this.scheduleData[dateKey]['随時改定アラート']) {
+            this.scheduleData[dateKey]['随時改定アラート'] = 0;
+          }
+          this.scheduleData[dateKey]['随時改定アラート']++;
+        }
+      }
+    }
+    
+    // 定時決定（算定基礎届）- 7月10日
+    const currentYear = this.getJSTDate().getFullYear();
+    const teijiDeadline = new Date(currentYear, 6, 10); // 7月10日
+    const teijiDateKey = this.formatDateKey(teijiDeadline);
+    if (!this.scheduleData[teijiDateKey]) {
+      this.scheduleData[teijiDateKey] = {};
+    }
+    if (this.teijiKetteiResults.length > 0) {
+      this.scheduleData[teijiDateKey]['定時決定（算定基礎届）'] = this.teijiKetteiResults.length;
+    }
+    
+    // 年齢到達アラート
+    for (const alert of this.ageAlerts) {
+      const dateKey = this.formatDateKey(alert.submitDeadline);
+      if (!this.scheduleData[dateKey]) {
+        this.scheduleData[dateKey] = {};
+      }
+      if (!this.scheduleData[dateKey]['年齢到達・資格変更']) {
+        this.scheduleData[dateKey]['年齢到達・資格変更'] = 0;
+      }
+      this.scheduleData[dateKey]['年齢到達・資格変更']++;
+    }
+    
+    // 資格変更アラート
+    for (const alert of this.qualificationChangeAlerts) {
+      const dateKey = this.formatDateKey(alert.submitDeadline);
+      if (!this.scheduleData[dateKey]) {
+        this.scheduleData[dateKey] = {};
+      }
+      if (!this.scheduleData[dateKey]['年齢到達・資格変更']) {
+        this.scheduleData[dateKey]['年齢到達・資格変更'] = 0;
+      }
+      this.scheduleData[dateKey]['年齢到達・資格変更']++;
+    }
+    
+    // 産休・育休アラート
+    for (const alert of this.maternityChildcareAlerts) {
+      const dateKey = this.formatDateKey(alert.submitDeadline);
+      if (!this.scheduleData[dateKey]) {
+        this.scheduleData[dateKey] = {};
+      }
+      if (!this.scheduleData[dateKey]['産休・育休・休職']) {
+        this.scheduleData[dateKey]['産休・育休・休職'] = 0;
+      }
+      this.scheduleData[dateKey]['産休・育休・休職']++;
+    }
+    
+    // 扶養アラート
+    for (const alert of this.supportAlerts) {
+      if (alert.submitDeadline) {
+        const dateKey = this.formatDateKey(alert.submitDeadline);
+        if (!this.scheduleData[dateKey]) {
+          this.scheduleData[dateKey] = {};
+        }
+        if (!this.scheduleData[dateKey]['扶養・氏名・住所変更']) {
+          this.scheduleData[dateKey]['扶養・氏名・住所変更'] = 0;
+        }
+        this.scheduleData[dateKey]['扶養・氏名・住所変更']++;
+      }
+    }
+  }
+
+  /**
+   * 日付をYYYY-MM-DD形式のキーに変換
+   */
+  formatDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
+   * 随時改定の届出提出期日をDateオブジェクトで取得
+   */
+  getSuijiReportDeadlineDate(alert: SuijiKouhoResultWithDiff): Date | null {
+    if (!alert.applyStartMonth) {
+      return null;
+    }
+    
+    const year = alert.year || this.getJSTDate().getFullYear();
+    const applyStartMonth = alert.applyStartMonth;
+    
+    // 適用開始月の前月を計算
+    let deadlineMonth = applyStartMonth - 1;
+    let deadlineYear = year;
+    
+    // 1月の場合は前年の12月
+    if (deadlineMonth < 1) {
+      deadlineMonth = 12;
+      deadlineYear = year - 1;
+    }
+    
+    // 前月の月末日を取得
+    const deadlineDate = new Date(deadlineYear, deadlineMonth, 0); // 0日目 = 前月の最終日
+    
+    return deadlineDate;
+  }
+
+  /**
+   * タブの色を取得
+   */
+  getTabColor(tabId: string): string {
+    const colorMap: { [key: string]: string } = {
+      'schedule': '#6c757d',      // グレー
+      'bonus': '#007bff',          // 青
+      'suiji': '#28a745',          // 緑
+      'teiji': '#ffc107',          // 黄色
+      'age': '#dc3545',            // 赤
+      'leave': '#17a2b8',          // シアン
+      'family': '#6f42c1'          // 紫
+    };
+    return colorMap[tabId] || '#6c757d';
+  }
+
+  /**
+   * カレンダーの日付に表示するスケジュール項目を取得（最大6件）
+   */
+  getScheduleItemsForDate(date: Date): { tabName: string; count: number; tabId: string; color: string }[] {
+    const dateKey = this.formatDateKey(date);
+    const items = this.scheduleData[dateKey];
+    if (!items) {
+      return [];
+    }
+    
+    // タブ名とタブIDのマッピング
+    const tabMapping: { [key: string]: string } = {
+      '賞与支払届': 'bonus',
+      '随時改定アラート': 'suiji',
+      '定時決定（算定基礎届）': 'teiji',
+      '年齢到達・資格変更': 'age',
+      '産休・育休・休職': 'leave',
+      '扶養・氏名・住所変更': 'family'
+    };
+    
+    const result: { tabName: string; count: number; tabId: string; color: string }[] = [];
+    for (const [tabName, count] of Object.entries(items)) {
+      const tabId = tabMapping[tabName] || '';
+      if (tabId) {
+        result.push({ 
+          tabName, 
+          count, 
+          tabId,
+          color: this.getTabColor(tabId)
+        });
+      }
+    }
+    
+    // 最大6件まで
+    return result.slice(0, 6);
+  }
+
+  /**
+   * カレンダーの月を変更
+   */
+  changeScheduleMonth(delta: number): void {
+    this.scheduleMonth += delta;
+    if (this.scheduleMonth > 12) {
+      this.scheduleMonth = 1;
+      this.scheduleYear++;
+    } else if (this.scheduleMonth < 1) {
+      this.scheduleMonth = 12;
+      this.scheduleYear--;
+    }
+  }
+
+  /**
+   * カレンダーの日付をクリックしたときの処理
+   */
+  onScheduleDateClick(tabId: string): void {
+    this.setActiveTab(tabId as any);
+  }
+
+  /**
+   * カレンダーの日付が現在の月かどうか
+   */
+  isCurrentMonth(date: Date): boolean {
+    return date.getFullYear() === this.scheduleYear && date.getMonth() + 1 === this.scheduleMonth;
+  }
+
+  /**
+   * カレンダーの日付が今日かどうか
+   */
+  isToday(date: Date): boolean {
+    const today = this.getJSTDate();
+    return date.getFullYear() === today.getFullYear() &&
+           date.getMonth() === today.getMonth() &&
+           date.getDate() === today.getDate();
+  }
+
+  /**
+   * カレンダーの日付配列を生成
+   */
+  getCalendarDays(): Date[] {
+    const firstDay = new Date(this.scheduleYear, this.scheduleMonth - 1, 1);
+    const lastDay = new Date(this.scheduleYear, this.scheduleMonth, 0);
+    const daysInMonth = lastDay.getDate();
+    const startDayOfWeek = firstDay.getDay(); // 0 (日) から 6 (土)
+    
+    const days: Date[] = [];
+    
+    // 前月の日付を追加（カレンダーの最初の週を埋める）
+    const prevMonth = this.scheduleMonth - 1;
+    const prevYear = prevMonth < 1 ? this.scheduleYear - 1 : this.scheduleYear;
+    const prevMonthLastDay = new Date(prevYear, prevMonth, 0).getDate();
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      days.push(new Date(prevYear, prevMonth - 1, prevMonthLastDay - i));
+    }
+    
+    // 今月の日付を追加
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(this.scheduleYear, this.scheduleMonth - 1, day));
+    }
+    
+    // 次月の日付を追加（カレンダーの最後の週を埋める）
+    const totalDays = days.length;
+    const remainingDays = 42 - totalDays; // 6週間 × 7日 = 42日
+    for (let day = 1; day <= remainingDays; day++) {
+      days.push(new Date(this.scheduleYear, this.scheduleMonth, day));
+    }
+    
+    return days;
+  }
+
+  /**
+   * カレンダーの日付を週ごとに分割
+   */
+  getCalendarWeeks(): Date[][] {
+    const days = this.getCalendarDays();
+    const weeks: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) {
+      weeks.push(days.slice(i, i + 7));
+    }
+    return weeks;
   }
 }
 
