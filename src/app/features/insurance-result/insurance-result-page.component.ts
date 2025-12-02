@@ -5,10 +5,8 @@ import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../services/employee.service';
 import { BonusService } from '../../services/bonus.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
-import { InsuranceCalculationService } from '../../services/insurance-calculation.service';
 import { SalaryCalculationService } from '../../services/salary-calculation.service';
 import { SettingsService } from '../../services/settings.service';
-import { EmployeeLifecycleService } from '../../services/employee-lifecycle.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
@@ -71,6 +69,9 @@ interface EmployeeInsuranceData {
 })
 export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
+  sortedEmployees: Employee[] = []; // 50音順でソートされた従業員リスト
+  selectedEmployeeIds: Set<string> = new Set(); // 選択された従業員IDのセット
+  cachedSelectedEmployeeIdsArray: string[] = []; // 選択された従業員IDの配列（キャッシュ）
   year: number = new Date().getFullYear();
   selectedMonth: number | 'all' | string = 'all';
   availableYears: number[] = [];
@@ -82,15 +83,41 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   eligibilitySubscription: Subscription | null = null;
   // 各従業員の展開状態を管理
   expandedEmployees: { [employeeId: string]: boolean } = {};
+  // 読み込み状態
+  isLoadingInsuranceData: boolean = false;
+  // キャッシュ用プロパティ
+  cachedTableRows: Array<{
+    employee: Employee;
+    monthlyPremium: MonthlyPremiumData | null;
+    bonusPremium: Bonus | null;
+    monthlyTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+    bonusTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+  }> = [];
+  cachedSelectedEmployees: Employee[] = [];
+  cachedHasBonus: boolean = false;
 
   constructor(
     private employeeService: EmployeeService,
     private bonusService: BonusService,
     private monthlySalaryService: MonthlySalaryService,
-    private insuranceCalculationService: InsuranceCalculationService,
     private salaryCalculationService: SalaryCalculationService,
     private settingsService: SettingsService,
-    private employeeLifecycleService: EmployeeLifecycleService,
     private employeeEligibilityService: EmployeeEligibilityService
   ) {
     // 年度選択用の年度リストを生成（現在年度±2年）
@@ -100,17 +127,179 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  async ngOnInit(): Promise<void> {
-    const employeesData = await this.employeeService.getAllEmployees();
-    this.employees = employeesData || [];
-    if (this.employees.length > 0) {
-      await this.loadInsuranceData();
+  ngOnInit(): void {
+    // 加入区分の変更を購読（先に設定してUIブロックを防ぐ）
+    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
+      // 加入区分変更時は、既に表示されているデータがあれば再読み込み
+      if (this.selectedEmployeeIds.size > 0) {
+        this.loadSelectedEmployeesData();
+      }
+    });
+
+    // 従業員リストの取得とソートを非同期で実行（UIブロックを防ぐ）
+    // Promise.then()を使うことで、ngOnInitがすぐに完了し、UIがブロックされない
+    this.employeeService.getAllEmployees()
+      .then(employeesData => {
+        this.employees = employeesData || [];
+        // ソート処理を次のイベントループに回す（UIの応答性を保つ）
+        setTimeout(() => {
+          this.sortedEmployees = this.sortEmployeesByName(this.employees);
+        }, 0);
+      })
+      .catch(error => {
+        console.error('従業員データの取得エラー:', error);
+        this.employees = [];
+        this.sortedEmployees = [];
+      });
+  }
+
+  /**
+   * 従業員を名前（カナ）で50音順にソート（簡略版）
+   * 50音 → アルファベット → 数字の順
+   */
+  sortEmployeesByName(employees: Employee[]): Employee[] {
+    // 簡略化：localeCompareだけで十分な場合が多い
+    return [...employees].sort((a, b) => {
+      const nameA = (a as any).nameKana || a.name || '';
+      const nameB = (b as any).nameKana || b.name || '';
+      return nameA.localeCompare(nameB, 'ja');
+    });
+  }
+
+  /**
+   * 従業員の選択状態を変更（selectのchangeイベント用）
+   */
+  onEmployeeSelectionChange(selectedIds: string[]): void {
+    this.selectedEmployeeIds = new Set(selectedIds);
+    // キャッシュを更新
+    this.cachedSelectedEmployeeIdsArray = selectedIds;
+    this.cachedSelectedEmployees = this.calculateSelectedEmployees();
+    // 従業員選択が変更されたらデータをクリア（再読み込みは「結果表示」ボタンで）
+    this.clearInsuranceData();
+  }
+
+  /**
+   * チェックボックスの変更を処理
+   */
+  onEmployeeCheckboxChange(employeeId: string, checked: boolean): void {
+    if (checked) {
+      this.selectedEmployeeIds.add(employeeId);
+    } else {
+      this.selectedEmployeeIds.delete(employeeId);
+    }
+    // キャッシュを更新
+    this.cachedSelectedEmployeeIdsArray = Array.from(this.selectedEmployeeIds);
+    this.cachedSelectedEmployees = this.calculateSelectedEmployees();
+    // 従業員選択が変更されたらデータをクリア（再読み込みは「結果表示」ボタンで）
+    this.clearInsuranceData();
+  }
+
+  /**
+   * 従業員が選択されているかどうかを判定
+   */
+  isEmployeeSelected(employeeId: string): boolean {
+    return this.selectedEmployeeIds.has(employeeId);
+  }
+
+  /**
+   * 全選択/全解除
+   */
+  toggleSelectAll(): void {
+    if (this.selectedEmployeeIds.size === this.sortedEmployees.length) {
+      // 全解除
+      this.selectedEmployeeIds.clear();
+    } else {
+      // 全選択
+      this.selectedEmployeeIds = new Set(this.sortedEmployees.map(emp => emp.id));
+    }
+    // キャッシュを更新
+    this.cachedSelectedEmployeeIdsArray = Array.from(this.selectedEmployeeIds);
+    this.cachedSelectedEmployees = this.calculateSelectedEmployees();
+    // 従業員選択が変更されたらデータをクリア（再読み込みは「結果表示」ボタンで）
+    this.clearInsuranceData();
+  }
+
+  /**
+   * 全選択されているかどうかを判定
+   */
+  isAllSelected(): boolean {
+    return this.sortedEmployees.length > 0 && this.selectedEmployeeIds.size === this.sortedEmployees.length;
+  }
+
+  /**
+   * 結果表示ボタンクリック時：選択された従業員のデータだけを読み込む
+   */
+  async onShowResults(): Promise<void> {
+    if (this.selectedEmployeeIds.size === 0) {
+      alert('従業員を選択してください');
+      return;
+    }
+    await this.loadSelectedEmployeesData();
+  }
+
+  /**
+   * 選択された従業員のデータだけを読み込む
+   */
+  private async loadSelectedEmployeesData(): Promise<void> {
+    if (this.selectedEmployeeIds.size === 0) {
+      return;
     }
 
-    // 加入区分の変更を購読
-    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
-      this.reloadEligibility();
-    });
+    this.isLoadingInsuranceData = true;
+    
+    try {
+      // 標準報酬月額テーブルを取得
+      const gradeTable = await this.settingsService.getStandardTable(this.year);
+
+      // 選択された従業員だけを取得
+      const selectedEmployees = this.sortedEmployees.filter(emp => this.selectedEmployeeIds.has(emp.id));
+
+      // 選択された従業員をバッチ処理（一度に2人ずつ処理してUIの応答性を保つ）
+      const batchSize = 2;
+      for (let i = 0; i < selectedEmployees.length; i += batchSize) {
+        const batch = selectedEmployees.slice(i, i + batchSize);
+        
+        // バッチ内の従業員を並列処理
+        await Promise.all(batch.map(emp => this.processEmployeeInsuranceData(emp, gradeTable)));
+        
+        // UIの更新を許可するために少し待機
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      // キャッシュを更新
+      this.updateCachedData();
+    } finally {
+      this.isLoadingInsuranceData = false;
+    }
+  }
+
+  /**
+   * 選択された従業員IDの配列を取得（selectのngModel用・キャッシュ版）
+   */
+  getSelectedEmployeeIdsArray(): string[] {
+    return this.cachedSelectedEmployeeIdsArray;
+  }
+
+  /**
+   * trackBy関数（*ngForのパフォーマンス改善用）
+   */
+  trackByEmployeeId(index: number, employee: Employee): string {
+    return employee.id;
+  }
+
+
+  /**
+   * 選択された従業員のリストを取得（キャッシュ版）
+   */
+  getSelectedEmployees(): Employee[] {
+    return this.cachedSelectedEmployees;
+  }
+
+  /**
+   * 選択された従業員のリストを計算
+   */
+  private calculateSelectedEmployees(): Employee[] {
+    return this.sortedEmployees.filter(emp => this.selectedEmployeeIds.has(emp.id));
   }
 
   ngOnDestroy(): void {
@@ -118,21 +307,43 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   async reloadEligibility(): Promise<void> {
-    // 加入区分が変更された場合、保険料データを再計算
-    await this.loadInsuranceData();
+    // 加入区分が変更された場合、既に表示されているデータがあれば再読み込み
+    if (this.selectedEmployeeIds.size > 0) {
+      await this.loadSelectedEmployeesData();
+    }
   }
 
   async onYearChange(): Promise<void> {
-    // 年度変更時にデータを再読み込み
-    await this.loadInsuranceData();
+    // 年度変更時はデータをクリア（再読み込みは「結果表示」ボタンで）
+    this.clearInsuranceData();
   }
 
   onMonthChange(): void {
-    // 月変更時は再読み込み不要（フィルタリングのみ）
+    // 月変更時はデータをクリア（再読み込みは「結果表示」ボタンで）
     // selectedMonthを数値に変換（文字列の場合）
     if (this.selectedMonth !== 'all' && typeof this.selectedMonth === 'string') {
       this.selectedMonth = Number(this.selectedMonth);
     }
+    this.clearInsuranceData();
+  }
+
+  /**
+   * 保険料データをクリア
+   */
+  private clearInsuranceData(): void {
+    this.insuranceData = {};
+    this.bonusData = {};
+    this.errorMessages = {};
+    this.warningMessages = {};
+    this.cachedTableRows = [];
+    this.cachedHasBonus = false;
+  }
+
+  /**
+   * 保険料データが存在するかどうか（テンプレート用）
+   */
+  hasInsuranceData(): boolean {
+    return Object.keys(this.insuranceData).length > 0;
   }
 
   getMonthLabel(): string {
@@ -173,23 +384,26 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     return filtered.length > 0 ? filtered[0] : null;
   }
 
-  async loadInsuranceData(): Promise<void> {
-    if (!this.employees || this.employees.length === 0) {
-      return;
-    }
 
-    // 標準報酬月額テーブルを取得
-    const gradeTable = await this.settingsService.getStandardTable(this.year);
+  /**
+   * キャッシュされたデータを更新
+   */
+  private updateCachedData(): void {
+    this.cachedTableRows = this.calculateTableRows();
+    this.cachedSelectedEmployees = this.calculateSelectedEmployees();
+    this.cachedHasBonus = this.calculateHasBonus();
+  }
 
-    for (const emp of this.employees) {
-      try {
-        console.log(`[loadInsuranceData] 処理開始: ${emp.name} (ID: ${emp.id})`);
-        this.errorMessages[emp.id] = [];
-        this.warningMessages[emp.id] = [];
+  /**
+   * 個別の従業員の保険料データを処理
+   */
+  private async processEmployeeInsuranceData(emp: Employee, gradeTable: any[]): Promise<void> {
+    try {
+      this.errorMessages[emp.id] = [];
+      this.warningMessages[emp.id] = [];
 
-        // 月次給与データを取得
-        const monthlySalaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
-        console.log(`[loadInsuranceData] ${emp.name} の給与データ:`, monthlySalaryData);
+      // 月次給与データを取得
+      const monthlySalaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
       
       // 月次給与の保険料を計算
       const monthlyPremiums: MonthlyPremiumData[] = [];
@@ -231,31 +445,11 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             if (gradeRow) {
               grade = gradeRow.rank;
               standardMonthlyRemuneration = gradeRow.standard;
-            } else {
-              // reasonsから等級情報を抽出（フォールバック）
-              const gradeMatch = premiumResult.reasons.find(r => r.includes('等級'))?.match(/等級(\d+)/);
-              if (gradeMatch) {
-                grade = parseInt(gradeMatch[1], 10);
-              }
-              const standardMatch = premiumResult.reasons.find(r => r.includes('標準報酬月額'))?.match(/標準報酬月額([\d,]+)円/);
-              if (standardMatch) {
-                standardMonthlyRemuneration = parseInt(standardMatch[1].replace(/,/g, ''), 10);
-              }
             }
 
             // 免除判定（Service統一ロジックを使用）
             const isExempt = this.salaryCalculationService.isExemptMonth(emp, this.year, month);
-            // 免除理由はreasons配列から取得（Service層で設定済み）
-            const exemptReason = isExempt 
-              ? premiumResult.reasons.find(r => r.includes('産前産後休業') || r.includes('育児休業') || r.includes('免除')) || ''
-              : '';
-
-            // 料率取得失敗の警告を追加
-            if (premiumResult.reasons.some(r => r.includes('保険料率の取得に失敗しました'))) {
-              this.warningMessages[emp.id].push(
-                `${month}月：保険料率が設定されていません。設定画面で料率を設定してください。`
-              );
-            }
+            const exemptReason = isExempt ? '免除中' : '';
 
             const monthlyPremium: MonthlyPremiumData = {
               month,
@@ -272,7 +466,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                      premiumResult.pension_employee + premiumResult.pension_employer,
               isExempt,
               exemptReason,
-              reasons: premiumResult.reasons,
+              reasons: [],
             };
 
             monthlyPremiums.push(monthlyPremium);
@@ -293,11 +487,10 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                            monthlyTotal.pensionEmployee + monthlyTotal.pensionEmployer;
 
       // 賞与データを取得
-      console.log(`[insurance-result] 賞与取得: 年度=${this.year}, 従業員ID=${emp.id}`);
       const bonuses = await this.bonusService.getBonusesForResult(emp.id, this.year);
       this.bonusData[emp.id] = bonuses || [];
       const latestBonus = bonuses && bonuses.length > 0 
-        ? bonuses.sort((a, b) => new Date(b.payDate).getTime() - new Date(a.payDate).getTime())[0]
+        ? bonuses.sort((a, b) => new Date(b.payDate || '').getTime() - new Date(a.payDate || '').getTime())[0]
         : null;
 
       // 賞与の年間合計を計算（賞与額が0のものは除外）
@@ -349,56 +542,44 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         latestBonus,
         hasLeaveOfAbsence,
       };
-
-      console.log(`[loadInsuranceData] ${emp.name} の保険料データ設定完了:`, {
-        monthlyPremiumsCount: monthlyPremiums.length,
-        monthlyTotal: monthlyTotal.total,
-        grandTotal: grandTotal.total
-      });
-
-      // 年齢関連の矛盾チェック
-      this.validateAgeRelatedErrors(emp, grandTotal, this.insuranceData[emp.id]);
-      } catch (error) {
-        console.error(`従業員 ${emp.name} (ID: ${emp.id}) の保険料計算エラー:`, error);
-        this.errorMessages[emp.id] = [
-          ...(this.errorMessages[emp.id] || []),
-          `保険料の計算中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`
-        ];
-        
-        // エラーが発生しても空のデータを設定して表示できるようにする
-        this.insuranceData[emp.id] = {
-          monthlyPremiums: [],
-          monthlyTotal: {
-            healthEmployee: 0,
-            healthEmployer: 0,
-            careEmployee: 0,
-            careEmployer: 0,
-            pensionEmployee: 0,
-            pensionEmployer: 0,
-            total: 0,
-          },
-          bonusTotal: {
-            healthEmployee: 0,
-            healthEmployer: 0,
-            careEmployee: 0,
-            careEmployer: 0,
-            pensionEmployee: 0,
-            pensionEmployer: 0,
-            total: 0,
-          },
-          grandTotal: {
-            healthEmployee: 0,
-            healthEmployer: 0,
-            careEmployee: 0,
-            careEmployer: 0,
-            pensionEmployee: 0,
-            pensionEmployer: 0,
-            total: 0,
-          },
-          latestBonus: null,
-          hasLeaveOfAbsence: false,
-        };
-      }
+    } catch (error) {
+      this.errorMessages[emp.id] = [
+        `保険料の計算中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`
+      ];
+      
+      // エラーが発生しても空のデータを設定して表示できるようにする
+      this.insuranceData[emp.id] = {
+        monthlyPremiums: [],
+        monthlyTotal: {
+          healthEmployee: 0,
+          healthEmployer: 0,
+          careEmployee: 0,
+          careEmployer: 0,
+          pensionEmployee: 0,
+          pensionEmployer: 0,
+          total: 0,
+        },
+        bonusTotal: {
+          healthEmployee: 0,
+          healthEmployer: 0,
+          careEmployee: 0,
+          careEmployer: 0,
+          pensionEmployee: 0,
+          pensionEmployer: 0,
+          total: 0,
+        },
+        grandTotal: {
+          healthEmployee: 0,
+          healthEmployer: 0,
+          careEmployee: 0,
+          careEmployer: 0,
+          pensionEmployee: 0,
+          pensionEmployer: 0,
+          total: 0,
+        },
+        latestBonus: null,
+        hasLeaveOfAbsence: false,
+      };
     }
   }
 
@@ -415,32 +596,41 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     return startDate <= today && endDate >= today;
   }
 
-  validateAgeRelatedErrors(emp: Employee, totals: any, data: EmployeeInsuranceData): void {
-    const age = this.insuranceCalculationService.getAge(emp.birthDate);
-    
-    // 70歳以上なのに厚生年金の保険料が計算されている
-    if (age >= 70 && totals.pensionEmployee > 0) {
-      this.errorMessages[emp.id].push('70歳以上は厚生年金保険料は発生しません');
-    }
-    
-    // 75歳以上なのに健康保険・介護保険が計算されている（Service統一ロジックを使用）
-    for (let month = 1; month <= 12; month++) {
-      const careType = this.salaryCalculationService.getCareInsuranceType(emp.birthDate, this.year, month);
-      if (careType === 'none' && age >= 75) {
-        // 75歳以上で介護保険が計算されている場合
-        const monthlyData = data.monthlyPremiums.find(p => p.month === month);
-        if (monthlyData && monthlyData.careEmployee > 0) {
-          this.errorMessages[emp.id].push(`${month}月：75歳以上は健康保険・介護保険は発生しません`);
-        }
-      }
-    }
-  }
 
   getInsuranceData(employeeId: string): EmployeeInsuranceData | null {
     return this.insuranceData[employeeId] || null;
   }
 
   getTableRows(): Array<{
+    employee: Employee;
+    monthlyPremium: MonthlyPremiumData | null;
+    bonusPremium: Bonus | null;
+    monthlyTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+    bonusTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      total: number;
+    };
+  }> {
+    return this.cachedTableRows;
+  }
+
+  /**
+   * テーブル行を計算（内部メソッド）
+   */
+  private calculateTableRows(): Array<{
     employee: Employee;
     monthlyPremium: MonthlyPremiumData | null;
     bonusPremium: Bonus | null;
@@ -559,6 +749,13 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   hasBonusColumn(): boolean {
+    return this.cachedHasBonus;
+  }
+
+  /**
+   * 賞与列の有無を計算
+   */
+  private calculateHasBonus(): boolean {
     return this.employees.some(emp => {
       const bonus = this.getFilteredBonus(emp.id);
       return bonus !== null;
