@@ -11,9 +11,14 @@
 
 <app-salary-csv-import
   [salaryItems]="salaryItems"
+  [employees]="employees"
+  [year]="year"
   [csvImportResult]="csvImportResult"
   (csvTextImport)="onCsvTextImport($event)"
-  (closeDialog)="onCsvImportClose()">
+  (closeDialog)="onCsvImportClose()"
+  (salaryItemChange)="onSalaryItemChange($event)"
+  (workingDaysChange)="onWorkingDaysChange($event)"
+  (importResult)="onCsvImportResult($event)">
 </app-salary-csv-import>
 
 <app-error-warning-section
