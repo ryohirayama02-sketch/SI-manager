@@ -119,6 +119,7 @@
 .calendar-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   min-width: 600px;
 }
 
@@ -128,16 +129,26 @@
   text-align: center;
   font-weight: bold;
   border: 1px solid #ddd;
+  width: 14.28%;
+}
+
+.calendar-table tbody tr {
+  height: 120px !important;
 }
 
 .calendar-day {
-  width: 14.28%;
-  height: 120px;
+  width: 14.28% !important;
+  height: 120px !important;
+  min-height: 120px !important;
+  max-height: 120px !important;
+  min-width: 0;
   vertical-align: top;
   padding: 0.25rem;
   border: 1px solid #ddd;
   background-color: #fff;
   position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .calendar-day.other-month {
@@ -156,15 +167,21 @@
 
 .calendar-day-number {
   font-weight: bold;
+  font-size: 1rem;
+  line-height: 1.2;
   margin-bottom: 0.25rem;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
 }
 
 .calendar-schedule-items {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-  max-height: 90px;
+  max-height: calc(120px - 1.2rem - 0.5rem - 0.25rem);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .schedule-item {

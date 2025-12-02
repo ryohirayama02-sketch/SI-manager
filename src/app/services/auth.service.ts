@@ -1,162 +1,28 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { FirebaseApp } from '@angular/fire/app';
-import { getApp } from '@angular/fire/app';
+import { Auth, User, authState } from '@angular/fire/auth';
+import { of } from 'rxjs';
 
 import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-  getRedirectResult,
-  signOut,
-  getAuth,
-  User,
-  Auth,
+  signOut as firebaseSignOut,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword as firebaseSignInWithEmailAndPassword,
+  updateProfile,
 } from 'firebase/auth';
-
-import { authState } from '@angular/fire/auth';
-import { of } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private router = inject(Router);
-  private firebaseApp = inject(FirebaseApp);
-  private _auth: Auth | null = null;
-
-  // ✅ getterで遅延実行（Firebase App初期化後に実行される）
-  private get auth(): Auth {
-    if (!this._auth) {
-      try {
-        // Firebase Appが初期化されているか確認
-        const app = getApp();
-        this._auth = getAuth(app);
-      } catch (error) {
-        console.error('[AuthService] Firebase Appが初期化されていません', error);
-        throw error;
-      }
-    }
-    return this._auth;
-  }
-
-  async signInWithGoogle(): Promise<void> {
-    console.log('[AuthService] signInWithGoogle: ===== 開始 =====');
-    const provider = new GoogleAuthProvider();
-    console.log('[AuthService] signInWithGoogle: signInWithRedirect を呼び出し');
-
-    try {
-      // signInWithRedirectはリダイレクトするため、Promiseは解決されない
-      // リダイレクト後、handleRedirectResult()で認証結果を取得する
-      await signInWithRedirect(this.auth, provider);
-      console.log('[AuthService] signInWithGoogle: signInWithRedirect 実行完了（リダイレクト中）');
-    } catch (error) {
-      console.error('[AuthService] signInWithGoogle: signInWithRedirect エラー', error);
-      throw error;
-    }
-  }
-
-  async handleRedirectResult(): Promise<User | null> {
-    console.log('[AuthService] handleRedirectResult: ===== 開始 =====');
-    console.log(
-      '[AuthService] handleRedirectResult: 現在のURL',
-      window.location.href
-    );
-    console.log(
-      '[AuthService] handleRedirectResult: URLパラメータ',
-      window.location.search
-    );
-    console.log(
-      '[AuthService] handleRedirectResult: URLハッシュ',
-      window.location.hash
-    );
-    console.log('[AuthService] handleRedirectResult: Auth インスタンス確認', {
-      hasAuth: !!this.auth,
-      currentUser: this.auth.currentUser ? 'あり' : 'なし',
-    });
-
-    // URLパラメータとハッシュを詳細に確認
-    const urlParams = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const urlParamsObj: { [key: string]: string } = {};
-    const hashParamsObj: { [key: string]: string } = {};
-    urlParams.forEach((value, key) => {
-      urlParamsObj[key] = value;
-    });
-    hashParams.forEach((value, key) => {
-      hashParamsObj[key] = value;
-    });
-    console.log(
-      '[AuthService] handleRedirectResult: URL検索パラメータ',
-      urlParamsObj
-    );
-    console.log(
-      '[AuthService] handleRedirectResult: URLハッシュパラメータ',
-      hashParamsObj
-    );
-
-    try {
-      console.log(
-        '[AuthService] handleRedirectResult: getRedirectResult を呼び出し'
-      );
-      const result = await getRedirectResult(this.auth);
-      console.log('[AuthService] handleRedirectResult: getRedirectResult 完了');
-      console.log('[AuthService] handleRedirectResult: 結果の詳細', {
-        hasResult: !!result,
-        hasUser: !!result?.user,
-        operationType: result?.operationType,
-      });
-
-      if (result?.user) {
-        console.log(
-          '[AuthService] handleRedirectResult: ===== 認証成功 =====',
-          {
-            uid: result.user.uid,
-            email: result.user.email,
-            displayName: result.user.displayName,
-          }
-        );
-        return result.user;
-      } else {
-        console.log(
-          '[AuthService] handleRedirectResult: ===== リダイレクト結果なし ====='
-        );
-        console.log('[AuthService] handleRedirectResult: 考えられる原因:');
-        console.log(
-          '  1. 初回アクセス（まだログインボタンをクリックしていない）'
-        );
-        console.log('  2. リダイレクトが発生していない');
-        console.log('  3. リダイレクト後のURLが正しくない');
-        console.log('  4. Firebase Console の設定が正しくない');
-        return null;
-      }
-    } catch (error) {
-      console.error(
-        '[AuthService] handleRedirectResult: ===== エラー発生 =====',
-        error
-      );
-      console.error('[AuthService] handleRedirectResult: エラー詳細', {
-        name: (error as any)?.name,
-        message: (error as any)?.message,
-        code: (error as any)?.code,
-      });
-      return null;
-    }
-  }
+  private auth = inject(Auth);
 
   async signOut(): Promise<void> {
-    console.log('[AuthService] signOut: ログアウト処理を開始');
-    await signOut(this.auth);
-    console.log('[AuthService] signOut: ログアウト完了');
+    await firebaseSignOut(this.auth);
     this.router.navigate(['/login']);
   }
 
   getCurrentUser(): User | null {
     try {
-      const user = this.auth.currentUser;
-      console.log(
-        '[AuthService] getCurrentUser:',
-        user ? { uid: user.uid, email: user.email } : 'null'
-      );
-      return user;
+      return this.auth.currentUser;
     } catch (error) {
       console.error('[AuthService] getCurrentUser: エラー', error);
       return null;
@@ -165,11 +31,251 @@ export class AuthService {
 
   getAuthState() {
     try {
-      return authState(this.auth as any);
+      return authState(this.auth);
     } catch (error) {
       console.error('[AuthService] getAuthState: エラー', error);
       // エラーが発生した場合は空のObservableを返す
       return of(null);
+    }
+  }
+
+  // Email/Passwordで新規登録
+  async signUpWithEmailAndPassword(
+    email: string,
+    password: string,
+    displayName?: string
+  ): Promise<User> {
+    // 入力値の検証
+    console.log('[AuthService] signUpWithEmailAndPassword: 入力値検証', {
+      email: email?.substring(0, 10) + '...',
+      emailLength: email?.length,
+      passwordLength: password?.length,
+      hasDisplayName: !!displayName,
+    });
+
+    // 基本的なバリデーション
+    if (!email) {
+      const error = new Error('メールアドレスを入力してください') as any;
+      error.code = 'auth/invalid-email';
+      throw error;
+    }
+
+    // メールアドレスの形式チェック（より厳密に）
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.error('[AuthService] メールアドレスの形式が不正:', email);
+      const error = new Error(
+        'メールアドレスの形式が不正です。正しい形式で入力してください（例：user@example.com）'
+      ) as any;
+      error.code = 'auth/invalid-email';
+      throw error;
+    }
+
+    // メールアドレスの前後の空白を削除
+    const trimmedEmail = email.trim();
+    if (trimmedEmail !== email) {
+      console.warn(
+        '[AuthService] メールアドレスの前後に空白が含まれていました。空白を削除します。'
+      );
+    }
+
+    if (!password || password.length < 6) {
+      const error = new Error(
+        'パスワードは6文字以上である必要があります'
+      ) as any;
+      error.code = 'auth/weak-password';
+      throw error;
+    }
+
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        this.auth,
+        trimmedEmail,
+        password
+      );
+      const user = userCredential.user;
+
+      // 表示名を設定（オプション）
+      if (displayName) {
+        await updateProfile(user, { displayName });
+      }
+
+      return user;
+    } catch (error: any) {
+      console.error('[AuthService] signUpWithEmailAndPassword: エラー', error);
+      console.error('[AuthService] エラー詳細:', {
+        code: error?.code,
+        message: error?.message,
+        name: error?.name,
+      });
+
+      // エラーコードに応じた詳細な情報を表示
+      switch (error?.code) {
+        case 'auth/network-request-failed':
+          console.error('[AuthService] ===== ネットワークエラー =====');
+          console.error(
+            '[AuthService] リクエストは送信されていますが、Firebase側で拒否されました（400 Bad Request）'
+          );
+          console.error('[AuthService] 考えられる原因:');
+          console.error(
+            '  1. Email/Password認証が有効になっていない（最も可能性が高い）'
+          );
+          console.error(
+            '     → Firebase Console > Authentication > Sign-in method > Email/Password'
+          );
+          console.error('     → "Enable" になっているか確認');
+          console.error('  2. パスワードが短すぎる（6文字未満）');
+          console.error('  3. メールアドレスの形式が不正');
+          console.error('  4. reCAPTCHAの問題');
+          break;
+        case 'auth/email-already-in-use':
+          console.error(
+            '[AuthService] ===== メールアドレスが既に使用されています ====='
+          );
+          break;
+        case 'auth/invalid-email':
+          console.error(
+            '[AuthService] ===== メールアドレスの形式が不正です ====='
+          );
+          console.error('[AuthService] 確認事項:');
+          console.error('  - メールアドレスにスペースが含まれていないか');
+          console.error('  - @の前に文字があるか（例：@example.com は不可）');
+          console.error('  - @の後にドメインがあるか（例：test@ は不可）');
+          console.error(
+            '  - ドメイン部分に.が含まれているか（例：test@example.com）'
+          );
+          console.error('  - 正しい形式: user@example.com');
+          break;
+        case 'auth/weak-password':
+          console.error('[AuthService] ===== パスワードが弱すぎます =====');
+          console.error(
+            '[AuthService] パスワードは6文字以上である必要があります'
+          );
+          break;
+        case 'auth/operation-not-allowed':
+          console.error(
+            '[AuthService] ===== Email/Password認証が有効になっていません ====='
+          );
+          console.error(
+            '[AuthService] → Firebase Console > Authentication > Sign-in method > Email/Password を有効化してください'
+          );
+          break;
+        default:
+          console.error('[AuthService] ===== その他のエラー =====');
+          console.error('[AuthService] エラーコード:', error?.code);
+      }
+
+      console.error('');
+      console.error('[AuthService] 確認方法:');
+      console.error('  → ブラウザの開発者ツール > Network タブ');
+      console.error('  → "accounts:signUp" リクエストをクリック');
+      console.error('  → Response タブでエラーメッセージの詳細を確認');
+
+      throw error;
+    }
+  }
+
+  // Email/Passwordでログイン
+  async signInWithEmailAndPassword(
+    email: string,
+    password: string
+  ): Promise<User> {
+    // メールアドレスの前後の空白を削除
+    const trimmedEmail = email?.trim() || '';
+
+    // メールアドレスの形式チェック
+    if (!trimmedEmail) {
+      const error = new Error('メールアドレスを入力してください') as any;
+      error.code = 'auth/invalid-email';
+      throw error;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      console.error('[AuthService] メールアドレスの形式が不正:', trimmedEmail);
+      const error = new Error(
+        'メールアドレスの形式が不正です。正しい形式で入力してください（例：user@example.com）'
+      ) as any;
+      error.code = 'auth/invalid-email';
+      throw error;
+    }
+
+    try {
+      const userCredential = await firebaseSignInWithEmailAndPassword(
+        this.auth,
+        trimmedEmail,
+        password
+      );
+      return userCredential.user;
+    } catch (error: any) {
+      console.error('[AuthService] signInWithEmailAndPassword: エラー', error);
+      console.error('[AuthService] エラー詳細:', {
+        code: error?.code,
+        message: error?.message,
+        name: error?.name,
+      });
+
+      // エラーコードに応じた詳細な情報を表示
+      switch (error?.code) {
+        case 'auth/network-request-failed':
+          console.error('[AuthService] ===== ネットワークエラー =====');
+          console.error(
+            '[AuthService] リクエストは送信されていますが、Firebase側で拒否されました（400 Bad Request）'
+          );
+          console.error('[AuthService] 考えられる原因:');
+          console.error(
+            '  1. Email/Password認証が有効になっていない（最も可能性が高い）'
+          );
+          console.error(
+            '     → Firebase Console > Authentication > Sign-in method > Email/Password'
+          );
+          console.error('     → "Enable" になっているか確認');
+          console.error('  2. メールアドレスまたはパスワードが間違っている');
+          console.error('  3. ユーザーが存在しない');
+          break;
+        case 'auth/user-not-found':
+          console.error('[AuthService] ===== ユーザーが見つかりません =====');
+          console.error(
+            '[AuthService] このメールアドレスで登録されたユーザーが存在しません'
+          );
+          break;
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          console.error('[AuthService] ===== パスワードが間違っています =====');
+          break;
+        case 'auth/invalid-email':
+          console.error(
+            '[AuthService] ===== メールアドレスの形式が不正です ====='
+          );
+          console.error('[AuthService] 確認事項:');
+          console.error('  - メールアドレスにスペースが含まれていないか');
+          console.error('  - @の前に文字があるか（例：@example.com は不可）');
+          console.error('  - @の後にドメインがあるか（例：test@ は不可）');
+          console.error(
+            '  - ドメイン部分に.が含まれているか（例：test@example.com）'
+          );
+          console.error('  - 正しい形式: user@example.com');
+          break;
+        case 'auth/operation-not-allowed':
+          console.error(
+            '[AuthService] ===== Email/Password認証が有効になっていません ====='
+          );
+          console.error(
+            '[AuthService] → Firebase Console > Authentication > Sign-in method > Email/Password を有効化してください'
+          );
+          break;
+        default:
+          console.error('[AuthService] ===== その他のエラー =====');
+          console.error('[AuthService] エラーコード:', error?.code);
+      }
+
+      console.error('');
+      console.error('[AuthService] 確認方法:');
+      console.error('  → ブラウザの開発者ツール > Network タブ');
+      console.error('  → "accounts:signInWithPassword" リクエストをクリック');
+      console.error('  → Response タブでエラーメッセージの詳細を確認');
+
+      throw error;
     }
   }
 }

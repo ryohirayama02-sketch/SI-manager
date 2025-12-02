@@ -28,55 +28,32 @@ export class NavbarComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     console.log('[Navbar] ngOnInit: 初期化開始');
 
-    // 【一時無効化】認証チェックをスキップして常にナビバーを表示
-    // TODO: ログイン機能を有効化する際は、以下のコメントアウトを解除して使用
-    /*
-    setTimeout(() => {
-      console.log('[Navbar] ngOnInit: setTimeout 実行（Firebase初期化待機後）');
+    // 認証状態を監視
+    const authState$ = this.authService.getAuthState();
+    if (authState$) {
+      console.log('[Navbar] ngOnInit: 認証状態の監視を開始');
+      this.authSubscription = authState$.subscribe({
+        next: (user: User | null) => {
+          const roomId = sessionStorage.getItem('roomId');
+          this.isAuthenticated = !!user && !!roomId;
+          console.log('[Navbar] 認証状態更新', {
+            hasUser: !!user,
+            hasRoomId: !!roomId,
+            isAuthenticated: this.isAuthenticated,
+          });
+        },
+        error: (error) => {
+          console.error('[Navbar] 認証状態エラー:', error);
+          this.isAuthenticated = false;
+        },
+      });
+    } else {
+      console.warn(
+        '[Navbar] ngOnInit: authState$ が null のため監視をスキップ'
+      );
+    }
 
-      // 認証状態を監視
-      const authState$ = this.authService.getAuthState();
-      if (authState$) {
-        console.log('[Navbar] ngOnInit: 認証状態の監視を開始');
-        this.authSubscription = authState$.subscribe({
-          next: (user: User | null) => {
-            const roomId = sessionStorage.getItem('roomId');
-            this.isAuthenticated = !!user && !!roomId;
-            console.log('[Navbar] 認証状態更新', {
-              hasUser: !!user,
-              hasRoomId: !!roomId,
-              isAuthenticated: this.isAuthenticated,
-            });
-          },
-          error: (error) => {
-            console.error('[Navbar] 認証状態エラー:', error);
-            this.isAuthenticated = false;
-          },
-        });
-      } else {
-        console.warn(
-          '[Navbar] ngOnInit: authState$ が null のため監視をスキップ'
-        );
-      }
-
-      // 現在のパスを監視
-      this.routerSubscription = this.router.events
-        .pipe(filter((event) => event instanceof NavigationEnd))
-        .subscribe((event: any) => {
-          this.currentPath = event.url;
-          console.log('[Navbar] ルート変更:', event.url);
-        });
-
-      this.currentPath = this.router.url;
-      console.log('[Navbar] ngOnInit: 現在のパス', this.currentPath);
-    }, 0);
-    */
-
-    // 一時的に常に認証済みとして扱う
-    this.isAuthenticated = true;
-    console.log('[Navbar] 【一時無効化】認証チェックをスキップ（常に表示）');
-
-    // 現在のパスを監視（これは有効のまま）
+    // 現在のパスを監視
     this.routerSubscription = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe((event: any) => {
@@ -93,16 +70,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
     this.routerSubscription?.unsubscribe();
   }
 
-  // 【一時無効化】ログイン機能をコメントアウト
-  /*
   onLogout(): void {
+    console.log('[Navbar] onLogout: ログアウト処理を開始');
     sessionStorage.removeItem('roomId');
     this.authService.signOut();
-  }
-  */
-  onLogout(): void {
-    // 一時的にルームIDのみ削除（ログアウト機能は無効化）
-    sessionStorage.removeItem('roomId');
-    console.log('[Navbar] 【一時無効化】ログアウト機能をスキップ（roomIdのみ削除）');
   }
 }

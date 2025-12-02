@@ -11,17 +11,64 @@
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
   min-width: 400px;
+  max-width: 500px;
 }
 
 h1 {
   margin-bottom: 1.5rem;
   color: #333;
-  text-align: center;
+}
+
+p {
+  margin-bottom: 1.5rem;
+  color: #666;
+}
+
+/* タブスタイル */
+.tabs {
+  display: flex;
+  border-bottom: 2px solid #eee;
+  margin-bottom: 1.5rem;
+}
+
+.tab-button {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #666;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.tab-button:hover:not(:disabled) {
+  color: #4285f4;
+  background-color: #f5f5f5;
+}
+
+.tab-button.active {
+  color: #4285f4;
+  border-bottom-color: #4285f4;
+  font-weight: 500;
+}
+
+.tab-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tab-content {
+  text-align: left;
 }
 
 .form-group {
   margin-bottom: 1.5rem;
+  text-align: left;
 }
 
 label {
@@ -31,22 +78,37 @@ label {
   font-weight: 500;
 }
 
-.form-input {
+.form-control {
   width: 100%;
-  padding: 10px;
+  padding: 0.75rem;
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 16px;
   box-sizing: border-box;
 }
 
-.form-input:disabled {
+.form-control:focus {
+  outline: none;
+  border-color: #4285f4;
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.2);
+}
+
+.form-control.error {
+  border-color: #d32f2f;
+}
+
+.form-control:disabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
 }
 
+.error-text {
+  color: #d32f2f;
+  font-size: 12px;
+  margin-top: 0.25rem;
+}
+
 .submit-button {
-  width: 100%;
   background-color: #4285f4;
   color: white;
   border: none;
@@ -54,6 +116,7 @@ label {
   border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
+  width: 100%;
   margin-top: 1rem;
 }
 
@@ -70,13 +133,18 @@ label {
   color: #d32f2f;
   margin-top: 1rem;
   font-size: 14px;
-  text-align: center;
+  text-align: left;
+  background-color: #ffebee;
+  padding: 0.75rem;
+  border-radius: 4px;
 }
 
-
-
-
-
-
-
-
+.success-message {
+  color: #2e7d32;
+  margin-top: 1rem;
+  font-size: 14px;
+  text-align: left;
+  background-color: #e8f5e9;
+  padding: 0.75rem;
+  border-radius: 4px;
+}

@@ -12,6 +12,7 @@ import { PaymentSummaryPageComponent } from './features/insurance-payment-summar
 import { MonthlyChangeAlertPageComponent } from './features/monthly-change-alert/monthly-change-alert-page.component';
 import { AlertsDashboardPageComponent } from './features/alerts-dashboard/alerts-dashboard-page.component';
 import { LoginPageComponent } from './pages/login/login-page.component';
+import { SignupPageComponent } from './pages/signup/signup-page.component';
 import { RoomEnterPageComponent } from './pages/room-enter/room-enter-page.component';
 import { authGuard } from './guards/auth.guard';
 import { roomGuard } from './guards/room.guard';
@@ -20,6 +21,10 @@ export const routes: Routes = [
   {
     path: 'login',
     component: LoginPageComponent,
+  },
+  {
+    path: 'signup',
+    component: SignupPageComponent,
   },
   {
     path: 'room-enter',

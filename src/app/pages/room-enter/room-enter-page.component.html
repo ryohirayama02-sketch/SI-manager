@@ -1,43 +1,166 @@
 <div class="room-enter-container">
   <div class="room-enter-card">
     <h1>ルーム入室</h1>
-    <form (ngSubmit)="onSubmit()">
-      <div class="form-group">
-        <label for="roomId">ルームID</label>
-        <input
-          type="text"
-          id="roomId"
-          [(ngModel)]="roomId"
-          name="roomId"
-          required
-          [disabled]="isLoading"
-          class="form-input"
-        />
-      </div>
-      <div class="form-group">
-        <label for="password">パスワード</label>
-        <input
-          type="password"
-          id="password"
-          [(ngModel)]="password"
-          name="password"
-          required
-          [disabled]="isLoading"
-          class="form-input"
-        />
-      </div>
-      <button type="submit" class="submit-button" [disabled]="isLoading">
-        {{ isLoading ? "認証中..." : "入室" }}
+    
+    <!-- タブ -->
+    <div class="tabs">
+      <button
+        class="tab-button"
+        [class.active]="activeTab === 'enter'"
+        (click)="switchTab('enter')"
+        [disabled]="isLoading"
+      >
+        入室
       </button>
-      <p *ngIf="errorMessage" class="error-message">{{ errorMessage }}</p>
-    </form>
+      <button
+        class="tab-button"
+        [class.active]="activeTab === 'create'"
+        (click)="switchTab('create')"
+        [disabled]="isLoading"
+      >
+        新規作成
+      </button>
+    </div>
+
+    <!-- 入室フォーム -->
+    <div *ngIf="activeTab === 'enter'" class="tab-content">
+      <p>企業IDとパスワードを入力してください</p>
+      
+      <form [formGroup]="roomForm" (ngSubmit)="onSubmit()">
+        <div class="form-group">
+          <label for="roomId">企業ID</label>
+          <input
+            id="roomId"
+            type="text"
+            formControlName="roomId"
+            class="form-control"
+            [class.error]="roomForm.get('roomId')?.invalid && roomForm.get('roomId')?.touched"
+            placeholder="企業ID"
+            [disabled]="isLoading"
+          />
+          <div *ngIf="roomForm.get('roomId')?.invalid && roomForm.get('roomId')?.touched" class="error-text">
+            企業IDを入力してください
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password">パスワード</label>
+          <input
+            id="password"
+            type="password"
+            formControlName="password"
+            class="form-control"
+            [class.error]="roomForm.get('password')?.invalid && roomForm.get('password')?.touched"
+            placeholder="パスワード"
+            [disabled]="isLoading"
+          />
+          <div *ngIf="roomForm.get('password')?.invalid && roomForm.get('password')?.touched" class="error-text">
+            パスワードを入力してください
+          </div>
+        </div>
+
+        <div *ngIf="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
+
+        <button
+          type="submit"
+          class="submit-button"
+          [disabled]="isLoading || roomForm.invalid"
+        >
+          {{ isLoading ? "認証中..." : "入室" }}
+        </button>
+      </form>
+    </div>
+
+    <!-- 新規作成フォーム -->
+    <div *ngIf="activeTab === 'create'" class="tab-content">
+      <p>新しい企業ルームを作成してください</p>
+      
+      <form [formGroup]="createRoomForm" (ngSubmit)="onCreateRoom()">
+        <div class="form-group">
+          <label for="createRoomId">企業ID</label>
+          <input
+            id="createRoomId"
+            type="text"
+            formControlName="roomId"
+            class="form-control"
+            [class.error]="createRoomForm.get('roomId')?.invalid && createRoomForm.get('roomId')?.touched"
+            placeholder="企業ID（英数字、ハイフン、アンダースコアのみ）"
+            [disabled]="isLoading"
+          />
+          <div *ngIf="createRoomForm.get('roomId')?.invalid && createRoomForm.get('roomId')?.touched" class="error-text">
+            <span *ngIf="createRoomForm.get('roomId')?.errors?.['required']">企業IDを入力してください</span>
+            <span *ngIf="createRoomForm.get('roomId')?.errors?.['pattern']">企業IDは英数字、ハイフン、アンダースコアのみ使用できます</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="createCompanyName">企業名</label>
+          <input
+            id="createCompanyName"
+            type="text"
+            formControlName="companyName"
+            class="form-control"
+            [class.error]="createRoomForm.get('companyName')?.invalid && createRoomForm.get('companyName')?.touched"
+            placeholder="企業名"
+            [disabled]="isLoading"
+          />
+          <div *ngIf="createRoomForm.get('companyName')?.invalid && createRoomForm.get('companyName')?.touched" class="error-text">
+            企業名を入力してください
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="createPassword">パスワード</label>
+          <input
+            id="createPassword"
+            type="password"
+            formControlName="password"
+            class="form-control"
+            [class.error]="createRoomForm.get('password')?.invalid && createRoomForm.get('password')?.touched"
+            placeholder="パスワード（6文字以上）"
+            [disabled]="isLoading"
+          />
+          <div *ngIf="createRoomForm.get('password')?.invalid && createRoomForm.get('password')?.touched" class="error-text">
+            <span *ngIf="createRoomForm.get('password')?.errors?.['required']">パスワードを入力してください</span>
+            <span *ngIf="createRoomForm.get('password')?.errors?.['minlength']">パスワードは6文字以上で入力してください</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="createConfirmPassword">パスワード（確認）</label>
+          <input
+            id="createConfirmPassword"
+            type="password"
+            formControlName="confirmPassword"
+            class="form-control"
+            [class.error]="createRoomForm.get('confirmPassword')?.invalid && createRoomForm.get('confirmPassword')?.touched"
+            placeholder="パスワード（確認）"
+            [disabled]="isLoading"
+          />
+          <div *ngIf="createRoomForm.get('confirmPassword')?.invalid && createRoomForm.get('confirmPassword')?.touched" class="error-text">
+            <span *ngIf="createRoomForm.get('confirmPassword')?.errors?.['required']">パスワード（確認）を入力してください</span>
+            <span *ngIf="createRoomForm.get('confirmPassword')?.errors?.['passwordMismatch']">パスワードが一致しません</span>
+          </div>
+        </div>
+
+        <div *ngIf="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
+
+        <div *ngIf="successMessage" class="success-message">
+          {{ successMessage }}
+        </div>
+
+        <button
+          type="submit"
+          class="submit-button"
+          [disabled]="isLoading || createRoomForm.invalid"
+        >
+          {{ isLoading ? "作成中..." : "作成して入室" }}
+        </button>
+      </form>
+    </div>
   </div>
 </div>
-
-
-
-
-
-
-
-

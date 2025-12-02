@@ -2,19 +2,20 @@ import { Injectable } from '@angular/core';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-import { MonthlyPremiumRow, BonusAnnualTotal } from './payment-summary-calculation.service';
+import {
+  MonthlyPremiumRow,
+  BonusAnnualTotal,
+} from './payment-summary-calculation.service';
 
 /**
  * BonusPremiumCalculationService
- * 
+ *
  * 賞与保険料計算を担当するサービス
  * 賞与から保険料を計算し、月次給与の保険料に加算、年間合計を計算
  */
 @Injectable({ providedIn: 'root' })
 export class BonusPremiumCalculationService {
-  constructor(
-    private employeeLifecycleService: EmployeeLifecycleService
-  ) {}
+  constructor(private employeeLifecycleService: EmployeeLifecycleService) {}
 
   /**
    * 賞与保険料を月次給与の保険料に加算
@@ -43,9 +44,21 @@ export class BonusPremiumCalculationService {
       const age = ageCache[bonusMonth];
       const pensionStopped = age >= 70;
       const healthStopped = age >= 75;
-      const maternityLeave = this.employeeLifecycleService.isMaternityLeave(emp, year, bonusMonth);
-      const childcareLeave = this.employeeLifecycleService.isChildcareLeave(emp, year, bonusMonth);
-      const retired = this.employeeLifecycleService.isRetiredInMonth(emp, year, bonusMonth);
+      const maternityLeave = this.employeeLifecycleService.isMaternityLeave(
+        emp,
+        year,
+        bonusMonth
+      );
+      const childcareLeave = this.employeeLifecycleService.isChildcareLeave(
+        emp,
+        year,
+        bonusMonth
+      );
+      const retired = this.employeeLifecycleService.isRetiredInMonth(
+        emp,
+        year,
+        bonusMonth
+      );
 
       let bonusHealthEmployee = bonus.healthEmployee || 0;
       let bonusHealthEmployer = bonus.healthEmployer || 0;
@@ -94,9 +107,7 @@ export class BonusPremiumCalculationService {
       }
 
       // 月次保険料一覧にも加算
-      const premiumRow = monthlyPremiumRows.find(
-        (r) => r.month === bonusMonth
-      );
+      const premiumRow = monthlyPremiumRows.find((r) => r.month === bonusMonth);
       if (premiumRow) {
         premiumRow.healthEmployee += bonusHealthEmployee;
         premiumRow.healthEmployer += bonusHealthEmployer;
@@ -130,9 +141,7 @@ export class BonusPremiumCalculationService {
     };
 
     for (const bonus of bonuses) {
-      const bonusEmployee = employees.find(
-        (e) => e.id === bonus.employeeId
-      );
+      const bonusEmployee = employees.find((e) => e.id === bonus.employeeId);
       if (!bonusEmployee) continue;
 
       const bonusMonth = bonus.month;
@@ -201,4 +210,3 @@ export class BonusPremiumCalculationService {
     return bonusAnnualTotals;
   }
 }
-

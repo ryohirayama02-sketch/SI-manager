@@ -1,17 +1,59 @@
 <div class="login-container">
   <div class="login-card">
     <h1>社会保険管理アプリ</h1>
-    <p>Googleアカウントでログインしてください</p>
-    <!-- 【一時無効化】ログイン機能をコメントアウト -->
-    <!--
-    <button
-      class="google-signin-button"
-      (click)="onGoogleSignIn()"
-      [disabled]="isLoading"
-    >
-      {{ isLoading ? "ログイン中..." : "Googleでログイン" }}
-    </button>
-    -->
-    <div *ngIf="errorMessage" class="error-message" style="white-space: pre-line;">{{ errorMessage }}</div>
+    <p>ログインしてください</p>
+    
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
+      <div class="form-group">
+        <label for="email">メールアドレス</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          class="form-control"
+          [class.error]="loginForm.get('email')?.invalid && loginForm.get('email')?.touched"
+          placeholder="example@email.com"
+        />
+        <div *ngIf="loginForm.get('email')?.invalid && loginForm.get('email')?.touched" class="error-text">
+          <span *ngIf="loginForm.get('email')?.errors?.['required']">メールアドレスを入力してください</span>
+          <span *ngIf="loginForm.get('email')?.errors?.['email']">メールアドレスの形式が正しくありません</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">パスワード</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          class="form-control"
+          [class.error]="loginForm.get('password')?.invalid && loginForm.get('password')?.touched"
+          placeholder="パスワード"
+        />
+        <div *ngIf="loginForm.get('password')?.invalid && loginForm.get('password')?.touched" class="error-text">
+          <span *ngIf="loginForm.get('password')?.errors?.['required']">パスワードを入力してください</span>
+          <span *ngIf="loginForm.get('password')?.errors?.['minlength']">パスワードは6文字以上で入力してください</span>
+        </div>
+      </div>
+
+      <div *ngIf="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+
+      <button
+        type="submit"
+        class="login-button"
+        [disabled]="isLoading || loginForm.invalid"
+      >
+        {{ isLoading ? "ログイン中..." : "ログイン" }}
+      </button>
+    </form>
+
+    <div class="signup-link">
+      <p>アカウントをお持ちでない方は</p>
+      <button type="button" class="signup-button" (click)="navigateToSignUp()">
+        新規登録
+      </button>
+    </div>
   </div>
 </div>
