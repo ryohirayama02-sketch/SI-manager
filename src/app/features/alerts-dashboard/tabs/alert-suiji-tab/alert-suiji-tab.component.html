@@ -1,0 +1,78 @@
+<div class="card">
+  <div *ngIf="suijiAlerts.length === 0" class="info-label">
+    随時改定候補はありません。
+  </div>
+  
+  <div *ngIf="suijiAlerts.length > 0" style="margin-bottom: 1rem;">
+    <button 
+      *ngIf="selectedSuijiAlertIds.size > 0"
+      (click)="deleteSelectedSuijiAlerts()"
+      class="btn-danger"
+      style="margin-right: 0.5rem;">
+      選択した{{ selectedSuijiAlertIds.size }}件を削除（非表示にする）
+    </button>
+    <label style="margin-left: 1rem;">
+      <input 
+        type="checkbox" 
+        [checked]="selectedSuijiAlertIds.size === suijiAlerts.length && suijiAlerts.length > 0"
+        (change)="toggleAllSuijiAlertsChange($event)"
+        style="margin-right: 0.5rem;">
+      すべてのアラートを削除対象に選択
+    </label>
+  </div>
+  
+  <table class="alert-table" *ngIf="suijiAlerts.length > 0">
+    <thead>
+      <tr>
+        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th>年度</th>
+        <th>従業員</th>
+        <th>変動月</th>
+        <th>前月比</th>
+        <th>前後3ヶ月平均</th>
+        <th>現行等級</th>
+        <th>新等級候補</th>
+        <th>等級差</th>
+        <th>適用開始月</th>
+        <th>届出提出期日</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let alert of suijiAlerts; let i = index"
+          [ngClass]="{
+            'alert-row': alert.isEligible,
+            'large-change-row': isLargeChange(alert.diff),
+            'selected-row': isSuijiAlertSelected(getSuijiAlertId(alert))
+          }">
+        <td style="width: 80px; text-align: center;">
+          <input 
+            type="checkbox" 
+            [checked]="isSuijiAlertSelected(getSuijiAlertId(alert))"
+            (change)="toggleSuijiAlertSelection(getSuijiAlertId(alert))"
+            title="削除対象に選択">
+        </td>
+        <td>{{ alert.year || '-' }}年</td>
+        <td>
+          <span *ngIf="alert.isEligible">⚠️ </span>
+          {{ getEmployeeName(alert.employeeId) }}
+        </td>
+        <td>{{ alert.changeMonth }}月</td>
+        <td>
+          <span *ngIf="alert.diffPrev != null">
+            {{ alert.diffPrev | number:'1.0-0' }}円
+          </span>
+          <span *ngIf="alert.diffPrev == null">-</span>
+        </td>
+        <td>{{ alert.averageSalary | number:'1.0-0' }}円</td>
+        <td>{{ alert.currentGrade }}</td>
+        <td>{{ alert.newGrade }}</td>
+        <td>{{ alert.diff }}</td>
+        <td>{{ alert.applyStartMonth }}月</td>
+        <td>
+          <strong>{{ getSuijiReportDeadline(alert) }}</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+

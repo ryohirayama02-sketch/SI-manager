@@ -4,6 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AlertItemListComponent } from './alert-item-list/alert-item-list.component';
+import { AlertScheduleTabComponent } from './tabs/alert-schedule-tab/alert-schedule-tab.component';
+import { AlertBonusTabComponent, BonusReportAlert } from './tabs/alert-bonus-tab/alert-bonus-tab.component';
+import { AlertSuijiTabComponent, SuijiKouhoResultWithDiff } from './tabs/alert-suiji-tab/alert-suiji-tab.component';
+import { AlertTeijiTabComponent, TeijiKetteiResultData } from './tabs/alert-teiji-tab/alert-teiji-tab.component';
+import { AlertAgeTabComponent, AgeAlert, QualificationChangeAlert } from './tabs/alert-age-tab/alert-age-tab.component';
+import { AlertLeaveTabComponent, MaternityChildcareAlert } from './tabs/alert-leave-tab/alert-leave-tab.component';
+import { AlertFamilyTabComponent, SupportAlert } from './tabs/alert-family-tab/alert-family-tab.component';
 import { SuijiService } from '../../services/suiji.service';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
@@ -15,12 +22,11 @@ import { BonusService } from '../../services/bonus.service';
 import { SuijiKouhoResult, TeijiKetteiResult, SalaryCalculationService } from '../../services/salary-calculation.service';
 import { NotificationDecisionResult } from '../../services/notification-decision.service';
 import { EmployeeChangeHistoryService } from '../../services/employee-change-history.service';
-import { EmployeeChangeHistory } from '../../models/employee-change-history.model';
 import { QualificationChangeAlertService } from '../../services/qualification-change-alert.service';
 import { FamilyMemberService } from '../../services/family-member.service';
+import { AlertAggregationService } from '../../services/alert-aggregation.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
-import { FamilyMember } from '../../models/family-member.model';
 
 export interface AlertItem {
   id: string;
@@ -30,17 +36,22 @@ export interface AlertItem {
   targetMonth: string;
 }
 
-// 前月比差額を含む拡張型
-interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
-  diffPrev?: number | null;
-  id?: string; // FirestoreのドキュメントID
-  year?: number; // 年度情報
-}
-
 @Component({
   selector: 'app-alerts-dashboard-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, AlertItemListComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterModule,
+    AlertItemListComponent,
+    AlertScheduleTabComponent,
+    AlertBonusTabComponent,
+    AlertSuijiTabComponent,
+    AlertTeijiTabComponent,
+    AlertAgeTabComponent,
+    AlertLeaveTabComponent,
+    AlertFamilyTabComponent
+  ],
   templateUrl: './alerts-dashboard-page.component.html',
   styleUrl: './alerts-dashboard-page.component.css'
 })
@@ -57,15 +68,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   } = {};
   
   // 賞与支払届アラート関連
-  bonusReportAlerts: {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    bonusAmount: number;
-    payDate: string; // YYYY-MM-DD
-    submitDeadline: Date; // 提出期限（支給日から5日後）
-    daysUntilDeadline: number; // 提出期限までの日数
-  }[] = [];
+  bonusReportAlerts: BonusReportAlert[] = [];
   selectedBonusReportAlertIds: Set<string> = new Set();
   
   // 年度選択関連（算定決定タブ用）
@@ -93,81 +96,23 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   gradeTable: any[] = [];
 
   // 算定決定タブ関連
-  teijiKetteiResults: {
-    employeeId: string;
-    employeeName: string;
-    aprilSalary: number;
-    aprilWorkingDays: number;
-    maySalary: number;
-    mayWorkingDays: number;
-    juneSalary: number;
-    juneWorkingDays: number;
-    averageSalary: number;
-    excludedMonths: number[];
-    exclusionCandidates: number[]; // 平均額との差が10%以上の月
-    teijiResult: TeijiKetteiResult;
-  }[] = [];
+  teijiKetteiResults: TeijiKetteiResultData[] = [];
   isLoadingTeijiKettei: boolean = false; // ローディング中フラグ（重複実行を防ぐ）
 
   // 年齢到達アラート関連
-  ageAlerts: {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    alertType: '70歳到達' | '75歳到達';
-    notificationName: string; // 届出名前
-    birthDate: string;
-    reachDate: Date; // 到達日（資格喪失日）
-    submitDeadline: Date; // 提出期限
-    daysUntilDeadline: number; // 提出期限までの日数
-  }[] = [];
+  ageAlerts: AgeAlert[] = [];
   selectedAgeAlertIds: Set<string> = new Set();
 
   // 資格変更アラート関連
-  qualificationChangeAlerts: {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    changeType: '氏名変更' | '住所変更' | '生年月日訂正' | '性別変更' | '所属事業所変更' | '適用区分変更';
-    notificationNames: string[]; // 届出名前のリスト
-    changeDate: Date; // 変更があった日
-    submitDeadline: Date; // 提出期限（変更があった日から5日後）
-    daysUntilDeadline: number; // 提出期限までの日数
-    details: string; // 変更詳細（例：「田中太郎 → 佐藤太郎」）
-  }[] = [];
+  qualificationChangeAlerts: QualificationChangeAlert[] = [];
   selectedQualificationChangeAlertIds: Set<string> = new Set();
 
   // 産休育休アラート関連
-  maternityChildcareAlerts: {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    alertType: '産前産後休業取得者申出書' | '産前産後休業終了届' | '育児休業等取得者申出書（保険料免除開始）' | '育児休業等終了届（免除終了）' | '育児休業等取得者申出書（賞与用）';
-    notificationName: string;
-    startDate: Date; // 開始日（産休開始日、育休開始日、産休終了日の翌日、育休終了日の翌日、賞与支給日）
-    submitDeadline: Date; // 提出期限（開始日から5日後）
-    daysUntilDeadline: number; // 提出期限までの日数
-    details: string; // 詳細情報
-  }[] = [];
+  maternityChildcareAlerts: MaternityChildcareAlert[] = [];
   selectedMaternityChildcareAlertIds: Set<string> = new Set();
 
   // 扶養アラート関連
-  supportAlerts: {
-    id: string;
-    employeeId: string;
-    employeeName: string;
-    familyMemberId: string;
-    familyMemberName: string;
-    relationship: string; // 続柄（配偶者、子、父母など）
-    alertType: '配偶者20歳到達' | '配偶者60歳到達' | '配偶者収入増加' | '配偶者別居' | '配偶者75歳到達' | 
-               '子18歳到達' | '子20歳到達' | '子22歳到達' | '子別居' | '子収入増加' | '子死亡結婚' |
-               '親収入見直し' | '親別居' | '親75歳到達' | '親死亡';
-    notificationName: string;
-    alertDate: Date; // アラート対象日（到達日、変更日など）
-    submitDeadline?: Date; // 提出期限（該当する場合）
-    daysUntilDeadline?: number; // 提出期限までの日数
-    details: string; // 詳細情報
-  }[] = [];
+  supportAlerts: SupportAlert[] = [];
   selectedSupportAlertIds: Set<string> = new Set();
 
   constructor(
@@ -182,7 +127,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private salaryCalculationService: SalaryCalculationService,
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private qualificationChangeAlertService: QualificationChangeAlertService,
-    private familyMemberService: FamilyMemberService
+    private familyMemberService: FamilyMemberService,
+    private alertAggregationService: AlertAggregationService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -206,8 +152,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadQualificationChangeAlerts();
     await this.loadMaternityChildcareAlerts();
     await this.loadBonusReportAlerts();
-    // 算定決定データはタブがアクティブな場合のみ読み込む（初期化時は読み込まない）
-    // await this.loadTeijiKetteiData();
     
     // 届出スケジュールデータを読み込み
     await this.loadScheduleData();
@@ -232,6 +176,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     if (this.activeTab === 'teiji') {
       await this.loadTeijiKetteiData();
     }
+    await this.loadScheduleData();
   }
 
   /**
@@ -264,11 +209,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     // 後方互換性のため、最新年度のデータをsalariesにも設定
     const latestYear = Math.max(...years);
     this.salaries = this.salariesByYear[latestYear] || {};
-  }
-
-  async loadSalaries(): Promise<void> {
-    // 後方互換性のため残すが、使用しない
-    await this.loadAllSalaries();
   }
 
   getSalaryKey(employeeId: string, month: number): string {
@@ -308,69 +248,12 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return currTotal - prevTotal;
   }
 
-  getEmployeeName(employeeId: string): string {
-    const emp = this.employees.find(e => e.id === employeeId);
-    if (!emp) {
-      console.warn(`[alerts-dashboard] 従業員が見つかりません: employeeId=${employeeId}, 従業員数=${this.employees.length}`);
-      console.log(`[alerts-dashboard] 現在の従業員リスト:`, this.employees.map(e => ({ id: e.id, name: e.name })));
+  getSuijiAlertId(alert: SuijiKouhoResultWithDiff): string {
+    // FirestoreのドキュメントIDがあればそれを使用、なければ生成
+    if (alert.id) {
+      return alert.id;
     }
-    return emp?.name || employeeId;
-  }
-
-  getStatusText(result: SuijiKouhoResultWithDiff): string {
-    return result.isEligible ? '要提出' : '提出不要';
-  }
-
-  /**
-   * 随時改定の届出提出期日を取得
-   * 適用開始月の前月の月末が提出期日
-   * 例：適用開始月が8月の場合、提出期日は7月31日
-   */
-  getSuijiReportDeadline(alert: SuijiKouhoResultWithDiff): string {
-    if (!alert.applyStartMonth) {
-      return '-';
-    }
-    
-    const year = alert.year || this.getJSTDate().getFullYear();
-    const applyStartMonth = alert.applyStartMonth;
-    
-    // 適用開始月の前月を計算
-    let deadlineMonth = applyStartMonth - 1;
-    let deadlineYear = year;
-    
-    // 1月の場合は前年の12月
-    if (deadlineMonth < 1) {
-      deadlineMonth = 12;
-      deadlineYear = year - 1;
-    }
-    
-    // 前月の月末日を取得
-    const deadlineDate = new Date(deadlineYear, deadlineMonth, 0); // 0日目 = 前月の最終日
-    
-    return this.formatDate(deadlineDate);
-  }
-
-  /**
-   * 定時決定（算定基礎届）の提出期日を取得
-   * 期日は7月10日
-   */
-  getTeijiReportDeadline(year: number): string {
-    const deadlineDate = new Date(year, 6, 10); // 7月 = 6 (0-indexed)
-    return this.formatDate(deadlineDate);
-  }
-
-  getReasonText(result: SuijiKouhoResultWithDiff): string {
-    return result.reasons.join(' / ');
-  }
-
-  async loadSalaryData(): Promise<void> {
-    // 後方互換性のため残すが、実際のデータ読み込みはloadNotificationAlerts内で行う
-    this.salaryDataByEmployeeId = {};
-  }
-
-  async loadBonusData(): Promise<void> {
-    // 後方互換性のため残すが、実際のデータ読み込みはloadNotificationAlerts内で行う
-    this.bonusesByEmployeeId = {};
+    return `${alert.employeeId}_${alert.changeMonth}_${alert.applyStartMonth}`;
   }
 
   async loadNotificationAlerts(): Promise<void> {
@@ -426,318 +309,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   getNotificationTypeLabel(type: 'teiji' | 'suiji' | 'bonus'): string {
     return this.notificationFormatService.getNotificationTypeLabel(type);
-  }
-
-  // onYearChangeメソッドは削除（年度選択が不要になったため）
-
-  isLargeChange(diff: number | null | undefined): boolean {
-    if (diff == null) return false;
-    return Math.abs(diff) >= 2;
-  }
-
-  async setActiveTab(tab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): Promise<void> {
-    this.activeTab = tab;
-    // 算定決定タブが選択された場合のみデータを読み込む
-    if (tab === 'teiji') {
-      await this.loadTeijiKetteiData();
-    } else if (tab === 'leave') {
-      await this.loadMaternityChildcareAlerts();
-    } else if (tab === 'family') {
-      await this.loadSupportAlerts();
-    } else if (tab === 'bonus') {
-      await this.loadBonusReportAlerts();
-    }
-  }
-
-  // 随時改定アラートの選択管理
-  toggleSuijiAlertSelection(alertId: string): void {
-    if (this.selectedSuijiAlertIds.has(alertId)) {
-      this.selectedSuijiAlertIds.delete(alertId);
-    } else {
-      this.selectedSuijiAlertIds.add(alertId);
-    }
-  }
-
-  toggleAllSuijiAlerts(checked: boolean): void {
-    if (checked) {
-      this.suijiAlerts.forEach(alert => {
-        const alertId = this.getSuijiAlertId(alert);
-        this.selectedSuijiAlertIds.add(alertId);
-      });
-    } else {
-      this.selectedSuijiAlertIds.clear();
-    }
-  }
-
-  toggleAllSuijiAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.toggleAllSuijiAlerts(target.checked);
-  }
-
-  isSuijiAlertSelected(alertId: string): boolean {
-    return this.selectedSuijiAlertIds.has(alertId);
-  }
-
-  getSuijiAlertId(alert: SuijiKouhoResultWithDiff): string {
-    // FirestoreのドキュメントIDがあればそれを使用、なければ生成
-    if (alert.id) {
-      return alert.id;
-    }
-    return `${alert.employeeId}_${alert.changeMonth}_${alert.applyStartMonth}`;
-  }
-
-  // 届出アラートの選択管理
-  toggleNotificationAlertSelection(alertId: string): void {
-    if (this.selectedNotificationAlertIds.has(alertId)) {
-      this.selectedNotificationAlertIds.delete(alertId);
-    } else {
-      this.selectedNotificationAlertIds.add(alertId);
-    }
-  }
-
-  toggleAllNotificationAlerts(checked: boolean): void {
-    if (checked) {
-      this.notificationAlerts.forEach(alert => {
-        this.selectedNotificationAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedNotificationAlertIds.clear();
-    }
-  }
-
-  isNotificationAlertSelected(alertId: string): boolean {
-    return this.selectedNotificationAlertIds.has(alertId);
-  }
-
-  // 随時改定アラートの削除
-  async deleteSelectedSuijiAlerts(): Promise<void> {
-    const selectedIds = Array.from(this.selectedSuijiAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の随時改定アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを削除
-    for (const alertId of selectedIds) {
-      const alert = this.suijiAlerts.find(a => this.getSuijiAlertId(a) === alertId);
-      if (alert) {
-        // FirestoreのドキュメントIDを使用（形式: employeeId_changeMonth）
-        const docId = alert.id || `${alert.employeeId}_${alert.changeMonth}`;
-        const parts = docId.split('_');
-        const employeeId = parts[0];
-        const changeMonth = parseInt(parts[1], 10);
-        
-        const year = alert.year || 2025; // アラートに年度情報が含まれている
-        await this.suijiService.deleteAlert(
-          year,
-          employeeId,
-          changeMonth
-        );
-      }
-    }
-
-    // アラートを再読み込み
-    await this.loadSuijiAlerts();
-    this.selectedSuijiAlertIds.clear();
-  }
-
-  // 届出アラートの削除
-  deleteSelectedNotificationAlerts(): void {
-    const selectedIds = Array.from(this.selectedNotificationAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の届出アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.notificationAlerts = this.notificationAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedNotificationAlertIds.clear();
-  }
-
-  /**
-   * 算定決定タブの年度変更ハンドラ
-   */
-  async onTeijiYearChange(): Promise<void> {
-    await this.loadTeijiKetteiData();
-  }
-
-  /**
-   * 算定決定タブのデータを読み込む
-   */
-  async loadTeijiKetteiData(): Promise<void> {
-    // 既にローディング中の場合はスキップ（重複実行を防ぐ）
-    if (this.isLoadingTeijiKettei) {
-      console.log('[alerts-dashboard] loadTeijiKetteiData: 既にローディング中のためスキップ');
-      return;
-    }
-
-    try {
-      this.isLoadingTeijiKettei = true;
-      const targetYear = this.teijiYear;
-      this.gradeTable = await this.settingsService.getStandardTable(targetYear);
-      
-      // 配列をクリア（重複を防ぐ）
-      this.teijiKetteiResults = [];
-      
-      // 処理済みの従業員IDを追跡（重複を防ぐ）
-      const processedEmployeeIds = new Set<string>();
-      
-      console.log(`[alerts-dashboard] loadTeijiKetteiData開始: 年度=${targetYear}, 従業員数=${this.employees.length}`);
-      
-      for (const emp of this.employees) {
-        // 既に処理済みの従業員はスキップ
-        if (processedEmployeeIds.has(emp.id)) {
-          console.warn(`[alerts-dashboard] 重複した従業員をスキップ: ${emp.name} (${emp.id})`);
-          continue;
-        }
-        processedEmployeeIds.add(emp.id);
-      // 給与データを取得
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, targetYear);
-      if (!salaryData) continue;
-
-      // 4-6月の給与所得と支払基礎日数を取得
-      const aprilData = salaryData['4'];
-      const mayData = salaryData['5'];
-      const juneData = salaryData['6'];
-
-      // 支払基礎日数が17日以上の月のみを対象とする
-      const aprilWorkingDays = aprilData?.workingDays ?? 0;
-      const mayWorkingDays = mayData?.workingDays ?? 0;
-      const juneWorkingDays = juneData?.workingDays ?? 0;
-
-      // すべての月の支払基礎日数が17日以上かチェック
-      const validMonths: number[] = [];
-      if (aprilWorkingDays >= 17 && aprilData) {
-        validMonths.push(4);
-      }
-      if (mayWorkingDays >= 17 && mayData) {
-        validMonths.push(5);
-      }
-      if (juneWorkingDays >= 17 && juneData) {
-        validMonths.push(6);
-      }
-
-      // 少なくとも1ヶ月は17日以上必要
-      if (validMonths.length === 0) continue;
-
-      // 給与所得を取得
-      const aprilSalary = this.getTotalSalary(aprilData) ?? 0;
-      const maySalary = this.getTotalSalary(mayData) ?? 0;
-      const juneSalary = this.getTotalSalary(juneData) ?? 0;
-
-      // 有効な月の給与所得のみを使用して平均を計算
-      const validSalaries: number[] = [];
-      if (validMonths.includes(4) && aprilSalary > 0) {
-        validSalaries.push(aprilSalary);
-      }
-      if (validMonths.includes(5) && maySalary > 0) {
-        validSalaries.push(maySalary);
-      }
-      if (validMonths.includes(6) && juneSalary > 0) {
-        validSalaries.push(juneSalary);
-      }
-
-      if (validSalaries.length === 0) continue;
-
-      // 平均額を計算
-      const averageSalary = Math.round(
-        validSalaries.reduce((sum, s) => sum + s, 0) / validSalaries.length
-      );
-
-      // 定時決定を計算（既存のロジックを使用）
-      const salaries: { [key: string]: any } = {};
-      for (let month = 1; month <= 12; month++) {
-        const monthKey = this.getSalaryKey(emp.id, month);
-        const monthData = salaryData[month.toString()];
-        if (monthData) {
-          salaries[monthKey] = {
-            fixedSalary: monthData.fixedSalary ?? monthData.fixed ?? 0,
-            variableSalary: monthData.variableSalary ?? monthData.variable ?? 0,
-            totalSalary: monthData.totalSalary ?? monthData.total ?? 
-                        (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
-                        (monthData.variableSalary ?? monthData.variable ?? 0),
-          };
-        }
-      }
-
-      const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
-        emp.id,
-        salaries,
-        this.gradeTable,
-        targetYear,
-        emp.standardMonthlyRemuneration
-      );
-
-      // 平均額との差が10%以上の月を検出
-      const exclusionCandidates: number[] = [];
-      if (validMonths.includes(4) && aprilSalary > 0) {
-        const diffRate = Math.abs((aprilSalary - averageSalary) / averageSalary);
-        if (diffRate >= 0.1) {
-          exclusionCandidates.push(4);
-        }
-      }
-      if (validMonths.includes(5) && maySalary > 0) {
-        const diffRate = Math.abs((maySalary - averageSalary) / averageSalary);
-        if (diffRate >= 0.1) {
-          exclusionCandidates.push(5);
-        }
-      }
-      if (validMonths.includes(6) && juneSalary > 0) {
-        const diffRate = Math.abs((juneSalary - averageSalary) / averageSalary);
-        if (diffRate >= 0.1) {
-          exclusionCandidates.push(6);
-        }
-      }
-
-      // 既に同じ従業員IDが結果に含まれていないか確認（二重チェック）
-      const existingIndex = this.teijiKetteiResults.findIndex(r => r.employeeId === emp.id);
-      if (existingIndex >= 0) {
-        console.warn(`[alerts-dashboard] 既に結果に存在する従業員をスキップ: ${emp.name} (${emp.id})`);
-        continue;
-      }
-
-      this.teijiKetteiResults.push({
-        employeeId: emp.id,
-        employeeName: emp.name,
-        aprilSalary,
-        aprilWorkingDays,
-        maySalary,
-        mayWorkingDays,
-        juneSalary,
-        juneWorkingDays,
-        averageSalary,
-        excludedMonths: teijiResult.excludedMonths,
-        exclusionCandidates,
-        teijiResult,
-      });
-    }
-    
-    console.log(`[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.teijiKetteiResults.length}`);
-    } catch (error) {
-      console.error('[alerts-dashboard] loadTeijiKetteiDataエラー:', error);
-    } finally {
-      this.isLoadingTeijiKettei = false;
-    }
-  }
-
-  /**
-   * 給与データから総支給額を取得
-   */
-  private getTotalSalary(monthData: any): number | null {
-    if (!monthData) return null;
-    return monthData.totalSalary ?? monthData.total ?? 
-           (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
-           (monthData.variableSalary ?? monthData.variable ?? 0);
   }
 
   /**
@@ -818,68 +389,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
     // 提出期限でソート
     this.ageAlerts.sort((a, b) => a.submitDeadline.getTime() - b.submitDeadline.getTime());
-  }
-
-  // 年齢到達アラートの選択管理
-  toggleAgeAlertSelection(alertId: string): void {
-    if (this.selectedAgeAlertIds.has(alertId)) {
-      this.selectedAgeAlertIds.delete(alertId);
-    } else {
-      this.selectedAgeAlertIds.add(alertId);
-    }
-  }
-
-  toggleAllAgeAlerts(checked: boolean): void {
-    if (checked) {
-      this.ageAlerts.forEach(alert => {
-        this.selectedAgeAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedAgeAlertIds.clear();
-    }
-  }
-
-  toggleAllAgeAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.toggleAllAgeAlerts(target.checked);
-  }
-
-  isAgeAlertSelected(alertId: string): boolean {
-    return this.selectedAgeAlertIds.has(alertId);
-  }
-
-  // 年齢到達アラートの削除
-  deleteSelectedAgeAlerts(): void {
-    const selectedIds = Array.from(this.selectedAgeAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の年齢到達アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.ageAlerts = this.ageAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedAgeAlertIds.clear();
-  }
-
-  formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
-  }
-
-  formatBirthDate(birthDateString: string): string {
-    const date = new Date(birthDateString);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
   }
 
   /**
@@ -974,58 +483,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('[alerts-dashboard] loadQualificationChangeAlertsエラー:', error);
     }
-  }
-
-  // 資格変更アラートの選択管理
-  toggleQualificationChangeAlertSelection(alertId: string): void {
-    if (this.selectedQualificationChangeAlertIds.has(alertId)) {
-      this.selectedQualificationChangeAlertIds.delete(alertId);
-    } else {
-      this.selectedQualificationChangeAlertIds.add(alertId);
-    }
-  }
-
-  toggleAllQualificationChangeAlerts(checked: boolean): void {
-    if (checked) {
-      this.qualificationChangeAlerts.forEach(alert => {
-        this.selectedQualificationChangeAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedQualificationChangeAlertIds.clear();
-    }
-  }
-
-  toggleAllQualificationChangeAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.toggleAllQualificationChangeAlerts(target.checked);
-  }
-
-  isQualificationChangeAlertSelected(alertId: string): boolean {
-    return this.selectedQualificationChangeAlertIds.has(alertId);
-  }
-
-  // 資格変更アラートの削除
-  async deleteSelectedQualificationChangeAlerts(): Promise<void> {
-    const selectedIds = Array.from(this.selectedQualificationChangeAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の資格変更アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // Firestoreに削除済みとしてマーク
-    for (const alertId of selectedIds) {
-      await this.qualificationChangeAlertService.markAsDeleted(alertId);
-    }
-
-    // 選択されたアラートを配列から削除
-    this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedQualificationChangeAlertIds.clear();
   }
 
   /**
@@ -1171,53 +628,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('[alerts-dashboard] loadMaternityChildcareAlertsエラー:', error);
     }
-  }
-
-  // 産休育休アラートの選択管理
-  toggleMaternityChildcareAlertSelection(alertId: string): void {
-    if (this.selectedMaternityChildcareAlertIds.has(alertId)) {
-      this.selectedMaternityChildcareAlertIds.delete(alertId);
-    } else {
-      this.selectedMaternityChildcareAlertIds.add(alertId);
-    }
-  }
-
-  toggleAllMaternityChildcareAlerts(checked: boolean): void {
-    if (checked) {
-      this.maternityChildcareAlerts.forEach(alert => {
-        this.selectedMaternityChildcareAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedMaternityChildcareAlertIds.clear();
-    }
-  }
-
-  toggleAllMaternityChildcareAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.toggleAllMaternityChildcareAlerts(target.checked);
-  }
-
-  isMaternityChildcareAlertSelected(alertId: string): boolean {
-    return this.selectedMaternityChildcareAlertIds.has(alertId);
-  }
-
-  // 産休育休アラートの削除
-  async deleteSelectedMaternityChildcareAlerts(): Promise<void> {
-    const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の産休育休アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedMaternityChildcareAlertIds.clear();
   }
 
   /**
@@ -1595,53 +1005,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // 扶養アラートの選択管理
-  toggleSupportAlertSelection(alertId: string): void {
-    if (this.selectedSupportAlertIds.has(alertId)) {
-      this.selectedSupportAlertIds.delete(alertId);
-    } else {
-      this.selectedSupportAlertIds.add(alertId);
-    }
-  }
-
-  toggleAllSupportAlerts(checked: boolean): void {
-    if (checked) {
-      this.supportAlerts.forEach(alert => {
-        this.selectedSupportAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedSupportAlertIds.clear();
-    }
-  }
-
-  toggleAllSupportAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.toggleAllSupportAlerts(target.checked);
-  }
-
-  isSupportAlertSelected(alertId: string): boolean {
-    return this.selectedSupportAlertIds.has(alertId);
-  }
-
-  // 扶養アラートの削除
-  async deleteSelectedSupportAlerts(): Promise<void> {
-    const selectedIds = Array.from(this.selectedSupportAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の扶養アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.supportAlerts = this.supportAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedSupportAlertIds.clear();
-  }
-
   /**
    * 賞与支払届アラートを読み込む
    */
@@ -1699,198 +1062,200 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * 賞与支払届アラートの選択管理
+   * 算定決定タブのデータを読み込む
    */
-  toggleBonusReportAlertSelection(alertId: string): void {
-    if (this.selectedBonusReportAlertIds.has(alertId)) {
-      this.selectedBonusReportAlertIds.delete(alertId);
-    } else {
-      this.selectedBonusReportAlertIds.add(alertId);
+  async loadTeijiKetteiData(): Promise<void> {
+    // 既にローディング中の場合はスキップ（重複実行を防ぐ）
+    if (this.isLoadingTeijiKettei) {
+      console.log('[alerts-dashboard] loadTeijiKetteiData: 既にローディング中のためスキップ');
+      return;
     }
-  }
 
-  toggleAllBonusReportAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    if (target.checked) {
-      this.bonusReportAlerts.forEach(alert => {
-        this.selectedBonusReportAlertIds.add(alert.id);
+    try {
+      this.isLoadingTeijiKettei = true;
+      const targetYear = this.teijiYear;
+      this.gradeTable = await this.settingsService.getStandardTable(targetYear);
+      
+      // 配列をクリア（重複を防ぐ）
+      this.teijiKetteiResults = [];
+      
+      // 処理済みの従業員IDを追跡（重複を防ぐ）
+      const processedEmployeeIds = new Set<string>();
+      
+      console.log(`[alerts-dashboard] loadTeijiKetteiData開始: 年度=${targetYear}, 従業員数=${this.employees.length}`);
+      
+      for (const emp of this.employees) {
+        // 既に処理済みの従業員はスキップ
+        if (processedEmployeeIds.has(emp.id)) {
+          console.warn(`[alerts-dashboard] 重複した従業員をスキップ: ${emp.name} (${emp.id})`);
+          continue;
+        }
+        processedEmployeeIds.add(emp.id);
+      // 給与データを取得
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, targetYear);
+      if (!salaryData) continue;
+
+      // 4-6月の給与所得と支払基礎日数を取得
+      const aprilData = salaryData['4'];
+      const mayData = salaryData['5'];
+      const juneData = salaryData['6'];
+
+      // 支払基礎日数が17日以上の月のみを対象とする
+      const aprilWorkingDays = aprilData?.workingDays ?? 0;
+      const mayWorkingDays = mayData?.workingDays ?? 0;
+      const juneWorkingDays = juneData?.workingDays ?? 0;
+
+      // すべての月の支払基礎日数が17日以上かチェック
+      const validMonths: number[] = [];
+      if (aprilWorkingDays >= 17 && aprilData) {
+        validMonths.push(4);
+      }
+      if (mayWorkingDays >= 17 && mayData) {
+        validMonths.push(5);
+      }
+      if (juneWorkingDays >= 17 && juneData) {
+        validMonths.push(6);
+      }
+
+      // 少なくとも1ヶ月は17日以上必要
+      if (validMonths.length === 0) continue;
+
+      // 給与所得を取得
+      const aprilSalary = this.getTotalSalary(aprilData) ?? 0;
+      const maySalary = this.getTotalSalary(mayData) ?? 0;
+      const juneSalary = this.getTotalSalary(juneData) ?? 0;
+
+      // 有効な月の給与所得のみを使用して平均を計算
+      const validSalaries: number[] = [];
+      if (validMonths.includes(4) && aprilSalary > 0) {
+        validSalaries.push(aprilSalary);
+      }
+      if (validMonths.includes(5) && maySalary > 0) {
+        validSalaries.push(maySalary);
+      }
+      if (validMonths.includes(6) && juneSalary > 0) {
+        validSalaries.push(juneSalary);
+      }
+
+      if (validSalaries.length === 0) continue;
+
+      // 平均額を計算
+      const averageSalary = Math.round(
+        validSalaries.reduce((sum, s) => sum + s, 0) / validSalaries.length
+      );
+
+      // 定時決定を計算（既存のロジックを使用）
+      const salaries: { [key: string]: any } = {};
+      for (let month = 1; month <= 12; month++) {
+        const monthKey = this.getSalaryKey(emp.id, month);
+        const monthData = salaryData[month.toString()];
+        if (monthData) {
+          salaries[monthKey] = {
+            fixedSalary: monthData.fixedSalary ?? monthData.fixed ?? 0,
+            variableSalary: monthData.variableSalary ?? monthData.variable ?? 0,
+            totalSalary: monthData.totalSalary ?? monthData.total ?? 
+                        (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
+                        (monthData.variableSalary ?? monthData.variable ?? 0),
+          };
+        }
+      }
+
+      const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
+        emp.id,
+        salaries,
+        this.gradeTable,
+        targetYear,
+        emp.standardMonthlyRemuneration
+      );
+
+      // 平均額との差が10%以上の月を検出
+      const exclusionCandidates: number[] = [];
+      if (validMonths.includes(4) && aprilSalary > 0) {
+        const diffRate = Math.abs((aprilSalary - averageSalary) / averageSalary);
+        if (diffRate >= 0.1) {
+          exclusionCandidates.push(4);
+        }
+      }
+      if (validMonths.includes(5) && maySalary > 0) {
+        const diffRate = Math.abs((maySalary - averageSalary) / averageSalary);
+        if (diffRate >= 0.1) {
+          exclusionCandidates.push(5);
+        }
+      }
+      if (validMonths.includes(6) && juneSalary > 0) {
+        const diffRate = Math.abs((juneSalary - averageSalary) / averageSalary);
+        if (diffRate >= 0.1) {
+          exclusionCandidates.push(6);
+        }
+      }
+
+      // 既に同じ従業員IDが結果に含まれていないか確認（二重チェック）
+      const existingIndex = this.teijiKetteiResults.findIndex(r => r.employeeId === emp.id);
+      if (existingIndex >= 0) {
+        console.warn(`[alerts-dashboard] 既に結果に存在する従業員をスキップ: ${emp.name} (${emp.id})`);
+        continue;
+      }
+
+      this.teijiKetteiResults.push({
+        employeeId: emp.id,
+        employeeName: emp.name,
+        aprilSalary,
+        aprilWorkingDays,
+        maySalary,
+        mayWorkingDays,
+        juneSalary,
+        juneWorkingDays,
+        averageSalary,
+        excludedMonths: teijiResult.excludedMonths,
+        exclusionCandidates,
+        teijiResult,
       });
-    } else {
-      this.selectedBonusReportAlertIds.clear();
     }
-  }
-
-  isBonusReportAlertSelected(alertId: string): boolean {
-    return this.selectedBonusReportAlertIds.has(alertId);
+    
+    console.log(`[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.teijiKetteiResults.length}`);
+    } catch (error) {
+      console.error('[alerts-dashboard] loadTeijiKetteiDataエラー:', error);
+    } finally {
+      this.isLoadingTeijiKettei = false;
+    }
   }
 
   /**
-   * 選択した賞与支払届アラートを削除
+   * 給与データから総支給額を取得
    */
-  deleteSelectedBonusReportAlerts(): void {
-    const selectedIds = Array.from(this.selectedBonusReportAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の賞与支払届アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.bonusReportAlerts = this.bonusReportAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedBonusReportAlertIds.clear();
+  private getTotalSalary(monthData: any): number | null {
+    if (!monthData) return null;
+    return monthData.totalSalary ?? monthData.total ?? 
+           (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
+           (monthData.variableSalary ?? monthData.variable ?? 0);
   }
 
-  /**
-   * 支給日をフォーマット
-   */
-  formatPayDate(payDateStr: string): string {
-    if (!payDateStr) return '-';
-    const date = new Date(payDateStr);
-    return this.formatDate(date);
+  formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${year}年${month}月${day}日`;
   }
 
   /**
    * 届出スケジュールデータを読み込む
    */
   async loadScheduleData(): Promise<void> {
-    this.scheduleData = {};
-    
     // 定時決定データを読み込む（まだ読み込まれていない場合）
-    if (this.teijiKetteiResults.length === 0) {
+    if (this.teijiKetteiResults.length === 0 && this.activeTab === 'schedule') {
       await this.loadTeijiKetteiData();
     }
     
-    // 賞与支払届アラート
-    for (const alert of this.bonusReportAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      if (!this.scheduleData[dateKey]) {
-        this.scheduleData[dateKey] = {};
-      }
-      if (!this.scheduleData[dateKey]['賞与支払届']) {
-        this.scheduleData[dateKey]['賞与支払届'] = 0;
-      }
-      this.scheduleData[dateKey]['賞与支払届']++;
-    }
-    
-    // 随時改定アラート
-    for (const alert of this.suijiAlerts) {
-      if (alert.isEligible && alert.applyStartMonth) {
-        const deadline = this.getSuijiReportDeadlineDate(alert);
-        if (deadline) {
-          const dateKey = this.formatDateKey(deadline);
-          if (!this.scheduleData[dateKey]) {
-            this.scheduleData[dateKey] = {};
-          }
-          if (!this.scheduleData[dateKey]['随時改定アラート']) {
-            this.scheduleData[dateKey]['随時改定アラート'] = 0;
-          }
-          this.scheduleData[dateKey]['随時改定アラート']++;
-        }
-      }
-    }
-    
-    // 定時決定（算定基礎届）- 7月10日
-    const currentYear = this.getJSTDate().getFullYear();
-    const teijiDeadline = new Date(currentYear, 6, 10); // 7月10日
-    const teijiDateKey = this.formatDateKey(teijiDeadline);
-    if (!this.scheduleData[teijiDateKey]) {
-      this.scheduleData[teijiDateKey] = {};
-    }
-    if (this.teijiKetteiResults.length > 0) {
-      this.scheduleData[teijiDateKey]['定時決定（算定基礎届）'] = this.teijiKetteiResults.length;
-    }
-    
-    // 年齢到達アラート
-    for (const alert of this.ageAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      if (!this.scheduleData[dateKey]) {
-        this.scheduleData[dateKey] = {};
-      }
-      if (!this.scheduleData[dateKey]['年齢到達・資格変更']) {
-        this.scheduleData[dateKey]['年齢到達・資格変更'] = 0;
-      }
-      this.scheduleData[dateKey]['年齢到達・資格変更']++;
-    }
-    
-    // 資格変更アラート
-    for (const alert of this.qualificationChangeAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      if (!this.scheduleData[dateKey]) {
-        this.scheduleData[dateKey] = {};
-      }
-      if (!this.scheduleData[dateKey]['年齢到達・資格変更']) {
-        this.scheduleData[dateKey]['年齢到達・資格変更'] = 0;
-      }
-      this.scheduleData[dateKey]['年齢到達・資格変更']++;
-    }
-    
-    // 産休・育休アラート
-    for (const alert of this.maternityChildcareAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      if (!this.scheduleData[dateKey]) {
-        this.scheduleData[dateKey] = {};
-      }
-      if (!this.scheduleData[dateKey]['産休・育休・休職']) {
-        this.scheduleData[dateKey]['産休・育休・休職'] = 0;
-      }
-      this.scheduleData[dateKey]['産休・育休・休職']++;
-    }
-    
-    // 扶養アラート
-    for (const alert of this.supportAlerts) {
-      if (alert.submitDeadline) {
-        const dateKey = this.formatDateKey(alert.submitDeadline);
-        if (!this.scheduleData[dateKey]) {
-          this.scheduleData[dateKey] = {};
-        }
-        if (!this.scheduleData[dateKey]['扶養・氏名・住所変更']) {
-          this.scheduleData[dateKey]['扶養・氏名・住所変更'] = 0;
-        }
-        this.scheduleData[dateKey]['扶養・氏名・住所変更']++;
-      }
-    }
-  }
-
-  /**
-   * 日付をYYYY-MM-DD形式のキーに変換
-   */
-  formatDateKey(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  /**
-   * 随時改定の届出提出期日をDateオブジェクトで取得
-   */
-  getSuijiReportDeadlineDate(alert: SuijiKouhoResultWithDiff): Date | null {
-    if (!alert.applyStartMonth) {
-      return null;
-    }
-    
-    const year = alert.year || this.getJSTDate().getFullYear();
-    const applyStartMonth = alert.applyStartMonth;
-    
-    // 適用開始月の前月を計算
-    let deadlineMonth = applyStartMonth - 1;
-    let deadlineYear = year;
-    
-    // 1月の場合は前年の12月
-    if (deadlineMonth < 1) {
-      deadlineMonth = 12;
-      deadlineYear = year - 1;
-    }
-    
-    // 前月の月末日を取得
-    const deadlineDate = new Date(deadlineYear, deadlineMonth, 0); // 0日目 = 前月の最終日
-    
-    return deadlineDate;
+    // サービスに集約処理を委譲
+    this.scheduleData = this.alertAggregationService.aggregateScheduleData({
+      bonusReportAlerts: this.bonusReportAlerts,
+      suijiAlerts: this.suijiAlerts,
+      teijiKetteiResults: this.teijiKetteiResults,
+      ageAlerts: this.ageAlerts,
+      qualificationChangeAlerts: this.qualificationChangeAlerts,
+      maternityChildcareAlerts: this.maternityChildcareAlerts,
+      supportAlerts: this.supportAlerts
+    });
   }
 
   /**
@@ -1909,125 +1274,296 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return colorMap[tabId] || '#6c757d';
   }
 
-  /**
-   * カレンダーの日付に表示するスケジュール項目を取得（最大6件）
-   */
-  getScheduleItemsForDate(date: Date): { tabName: string; count: number; tabId: string; color: string }[] {
-    const dateKey = this.formatDateKey(date);
-    const items = this.scheduleData[dateKey];
-    if (!items) {
-      return [];
+  async setActiveTab(tab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): Promise<void> {
+    this.activeTab = tab;
+    // 算定決定タブが選択された場合のみデータを読み込む
+    if (tab === 'teiji') {
+      await this.loadTeijiKetteiData();
+    } else if (tab === 'leave') {
+      await this.loadMaternityChildcareAlerts();
+    } else if (tab === 'family') {
+      await this.loadSupportAlerts();
+    } else if (tab === 'bonus') {
+      await this.loadBonusReportAlerts();
     }
-    
-    // タブ名とタブIDのマッピング
-    const tabMapping: { [key: string]: string } = {
-      '賞与支払届': 'bonus',
-      '随時改定アラート': 'suiji',
-      '定時決定（算定基礎届）': 'teiji',
-      '年齢到達・資格変更': 'age',
-      '産休・育休・休職': 'leave',
-      '扶養・氏名・住所変更': 'family'
-    };
-    
-    const result: { tabName: string; count: number; tabId: string; color: string }[] = [];
-    for (const [tabName, count] of Object.entries(items)) {
-      const tabId = tabMapping[tabName] || '';
-      if (tabId) {
-        result.push({ 
-          tabName, 
-          count, 
-          tabId,
-          color: this.getTabColor(tabId)
-        });
+    // スケジュールデータを再読み込み
+    await this.loadScheduleData();
+  }
+
+  // 賞与支払届アラートのイベントハンドラ
+  onBonusAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedBonusReportAlertIds.add(event.alertId);
+    } else {
+      this.selectedBonusReportAlertIds.delete(event.alertId);
+    }
+  }
+
+  onBonusSelectAllChange(checked: boolean): void {
+    if (checked) {
+      this.bonusReportAlerts.forEach(alert => {
+        this.selectedBonusReportAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedBonusReportAlertIds.clear();
+    }
+  }
+
+  deleteSelectedBonusReportAlerts(): void {
+    const selectedIds = Array.from(this.selectedBonusReportAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の賞与支払届アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.bonusReportAlerts = this.bonusReportAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedBonusReportAlertIds.clear();
+    // スケジュールデータを再読み込み
+    this.loadScheduleData();
+  }
+
+  // 随時改定アラートのイベントハンドラ
+  onSuijiAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedSuijiAlertIds.add(event.alertId);
+    } else {
+      this.selectedSuijiAlertIds.delete(event.alertId);
+    }
+  }
+
+  onSuijiSelectAllChange(checked: boolean): void {
+    if (checked) {
+      this.suijiAlerts.forEach(alert => {
+        const alertId = this.getSuijiAlertId(alert);
+        this.selectedSuijiAlertIds.add(alertId);
+      });
+    } else {
+      this.selectedSuijiAlertIds.clear();
+    }
+  }
+
+  async deleteSelectedSuijiAlerts(): Promise<void> {
+    const selectedIds = Array.from(this.selectedSuijiAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の随時改定アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを削除
+    for (const alertId of selectedIds) {
+      const alert = this.suijiAlerts.find(a => this.getSuijiAlertId(a) === alertId);
+      if (alert) {
+        // FirestoreのドキュメントIDを使用（形式: employeeId_changeMonth）
+        const docId = alert.id || `${alert.employeeId}_${alert.changeMonth}`;
+        const parts = docId.split('_');
+        const employeeId = parts[0];
+        const changeMonth = parseInt(parts[1], 10);
+        
+        const year = alert.year || 2025; // アラートに年度情報が含まれている
+        await this.suijiService.deleteAlert(
+          year,
+          employeeId,
+          changeMonth
+        );
       }
     }
-    
-    // 最大6件まで
-    return result.slice(0, 6);
+
+    // アラートを再読み込み
+    await this.loadSuijiAlerts();
+    this.selectedSuijiAlertIds.clear();
+    // スケジュールデータを再読み込み
+    await this.loadScheduleData();
   }
 
-  /**
-   * カレンダーの月を変更
-   */
-  changeScheduleMonth(delta: number): void {
-    this.scheduleMonth += delta;
-    if (this.scheduleMonth > 12) {
-      this.scheduleMonth = 1;
-      this.scheduleYear++;
-    } else if (this.scheduleMonth < 1) {
-      this.scheduleMonth = 12;
-      this.scheduleYear--;
+  // 定時決定タブのイベントハンドラ
+  async onTeijiYearChange(year: number): Promise<void> {
+    this.teijiYear = year;
+    await this.loadTeijiKetteiData();
+    await this.loadScheduleData();
+  }
+
+  // 年齢到達アラートのイベントハンドラ
+  onAgeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedAgeAlertIds.add(event.alertId);
+    } else {
+      this.selectedAgeAlertIds.delete(event.alertId);
     }
   }
 
-  /**
-   * カレンダーの日付をクリックしたときの処理
-   */
+  onAgeSelectAllChange(checked: boolean): void {
+    if (checked) {
+      this.ageAlerts.forEach(alert => {
+        this.selectedAgeAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedAgeAlertIds.clear();
+    }
+  }
+
+  deleteSelectedAgeAlerts(): void {
+    const selectedIds = Array.from(this.selectedAgeAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の年齢到達アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.ageAlerts = this.ageAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedAgeAlertIds.clear();
+    // スケジュールデータを再読み込み
+    this.loadScheduleData();
+  }
+
+  // 資格変更アラートのイベントハンドラ
+  onQualificationChangeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedQualificationChangeAlertIds.add(event.alertId);
+    } else {
+      this.selectedQualificationChangeAlertIds.delete(event.alertId);
+    }
+  }
+
+  onQualificationChangeSelectAllChange(checked: boolean): void {
+    if (checked) {
+      this.qualificationChangeAlerts.forEach(alert => {
+        this.selectedQualificationChangeAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedQualificationChangeAlertIds.clear();
+    }
+  }
+
+  async deleteSelectedQualificationChangeAlerts(): Promise<void> {
+    const selectedIds = Array.from(this.selectedQualificationChangeAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の資格変更アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Firestoreに削除済みとしてマーク
+    for (const alertId of selectedIds) {
+      await this.qualificationChangeAlertService.markAsDeleted(alertId);
+    }
+
+    // 選択されたアラートを配列から削除
+    this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedQualificationChangeAlertIds.clear();
+    // スケジュールデータを再読み込み
+    await this.loadScheduleData();
+  }
+
+  // 産休育休アラートのイベントハンドラ
+  onMaternityChildcareAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedMaternityChildcareAlertIds.add(event.alertId);
+    } else {
+      this.selectedMaternityChildcareAlertIds.delete(event.alertId);
+    }
+  }
+
+  onMaternityChildcareSelectAllChange(checked: boolean): void {
+    if (checked) {
+      this.maternityChildcareAlerts.forEach(alert => {
+        this.selectedMaternityChildcareAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedMaternityChildcareAlertIds.clear();
+    }
+  }
+
+  deleteSelectedMaternityChildcareAlerts(): void {
+    const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の産休育休アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedMaternityChildcareAlertIds.clear();
+    // スケジュールデータを再読み込み
+    this.loadScheduleData();
+  }
+
+  // 扶養アラートのイベントハンドラ
+  onSupportAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedSupportAlertIds.add(event.alertId);
+    } else {
+      this.selectedSupportAlertIds.delete(event.alertId);
+    }
+  }
+
+  onSupportSelectAllChange(checked: boolean): void {
+    if (checked) {
+      this.supportAlerts.forEach(alert => {
+        this.selectedSupportAlertIds.add(alert.id);
+      });
+    } else {
+      this.selectedSupportAlertIds.clear();
+    }
+  }
+
+  deleteSelectedSupportAlerts(): void {
+    const selectedIds = Array.from(this.selectedSupportAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の扶養アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 選択されたアラートを配列から削除
+    this.supportAlerts = this.supportAlerts.filter(
+      alert => !selectedIds.includes(alert.id)
+    );
+    this.selectedSupportAlertIds.clear();
+    // スケジュールデータを再読み込み
+    this.loadScheduleData();
+  }
+
+  // スケジュールタブのイベントハンドラ
+  onScheduleMonthChange(month: number): void {
+    this.scheduleMonth = month;
+  }
+
+  onScheduleYearChange(year: number): void {
+    this.scheduleYear = year;
+  }
+
   onScheduleDateClick(tabId: string): void {
     this.setActiveTab(tabId as any);
   }
-
-  /**
-   * カレンダーの日付が現在の月かどうか
-   */
-  isCurrentMonth(date: Date): boolean {
-    return date.getFullYear() === this.scheduleYear && date.getMonth() + 1 === this.scheduleMonth;
-  }
-
-  /**
-   * カレンダーの日付が今日かどうか
-   */
-  isToday(date: Date): boolean {
-    const today = this.getJSTDate();
-    return date.getFullYear() === today.getFullYear() &&
-           date.getMonth() === today.getMonth() &&
-           date.getDate() === today.getDate();
-  }
-
-  /**
-   * カレンダーの日付配列を生成
-   */
-  getCalendarDays(): Date[] {
-    const firstDay = new Date(this.scheduleYear, this.scheduleMonth - 1, 1);
-    const lastDay = new Date(this.scheduleYear, this.scheduleMonth, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay(); // 0 (日) から 6 (土)
-    
-    const days: Date[] = [];
-    
-    // 前月の日付を追加（カレンダーの最初の週を埋める）
-    const prevMonth = this.scheduleMonth - 1;
-    const prevYear = prevMonth < 1 ? this.scheduleYear - 1 : this.scheduleYear;
-    const prevMonthLastDay = new Date(prevYear, prevMonth, 0).getDate();
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      days.push(new Date(prevYear, prevMonth - 1, prevMonthLastDay - i));
-    }
-    
-    // 今月の日付を追加
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(this.scheduleYear, this.scheduleMonth - 1, day));
-    }
-    
-    // 次月の日付を追加（カレンダーの最後の週を埋める）
-    const totalDays = days.length;
-    const remainingDays = 42 - totalDays; // 6週間 × 7日 = 42日
-    for (let day = 1; day <= remainingDays; day++) {
-      days.push(new Date(this.scheduleYear, this.scheduleMonth, day));
-    }
-    
-    return days;
-  }
-
-  /**
-   * カレンダーの日付を週ごとに分割
-   */
-  getCalendarWeeks(): Date[][] {
-    const days = this.getCalendarDays();
-    const weeks: Date[][] = [];
-    for (let i = 0; i < days.length; i += 7) {
-      weeks.push(days.slice(i, i + 7));
-    }
-    return weeks;
-  }
 }
-

@@ -1,0 +1,158 @@
+<div class="card">
+  <h3>年齢到達アラート</h3>
+  
+  <div *ngIf="ageAlerts.length === 0" class="info-label">
+    年齢到達アラートはありません。
+  </div>
+  
+  <div *ngIf="ageAlerts.length > 0" style="margin-bottom: 1rem;">
+    <button 
+      *ngIf="selectedAgeAlertIds.size > 0"
+      (click)="deleteSelectedAgeAlerts()"
+      class="btn-danger"
+      style="margin-right: 0.5rem;">
+      選択した{{ selectedAgeAlertIds.size }}件を削除（非表示にする）
+    </button>
+    <label style="margin-left: 1rem;">
+      <input 
+        type="checkbox" 
+        [checked]="selectedAgeAlertIds.size === ageAlerts.length && ageAlerts.length > 0"
+        (change)="toggleAllAgeAlertsChange($event)"
+        style="margin-right: 0.5rem;">
+      すべてのアラートを削除対象に選択
+    </label>
+  </div>
+  
+  <table class="alert-table" *ngIf="ageAlerts.length > 0">
+    <thead>
+      <tr>
+        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th>届出名前</th>
+        <th>従業員</th>
+        <th>アラート種別</th>
+        <th>誕生日</th>
+        <th>到達日（資格喪失日）</th>
+        <th>届出提出期日</th>
+        <th>提出期限まで</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let alert of ageAlerts"
+          [ngClass]="{
+            'alert-row': alert.daysUntilDeadline <= 7,
+            'selected-row': isAgeAlertSelected(alert.id)
+          }">
+        <td style="width: 80px; text-align: center;">
+          <input 
+            type="checkbox" 
+            [checked]="isAgeAlertSelected(alert.id)"
+            (change)="toggleAgeAlertSelection(alert.id)"
+            title="削除対象に選択">
+        </td>
+        <td>{{ alert.notificationName }}</td>
+        <td>
+          <span *ngIf="alert.daysUntilDeadline <= 7">⚠️ </span>
+          {{ alert.employeeName }}
+        </td>
+        <td>{{ alert.alertType }}</td>
+        <td>{{ formatBirthDate(alert.birthDate) }}</td>
+        <td>{{ formatDate(alert.reachDate) }}</td>
+        <td>
+          <strong>{{ formatDate(alert.submitDeadline) }}</strong>
+        </td>
+        <td>
+          <span *ngIf="alert.daysUntilDeadline > 0" [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'">
+            {{ alert.daysUntilDeadline }}日
+          </span>
+          <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
+            期限切れ
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 資格変更アラート -->
+<div class="card" style="margin-top: 2rem;">
+  <h3>資格変更アラート</h3>
+  <p class="info-text" style="margin-bottom: 1rem;">
+    従業員基本情報の変更（氏名、住所、生年月日、性別、所属事業所、適用区分）があった場合に、変更があった日から5日以内に届出が必要な変更についてアラートを表示します。
+  </p>
+  
+  <div *ngIf="qualificationChangeAlerts.length === 0" class="info-label">
+    資格変更アラートはありません。
+  </div>
+  
+  <div *ngIf="qualificationChangeAlerts.length > 0" style="margin-bottom: 1rem;">
+    <button 
+      *ngIf="selectedQualificationChangeAlertIds.size > 0"
+      (click)="deleteSelectedQualificationChangeAlerts()"
+      class="btn-danger"
+      style="margin-right: 0.5rem;">
+      選択した{{ selectedQualificationChangeAlertIds.size }}件を削除（非表示にする）
+    </button>
+    <label style="margin-left: 1rem;">
+      <input 
+        type="checkbox" 
+        [checked]="selectedQualificationChangeAlertIds.size === qualificationChangeAlerts.length && qualificationChangeAlerts.length > 0"
+        (change)="toggleAllQualificationChangeAlertsChange($event)"
+        style="margin-right: 0.5rem;">
+      すべてのアラートを削除対象に選択
+    </label>
+  </div>
+  
+  <table class="alert-table" *ngIf="qualificationChangeAlerts.length > 0">
+    <thead>
+      <tr>
+        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th>届出名前</th>
+        <th>従業員</th>
+        <th>変更種別</th>
+        <th>変更詳細</th>
+        <th>変更日</th>
+        <th>届出提出期日</th>
+        <th>提出期限まで</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let alert of qualificationChangeAlerts"
+          [ngClass]="{
+            'alert-row': alert.daysUntilDeadline <= 7,
+            'selected-row': isQualificationChangeAlertSelected(alert.id)
+          }">
+        <td style="width: 80px; text-align: center;">
+          <input 
+            type="checkbox" 
+            [checked]="isQualificationChangeAlertSelected(alert.id)"
+            (change)="toggleQualificationChangeAlertSelection(alert.id)"
+            title="削除対象に選択">
+        </td>
+        <td>
+          <div *ngFor="let notificationName of alert.notificationNames">
+            {{ notificationName }}
+          </div>
+        </td>
+        <td>
+          <span *ngIf="alert.daysUntilDeadline <= 7">⚠️ </span>
+          {{ alert.employeeName }}
+        </td>
+        <td>{{ alert.changeType }}</td>
+        <td>{{ alert.details }}</td>
+        <td>{{ formatDate(alert.changeDate) }}</td>
+        <td>
+          <strong>{{ formatDate(alert.submitDeadline) }}</strong>
+        </td>
+        <td>
+          <span *ngIf="alert.daysUntilDeadline > 0" [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'">
+            {{ alert.daysUntilDeadline }}日
+          </span>
+          <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
+            期限切れ
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+

@@ -1,0 +1,79 @@
+<div class="card">
+  <h3>産休・育休アラート</h3>
+  <p class="info-text" style="margin-bottom: 1rem;">
+    産前産後休業および育児休業に関する届出の提出期限をアラートで表示します。<br>
+    各届出の提出期限は、開始日または終了日の翌日から5日以内です。
+  </p>
+  
+  <div *ngIf="maternityChildcareAlerts.length === 0" class="info-label">
+    産休・育休アラートはありません。
+  </div>
+  
+  <div *ngIf="maternityChildcareAlerts.length > 0" style="margin-bottom: 1rem;">
+    <button 
+      *ngIf="selectedMaternityChildcareAlertIds.size > 0"
+      (click)="deleteSelectedMaternityChildcareAlerts()"
+      class="btn-danger"
+      style="margin-right: 0.5rem;">
+      選択した{{ selectedMaternityChildcareAlertIds.size }}件を削除（非表示にする）
+    </button>
+    <label style="margin-left: 1rem;">
+      <input 
+        type="checkbox" 
+        [checked]="selectedMaternityChildcareAlertIds.size === maternityChildcareAlerts.length && maternityChildcareAlerts.length > 0"
+        (change)="toggleAllMaternityChildcareAlertsChange($event)"
+        style="margin-right: 0.5rem;">
+      すべてのアラートを削除対象に選択
+    </label>
+  </div>
+  
+  <table class="alert-table" *ngIf="maternityChildcareAlerts.length > 0">
+    <thead>
+      <tr>
+        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th>届出名前</th>
+        <th>従業員</th>
+        <th>アラート種別</th>
+        <th>詳細</th>
+        <th>開始日</th>
+        <th>届出提出期日</th>
+        <th>提出期限まで</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let alert of maternityChildcareAlerts"
+          [ngClass]="{
+            'alert-row': alert.daysUntilDeadline <= 7,
+            'selected-row': isMaternityChildcareAlertSelected(alert.id)
+          }">
+        <td style="width: 80px; text-align: center;">
+          <input 
+            type="checkbox" 
+            [checked]="isMaternityChildcareAlertSelected(alert.id)"
+            (change)="toggleMaternityChildcareAlertSelection(alert.id)"
+            title="削除対象に選択">
+        </td>
+        <td>{{ alert.notificationName }}</td>
+        <td>
+          <span *ngIf="alert.daysUntilDeadline <= 7">⚠️ </span>
+          {{ alert.employeeName }}
+        </td>
+        <td>{{ alert.alertType }}</td>
+        <td>{{ alert.details }}</td>
+        <td>{{ formatDate(alert.startDate) }}</td>
+        <td>
+          <strong>{{ formatDate(alert.submitDeadline) }}</strong>
+        </td>
+        <td>
+          <span *ngIf="alert.daysUntilDeadline > 0" [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'">
+            {{ alert.daysUntilDeadline }}日
+          </span>
+          <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
+            期限切れ
+          </span>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
