@@ -883,7 +883,34 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   }
 
   getFilteredInsuranceHistories(): InsuranceStatusHistory[] {
-    return this.insuranceStatusHistories.filter(h => h.year === this.selectedHistoryYear);
+    // 選択年度でフィルタリング
+    const filtered = this.insuranceStatusHistories.filter(h => h.year === this.selectedHistoryYear);
+    
+    // 同じ年月の重複を排除（最新のupdatedAtを持つものを優先、なければcreatedAt）
+    const uniqueMap = new Map<string, InsuranceStatusHistory>();
+    for (const history of filtered) {
+      const key = `${history.year}_${history.month}`;
+      const existing = uniqueMap.get(key);
+      
+      if (!existing) {
+        uniqueMap.set(key, history);
+      } else {
+        // より新しい更新日時を持つものを採用
+        const existingTime = existing.updatedAt || existing.createdAt || new Date(0);
+        const currentTime = history.updatedAt || history.createdAt || new Date(0);
+        if (currentTime > existingTime) {
+          uniqueMap.set(key, history);
+        }
+      }
+    }
+    
+    // Mapから配列に変換してソート（年月で降順）
+    return Array.from(uniqueMap.values()).sort((a, b) => {
+      if (a.year !== b.year) {
+        return b.year - a.year;
+      }
+      return b.month - a.month;
+    });
   }
 }
 

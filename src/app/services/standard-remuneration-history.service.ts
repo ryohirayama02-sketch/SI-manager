@@ -206,8 +206,28 @@ export class StandardRemunerationHistoryService {
         updatedAt
       } as InsuranceStatusHistory;
     });
-    // クライアント側でソート（year, monthで降順ソート）
-    return histories.sort((a, b) => {
+    
+    // 同じ年月の重複を排除（最新のupdatedAtを持つものを優先、なければcreatedAt）
+    const uniqueMap = new Map<string, InsuranceStatusHistory>();
+    for (const history of histories) {
+      const key = `${history.year}_${history.month}`;
+      const existing = uniqueMap.get(key);
+      
+      if (!existing) {
+        uniqueMap.set(key, history);
+      } else {
+        // より新しい更新日時を持つものを採用
+        const existingTime = existing.updatedAt || existing.createdAt || new Date(0);
+        const currentTime = history.updatedAt || history.createdAt || new Date(0);
+        if (currentTime > existingTime) {
+          uniqueMap.set(key, history);
+        }
+      }
+    }
+    
+    // Mapから配列に変換してソート（year, monthで降順ソート）
+    const uniqueHistories = Array.from(uniqueMap.values());
+    return uniqueHistories.sort((a, b) => {
       if (a.year !== b.year) {
         return b.year - a.year;
       }

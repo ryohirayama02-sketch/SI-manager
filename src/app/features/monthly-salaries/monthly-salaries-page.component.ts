@@ -197,9 +197,10 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
   async loadRatesAndGradeTable(): Promise<void> {
     // 従業員の都道府県を取得（最初の従業員の都道府県を使用、デフォルトはtokyo）
-    const prefecture = this.employees.length > 0 && this.employees[0].prefecture
-      ? this.employees[0].prefecture
-      : 'tokyo';
+    const prefecture =
+      this.employees.length > 0 && this.employees[0].prefecture
+        ? this.employees[0].prefecture
+        : 'tokyo';
     this.rates = await this.settingsService.getRates(
       this.year.toString(),
       prefecture
@@ -484,7 +485,9 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       for (const month of this.months) {
         // 支払基礎日数を取得（免除月でも取得）
         const workingDaysKey = this.getWorkingDaysKey(emp.id, month);
-        const workingDays = this.workingDaysData[workingDaysKey] ?? new Date(this.year, month, 0).getDate();
+        const workingDays =
+          this.workingDaysData[workingDaysKey] ??
+          new Date(this.year, month, 0).getDate();
 
         // 免除月の場合はスキップ（0として扱う）
         if (this.exemptMonths[emp.id]?.includes(month)) {
@@ -687,10 +690,13 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
             const salaryKey = this.getSalaryKey(emp.id, month);
             this.salaries[salaryKey] = { total, fixed, variable };
           }
-          
+
           // 支払基礎日数を読み込む
           const workingDaysKey = this.getWorkingDaysKey(emp.id, month);
-          if (monthData.workingDays !== undefined && monthData.workingDays !== null) {
+          if (
+            monthData.workingDays !== undefined &&
+            monthData.workingDays !== null
+          ) {
             this.workingDaysData[workingDaysKey] = monthData.workingDays;
           } else {
             // デフォルト値として月の日数を設定（既存データがない場合のみ）
@@ -758,11 +764,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
       for (const month of this.months) {
         // 各月の免除判定（Service層のメソッドを使用）
-        const exemptResult = this.salaryCalculationService.getExemptReasonForMonth(
-          emp,
-          this.year,
-          month
-        );
+        const exemptResult =
+          this.salaryCalculationService.getExemptReasonForMonth(
+            emp,
+            this.year,
+            month
+          );
         if (exemptResult.exempt) {
           if (!this.exemptMonths[emp.id].includes(month)) {
             this.exemptMonths[emp.id].push(month);
@@ -774,7 +781,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       }
     }
   }
-  
+
   getExemptReason(employeeId: string, month: number): string {
     const key = `${employeeId}_${month}`;
     const reason = this.exemptReasons[key] || '';
@@ -933,24 +940,33 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   async importFromCsvText(csvText?: string): Promise<void> {
     // 引数が渡されていない場合は、プロパティから取得
     const textToImport = csvText || this.csvImportText;
-    
+
     if (!textToImport.trim()) {
-      this.csvImportResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      this.csvImportResult = {
+        type: 'error',
+        message: 'CSVデータが入力されていません',
+      };
       return;
     }
     try {
-      const lines = textToImport.split('\n').filter(line => line.trim());
+      const lines = textToImport.split('\n').filter((line) => line.trim());
       if (lines.length < 2) {
-        this.csvImportResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        this.csvImportResult = {
+          type: 'error',
+          message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）',
+        };
         return;
       }
 
       // ヘッダー行をパース
       const headerLine = lines[0];
-      const headerParts = headerLine.split(',').map(p => p.trim());
-      
+      const headerParts = headerLine.split(',').map((p) => p.trim());
+
       if (headerParts.length < 3) {
-        this.csvImportResult = { type: 'error', message: 'ヘッダー行が不正です（最低3列必要：月,従業員,項目名...）' };
+        this.csvImportResult = {
+          type: 'error',
+          message: 'ヘッダー行が不正です（最低3列必要：月,従業員,項目名...）',
+        };
         return;
       }
 
@@ -958,9 +974,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       const monthIndex = headerParts.indexOf('月');
       const employeeIndex = headerParts.indexOf('従業員');
       const workingDaysIndex = headerParts.indexOf('支払基礎日数');
-      
+
       if (monthIndex === -1 || employeeIndex === -1) {
-        this.csvImportResult = { type: 'error', message: 'ヘッダーに「月」と「従業員」の列が必要です' };
+        this.csvImportResult = {
+          type: 'error',
+          message: 'ヘッダーに「月」と「従業員」の列が必要です',
+        };
         return;
       }
 
@@ -973,7 +992,10 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       }
 
       if (salaryItemColumns.length === 0) {
-        this.csvImportResult = { type: 'error', message: '給与項目が見つかりません' };
+        this.csvImportResult = {
+          type: 'error',
+          message: '給与項目が見つかりません',
+        };
         return;
       }
 
@@ -984,8 +1006,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       const errors: string[] = [];
 
       for (const line of dataLines) {
-        const parts = line.split(',').map(p => p.trim());
-        
+        const parts = line.split(',').map((p) => p.trim());
+
         if (parts.length < headerParts.length) {
           errorCount++;
           errors.push(`行「${line}」: 列数が不足しています`);
@@ -995,7 +1017,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
         // 月を取得
         const monthStr = parts[monthIndex];
         const month = parseInt(monthStr, 10);
-        
+
         if (isNaN(month) || month < 1 || month > 12) {
           errorCount++;
           errors.push(`行「${line}」: 月が不正です（1〜12の範囲）`);
@@ -1004,11 +1026,15 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
         // 従業員名を取得
         const employeeName = parts[employeeIndex];
-        const employee = this.employees.find(emp => emp.name === employeeName);
-        
+        const employee = this.employees.find(
+          (emp) => emp.name === employeeName
+        );
+
         if (!employee) {
           errorCount++;
-          errors.push(`行「${line}」: 従業員「${employeeName}」が見つかりません`);
+          errors.push(
+            `行「${line}」: 従業員「${employeeName}」が見つかりません`
+          );
           continue;
         }
 
@@ -1028,11 +1054,15 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
           const amount = parseFloat(amountStr.replace(/,/g, '')) || 0;
 
           // 給与項目名から給与項目IDを取得
-          const salaryItem = this.salaryItems.find(item => item.name === itemColumn.name);
-          
+          const salaryItem = this.salaryItems.find(
+            (item) => item.name === itemColumn.name
+          );
+
           if (!salaryItem) {
             errorCount++;
-            errors.push(`行「${line}」: 給与項目「${itemColumn.name}」が見つかりません`);
+            errors.push(
+              `行「${line}」: 給与項目「${itemColumn.name}」が見つかりません`
+            );
             continue;
           }
 
@@ -1048,7 +1078,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
             employeeId: employee.id,
             month: month,
             itemId: salaryItem.id,
-            value: amount
+            value: amount,
           });
 
           successCount++;
@@ -1059,19 +1089,23 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       if (errorCount > 0) {
         this.csvImportResult = {
           type: 'error',
-          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors.slice(0, 5).join(' / ')}${errors.length > 5 ? ' ...' : ''}`
+          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors
+            .slice(0, 5)
+            .join(' / ')}${errors.length > 5 ? ' ...' : ''}`,
         };
       } else {
         this.csvImportResult = {
           type: 'success',
-          message: `${successCount}件のデータをインポートしました`
+          message: `${successCount}件のデータをインポートしました`,
         };
         this.csvImportText = '';
       }
     } catch (error) {
       console.error('CSVインポートエラー:', error);
-      this.csvImportResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
+      this.csvImportResult = {
+        type: 'error',
+        message: `インポート中にエラーが発生しました: ${error}`,
+      };
     }
   }
-
 }
