@@ -396,10 +396,10 @@
 
     <!-- 標準報酬履歴・社保加入履歴タブ -->
     <div *ngIf="activeTab === 'history'" class="tab-content">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <h3>標準報酬履歴・社保加入履歴</h3>
-        <button type="button" (click)="generateHistories($event)" class="btn-secondary">履歴を自動生成</button>
-      </div>
+      <h3>標準報酬履歴・社保加入履歴</h3>
+      <small class="form-text" style="display: block; margin-bottom: 1rem; color: #666;">
+        ※ 履歴は自動的に生成・更新されます
+      </small>
 
       <!-- 標準報酬履歴 -->
       <h4>標準報酬履歴</h4>
@@ -429,7 +429,7 @@
       <h4 style="margin-top: 2rem;">社保加入履歴</h4>
       <div style="margin-bottom: 1rem;">
         <label for="historyYear">表示年度:</label>
-        <select id="historyYear" [(ngModel)]="selectedHistoryYear" (change)="loadHistories()" class="form-control" style="display: inline-block; width: auto; margin-left: 0.5rem;">
+        <select id="historyYear" [(ngModel)]="selectedHistoryYear" (change)="onHistoryYearChange()" class="form-control" style="display: inline-block; width: auto; margin-left: 0.5rem;">
           <option *ngFor="let year of [2023, 2024, 2025, 2026]" [value]="year">{{ year }}年</option>
         </select>
       </div>
@@ -454,7 +454,7 @@
           </tr>
         </tbody>
       </table>
-      <p *ngIf="getFilteredInsuranceHistories().length === 0" class="info-text">社保加入履歴が登録されていません。「履歴を自動生成」ボタンをクリックして生成してください。</p>
+      <p *ngIf="getFilteredInsuranceHistories().length === 0" class="info-text">社保加入履歴が登録されていません。履歴は自動的に生成されます。</p>
   </div>
 
   <!-- エラー・警告メッセージ -->

@@ -254,7 +254,7 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
       // 家族情報を読み込み
       await this.loadFamilyMembers();
       
-      // 標準報酬履歴・社保加入履歴を読み込み
+      // 標準報酬履歴・社保加入履歴を自動生成・読み込み
       await this.loadHistories();
     }
 
@@ -561,6 +561,9 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     // 変更履歴を保存
     await this.detectAndSaveChanges(this.originalEmployeeData, value);
     
+    // 従業員情報が変更されたので、履歴を再読み込み（自動生成含む）
+    await this.loadHistories();
+    
     alert('保存しました');
   }
 
@@ -835,6 +838,14 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   async loadHistories(): Promise<void> {
     if (!this.employeeId) return;
     
+    // 従業員情報を取得
+    const employee = await this.employeeService.getEmployeeById(this.employeeId);
+    if (!employee) return;
+    
+    // 常に最新の履歴を自動生成
+    await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(this.employeeId, employee);
+    await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(this.employeeId, employee);
+    
     // 標準報酬履歴を読み込み
     this.standardRemunerationHistories = await this.standardRemunerationHistoryService.getStandardRemunerationHistories(this.employeeId);
     
@@ -879,6 +890,24 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
       case 'exempt_childcare': return '免除（育休）';
       case 'type1': return '第1号被保険者';
       default: return status;
+    }
+  }
+
+  async onHistoryYearChange(): Promise<void> {
+    // 選択年度の履歴が存在しない場合は自動生成
+    const filtered = this.insuranceStatusHistories.filter(h => h.year === this.selectedHistoryYear);
+    if (filtered.length === 0 && this.employeeId) {
+      const employee = await this.employeeService.getEmployeeById(this.employeeId);
+      if (employee) {
+        // 選択年度の履歴を生成
+        await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
+          this.employeeId,
+          employee,
+          [this.selectedHistoryYear]
+        );
+        // 履歴を再読み込み
+        this.insuranceStatusHistories = await this.standardRemunerationHistoryService.getInsuranceStatusHistories(this.employeeId);
+      }
     }
   }
 

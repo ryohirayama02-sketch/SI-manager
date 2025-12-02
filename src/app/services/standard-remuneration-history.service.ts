@@ -238,9 +238,11 @@ export class StandardRemunerationHistoryService {
   /**
    * 従業員情報から社保加入履歴を自動生成
    */
-  async generateInsuranceStatusHistory(employeeId: string, employee: Employee): Promise<void> {
-    const currentYear = new Date().getFullYear();
-    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+  async generateInsuranceStatusHistory(employeeId: string, employee: Employee, years?: number[]): Promise<void> {
+    // 年度が指定されていない場合は、選択可能な年度すべてを生成（2023-2026）
+    if (!years) {
+      years = [2023, 2024, 2025, 2026];
+    }
 
     for (const year of years) {
       for (let month = 1; month <= 12; month++) {
