@@ -27,7 +27,7 @@
   [warningMessages]="warningMessages"
 ></app-error-warning-section>
 
-<app-salary-input-section
+<app-salary-table
   [employees]="employees"
   [salaryItems]="salaryItems"
   [months]="months"
@@ -36,9 +36,10 @@
   [rehabHighlightMonths]="getRehabHighlightMonths()"
   [exemptMonths]="exemptMonths"
   [exemptReasons]="exemptReasons"
+  [year]="year"
   (salaryItemChange)="onSalaryItemChange($event)"
-  (workingDaysChange)="onWorkingDaysChange($event)"
-></app-salary-input-section>
+  (workingDaysChange)="onWorkingDaysChange($event)">
+</app-salary-table>
 
 <button (click)="saveAllSalaries()" class="btn-success" style="margin-top: 1rem;">
   保存する

@@ -4,57 +4,57 @@
   <div class="tabs">
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'schedule'"
-      [style.border-bottom-color]="activeTab === 'schedule' ? getTabColor('schedule') : 'transparent'"
-      [style.color]="getTabColor('schedule')"
+      [class.active]="state.activeTab === 'schedule'"
+      [style.border-bottom-color]="state.activeTab === 'schedule' ? state.getTabColor('schedule') : 'transparent'"
+      [style.color]="state.getTabColor('schedule')"
       (click)="setActiveTab('schedule')">
       届出スケジュール
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'bonus'"
-      [style.border-bottom-color]="activeTab === 'bonus' ? getTabColor('bonus') : 'transparent'"
-      [style.color]="getTabColor('bonus')"
+      [class.active]="state.activeTab === 'bonus'"
+      [style.border-bottom-color]="state.activeTab === 'bonus' ? state.getTabColor('bonus') : 'transparent'"
+      [style.color]="state.getTabColor('bonus')"
       (click)="setActiveTab('bonus')">
       賞与支払届
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'suiji'"
-      [style.border-bottom-color]="activeTab === 'suiji' ? getTabColor('suiji') : 'transparent'"
-      [style.color]="getTabColor('suiji')"
+      [class.active]="state.activeTab === 'suiji'"
+      [style.border-bottom-color]="state.activeTab === 'suiji' ? state.getTabColor('suiji') : 'transparent'"
+      [style.color]="state.getTabColor('suiji')"
       (click)="setActiveTab('suiji')">
       随時改定アラート
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'teiji'"
-      [style.border-bottom-color]="activeTab === 'teiji' ? getTabColor('teiji') : 'transparent'"
-      [style.color]="getTabColor('teiji')"
+      [class.active]="state.activeTab === 'teiji'"
+      [style.border-bottom-color]="state.activeTab === 'teiji' ? state.getTabColor('teiji') : 'transparent'"
+      [style.color]="state.getTabColor('teiji')"
       (click)="setActiveTab('teiji')">
       定時決定（算定基礎届）
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'age'"
-      [style.border-bottom-color]="activeTab === 'age' ? getTabColor('age') : 'transparent'"
-      [style.color]="getTabColor('age')"
+      [class.active]="state.activeTab === 'age'"
+      [style.border-bottom-color]="state.activeTab === 'age' ? state.getTabColor('age') : 'transparent'"
+      [style.color]="state.getTabColor('age')"
       (click)="setActiveTab('age')">
       年齢到達・資格変更
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'leave'"
-      [style.border-bottom-color]="activeTab === 'leave' ? getTabColor('leave') : 'transparent'"
-      [style.color]="getTabColor('leave')"
+      [class.active]="state.activeTab === 'leave'"
+      [style.border-bottom-color]="state.activeTab === 'leave' ? state.getTabColor('leave') : 'transparent'"
+      [style.color]="state.getTabColor('leave')"
       (click)="setActiveTab('leave')">
       産休・育休・休職
     </button>
     <button 
       class="tab-button" 
-      [class.active]="activeTab === 'family'"
-      [style.border-bottom-color]="activeTab === 'family' ? getTabColor('family') : 'transparent'"
-      [style.color]="getTabColor('family')"
+      [class.active]="state.activeTab === 'family'"
+      [style.border-bottom-color]="state.activeTab === 'family' ? state.getTabColor('family') : 'transparent'"
+      [style.color]="state.getTabColor('family')"
       (click)="setActiveTab('family')">
       扶養・氏名・住所変更
     </button>
@@ -63,10 +63,10 @@
   <div class="tab-content">
     <!-- 届出スケジュール（マンスリーカレンダー）タブ -->
     <app-alert-schedule-tab
-      *ngIf="activeTab === 'schedule'"
-      [scheduleData]="scheduleData"
-      [scheduleYear]="scheduleYear"
-      [scheduleMonth]="scheduleMonth"
+      *ngIf="state.activeTab === 'schedule'"
+      [scheduleData]="state.scheduleData"
+      [scheduleYear]="state.scheduleYear"
+      [scheduleMonth]="state.scheduleMonth"
       (scheduleMonthChange)="onScheduleMonthChange($event)"
       (scheduleYearChange)="onScheduleYearChange($event)"
       (dateClick)="onScheduleDateClick($event)">
@@ -74,9 +74,9 @@
 
     <!-- 賞与支払届タブ -->
     <app-alert-bonus-tab
-      *ngIf="activeTab === 'bonus'"
-      [bonusReportAlerts]="bonusReportAlerts"
-      [selectedBonusReportAlertIds]="selectedBonusReportAlertIds"
+      *ngIf="state.activeTab === 'bonus'"
+      [bonusReportAlerts]="state.bonusReportAlerts"
+      [selectedBonusReportAlertIds]="state.selectedBonusReportAlertIds"
       (alertSelectionChange)="onBonusAlertSelectionChange($event)"
       (selectAllChange)="onBonusSelectAllChange($event)"
       (deleteSelected)="deleteSelectedBonusReportAlerts()">
@@ -84,9 +84,9 @@
 
     <!-- 随時改定アラートタブ -->
     <app-alert-suiji-tab
-      *ngIf="activeTab === 'suiji'"
-      [suijiAlerts]="suijiAlerts"
-      [selectedSuijiAlertIds]="selectedSuijiAlertIds"
+      *ngIf="state.activeTab === 'suiji'"
+      [suijiAlerts]="state.suijiAlerts"
+      [selectedSuijiAlertIds]="state.selectedSuijiAlertIds"
       [employees]="employees"
       (alertSelectionChange)="onSuijiAlertSelectionChange($event)"
       (selectAllChange)="onSuijiSelectAllChange($event)"
@@ -95,21 +95,21 @@
 
     <!-- 定時決定（算定基礎届）対象者一覧タブ -->
     <app-alert-teiji-tab
-      *ngIf="activeTab === 'teiji'"
-      [teijiKetteiResults]="teijiKetteiResults"
-      [teijiYear]="teijiYear"
-      [availableYears]="availableYears"
+      *ngIf="state.activeTab === 'teiji'"
+      [teijiKetteiResults]="state.teijiKetteiResults"
+      [teijiYear]="state.teijiYear"
+      [availableYears]="state.availableYears"
       [isLoadingTeijiKettei]="isLoadingTeijiKettei"
       (yearChange)="onTeijiYearChange($event)">
     </app-alert-teiji-tab>
 
     <!-- 年齢到達・資格変更アラートタブ -->
     <app-alert-age-tab
-      *ngIf="activeTab === 'age'"
-      [ageAlerts]="ageAlerts"
-      [selectedAgeAlertIds]="selectedAgeAlertIds"
-      [qualificationChangeAlerts]="qualificationChangeAlerts"
-      [selectedQualificationChangeAlertIds]="selectedQualificationChangeAlertIds"
+      *ngIf="state.activeTab === 'age'"
+      [ageAlerts]="state.ageAlerts"
+      [selectedAgeAlertIds]="state.selectedAgeAlertIds"
+      [qualificationChangeAlerts]="state.qualificationChangeAlerts"
+      [selectedQualificationChangeAlertIds]="state.selectedQualificationChangeAlertIds"
       (ageAlertSelectionChange)="onAgeAlertSelectionChange($event)"
       (ageSelectAllChange)="onAgeSelectAllChange($event)"
       (ageDeleteSelected)="deleteSelectedAgeAlerts()"
@@ -120,9 +120,9 @@
 
     <!-- 産休・育休・休職アラートタブ -->
     <app-alert-leave-tab
-      *ngIf="activeTab === 'leave'"
-      [maternityChildcareAlerts]="maternityChildcareAlerts"
-      [selectedMaternityChildcareAlertIds]="selectedMaternityChildcareAlertIds"
+      *ngIf="state.activeTab === 'leave'"
+      [maternityChildcareAlerts]="state.maternityChildcareAlerts"
+      [selectedMaternityChildcareAlertIds]="state.selectedMaternityChildcareAlertIds"
       (alertSelectionChange)="onMaternityChildcareAlertSelectionChange($event)"
       (selectAllChange)="onMaternityChildcareSelectAllChange($event)"
       (deleteSelected)="deleteSelectedMaternityChildcareAlerts()">
@@ -130,9 +130,9 @@
 
     <!-- 扶養・氏名・住所変更アラートタブ -->
     <app-alert-family-tab
-      *ngIf="activeTab === 'family'"
-      [supportAlerts]="supportAlerts"
-      [selectedSupportAlertIds]="selectedSupportAlertIds"
+      *ngIf="state.activeTab === 'family'"
+      [supportAlerts]="state.supportAlerts"
+      [selectedSupportAlertIds]="state.selectedSupportAlertIds"
       (alertSelectionChange)="onSupportAlertSelectionChange($event)"
       (selectAllChange)="onSupportSelectAllChange($event)"
       (deleteSelected)="deleteSelectedSupportAlerts()">

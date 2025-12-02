@@ -25,6 +25,8 @@ import { EmployeeChangeHistoryService } from '../../services/employee-change-his
 import { QualificationChangeAlertService } from '../../services/qualification-change-alert.service';
 import { FamilyMemberService } from '../../services/family-member.service';
 import { AlertAggregationService } from '../../services/alert-aggregation.service';
+import { AlertsDashboardUiService } from '../../services/alerts-dashboard-ui.service';
+import { AlertsDashboardStateService } from '../../services/alerts-dashboard-state.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 
@@ -56,64 +58,18 @@ export interface AlertItem {
   styleUrl: './alerts-dashboard-page.component.css'
 })
 export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
-  activeTab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
-  
-  // 届出スケジュール（カレンダー）関連
-  scheduleYear: number = this.getJSTDate().getFullYear();
-  scheduleMonth: number = this.getJSTDate().getMonth() + 1; // 1-12
-  scheduleData: {
-    [dateKey: string]: { // YYYY-MM-DD形式
-      [tabName: string]: number; // タブ名: 件数
-    }
-  } = {};
-  
-  // 賞与支払届アラート関連
-  bonusReportAlerts: BonusReportAlert[] = [];
-  selectedBonusReportAlertIds: Set<string> = new Set();
-  
-  // 年度選択関連（算定決定タブ用）
-  teijiYear: number = new Date().getFullYear(); // ngOnInitでJSTに更新
-  availableYears: number[] = [];
-  
-  // 随時改定アラート関連
-  suijiAlerts: SuijiKouhoResultWithDiff[] = [];
-  selectedSuijiAlertIds: Set<string> = new Set();
   employees: Employee[] = [];
   salaries: {
     [key: string]: { total: number; fixed: number; variable: number };
   } = {};
   salarySubscription: Subscription | null = null;
   eligibilitySubscription: Subscription | null = null;
-  // 全年度の給与データを保持（年度ごとに分離）
   salariesByYear: { [year: number]: { [key: string]: { total: number; fixed: number; variable: number } } } = {};
-  
-  // 届出アラート関連
-  notificationAlerts: AlertItem[] = [];
-  selectedNotificationAlertIds: Set<string> = new Set();
   notificationsByEmployee: { [employeeId: string]: NotificationDecisionResult[] } = {};
   salaryDataByEmployeeId: { [employeeId: string]: any } = {};
   bonusesByEmployeeId: { [employeeId: string]: Bonus[] } = {};
   gradeTable: any[] = [];
-
-  // 算定決定タブ関連
-  teijiKetteiResults: TeijiKetteiResultData[] = [];
-  isLoadingTeijiKettei: boolean = false; // ローディング中フラグ（重複実行を防ぐ）
-
-  // 年齢到達アラート関連
-  ageAlerts: AgeAlert[] = [];
-  selectedAgeAlertIds: Set<string> = new Set();
-
-  // 資格変更アラート関連
-  qualificationChangeAlerts: QualificationChangeAlert[] = [];
-  selectedQualificationChangeAlertIds: Set<string> = new Set();
-
-  // 産休育休アラート関連
-  maternityChildcareAlerts: MaternityChildcareAlert[] = [];
-  selectedMaternityChildcareAlertIds: Set<string> = new Set();
-
-  // 扶養アラート関連
-  supportAlerts: SupportAlert[] = [];
-  selectedSupportAlertIds: Set<string> = new Set();
+  isLoadingTeijiKettei: boolean = false;
 
   constructor(
     private suijiService: SuijiService,
@@ -128,7 +84,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private qualificationChangeAlertService: QualificationChangeAlertService,
     private familyMemberService: FamilyMemberService,
-    private alertAggregationService: AlertAggregationService
+    private alertAggregationService: AlertAggregationService,
+    private alertsDashboardUiService: AlertsDashboardUiService,
+    public state: AlertsDashboardStateService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -136,22 +94,24 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     
     // 年度選択肢を生成（現在年度から過去5年分）
     const currentYear = this.getJSTDate().getFullYear();
-    this.availableYears = [];
+    this.state.availableYears = [];
     for (let i = 0; i < 6; i++) {
-      this.availableYears.push(currentYear - i);
+      this.state.availableYears.push(currentYear - i);
     }
-    this.teijiYear = currentYear;
+    this.state.teijiYear = currentYear;
     
     // 全年度の給与データを読み込み
     await this.loadAllSalaries();
     
     // 全年度のアラートを読み込み
-    await this.loadSuijiAlerts();
-    await this.loadNotificationAlerts();
-    await this.loadAgeAlerts();
-    await this.loadQualificationChangeAlerts();
-    await this.loadMaternityChildcareAlerts();
-    await this.loadBonusReportAlerts();
+    await this.alertsDashboardUiService.loadAlertsAll(
+      () => this.loadSuijiAlerts(),
+      () => this.loadNotificationAlerts(),
+      () => this.loadAgeAlerts(),
+      () => this.loadQualificationChangeAlerts(),
+      () => this.loadMaternityChildcareAlerts(),
+      () => this.loadBonusReportAlerts()
+    );
     
     // 届出スケジュールデータを読み込み
     await this.loadScheduleData();
@@ -173,7 +133,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadAgeAlerts();
     await this.loadQualificationChangeAlerts();
     // 算定決定データはタブがアクティブな場合のみ読み込む
-    if (this.activeTab === 'teiji') {
+    if (this.state.activeTab === 'teiji') {
       await this.loadTeijiKetteiData();
     }
     await this.loadScheduleData();
@@ -215,19 +175,16 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     return `${employeeId}_${month}`;
   }
 
+
   async loadSuijiAlerts(): Promise<void> {
-    const years = [2023, 2024, 2025, 2026]; // 取得対象年度
-    const loadedAlerts = await this.suijiService.loadAllAlerts(years);
-    
-    // 存在する従業員のアラートのみをフィルタリング
-    const validEmployeeIds = new Set(this.employees.map(e => e.id));
-    this.suijiAlerts = loadedAlerts
-      .filter((alert: any) => validEmployeeIds.has(alert.employeeId))
-      .map((alert: any) => ({
-        ...alert,
-        diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth, alert.year || 2025),
-        id: alert.id || this.getSuijiAlertId(alert)
-      }));
+    const result = await this.alertsDashboardUiService.loadSuijiAlerts(
+      this.employees,
+      this.salariesByYear,
+      (employeeId: string, month: number) => this.getSalaryKey(employeeId, month),
+      (employeeId: string, month: number, year: number) => this.getPrevMonthDiff(employeeId, month, year),
+      (alert: SuijiKouhoResultWithDiff) => this.getSuijiAlertId(alert)
+    );
+    this.state.suijiAlerts = result;
   }
 
   getPrevMonthDiff(employeeId: string, month: number, year: number): number | null {
@@ -257,54 +214,15 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async loadNotificationAlerts(): Promise<void> {
-    // 届出アラートは現在年度のみ計算（必要に応じて全年度対応可能）
-    const currentYear = this.getJSTDate().getFullYear();
-    this.gradeTable = await this.settingsService.getStandardTable(currentYear);
-    
-    // 給与データと賞与データを読み込み
-    this.salaryDataByEmployeeId = {};
-    for (const emp of this.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, currentYear);
-      this.salaryDataByEmployeeId[emp.id] = salaryData;
-    }
-    
-    const bonuses = await this.bonusService.loadBonus(currentYear);
-    this.bonusesByEmployeeId = {};
-    for (const bonus of bonuses) {
-      if (!this.bonusesByEmployeeId[bonus.employeeId]) {
-        this.bonusesByEmployeeId[bonus.employeeId] = [];
-      }
-      this.bonusesByEmployeeId[bonus.employeeId].push(bonus);
-    }
-    
-    // 届出要否を計算
-    this.notificationsByEmployee = await this.notificationCalculationService.calculateNotificationsBatch(
+    const result = await this.alertsDashboardUiService.loadNotificationAlerts(
       this.employees,
-      currentYear,
-      this.gradeTable,
-      this.bonusesByEmployeeId,
-      this.salaryDataByEmployeeId
+      (type: 'teiji' | 'suiji' | 'bonus') => this.getNotificationTypeLabel(type)
     );
-
-    // AlertItemに変換
-    this.notificationAlerts = [];
-    let alertId = 1;
-    for (const emp of this.employees) {
-      const notifications = this.notificationsByEmployee[emp.id] || [];
-      for (const notification of notifications) {
-        if (notification.required) {
-          this.notificationAlerts.push({
-            id: `alert-${alertId++}`,
-            employeeName: emp.name,
-            alertType: this.getNotificationTypeLabel(notification.type),
-            comment: notification.reasons.join(' / '),
-            targetMonth: notification.submitUntil 
-              ? `${currentYear}年${new Date(notification.submitUntil).getMonth() + 1}月`
-              : `${currentYear}年`
-          });
-        }
-      }
-    }
+    this.gradeTable = result.gradeTable;
+    this.salaryDataByEmployeeId = result.salaryDataByEmployeeId;
+    this.bonusesByEmployeeId = result.bonusesByEmployeeId;
+    this.notificationsByEmployee = result.notificationsByEmployee;
+    this.state.notificationAlerts = result.notificationAlerts;
   }
 
   getNotificationTypeLabel(type: 'teiji' | 'suiji' | 'bonus'): string {
@@ -327,68 +245,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 年齢到達アラートを読み込む
    */
   async loadAgeAlerts(): Promise<void> {
-    this.ageAlerts = [];
-    const today = this.getJSTDate();
-    today.setHours(0, 0, 0, 0);
-
-    for (const emp of this.employees) {
-      if (!emp.birthDate) continue;
-
-      const birthDate = new Date(emp.birthDate);
-      
-      // 70歳到達チェック
-      const age70Date = new Date(birthDate.getFullYear() + 70, birthDate.getMonth(), birthDate.getDate() - 1);
-      const age70AlertStartDate = new Date(age70Date);
-      age70AlertStartDate.setMonth(age70AlertStartDate.getMonth() - 1);
-      
-      if (today >= age70AlertStartDate && today < age70Date) {
-        // 提出期限 = 資格喪失日の5日後
-        const submitDeadline = new Date(age70Date);
-        submitDeadline.setDate(submitDeadline.getDate() + 5);
-        
-        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        this.ageAlerts.push({
-          id: `age70_${emp.id}`,
-          employeeId: emp.id,
-          employeeName: emp.name,
-          alertType: '70歳到達',
-          notificationName: '厚生年金 資格喪失届',
-          birthDate: emp.birthDate,
-          reachDate: age70Date,
-          submitDeadline: submitDeadline,
-          daysUntilDeadline: daysUntilDeadline,
-        });
-      }
-
-      // 75歳到達チェック
-      const age75Date = new Date(birthDate.getFullYear() + 75, birthDate.getMonth(), birthDate.getDate() - 1);
-      const age75AlertStartDate = new Date(age75Date);
-      age75AlertStartDate.setMonth(age75AlertStartDate.getMonth() - 1);
-      
-      if (today >= age75AlertStartDate && today < age75Date) {
-        // 提出期限 = 資格喪失日の5日後
-        const submitDeadline = new Date(age75Date);
-        submitDeadline.setDate(submitDeadline.getDate() + 5);
-        
-        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        this.ageAlerts.push({
-          id: `age75_${emp.id}`,
-          employeeId: emp.id,
-          employeeName: emp.name,
-          alertType: '75歳到達',
-          notificationName: '健保 資格喪失届',
-          birthDate: emp.birthDate,
-          reachDate: age75Date,
-          submitDeadline: submitDeadline,
-          daysUntilDeadline: daysUntilDeadline,
-        });
-      }
-    }
-
-    // 提出期限でソート
-    this.ageAlerts.sort((a, b) => a.submitDeadline.getTime() - b.submitDeadline.getTime());
+    const result = await this.alertsDashboardUiService.loadAgeAlerts(this.employees);
+    this.state.ageAlerts = result;
   }
 
   /**
@@ -396,245 +254,26 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 従業員データの変更履歴を確認してアラートを生成
    */
   async loadQualificationChangeAlerts(): Promise<void> {
-    this.qualificationChangeAlerts = [];
-    const today = this.getJSTDate();
-    today.setHours(0, 0, 0, 0);
-
-    try {
-      // 削除済みアラートIDを取得
-      const deletedAlertIds = await this.qualificationChangeAlertService.getDeletedAlertIds();
-      console.log(`[alerts-dashboard] 削除済みアラートID数: ${deletedAlertIds.size}`);
-
-      // 変更履歴を取得（変更日から5日以内のもの）
-      const changeHistories = await this.employeeChangeHistoryService.getAllRecentChangeHistory(5);
-      console.log(`[alerts-dashboard] 取得した変更履歴数: ${changeHistories.length}`);
-
-      for (const history of changeHistories) {
-        // アラートIDを生成（一意性を確保）
-        const alertId = history.id || `${history.employeeId}_${history.changeType}_${history.changeDate}`;
-        console.log(`[alerts-dashboard] 変更履歴を処理: ID=${alertId}, 従業員ID=${history.employeeId}, 変更種別=${history.changeType}, 変更日=${history.changeDate}`);
-        
-        // 削除済みアラートはスキップ
-        if (deletedAlertIds.has(alertId)) {
-          console.log(`[alerts-dashboard] 削除済みアラートのためスキップ: ${alertId}`);
-          continue;
-        }
-
-        const changeDate = new Date(history.changeDate);
-        changeDate.setHours(0, 0, 0, 0);
-
-        // 提出期限 = 変更日から5日後
-        const submitDeadline = new Date(changeDate);
-        submitDeadline.setDate(submitDeadline.getDate() + 5);
-
-        // 提出期限までの日数を計算
-        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-        // 従業員名を取得
-        const employee = this.employees.find(emp => emp.id === history.employeeId);
-        const employeeName = employee?.name || '不明';
-
-        // 変更詳細を生成
-        let details = '';
-        if (history.changeType === '氏名変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
-        } else if (history.changeType === '住所変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
-        } else if (history.changeType === '生年月日訂正') {
-          details = `${history.oldValue} → ${history.newValue}`;
-        } else if (history.changeType === '性別変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
-        } else if (history.changeType === '所属事業所変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
-        } else if (history.changeType === '適用区分変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
-        }
-
-        // 既に同じアラートが存在するかチェック（重複を防ぐ）
-        const existingAlert = this.qualificationChangeAlerts.find(
-          alert => alert.id === alertId || 
-          (alert.employeeId === history.employeeId && 
-           alert.changeType === history.changeType && 
-           alert.changeDate.getTime() === changeDate.getTime())
-        );
-        
-        if (!existingAlert) {
-          console.log(`[alerts-dashboard] 新しいアラートを追加: ${alertId}, 従業員=${employeeName}`);
-          this.qualificationChangeAlerts.push({
-            id: alertId,
-            employeeId: history.employeeId,
-            employeeName: employeeName,
-            changeType: history.changeType,
-            notificationNames: history.notificationNames,
-            changeDate: changeDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: details,
-          });
-        } else {
-          console.log(`[alerts-dashboard] 既存のアラートのためスキップ: ${alertId}`);
-        }
-      }
-
-      // 変更日でソート（新しい順）
-      this.qualificationChangeAlerts.sort((a, b) => {
-        return b.changeDate.getTime() - a.changeDate.getTime();
-      });
-    } catch (error) {
-      console.error('[alerts-dashboard] loadQualificationChangeAlertsエラー:', error);
-    }
+    const result = await this.alertsDashboardUiService.loadQualificationChangeAlerts(this.employees);
+    this.state.qualificationChangeAlerts = result;
   }
 
   /**
    * 産休育休アラートを読み込む
    */
   async loadMaternityChildcareAlerts(): Promise<void> {
-    this.maternityChildcareAlerts = [];
-    const today = this.getJSTDate();
-    today.setHours(0, 0, 0, 0);
-
-    try {
-      // 現在年度の賞与データを取得（賞与用アラートのため）
-      const currentYear = today.getFullYear();
-      const allBonuses = await this.bonusService.loadBonus(currentYear);
-
-      for (const emp of this.employees) {
-        // ① 産前産後休業取得者申出書 - 産休開始日が記入されていれば常にアラート表示
-        if (emp.maternityLeaveStart) {
-          const startDate = new Date(emp.maternityLeaveStart);
-          startDate.setHours(0, 0, 0, 0);
-          const submitDeadline = new Date(startDate);
-          submitDeadline.setDate(submitDeadline.getDate() + 5);
-          
-          // 記入されていれば常にアラートを表示（時間差に関係なく）
-          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          this.maternityChildcareAlerts.push({
-            id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '産前産後休業取得者申出書',
-            notificationName: '産前産後休業取得者申出書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `産休開始日: ${this.formatDate(startDate)}`,
-          });
-        }
-
-        // ② 産前産後休業終了届 - 産休終了日が記入されていれば常にアラート表示
-        if (emp.maternityLeaveEnd) {
-          const endDate = new Date(emp.maternityLeaveEnd);
-          endDate.setHours(0, 0, 0, 0);
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() + 1); // 終了日の翌日
-          const submitDeadline = new Date(startDate);
-          submitDeadline.setDate(submitDeadline.getDate() + 5);
-          
-          // 記入されていれば常にアラートを表示（時間差に関係なく）
-          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          this.maternityChildcareAlerts.push({
-            id: `maternity_end_${emp.id}_${emp.maternityLeaveEnd}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '産前産後休業終了届',
-            notificationName: '産前産後休業終了届',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `産休終了日: ${this.formatDate(endDate)}`,
-          });
-        }
-
-        // ③ 育児休業等取得者申出書（保険料免除開始） - 育休開始日が記入されていれば常にアラート表示
-        if (emp.childcareLeaveStart) {
-          const startDate = new Date(emp.childcareLeaveStart);
-          startDate.setHours(0, 0, 0, 0);
-          const submitDeadline = new Date(startDate);
-          submitDeadline.setDate(submitDeadline.getDate() + 5);
-          
-          // 記入されていれば常にアラートを表示（時間差に関係なく）
-          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          this.maternityChildcareAlerts.push({
-            id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業等取得者申出書（保険料免除開始）',
-            notificationName: '育児休業等取得者申出書（保険料免除開始）',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `育休開始日: ${this.formatDate(startDate)}`,
-          });
-        }
-
-        // ④ 育児休業等終了届（免除終了） - 育休終了日が記入されていれば常にアラート表示
-        if (emp.childcareLeaveEnd) {
-          const endDate = new Date(emp.childcareLeaveEnd);
-          endDate.setHours(0, 0, 0, 0);
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() + 1); // 終了日の翌日
-          const submitDeadline = new Date(startDate);
-          submitDeadline.setDate(submitDeadline.getDate() + 5);
-          
-          // 記入されていれば常にアラートを表示（時間差に関係なく）
-          const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-          this.maternityChildcareAlerts.push({
-            id: `childcare_end_${emp.id}_${emp.childcareLeaveEnd}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業等終了届（免除終了）',
-            notificationName: '育児休業等終了届（免除終了）',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `育休終了日: ${this.formatDate(endDate)}`,
-          });
-        }
-
-        // ⑤ 育児休業等取得者申出書（賞与用） - 賞与支給日が記入されていれば常にアラート表示（同居養育のチェックが無ければ）
-        if (!emp.childcareLivingTogether) {
-          // 該当従業員の賞与データを取得
-          const employeeBonuses = allBonuses.filter(b => b.employeeId === emp.id && b.amount > 0);
-          
-          for (const bonus of employeeBonuses) {
-            if (bonus.payDate) {
-              const payDate = new Date(bonus.payDate);
-              payDate.setHours(0, 0, 0, 0);
-              const submitDeadline = new Date(payDate);
-              submitDeadline.setDate(submitDeadline.getDate() + 5);
-              
-              // 記入されていれば常にアラートを表示（時間差に関係なく）
-              const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-              this.maternityChildcareAlerts.push({
-                id: `childcare_bonus_${emp.id}_${bonus.id}`,
-                employeeId: emp.id,
-                employeeName: emp.name,
-                alertType: '育児休業等取得者申出書（賞与用）',
-                notificationName: '育児休業等取得者申出書（賞与用）',
-                startDate: payDate,
-                submitDeadline: submitDeadline,
-                daysUntilDeadline: daysUntilDeadline,
-                details: `賞与支給日: ${this.formatDate(payDate)}, 賞与額: ${bonus.amount.toLocaleString('ja-JP')}円`,
-              });
-            }
-          }
-        }
-      }
-
-      // 開始日でソート（新しい順）
-      this.maternityChildcareAlerts.sort((a, b) => {
-        return b.startDate.getTime() - a.startDate.getTime();
-      });
-    } catch (error) {
-      console.error('[alerts-dashboard] loadMaternityChildcareAlertsエラー:', error);
-    }
+    const result = await this.alertsDashboardUiService.loadMaternityChildcareAlerts(
+      this.employees,
+      (date: Date) => this.formatDate(date)
+    );
+    this.state.maternityChildcareAlerts = result;
   }
 
   /**
    * 扶養アラートを読み込む
    */
   async loadSupportAlerts(): Promise<void> {
-    this.supportAlerts = [];
+    this.state.supportAlerts = [];
     const today = this.getJSTDate();
     today.setHours(0, 0, 0, 0);
 
@@ -668,7 +307,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `spouse_20_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -696,7 +335,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `spouse_60_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -719,7 +358,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `spouse_income_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -742,7 +381,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `spouse_separate_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -770,7 +409,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `spouse_75_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -798,7 +437,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             age18AlertStart.setMonth(age18AlertStart.getMonth() - 1);
             if (today >= age18AlertStart && age >= 17 && age < 19) {
               // 18歳到達は届出不要（提出期限なし）
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `child_18_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -829,7 +468,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               
               console.log(`[loadSupportAlerts] 子20歳到達アラート追加: ${member.name}, 提出期限=${this.formatDate(submitDeadline)}, 残り日数=${daysUntilDeadline}`);
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `child_20_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -858,7 +497,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `child_22_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -881,7 +520,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `child_separate_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -904,7 +543,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `child_income_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -927,7 +566,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             if (age >= 60) {
               // 収入見込が設定されている場合、扶養基準を超えていないか確認
               if (member.expectedIncome && member.expectedIncome > 1300000) {
-                this.supportAlerts.push({
+                this.state.supportAlerts.push({
                   id: `parent_income_${emp.id}_${member.id}`,
                   employeeId: emp.id,
                   employeeName: emp.name,
@@ -949,7 +588,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `parent_separate_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -977,7 +616,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.supportAlerts.push({
+              this.state.supportAlerts.push({
                 id: `parent_75_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -997,7 +636,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       }
 
       // アラート日でソート（新しい順）
-      this.supportAlerts.sort((a, b) => {
+      this.state.supportAlerts.sort((a, b) => {
         return b.alertDate.getTime() - a.alertDate.getTime();
       });
     } catch (error) {
@@ -1009,56 +648,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 賞与支払届アラートを読み込む
    */
   async loadBonusReportAlerts(): Promise<void> {
-    this.bonusReportAlerts = [];
-    
-    const currentYear = this.getJSTDate().getFullYear();
-    const today = this.getJSTDate();
-    
-    // 全従業員の賞与データを取得
-    for (const emp of this.employees) {
-      const bonuses = await this.bonusService.loadBonus(currentYear, emp.id);
-      
-      for (const bonus of bonuses) {
-        // 賞与額が0の場合はスキップ
-        if (!bonus.amount || bonus.amount === 0) {
-          continue;
-        }
-        
-        if (!bonus.payDate) {
-          continue;
-        }
-        
-        // 支給日をDateオブジェクトに変換
-        const payDate = new Date(bonus.payDate);
-        payDate.setHours(0, 0, 0, 0);
-        
-        // 提出期限を計算（支給日から5日後）
-        const submitDeadline = new Date(payDate);
-        submitDeadline.setDate(submitDeadline.getDate() + 5);
-        submitDeadline.setHours(23, 59, 59, 999);
-        
-        // 提出期限までの日数を計算
-        const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
-        // アラートIDを生成（従業員ID_支給日）
-        const alertId = `${bonus.employeeId}_${bonus.payDate}`;
-        
-        this.bonusReportAlerts.push({
-          id: alertId,
-          employeeId: bonus.employeeId,
-          employeeName: emp.name,
-          bonusAmount: bonus.amount,
-          payDate: bonus.payDate,
-          submitDeadline: submitDeadline,
-          daysUntilDeadline: daysUntilDeadline
-        });
-      }
-    }
-    
-    // 提出期限でソート（近い順）
-    this.bonusReportAlerts.sort((a, b) => {
-      return a.submitDeadline.getTime() - b.submitDeadline.getTime();
-    });
+    const result = await this.alertsDashboardUiService.loadBonusReportAlerts(this.employees);
+    this.state.bonusReportAlerts = result;
   }
 
   /**
@@ -1073,11 +664,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
     try {
       this.isLoadingTeijiKettei = true;
-      const targetYear = this.teijiYear;
+      const targetYear = this.state.teijiYear;
       this.gradeTable = await this.settingsService.getStandardTable(targetYear);
       
       // 配列をクリア（重複を防ぐ）
-      this.teijiKetteiResults = [];
+      this.state.teijiKetteiResults = [];
       
       // 処理済みの従業員IDを追跡（重複を防ぐ）
       const processedEmployeeIds = new Set<string>();
@@ -1190,13 +781,13 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       }
 
       // 既に同じ従業員IDが結果に含まれていないか確認（二重チェック）
-      const existingIndex = this.teijiKetteiResults.findIndex(r => r.employeeId === emp.id);
+      const existingIndex = this.state.teijiKetteiResults.findIndex(r => r.employeeId === emp.id);
       if (existingIndex >= 0) {
         console.warn(`[alerts-dashboard] 既に結果に存在する従業員をスキップ: ${emp.name} (${emp.id})`);
         continue;
       }
 
-      this.teijiKetteiResults.push({
+      this.state.teijiKetteiResults.push({
         employeeId: emp.id,
         employeeName: emp.name,
         aprilSalary,
@@ -1212,7 +803,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       });
     }
     
-    console.log(`[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.teijiKetteiResults.length}`);
+    console.log(`[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.state.teijiKetteiResults.length}`);
     } catch (error) {
       console.error('[alerts-dashboard] loadTeijiKetteiDataエラー:', error);
     } finally {
@@ -1242,40 +833,15 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    */
   async loadScheduleData(): Promise<void> {
     // 定時決定データを読み込む（まだ読み込まれていない場合）
-    if (this.teijiKetteiResults.length === 0 && this.activeTab === 'schedule') {
+    if (this.state.teijiKetteiResults.length === 0 && this.state.activeTab === 'schedule') {
       await this.loadTeijiKetteiData();
     }
     
-    // サービスに集約処理を委譲
-    this.scheduleData = this.alertAggregationService.aggregateScheduleData({
-      bonusReportAlerts: this.bonusReportAlerts,
-      suijiAlerts: this.suijiAlerts,
-      teijiKetteiResults: this.teijiKetteiResults,
-      ageAlerts: this.ageAlerts,
-      qualificationChangeAlerts: this.qualificationChangeAlerts,
-      maternityChildcareAlerts: this.maternityChildcareAlerts,
-      supportAlerts: this.supportAlerts
-    });
-  }
-
-  /**
-   * タブの色を取得
-   */
-  getTabColor(tabId: string): string {
-    const colorMap: { [key: string]: string } = {
-      'schedule': '#6c757d',      // グレー
-      'bonus': '#007bff',          // 青
-      'suiji': '#28a745',          // 緑
-      'teiji': '#ffc107',          // 黄色
-      'age': '#dc3545',            // 赤
-      'leave': '#17a2b8',          // シアン
-      'family': '#6f42c1'          // 紫
-    };
-    return colorMap[tabId] || '#6c757d';
+    this.state.updateScheduleData();
   }
 
   async setActiveTab(tab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): Promise<void> {
-    this.activeTab = tab;
+    this.state.activeTab = tab;
     // 算定決定タブが選択された場合のみデータを読み込む
     if (tab === 'teiji') {
       await this.loadTeijiKetteiData();
@@ -1290,67 +856,29 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadScheduleData();
   }
 
-  // 賞与支払届アラートのイベントハンドラ
   onBonusAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
-    if (event.selected) {
-      this.selectedBonusReportAlertIds.add(event.alertId);
-    } else {
-      this.selectedBonusReportAlertIds.delete(event.alertId);
-    }
+    this.state.onBonusAlertSelectionChange(event);
   }
 
   onBonusSelectAllChange(checked: boolean): void {
-    if (checked) {
-      this.bonusReportAlerts.forEach(alert => {
-        this.selectedBonusReportAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedBonusReportAlertIds.clear();
-    }
+    this.state.onBonusSelectAllChange(checked);
   }
 
   deleteSelectedBonusReportAlerts(): void {
-    const selectedIds = Array.from(this.selectedBonusReportAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の賞与支払届アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.bonusReportAlerts = this.bonusReportAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedBonusReportAlertIds.clear();
-    // スケジュールデータを再読み込み
+    this.state.deleteSelectedBonusReportAlerts();
     this.loadScheduleData();
   }
 
-  // 随時改定アラートのイベントハンドラ
   onSuijiAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
-    if (event.selected) {
-      this.selectedSuijiAlertIds.add(event.alertId);
-    } else {
-      this.selectedSuijiAlertIds.delete(event.alertId);
-    }
+    this.state.onSuijiAlertSelectionChange(event);
   }
 
   onSuijiSelectAllChange(checked: boolean): void {
-    if (checked) {
-      this.suijiAlerts.forEach(alert => {
-        const alertId = this.getSuijiAlertId(alert);
-        this.selectedSuijiAlertIds.add(alertId);
-      });
-    } else {
-      this.selectedSuijiAlertIds.clear();
-    }
+    this.state.onSuijiSelectAllChange(checked, (alert: SuijiKouhoResultWithDiff) => this.getSuijiAlertId(alert));
   }
 
   async deleteSelectedSuijiAlerts(): Promise<void> {
-    const selectedIds = Array.from(this.selectedSuijiAlertIds);
+    const selectedIds = Array.from(this.state.selectedSuijiAlertIds);
     if (selectedIds.length === 0) {
       return;
     }
@@ -1360,99 +888,52 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // 選択されたアラートを削除
     for (const alertId of selectedIds) {
-      const alert = this.suijiAlerts.find(a => this.getSuijiAlertId(a) === alertId);
+      const alert = this.state.suijiAlerts.find(a => this.getSuijiAlertId(a) === alertId);
       if (alert) {
-        // FirestoreのドキュメントIDを使用（形式: employeeId_changeMonth）
         const docId = alert.id || `${alert.employeeId}_${alert.changeMonth}`;
         const parts = docId.split('_');
         const employeeId = parts[0];
         const changeMonth = parseInt(parts[1], 10);
-        
-        const year = alert.year || 2025; // アラートに年度情報が含まれている
-        await this.suijiService.deleteAlert(
-          year,
-          employeeId,
-          changeMonth
-        );
+        const year = alert.year || 2025;
+        await this.suijiService.deleteAlert(year, employeeId, changeMonth);
       }
     }
 
-    // アラートを再読み込み
     await this.loadSuijiAlerts();
-    this.selectedSuijiAlertIds.clear();
-    // スケジュールデータを再読み込み
+    this.state.deleteSelectedSuijiAlerts((alert: SuijiKouhoResultWithDiff) => this.getSuijiAlertId(alert));
     await this.loadScheduleData();
   }
 
-  // 定時決定タブのイベントハンドラ
   async onTeijiYearChange(year: number): Promise<void> {
-    this.teijiYear = year;
+    this.state.teijiYear = year;
     await this.loadTeijiKetteiData();
     await this.loadScheduleData();
   }
 
-  // 年齢到達アラートのイベントハンドラ
   onAgeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
-    if (event.selected) {
-      this.selectedAgeAlertIds.add(event.alertId);
-    } else {
-      this.selectedAgeAlertIds.delete(event.alertId);
-    }
+    this.state.onAgeAlertSelectionChange(event);
   }
 
   onAgeSelectAllChange(checked: boolean): void {
-    if (checked) {
-      this.ageAlerts.forEach(alert => {
-        this.selectedAgeAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedAgeAlertIds.clear();
-    }
+    this.state.onAgeSelectAllChange(checked);
   }
 
   deleteSelectedAgeAlerts(): void {
-    const selectedIds = Array.from(this.selectedAgeAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の年齢到達アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.ageAlerts = this.ageAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedAgeAlertIds.clear();
-    // スケジュールデータを再読み込み
+    this.state.deleteSelectedAgeAlerts();
     this.loadScheduleData();
   }
 
-  // 資格変更アラートのイベントハンドラ
   onQualificationChangeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
-    if (event.selected) {
-      this.selectedQualificationChangeAlertIds.add(event.alertId);
-    } else {
-      this.selectedQualificationChangeAlertIds.delete(event.alertId);
-    }
+    this.state.onQualificationChangeAlertSelectionChange(event);
   }
 
   onQualificationChangeSelectAllChange(checked: boolean): void {
-    if (checked) {
-      this.qualificationChangeAlerts.forEach(alert => {
-        this.selectedQualificationChangeAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedQualificationChangeAlertIds.clear();
-    }
+    this.state.onQualificationChangeSelectAllChange(checked);
   }
 
   async deleteSelectedQualificationChangeAlerts(): Promise<void> {
-    const selectedIds = Array.from(this.selectedQualificationChangeAlertIds);
+    const selectedIds = Array.from(this.state.selectedQualificationChangeAlertIds);
     if (selectedIds.length === 0) {
       return;
     }
@@ -1462,105 +943,46 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Firestoreに削除済みとしてマーク
     for (const alertId of selectedIds) {
       await this.qualificationChangeAlertService.markAsDeleted(alertId);
     }
 
-    // 選択されたアラートを配列から削除
-    this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedQualificationChangeAlertIds.clear();
-    // スケジュールデータを再読み込み
+    this.state.deleteSelectedQualificationChangeAlerts();
     await this.loadScheduleData();
   }
 
-  // 産休育休アラートのイベントハンドラ
   onMaternityChildcareAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
-    if (event.selected) {
-      this.selectedMaternityChildcareAlertIds.add(event.alertId);
-    } else {
-      this.selectedMaternityChildcareAlertIds.delete(event.alertId);
-    }
+    this.state.onMaternityChildcareAlertSelectionChange(event);
   }
 
   onMaternityChildcareSelectAllChange(checked: boolean): void {
-    if (checked) {
-      this.maternityChildcareAlerts.forEach(alert => {
-        this.selectedMaternityChildcareAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedMaternityChildcareAlertIds.clear();
-    }
+    this.state.onMaternityChildcareSelectAllChange(checked);
   }
 
   deleteSelectedMaternityChildcareAlerts(): void {
-    const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の産休育休アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedMaternityChildcareAlertIds.clear();
-    // スケジュールデータを再読み込み
+    this.state.deleteSelectedMaternityChildcareAlerts();
     this.loadScheduleData();
   }
 
-  // 扶養アラートのイベントハンドラ
   onSupportAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
-    if (event.selected) {
-      this.selectedSupportAlertIds.add(event.alertId);
-    } else {
-      this.selectedSupportAlertIds.delete(event.alertId);
-    }
+    this.state.onSupportAlertSelectionChange(event);
   }
 
   onSupportSelectAllChange(checked: boolean): void {
-    if (checked) {
-      this.supportAlerts.forEach(alert => {
-        this.selectedSupportAlertIds.add(alert.id);
-      });
-    } else {
-      this.selectedSupportAlertIds.clear();
-    }
+    this.state.onSupportSelectAllChange(checked);
   }
 
   deleteSelectedSupportAlerts(): void {
-    const selectedIds = Array.from(this.selectedSupportAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の扶養アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    // 選択されたアラートを配列から削除
-    this.supportAlerts = this.supportAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
-    );
-    this.selectedSupportAlertIds.clear();
-    // スケジュールデータを再読み込み
+    this.state.deleteSelectedSupportAlerts();
     this.loadScheduleData();
   }
 
-  // スケジュールタブのイベントハンドラ
   onScheduleMonthChange(month: number): void {
-    this.scheduleMonth = month;
+    this.state.onScheduleMonthChange(month);
   }
 
   onScheduleYearChange(year: number): void {
-    this.scheduleYear = year;
+    this.state.onScheduleYearChange(year);
   }
 
   onScheduleDateClick(tabId: string): void {

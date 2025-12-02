@@ -1,0 +1,82 @@
+<div class="info-label">
+  <strong>重要:</strong> 4〜6月の値は算定基礎届の判定に使用されます。給与項目ごとに金額を入力してください。
+</div>
+
+<div class="legend">
+  ■ 復職後3ヶ月の期間（随時改定が発生しやすい期間）
+</div>
+
+<div *ngIf="salaryItems.length === 0" class="error-box">
+  <h4>エラー</h4>
+  <p>先に給与項目マスタを設定してください。</p>
+</div>
+
+<div *ngIf="salaryItems.length > 0" class="salary-table-wrapper">
+  <table class="salary-table">
+    <thead>
+      <tr>
+        <th class="sticky-col">従業員</th>
+        <th class="sticky-col">項目</th>
+        <th *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': false }">{{ m }}月</th>
+      </tr>
+    </thead>
+    <tbody>
+      <ng-container *ngFor="let emp of employees">
+        <!-- 支払基礎日数行（各従業員の一番上） -->
+        <tr>
+          <td class="sticky-col" [attr.rowspan]="salaryItems.length + 1">
+            {{ emp.name }}
+          </td>
+          <td class="sticky-col">
+            <div style="white-space: nowrap;">支払基礎日数</div>
+          </td>
+          <td *ngFor="let m of months" [ngClass]="{ 'exempt-month': isExemptMonth(emp.id, m) }">
+            <!-- 免除月の場合 -->
+            <div *ngIf="isExemptMonth(emp.id, m)" class="exempt-label">
+              {{ getExemptLabel(emp.id, m) }}
+            </div>
+            <!-- 通常月の場合 -->
+            <input
+              *ngIf="!isExemptMonth(emp.id, m)"
+              type="number"
+              [value]="getWorkingDays(emp.id, m)"
+              (input)="onWorkingDaysInput(emp.id, m, $event)"
+              (blur)="onWorkingDaysBlur(emp.id, m, $event)"
+              placeholder="0"
+              class="form-control"
+              min="0"
+              max="31"
+              [name]="'workingDays_' + emp.id + '_' + m"
+            />
+          </td>
+        </tr>
+        <!-- 給与項目行 -->
+        <tr *ngFor="let item of salaryItems; let itemIndex = index" [ngClass]="{ 'rehab-highlight-row': getRehabHighlightMonths(emp).length > 0 && itemIndex === 0 }">
+          <td class="sticky-col">
+            <div style="white-space: nowrap;">{{ item.name }} <small style="color: #666;">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small></div>
+          </td>
+          <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m), 'exempt-month': isExemptMonth(emp.id, m) }">
+            <!-- 免除月の場合 -->
+            <div *ngIf="isExemptMonth(emp.id, m)" class="exempt-label">
+              {{ getExemptLabel(emp.id, m) }}
+            </div>
+            <!-- 通常月の場合 -->
+            <input
+              *ngIf="!isExemptMonth(emp.id, m)"
+              type="text"
+              [value]="formatAmount(getSalaryItemAmount(emp.id, m, item.id))"
+              (input)="onSalaryItemInput(emp.id, m, item.id, $event)"
+              (blur)="onSalaryItemBlur(emp.id, m, item.id, $event)"
+              placeholder="0"
+              class="form-control"
+              [name]="'item_' + emp.id + '_' + m + '_' + item.id"
+            />
+          </td>
+        </tr>
+      </ng-container>
+    </tbody>
+  </table>
+</div>
+
+
+
