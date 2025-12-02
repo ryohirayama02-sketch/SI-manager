@@ -1,0 +1,236 @@
+<form [formGroup]="form" (ngSubmit)="updateEmployee()">
+  <h3>個人情報</h3>
+  <div class="form-group">
+    <label for="name">氏名（漢字） <span class="required">*</span></label>
+    <input id="name" formControlName="name" type="text" class="form-control" required>
+  </div>
+
+  <div class="form-group">
+    <label for="nameKana">氏名（カナ）</label>
+    <input id="nameKana" formControlName="nameKana" type="text" class="form-control">
+  </div>
+
+  <div class="form-group">
+    <label for="gender">性別</label>
+    <select id="gender" formControlName="gender" class="form-control">
+      <option value="">選択してください</option>
+      <option value="male">男</option>
+      <option value="female">女</option>
+      <option value="other">その他</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label for="birthDate">生年月日 <span class="required">*</span></label>
+    <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required (change)="validateDates()" max="9999-12-31">
+    <small *ngIf="ageInfo" class="form-text">現在の年齢: {{ ageInfo }}</small>
+  </div>
+
+  <div class="form-group">
+    <label for="address">住民票住所</label>
+    <input id="address" formControlName="address" type="text" class="form-control" placeholder="都道府県市区町村番地">
+  </div>
+
+  <div class="form-group">
+    <label for="myNumber">マイナンバー</label>
+    <input id="myNumber" formControlName="myNumber" type="text" class="form-control" placeholder="12桁の数字">
+  </div>
+
+  <div class="form-group">
+    <label for="basicPensionNumber">基礎年金番号</label>
+    <input id="basicPensionNumber" formControlName="basicPensionNumber" type="text" class="form-control" placeholder="基礎年金番号">
+  </div>
+
+  <h3>雇用条件</h3>
+  <div class="form-group">
+    <label for="employmentType">雇用形態</label>
+    <select id="employmentType" formControlName="employmentType" class="form-control">
+      <option value="">選択してください</option>
+      <option value="fulltime">正社員</option>
+      <option value="parttime">パート・アルバイト</option>
+      <option value="contract">契約社員</option>
+      <option value="temporary">派遣社員</option>
+      <option value="other">その他</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>
+      <input type="checkbox" formControlName="isShortTime">
+      短時間労働者
+    </label>
+  </div>
+
+  <div class="form-group">
+    <label for="weeklyHours">週所定労働時間</label>
+    <input id="weeklyHours" type="number" formControlName="weeklyHours" class="form-control" min="0" step="0.5">
+  </div>
+
+  <div class="form-group">
+    <label for="monthlyWage">月額賃金見込</label>
+    <input id="monthlyWage" type="number" formControlName="monthlyWage" class="form-control" min="0" step="1">
+  </div>
+
+  <div class="form-group">
+    <label for="expectedEmploymentMonths">雇用見込期間（月）</label>
+    <input id="expectedEmploymentMonths" type="number" formControlName="expectedEmploymentMonths" class="form-control" min="0" step="1">
+    <small class="form-text">短時間労働者の場合、2ヶ月超が必要</small>
+  </div>
+
+  <div class="form-group">
+    <label>
+      <input type="checkbox" formControlName="isStudent">
+      学生
+    </label>
+  </div>
+
+  <h3>所属</h3>
+  <!-- 都道府県は非表示フィールドとして保持（事業所選択により自動設定） -->
+  <input type="hidden" formControlName="prefecture">
+  <div class="form-group">
+    <label for="officeNumber">事業所</label>
+    <select id="officeNumber" formControlName="officeNumber" class="form-control">
+      <option value="">選択してください</option>
+      <option *ngFor="let office of offices" [value]="office.officeNumber">
+        {{ office.officeCode || '' }}-{{ office.officeNumber || '' }} {{ office.ownerName || '' }}
+      </option>
+    </select>
+    <small class="form-text text-muted">事業所を選択すると、都道府県が自動的に設定されます。</small>
+  </div>
+
+  <div class="form-group">
+    <label for="department">部署</label>
+    <input id="department" formControlName="department" type="text" class="form-control" placeholder="部署名">
+  </div>
+
+  <h3>入退社</h3>
+  <div class="form-group">
+    <label for="joinDate">入社日 <span class="required">*</span></label>
+    <input id="joinDate" formControlName="joinDate" type="date" class="form-control" required (change)="validateDates()" max="9999-12-31">
+  </div>
+
+  <div class="form-group">
+    <label for="retireDate">退職日</label>
+    <input id="retireDate" formControlName="retireDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+
+  <div class="form-group">
+    <label for="healthInsuranceAcquisitionDate">資格取得日（健康保険）</label>
+    <input id="healthInsuranceAcquisitionDate" formControlName="healthInsuranceAcquisitionDate" type="date" class="form-control" max="9999-12-31">
+  </div>
+
+  <div class="form-group">
+    <label for="pensionAcquisitionDate">資格取得日（厚生年金）</label>
+    <input id="pensionAcquisitionDate" formControlName="pensionAcquisitionDate" type="date" class="form-control" max="9999-12-31">
+  </div>
+
+  <div class="form-group">
+    <label for="healthInsuranceLossDate">資格喪失日（健康保険）</label>
+    <input id="healthInsuranceLossDate" formControlName="healthInsuranceLossDate" type="date" class="form-control" max="9999-12-31">
+  </div>
+
+  <div class="form-group">
+    <label for="pensionLossDate">資格喪失日（厚生年金）</label>
+    <input id="pensionLossDate" formControlName="pensionLossDate" type="date" class="form-control" max="9999-12-31">
+  </div>
+
+  <div class="form-group">
+    <small class="form-text" style="color: #666;">
+      ※ 同月得喪・月末在籍の判定は、入退社日と資格取得日・喪失日から自動判定されます。<br>
+      健保（健康保険）は月末在籍で判定、厚年（厚生年金）は1日でも在籍で加入と判定されます。
+    </small>
+  </div>
+
+  <h3>標準報酬関連（表示用）</h3>
+  <div class="form-group">
+    <label>現行標準報酬月額</label>
+    <input type="text" [value]="standardMonthlyRemunerationHistory" class="form-control" readonly>
+    <small class="form-text">※ 月次給与入力画面のデータから自動計算されます</small>
+  </div>
+
+  <div class="form-group">
+    <label for="determinationReason">決定理由</label>
+    <select id="determinationReason" formControlName="determinationReason" class="form-control">
+      <option value="">選択してください</option>
+      <option value="acquisition">資格取得時決定</option>
+      <option value="teiji">定時決定</option>
+      <option value="suiji">随時改定</option>
+    </select>
+    <small class="form-text">※ 月次給与入力画面のデータから自動計算されます（読み取り専用）</small>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div class="form-group">
+      <label for="lastTeijiKetteiYear">最終定時決定年</label>
+      <input id="lastTeijiKetteiYear" formControlName="lastTeijiKetteiYear" type="number" class="form-control" min="2000" max="2100" readonly>
+      <small class="form-text">※ 自動計算されます</small>
+    </div>
+    <div class="form-group">
+      <label for="lastTeijiKetteiMonth">最終定時決定月</label>
+      <input id="lastTeijiKetteiMonth" formControlName="lastTeijiKetteiMonth" type="number" class="form-control" min="1" max="12" readonly>
+      <small class="form-text">※ 自動計算されます</small>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+    <div class="form-group">
+      <label for="lastSuijiKetteiYear">最終随時改定年</label>
+      <input id="lastSuijiKetteiYear" formControlName="lastSuijiKetteiYear" type="number" class="form-control" min="2000" max="2100" readonly>
+      <small class="form-text">※ 随時改定アラートから自動取得されます</small>
+    </div>
+    <div class="form-group">
+      <label for="lastSuijiKetteiMonth">最終随時改定月</label>
+      <input id="lastSuijiKetteiMonth" formControlName="lastSuijiKetteiMonth" type="number" class="form-control" min="1" max="12" readonly>
+      <small class="form-text">※ 随時改定アラートから自動取得されます</small>
+    </div>
+  </div>
+
+  <h3>休職・復職情報</h3>
+  <div class="form-group">
+    <label for="leaveOfAbsenceStart">休職開始日</label>
+    <input id="leaveOfAbsenceStart" formControlName="leaveOfAbsenceStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+  <div class="form-group">
+    <label for="leaveOfAbsenceEnd">休職終了日</label>
+    <input id="leaveOfAbsenceEnd" formControlName="leaveOfAbsenceEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+  <div class="form-group">
+    <label for="returnFromLeaveDate">復職日</label>
+    <input id="returnFromLeaveDate" formControlName="returnFromLeaveDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+
+  <h3>産前産後休業情報</h3>
+  <div class="form-group">
+    <label for="maternityLeaveStart">産前産後休業開始日</label>
+    <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+  <div class="form-group">
+    <label for="maternityLeaveEnd">産前産後休業終了日</label>
+    <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+
+  <h3>育児休業情報</h3>
+  <div class="form-group">
+    <label for="childcareLeaveStart">育児休業開始日</label>
+    <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+  <div class="form-group">
+    <label for="childcareLeaveEnd">育児休業終了日</label>
+    <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
+  </div>
+  <div class="form-group">
+    <label>
+      <input type="checkbox" formControlName="childcareNotificationSubmitted">
+      育児休業取得届の提出済
+    </label>
+  </div>
+  <div class="form-group">
+    <label>
+      <input type="checkbox" formControlName="childcareLivingTogether">
+      子と同居している（養育している）
+    </label>
+  </div>
+
+  <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">保存</button>
+</form>
+

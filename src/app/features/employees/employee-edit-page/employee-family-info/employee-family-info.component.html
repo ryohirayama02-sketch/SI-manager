@@ -1,0 +1,125 @@
+<h3>家族情報</h3>
+
+<!-- 扶養見直しアラート -->
+<div *ngIf="supportReviewAlerts.length > 0" class="alert-box" style="margin-bottom: 1rem; padding: 1rem; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">
+  <h4>⚠️ 扶養見直しアラート</h4>
+  <ul>
+    <li *ngFor="let alert of supportReviewAlerts">
+      {{ alert.name }}（{{ alert.relationship }}）: {{ getFamilyMemberAge(alert.birthDate) }}歳 - 扶養見直しが必要です
+    </li>
+  </ul>
+</div>
+
+<!-- 家族情報一覧 -->
+<div style="margin-bottom: 1rem;">
+  <button type="button" (click)="showAddFamilyForm($event)" class="btn-primary">家族情報を追加</button>
+</div>
+
+<table class="table" *ngIf="familyMembers.length > 0" style="margin-bottom: 1rem;">
+  <thead>
+    <tr>
+      <th>氏名</th>
+      <th>生年月日</th>
+      <th>年齢</th>
+      <th>続柄</th>
+      <th>同居区分</th>
+      <th>収入見込</th>
+      <th>第3号区分</th>
+      <th>高校卒業日（満18歳年度末）</th>
+      <th>大学卒業日（満22歳年度末）</th>
+      <th>扶養開始日</th>
+      <th>扶養終了日</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let member of familyMembers">
+      <td>{{ member.name }}</td>
+      <td>{{ member.birthDate }}</td>
+      <td>{{ getFamilyMemberAge(member.birthDate) }}歳</td>
+      <td>{{ member.relationship }}</td>
+      <td>{{ member.livingTogether ? '同居' : '別居' }}</td>
+      <td>{{ member.expectedIncome ? (member.expectedIncome | number:'1.0-0') + '円' : '-' }}</td>
+      <td>{{ getPensionCategory(member) }}</td>
+      <td>{{ getAge18Date(member.birthDate) }}</td>
+      <td>{{ getAge22Date(member.birthDate) }}</td>
+      <td>{{ member.supportStartDate || '-' }}</td>
+      <td>{{ member.supportEndDate || '-' }}</td>
+      <td>
+        <button type="button" (click)="showEditFamilyForm(member, $event)" class="btn-secondary" style="margin-right: 0.5rem;">編集</button>
+        <button type="button" (click)="deleteFamilyMember(member.id!, $event)" class="btn-danger">削除</button>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<p *ngIf="familyMembers.length === 0" class="info-text">家族情報が登録されていません。</p>
+
+<!-- 家族情報入力フォーム -->
+<div *ngIf="showFamilyForm" class="card" style="margin-top: 1rem;">
+  <h4>{{ editingFamilyMember ? '家族情報の編集' : '家族情報の追加' }}</h4>
+  <form [formGroup]="familyForm" (ngSubmit)="$event.preventDefault(); $event.stopPropagation();">
+    <div class="form-group">
+      <label for="familyName">氏名 <span class="required">*</span></label>
+      <input id="familyName" formControlName="name" type="text" class="form-control" required>
+    </div>
+
+    <div class="form-group">
+      <label for="familyBirthDate">生年月日 <span class="required">*</span></label>
+      <input id="familyBirthDate" formControlName="birthDate" type="date" class="form-control" required max="9999-12-31">
+    </div>
+
+    <div class="form-group">
+      <label for="familyRelationship">続柄 <span class="required">*</span></label>
+      <select id="familyRelationship" formControlName="relationship" class="form-control" required>
+        <option value="">選択してください</option>
+        <option value="配偶者">配偶者</option>
+        <option value="子">子</option>
+        <option value="父母">父母</option>
+        <option value="祖父母">祖父母</option>
+        <option value="兄弟姉妹">兄弟姉妹</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="livingTogether">
+        同居
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label for="familyExpectedIncome">収入見込（円）</label>
+      <input id="familyExpectedIncome" formControlName="expectedIncome" type="number" class="form-control" min="0" step="1">
+    </div>
+
+    <div class="form-group">
+      <label>
+        <input type="checkbox" formControlName="isThirdCategory">
+        第3号被保険者
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label for="familySupportStartDate">扶養開始日</label>
+      <input id="familySupportStartDate" formControlName="supportStartDate" type="date" class="form-control" max="9999-12-31">
+    </div>
+
+    <div class="form-group">
+      <label for="familySupportEndDate">扶養終了日</label>
+      <input id="familySupportEndDate" formControlName="supportEndDate" type="date" class="form-control" max="9999-12-31">
+    </div>
+
+    <div class="form-group">
+      <label for="familyChangeDate">異動日</label>
+      <input id="familyChangeDate" formControlName="changeDate" type="date" class="form-control" max="9999-12-31">
+    </div>
+
+    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+      <button type="button" (click)="saveFamilyMember($event)" [disabled]="familyForm.invalid" class="btn-primary">保存</button>
+      <button type="button" (click)="cancelFamilyForm()" class="btn-secondary">キャンセル</button>
+    </div>
+  </form>
+</div>
+
