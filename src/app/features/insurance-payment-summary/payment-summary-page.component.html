@@ -1,6 +1,6 @@
 <!-- ローディングインジケータ -->
 <app-loading-indicator
-  [isLoading]="isLoading"
+  [isLoading]="state.isLoading"
   message="集計中..."
 ></app-loading-indicator>
 
@@ -8,20 +8,20 @@
 <app-scroll-to-top></app-scroll-to-top>
 
 <!-- ヘッダー -->
-<app-payment-summary-header [year]="year"></app-payment-summary-header>
+<app-payment-summary-header [year]="state.year"></app-payment-summary-header>
 
 <!-- 年度・月選択 -->
 <div class="card" style="margin-bottom: 1rem;">
   <div style="display: flex; gap: 1rem; align-items: center;">
     <div class="form-group" style="margin-bottom: 0;">
       <label>年度：</label>
-      <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-        <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
+      <select [(ngModel)]="state.year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+        <option *ngFor="let y of state.availableYears" [value]="y">{{ y }}年</option>
       </select>
     </div>
     <div class="form-group" style="margin-bottom: 0;">
       <label>月：</label>
-      <select [(ngModel)]="selectedMonth" (change)="onMonthChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <select [(ngModel)]="state.selectedMonth" (change)="onMonthChange()" class="form-control" [ngModelOptions]="{standalone: true}">
         <option value="all">全月（1-12）</option>
         <option *ngFor="let m of [1,2,3,4,5,6,7,8,9,10,11,12]" [value]="m">{{ m }}月</option>
       </select>
@@ -32,9 +32,9 @@
 
 <!-- 集計値表示（指定月の合計のみ） -->
 <div class="card" style="margin-bottom: 1rem;">
-  <h3>集計結果（{{ year }}年度{{ selectedMonth === 'all' ? '全月' : selectedMonth + '月' }}）</h3>
+  <h3>集計結果（{{ state.year }}年度{{ state.selectedMonth === 'all' ? '全月' : state.selectedMonth + '月' }}）</h3>
   
-  <div *ngIf="getMonthlyTotals(year, selectedMonth) as monthlyTotals">
+  <div *ngIf="getMonthlyTotals(state.year, state.selectedMonth) as monthlyTotals">
     <h4>月次報酬分</h4>
     <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
       <thead>
@@ -69,7 +69,7 @@
     </table>
   </div>
 
-  <div *ngIf="getBonusTotals(year, selectedMonth) as bonusTotals" style="margin-top: 1.5rem;">
+  <div *ngIf="getBonusTotals(state.year, state.selectedMonth) as bonusTotals" style="margin-top: 1.5rem;">
     <h4>賞与保険料</h4>
     <table class="premium-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
       <thead>
@@ -132,30 +132,30 @@
 </div>
 
 <!-- 年間警告パネル -->
-<app-annual-warning-panel [warnings]="warnings"></app-annual-warning-panel>
+<app-annual-warning-panel [warnings]="state.warnings"></app-annual-warning-panel>
 
-<div *ngIf="employees.length === 0" class="no-data-message">
+<div *ngIf="state.employees.length === 0" class="no-data-message">
   <p>データがありません</p>
 </div>
 
 <!-- エラー・警告メッセージ（従業員ごと） -->
 <app-error-panel
   [employees]="getFilteredEmployees()"
-  [errorMessages]="errorMessages"
-  [warningMessages]="warningMessages"
+  [errorMessages]="state.errorMessages"
+  [warningMessages]="state.warningMessages"
 ></app-error-panel>
 
 <!-- 会社全体の月次保険料合計（本人分＋会社負担分） -->
 <app-company-monthly-total-table
-  [year]="year"
-  [companyMonthlyTotals]="companyMonthlyTotals"
-  [bonusByMonth]="bonusByMonth"
-  [monthlyTotals]="monthlyTotals"
+  [year]="state.year"
+  [companyMonthlyTotals]="state.companyMonthlyTotals"
+  [bonusByMonth]="state.bonusByMonth"
+  [monthlyTotals]="state.monthlyTotals"
   [getBonusTooltip]="getBonusTooltip.bind(this)"
-  [annualTotalHealth]="annualTotals.health"
-  [annualTotalCare]="annualTotals.care"
-  [annualTotalPension]="annualTotals.pension"
-  [annualTotal]="annualTotals.total"
-  [bonusAnnualTotals]="bonusAnnualTotals"
+  [annualTotalHealth]="state.annualTotals.health"
+  [annualTotalCare]="state.annualTotals.care"
+  [annualTotalPension]="state.annualTotals.pension"
+  [annualTotal]="state.annualTotals.total"
+  [bonusAnnualTotals]="state.bonusAnnualTotals"
 ></app-company-monthly-total-table>
 

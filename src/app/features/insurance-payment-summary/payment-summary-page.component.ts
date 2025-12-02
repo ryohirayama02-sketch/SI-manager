@@ -1,18 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { EmployeeService } from '../../services/employee.service';
-import { BonusService } from '../../services/bonus.service';
-import { MonthlySalaryService } from '../../services/monthly-salary.service';
-import { SettingsService } from '../../services/settings.service';
-import { NotificationDecisionResult } from '../../services/notification-decision.service';
-import { AnnualWarningService } from '../../services/annual-warning.service';
+import { PaymentSummaryStateService } from '../../services/payment-summary-state.service';
+import { PaymentSummaryDataService } from '../../services/payment-summary-data.service';
 import { PaymentSummaryCalculationService } from '../../services/payment-summary-calculation.service';
-import { NotificationCalculationService } from '../../services/notification-calculation.service';
 import { PaymentSummaryFormatService } from '../../services/payment-summary-format.service';
 import { NotificationFormatService } from '../../services/notification-format.service';
-import { Employee } from '../../models/employee.model';
-import { Bonus } from '../../models/bonus.model';
 import { AnnualWarningPanelComponent } from './components/annual-warning-panel/annual-warning-panel.component';
 import { AnnualBonusSummaryComponent } from './components/annual-bonus-summary/annual-bonus-summary.component';
 import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-total-table/company-monthly-total-table.component';
@@ -26,6 +19,12 @@ import { LoadingIndicatorComponent } from './components/loading-indicator/loadin
 import { ScrollToTopComponent } from './components/scroll-to-top/scroll-to-top.component';
 import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 
+/**
+ * PaymentSummaryPageComponent
+ * 
+ * 保険料サマリー画面のコンポーネント
+ * UI制御のみを担当し、状態管理とデータロードはサービスに委譲
+ */
 @Component({
   selector: 'app-payment-summary-page',
   standalone: true,
@@ -48,293 +47,51 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PaymentSummaryPageComponent implements OnInit {
-  employees: Employee[] = [];
-  year: number = 2025;
-  selectedMonth: number | 'all' | string = new Date().getMonth() + 1;
-  availableYears: number[] = [];
-  prefecture: string = 'tokyo';
-  rates: any = null;
-  gradeTable: any[] = [];
-
-  // 月ごとの集計結果
-  monthlyTotals: {
-    [month: number]: {
-      health: number;
-      care: number;
-      pension: number;
-      total: number;
-      isPensionStopped?: boolean;
-      isHealthStopped?: boolean;
-      isMaternityLeave?: boolean;
-      isChildcareLeave?: boolean;
-      isRetired?: boolean;
-    };
-  } = {};
-
-  months = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  errorMessages: { [employeeId: string]: string[] } = {};
-  warningMessages: { [employeeId: string]: string[] } = {};
-  warnings: string[] = []; // 年間警告パネル用
-
-  // 月次保険料一覧（従業員ごと）
-  // MonthlyPremiumRow は calculateMonthlyPremiums の戻り値（MonthlyPremiums & { reasons: string[] }）をベースに変換
-  monthlyPremiumsByEmployee: {
-    [employeeId: string]: {
-      month: number;
-      healthEmployee: number; // health_employee から変換
-      healthEmployer: number; // health_employer から変換
-      careEmployee: number; // care_employee から変換
-      careEmployer: number; // care_employer から変換
-      pensionEmployee: number; // pension_employee から変換
-      pensionEmployer: number; // pension_employer から変換
-      exempt: boolean; // reasons から判定
-      notes: string[]; // reasons から取得
-      isAcquisitionMonth?: boolean; // 資格取得月フラグ
-      acquisitionGrade?: number; // 資格取得時決定の等級
-      acquisitionStandard?: number; // 資格取得時決定の標準報酬月額
-      acquisitionReason?: string; // 資格取得時決定の理由文
-      shikakuReportRequired?: boolean; // 資格取得届の提出要否
-      shikakuReportDeadline?: string; // 資格取得届の提出期限
-      shikakuReportReason?: string; // 資格取得届の理由
-    }[];
-  } = {};
-
-  // 会社全体の月次保険料合計
-  companyMonthlyTotals: {
-    month: number;
-    healthTotal: number;
-    careTotal: number;
-    pensionTotal: number;
-    total: number;
-  }[] = [];
-
-  // 届出要否判定結果（従業員ごと）
-  notificationsByEmployee: {
-    [employeeId: string]: NotificationDecisionResult[];
-  } = {};
-
-  // 賞与保険料の年間合計
-  bonusAnnualTotals: {
-    healthEmployee: number;
-    healthEmployer: number;
-    careEmployee: number;
-    careEmployer: number;
-    pensionEmployee: number;
-    pensionEmployer: number;
-    totalEmployee: number;
-    totalEmployer: number;
-    total: number;
-  } = {
-    healthEmployee: 0,
-    healthEmployer: 0,
-    careEmployee: 0,
-    careEmployer: 0,
-    pensionEmployee: 0,
-    pensionEmployer: 0,
-    totalEmployee: 0,
-    totalEmployer: 0,
-    total: 0,
-  };
-
-  // 月ごとの賞与データ
-  bonusByMonth: { [month: number]: Bonus[] } = {};
-
-  // 会社全体の年間保険料合計
-  annualTotals: {
-    health: number;
-    care: number;
-    pension: number;
-    total: number;
-  } = {
-    health: 0,
-    care: 0,
-    pension: 0,
-    total: 0,
-  };
-
-  // 現在の年度の賞与データ（キャッシュ用）
-  private currentYearBonuses: Bonus[] = [];
-
-  // 現在の年度の月次給与データ（キャッシュ用）
-  private salaryDataByEmployeeId: { [employeeId: string]: any } = {};
-
-  // 現在の年度の賞与データ（従業員ごとにグループ化）
-  private bonusesByEmployeeId: { [employeeId: string]: Bonus[] } = {};
-
-  // ローディング状態
-  isLoading: boolean = false;
+  // 状態管理サービスへの参照（テンプレートで使用）
+  get state() {
+    return this.stateService;
+  }
 
   constructor(
-    private employeeService: EmployeeService,
-    private bonusService: BonusService,
-    private monthlySalaryService: MonthlySalaryService,
-    private settingsService: SettingsService,
-    private annualWarningService: AnnualWarningService,
+    private stateService: PaymentSummaryStateService,
+    private dataService: PaymentSummaryDataService,
     private paymentSummaryCalculationService: PaymentSummaryCalculationService,
-    private notificationCalculationService: NotificationCalculationService,
     private paymentSummaryFormatService: PaymentSummaryFormatService,
     private notificationFormatService: NotificationFormatService,
     private cdr: ChangeDetectorRef
-  ) {
-    // 年度選択用のリストを初期化
-    const currentYear = new Date().getFullYear();
-    for (let i = currentYear - 5; i <= currentYear + 1; i++) {
-      this.availableYears.push(i);
-    }
-  }
+  ) {}
 
   async ngOnInit(): Promise<void> {
-    this.isLoading = true;
-    try {
-      const employeesData = await this.employeeService.getAllEmployees();
-      this.employees = employeesData || [];
-      await this.loadData();
-    } finally {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    }
+    await this.dataService.loadInitialData();
+    this.cdr.markForCheck();
   }
 
   async onYearChange(): Promise<void> {
-    this.year = Number(this.year);
-    this.isLoading = true;
+    await this.dataService.onYearChange();
     this.cdr.markForCheck();
-    try {
-      // キャッシュをクリア
-      this.salaryDataByEmployeeId = {};
-      this.bonusesByEmployeeId = {};
-      await this.loadData();
-    } finally {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    }
   }
 
   onMonthChange(): void {
     // 月変更時は再読み込み不要（フィルタリングのみ）
-    if (this.selectedMonth !== 'all' && typeof this.selectedMonth === 'string') {
-      this.selectedMonth = Number(this.selectedMonth);
-    }
+    this.stateService.setSelectedMonth(this.stateService.selectedMonth);
     this.cdr.markForCheck();
-  }
-
-
-  private async loadData(): Promise<void> {
-    this.rates = await this.settingsService.getRates(
-      this.year.toString(),
-      this.prefecture
-    );
-    this.gradeTable = await this.settingsService.getStandardTable(this.year);
-
-    // 賞与データを読み込む（年度変更時のみ）
-    // 全従業員の賞与データを取得
-    this.currentYearBonuses = [];
-    for (const emp of this.employees) {
-      const bonuses = await this.bonusService.getBonusesForResult(emp.id, this.year);
-      this.currentYearBonuses.push(...bonuses);
-      console.log(`[payment-summary] 賞与データ取得: 従業員=${emp.name}, 年度=${this.year}, 賞与件数=${bonuses.length}`, bonuses);
-    }
-    console.log(`[payment-summary] 全賞与データ: 年度=${this.year}, 総件数=${this.currentYearBonuses.length}`, this.currentYearBonuses);
-
-    // 月次給与データを一括読み込み（年度変更時のみ）
-    this.salaryDataByEmployeeId = {};
-    for (const emp of this.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
-      this.salaryDataByEmployeeId[emp.id] = salaryData;
-      console.log(`[payment-summary] 給与データ取得: 従業員=${emp.name}, 年度=${this.year}, データ=`, salaryData);
-    }
-
-    // 賞与データを従業員ごとにグループ化
-    this.bonusesByEmployeeId = {};
-    for (const bonus of this.currentYearBonuses) {
-      if (!this.bonusesByEmployeeId[bonus.employeeId]) {
-        this.bonusesByEmployeeId[bonus.employeeId] = [];
-      }
-      this.bonusesByEmployeeId[bonus.employeeId].push(bonus);
-    }
-
-    if (this.employees.length > 0) {
-      await this.calculateMonthlyTotals(this.currentYearBonuses);
-    }
-  }
-
-  async calculateMonthlyTotals(bonuses: Bonus[] = []): Promise<void> {
-    // 選択された従業員のみを取得
-    const filteredEmployees = this.getFilteredEmployees();
-
-    // サービスを使用して計算（選択された従業員のみ）
-    const result =
-      await this.paymentSummaryCalculationService.calculateMonthlyTotals(
-        filteredEmployees,
-        bonuses,
-        this.year,
-        this.gradeTable,
-        this.rates,
-        this.salaryDataByEmployeeId,
-        this.prefecture
-      );
-
-    // 結果をコンポーネントのプロパティに反映
-    this.monthlyPremiumsByEmployee = result.monthlyPremiumsByEmployee;
-    this.monthlyTotals = result.monthlyTotals;
-    this.companyMonthlyTotals = result.companyMonthlyTotals;
-    this.bonusAnnualTotals = result.bonusAnnualTotals;
-    this.bonusByMonth = result.bonusByMonth;
-    this.errorMessages = result.errorMessages;
-
-    // 年間合計を計算
-    this.annualTotals =
-      this.paymentSummaryCalculationService.calculateAnnualTotals(
-        result.companyMonthlyTotals
-      );
-
-    // 届出要否判定を一括取得（選択された従業員のみ）
-    this.notificationsByEmployee =
-      await this.notificationCalculationService.calculateNotificationsBatch(
-        filteredEmployees,
-        this.year,
-        this.gradeTable,
-        this.bonusesByEmployeeId,
-        this.salaryDataByEmployeeId
-      );
-
-    // 年間警告を収集（選択された従業員のみ）
-    this.warnings = await this.annualWarningService.collectAnnualWarnings(
-      filteredEmployees,
-      bonuses,
-      this.year,
-      this.monthlyPremiumsByEmployee,
-      this.salaryDataByEmployeeId
-    );
-
-    // ChangeDetectionStrategy.OnPush の場合、変更を明示的に通知
-    this.cdr.markForCheck();
-  }
-
-  /**
-   * 全従業員を返す（フィルターなし）
-   */
-  getFilteredEmployees(): Employee[] {
-    return this.employees;
   }
 
   /**
    * 指定月の賞与情報をツールチップ用の文字列として返す
-   * @param month 月（1-12）
-   * @returns ツールチップ用の文字列
    */
   getBonusTooltip(month: number): string {
     return this.paymentSummaryFormatService.getBonusTooltip(
       month,
-      this.bonusByMonth,
-      this.employees
+      this.stateService.bonusByMonth,
+      this.stateService.employees
     );
   }
 
   hasNotesForEmployee(employeeId: string): boolean {
     return this.paymentSummaryCalculationService.hasNotesForEmployee(
       employeeId,
-      this.monthlyPremiumsByEmployee
+      this.stateService.monthlyPremiumsByEmployee
     );
   }
 
@@ -354,7 +111,7 @@ export class PaymentSummaryPageComponent implements OnInit {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `社会保険料振込額_${this.year}年度.csv`);
+    link.setAttribute('download', `社会保険料振込額_${this.stateService.year}年度.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -363,7 +120,6 @@ export class PaymentSummaryPageComponent implements OnInit {
 
   /**
    * CSV構築メソッド
-   * monthlyPremiumsByEmployeeから会社全体の本人負担・会社負担を集計してCSV形式で出力
    */
   buildCsv(): string {
     const headers = [
@@ -405,8 +161,8 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
 
     // 全従業員の月次保険料を集計
-    for (const emp of this.employees) {
-      const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
+    for (const emp of this.stateService.employees) {
+      const employeeRows = this.stateService.monthlyPremiumsByEmployee[emp.id];
       if (!employeeRows || employeeRows.length === 0) {
         continue;
       }
@@ -425,7 +181,7 @@ export class PaymentSummaryPageComponent implements OnInit {
     }
 
     // 賞与保険料を月次合計に加算（全従業員）
-    for (const bonus of this.currentYearBonuses) {
+    for (const bonus of this.stateService.currentYearBonuses) {
       const bonusMonth = bonus.month;
       if (bonusMonth >= 1 && bonusMonth <= 12) {
         monthlyTotalsByMonth[bonusMonth].healthEmployee += bonus.healthEmployee || 0;
@@ -494,8 +250,8 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     if (month === 'all') {
       // 全月の場合は年間合計を使用（全従業員）
-      for (const emp of this.employees) {
-        const rows = this.monthlyPremiumsByEmployee[emp.id] || [];
+      for (const emp of this.stateService.employees) {
+        const rows = this.stateService.monthlyPremiumsByEmployee[emp.id] || [];
         for (const row of rows) {
           healthEmployee += row.healthEmployee || 0;
           healthEmployer += row.healthEmployer || 0;
@@ -508,8 +264,8 @@ export class PaymentSummaryPageComponent implements OnInit {
     } else {
       // 特定月の集計（全従業員）
       const monthNum = typeof month === 'string' ? Number(month) : (month as number);
-      for (const emp of this.employees) {
-        const rows = this.monthlyPremiumsByEmployee[emp.id] || [];
+      for (const emp of this.stateService.employees) {
+        const rows = this.stateService.monthlyPremiumsByEmployee[emp.id] || [];
         const monthRow = rows.find(r => r.month === monthNum);
         if (monthRow) {
           healthEmployee += monthRow.healthEmployee || 0;
@@ -562,7 +318,7 @@ export class PaymentSummaryPageComponent implements OnInit {
 
     if (month === 'all') {
       // 全月の場合は年間の賞与合計を使用（全従業員）
-      for (const bonus of this.currentYearBonuses) {
+      for (const bonus of this.stateService.currentYearBonuses) {
         if (!bonus.isExempted && !bonus.isSalaryInsteadOfBonus) {
           healthEmployee += bonus.healthEmployee || 0;
           healthEmployer += bonus.healthEmployer || 0;
@@ -577,7 +333,7 @@ export class PaymentSummaryPageComponent implements OnInit {
       const monthNum = typeof month === 'string' ? Number(month) : (month as number);
       
       // bonusByMonthから該当月の賞与を取得（既に月ごとにグループ化済み）
-      const monthBonuses = this.bonusByMonth[monthNum] || [];
+      const monthBonuses = this.stateService.bonusByMonth[monthNum] || [];
       
       for (const bonus of monthBonuses) {
         if (bonus.isExempted || bonus.isSalaryInsteadOfBonus) {
@@ -594,7 +350,7 @@ export class PaymentSummaryPageComponent implements OnInit {
       
       // bonusByMonthにデータがない場合、currentYearBonusesから直接フィルタリング（フォールバック）
       if (monthBonuses.length === 0) {
-        for (const bonus of this.currentYearBonuses) {
+        for (const bonus of this.stateService.currentYearBonuses) {
           if (bonus.isExempted || bonus.isSalaryInsteadOfBonus) continue;
           
           // 支給日から月を抽出（bonus.monthも確認）
@@ -651,8 +407,8 @@ export class PaymentSummaryPageComponent implements OnInit {
     employeeTotal: number;
     grandTotal: number;
   } {
-    const monthlyTotals = this.getMonthlyTotals(this.year, this.selectedMonth);
-    const bonusTotals = this.getBonusTotals(this.year, this.selectedMonth);
+    const monthlyTotals = this.getMonthlyTotals(this.stateService.year, this.stateService.selectedMonth);
+    const bonusTotals = this.getBonusTotals(this.stateService.year, this.stateService.selectedMonth);
 
     const companyTotal = monthlyTotals.totalEmployer + bonusTotals.totalEmployer;
     const employeeTotal = monthlyTotals.totalEmployee + bonusTotals.totalEmployee;
@@ -663,5 +419,12 @@ export class PaymentSummaryPageComponent implements OnInit {
       employeeTotal,
       grandTotal,
     };
+  }
+
+  /**
+   * 全従業員を返す（フィルターなし）
+   */
+  getFilteredEmployees() {
+    return this.stateService.getFilteredEmployees();
   }
 }
