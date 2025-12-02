@@ -67,6 +67,7 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   standardRemunerationHistories: StandardRemunerationHistory[] = [];
   insuranceStatusHistories: InsuranceStatusHistory[] = [];
   selectedHistoryYear: number = new Date().getFullYear();
+  isLoadingHistories: boolean = false;
 
   // 事業所マスタ関連
   offices: Office[] = [];
@@ -838,19 +839,25 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
   async loadHistories(): Promise<void> {
     if (!this.employeeId) return;
     
-    // 従業員情報を取得
-    const employee = await this.employeeService.getEmployeeById(this.employeeId);
-    if (!employee) return;
+    this.isLoadingHistories = true;
     
-    // 常に最新の履歴を自動生成
-    await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(this.employeeId, employee);
-    await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(this.employeeId, employee);
-    
-    // 標準報酬履歴を読み込み
-    this.standardRemunerationHistories = await this.standardRemunerationHistoryService.getStandardRemunerationHistories(this.employeeId);
-    
-    // 社保加入履歴を読み込み
-    this.insuranceStatusHistories = await this.standardRemunerationHistoryService.getInsuranceStatusHistories(this.employeeId);
+    try {
+      // 従業員情報を取得
+      const employee = await this.employeeService.getEmployeeById(this.employeeId);
+      if (!employee) return;
+      
+      // 常に最新の履歴を自動生成
+      await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(this.employeeId, employee);
+      await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(this.employeeId, employee);
+      
+      // 標準報酬履歴を読み込み
+      this.standardRemunerationHistories = await this.standardRemunerationHistoryService.getStandardRemunerationHistories(this.employeeId);
+      
+      // 社保加入履歴を読み込み
+      this.insuranceStatusHistories = await this.standardRemunerationHistoryService.getInsuranceStatusHistories(this.employeeId);
+    } finally {
+      this.isLoadingHistories = false;
+    }
   }
 
   async generateHistories(event?: Event): Promise<void> {
@@ -897,16 +904,21 @@ export class EmployeeEditPageComponent implements OnInit, OnDestroy {
     // 選択年度の履歴が存在しない場合は自動生成
     const filtered = this.insuranceStatusHistories.filter(h => h.year === this.selectedHistoryYear);
     if (filtered.length === 0 && this.employeeId) {
-      const employee = await this.employeeService.getEmployeeById(this.employeeId);
-      if (employee) {
-        // 選択年度の履歴を生成
-        await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
-          this.employeeId,
-          employee,
-          [this.selectedHistoryYear]
-        );
-        // 履歴を再読み込み
-        this.insuranceStatusHistories = await this.standardRemunerationHistoryService.getInsuranceStatusHistories(this.employeeId);
+      this.isLoadingHistories = true;
+      try {
+        const employee = await this.employeeService.getEmployeeById(this.employeeId);
+        if (employee) {
+          // 選択年度の履歴を生成
+          await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
+            this.employeeId,
+            employee,
+            [this.selectedHistoryYear]
+          );
+          // 履歴を再読み込み
+          this.insuranceStatusHistories = await this.standardRemunerationHistoryService.getInsuranceStatusHistories(this.employeeId);
+        }
+      } finally {
+        this.isLoadingHistories = false;
       }
     }
   }

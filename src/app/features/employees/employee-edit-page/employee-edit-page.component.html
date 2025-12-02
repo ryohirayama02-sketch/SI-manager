@@ -403,7 +403,8 @@
 
       <!-- 標準報酬履歴 -->
       <h4>標準報酬履歴</h4>
-      <table class="table" *ngIf="standardRemunerationHistories.length > 0" style="margin-bottom: 2rem;">
+      <p *ngIf="isLoadingHistories" class="info-text">読み込み中...</p>
+      <table class="table" *ngIf="!isLoadingHistories && standardRemunerationHistories.length > 0" style="margin-bottom: 2rem;">
         <thead>
           <tr>
             <th>適用開始年月</th>
@@ -423,7 +424,7 @@
           </tr>
         </tbody>
       </table>
-      <p *ngIf="standardRemunerationHistories.length === 0" class="info-text">標準報酬履歴が登録されていません。「履歴を自動生成」ボタンをクリックして生成してください。</p>
+      <p *ngIf="!isLoadingHistories && standardRemunerationHistories.length === 0" class="info-text">標準報酬履歴が登録されていません。履歴は自動的に生成されます。</p>
 
       <!-- 社保加入履歴 -->
       <h4 style="margin-top: 2rem;">社保加入履歴</h4>
@@ -434,7 +435,8 @@
         </select>
       </div>
 
-      <table class="table" *ngIf="getFilteredInsuranceHistories().length > 0">
+      <p *ngIf="isLoadingHistories" class="info-text">読み込み中...</p>
+      <table class="table" *ngIf="!isLoadingHistories && getFilteredInsuranceHistories().length > 0">
         <thead>
           <tr>
             <th>年月</th>
@@ -454,7 +456,7 @@
           </tr>
         </tbody>
       </table>
-      <p *ngIf="getFilteredInsuranceHistories().length === 0" class="info-text">社保加入履歴が登録されていません。履歴は自動的に生成されます。</p>
+      <p *ngIf="!isLoadingHistories && getFilteredInsuranceHistories().length === 0" class="info-text">社保加入履歴が登録されていません。履歴は自動的に生成されます。</p>
   </div>
 
   <!-- エラー・警告メッセージ -->
