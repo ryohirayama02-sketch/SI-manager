@@ -200,9 +200,38 @@ export class PaymentSummaryCalculationService {
       // 月次保険料一覧を計算（初期化を確実に行う）
       const monthlyPremiumRows: MonthlyPremiumRow[] = [];
 
-      if (salaryData) {
-        // 1〜12月分の月次保険料を計算
-        for (let month = 1; month <= 12; month++) {
+      // 1〜12月分の月次保険料を計算（給与データがない場合でも産休中の月は0円として計算）
+      for (let month = 1; month <= 12; month++) {
+        // 産休・育休判定
+        const maternityLeave = this.employeeLifecycleService.isMaternityLeave(emp, year, month);
+        const childcareLeave = this.employeeLifecycleService.isChildcareLeave(emp, year, month);
+        
+        // 産休・育休中で給与データがない場合は0円として処理
+        if ((maternityLeave || childcareLeave) && !salaryData) {
+          monthlyPremiumRows.push({
+            month,
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+            exempt: true,
+            notes: [maternityLeave ? '産前産後休業中' : '育児休業中'],
+          });
+          monthlyPremiums[month] = {
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+          };
+          continue;
+        }
+
+        // 給与データがある場合のみ通常の計算を実行
+        if (salaryData) {
           // getEmployeeSalaryは { "4": {...}, "5": {...} } 形式を返す
           const monthKeyString = month.toString(); // "4", "5", "6" など
           const monthSalaryData = salaryData[monthKeyString];
@@ -261,9 +290,32 @@ export class PaymentSummaryCalculationService {
             pensionEmployee: premiumResult.pension_employee,
             pensionEmployer: premiumResult.pension_employer,
           };
+        } else {
+          // 給与データがなく、産休・育休でもない場合は0円として処理（警告は別途annual-warningで処理）
+          monthlyPremiumRows.push({
+            month,
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+            exempt: false,
+            notes: [],
+          });
+          monthlyPremiums[month] = {
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+          };
         }
+      }
 
-        // 年齢関連の矛盾チェック
+      // 年齢関連の矛盾チェック（給与データがある場合のみ）
+      if (salaryData) {
         this.validateAgeRelatedErrors(emp, monthlyPremiums, errorMessages, year, ageCache);
       }
 

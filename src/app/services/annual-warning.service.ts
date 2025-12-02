@@ -182,9 +182,18 @@ export class AnnualWarningService {
           const monthKeyString = month.toString(); // "4", "5", "6" など
           const monthSalaryData = salaryData[monthKeyString];
 
-          // データ欠損チェック
-          if (!monthSalaryData) {
+          // 産休・育休中の月は給与データがなくても正常なので、データ欠損チェックから除外
+          const maternityLeave = this.employeeLifecycleService.isMaternityLeave(emp, year, month);
+          const childcareLeave = this.employeeLifecycleService.isChildcareLeave(emp, year, month);
+          
+          // データ欠損チェック（産休・育休中は除外）
+          if (!monthSalaryData && !maternityLeave && !childcareLeave) {
             missingMonths.push(month);
+            continue;
+          }
+          
+          // 産休・育休中の場合は給与データチェックをスキップ
+          if (maternityLeave || childcareLeave) {
             continue;
           }
 
