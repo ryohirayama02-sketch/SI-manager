@@ -23,7 +23,6 @@ import {
   MonthlySalaryData,
 } from '../../models/monthly-salary.model';
 import { SalaryInputSectionComponent } from './components/salary-input-section/salary-input-section.component';
-import { CalculationResultSectionComponent } from './components/calculation-result-section/calculation-result-section.component';
 import { ErrorWarningSectionComponent } from './components/error-warning-section/error-warning-section.component';
 import { SalaryCsvImportComponent } from './components/salary-csv-import/salary-csv-import.component';
 import { FormsModule } from '@angular/forms';
@@ -35,7 +34,6 @@ import { FormsModule } from '@angular/forms';
     CommonModule,
     FormsModule,
     SalaryInputSectionComponent,
-    CalculationResultSectionComponent,
     ErrorWarningSectionComponent,
     SalaryCsvImportComponent,
   ],
