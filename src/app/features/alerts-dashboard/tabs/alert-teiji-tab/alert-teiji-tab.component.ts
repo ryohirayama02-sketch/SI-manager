@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TeijiAlertUiService } from '../../../../services/teiji-alert-ui.service';
 
 export interface TeijiKetteiResultData {
   employeeId: string;
@@ -31,23 +32,15 @@ export class AlertTeijiTabComponent {
   @Input() isLoadingTeijiKettei: boolean = false;
   @Output() yearChange = new EventEmitter<number>();
 
-  /**
-   * 日付をフォーマット
-   */
-  formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
-  }
+  constructor(
+    private teijiAlertUiService: TeijiAlertUiService
+  ) {}
 
   /**
    * 定時決定（算定基礎届）の提出期日を取得
-   * 期日は7月10日
    */
   getTeijiReportDeadline(year: number): string {
-    const deadlineDate = new Date(year, 6, 10); // 7月 = 6 (0-indexed)
-    return this.formatDate(deadlineDate);
+    return this.teijiAlertUiService.getTeijiReportDeadline(year);
   }
 
   /**

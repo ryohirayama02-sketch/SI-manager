@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { BonusAlertUiService } from '../../../../services/bonus-alert-ui.service';
 
 export interface BonusReportAlert {
   id: string;
@@ -25,23 +26,22 @@ export class AlertBonusTabComponent {
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
+  constructor(
+    private bonusAlertUiService: BonusAlertUiService
+  ) {}
+
   /**
    * 日付をフォーマット
    */
   formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
+    return this.bonusAlertUiService.formatDate(date);
   }
 
   /**
    * 支給日をフォーマット
    */
   formatPayDate(payDateStr: string): string {
-    if (!payDateStr) return '-';
-    const date = new Date(payDateStr);
-    return this.formatDate(date);
+    return this.bonusAlertUiService.formatPayDate(payDateStr);
   }
 
   /**

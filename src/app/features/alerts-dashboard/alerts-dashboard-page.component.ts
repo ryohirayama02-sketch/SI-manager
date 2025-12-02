@@ -832,11 +832,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 届出スケジュールデータを読み込む
    */
   async loadScheduleData(): Promise<void> {
-    // 定時決定データを読み込む（まだ読み込まれていない場合）
-    if (this.state.teijiKetteiResults.length === 0 && this.state.activeTab === 'schedule') {
-      await this.loadTeijiKetteiData();
-    }
-    
     this.state.updateScheduleData();
   }
 

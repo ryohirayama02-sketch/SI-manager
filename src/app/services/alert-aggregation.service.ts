@@ -5,6 +5,8 @@ import { TeijiKetteiResultData } from '../features/alerts-dashboard/tabs/alert-t
 import { AgeAlert, QualificationChangeAlert } from '../features/alerts-dashboard/tabs/alert-age-tab/alert-age-tab.component';
 import { MaternityChildcareAlert } from '../features/alerts-dashboard/tabs/alert-leave-tab/alert-leave-tab.component';
 import { SupportAlert } from '../features/alerts-dashboard/tabs/alert-family-tab/alert-family-tab.component';
+import { AlertItem } from './alert-generation.service';
+import { getJSTDate } from '../utils/alerts-helper';
 
 export interface ScheduleData {
   [dateKey: string]: { // YYYY-MM-DD形式
@@ -27,13 +29,22 @@ export interface AlertSets {
 })
 export class AlertAggregationService {
   /**
-   * 各タブのアラートデータを集約してスケジュールデータを生成
+   * 各タブのアラートデータを集約してスケジュールデータを生成（個別パラメータ版）
    */
-  aggregateScheduleData(alertSets: AlertSets): ScheduleData {
+  aggregateScheduleData(
+    bonusAlerts: BonusReportAlert[],
+    suijiAlerts: SuijiKouhoResultWithDiff[],
+    notificationAlerts: AlertItem[],
+    ageAlerts: AgeAlert[],
+    qualificationChangeAlerts: QualificationChangeAlert[],
+    maternityChildcareAlerts: MaternityChildcareAlert[],
+    supportAlerts: SupportAlert[],
+    teijiKetteiResults: TeijiKetteiResultData[]
+  ): ScheduleData {
     const scheduleData: ScheduleData = {};
     
     // 賞与支払届アラート
-    for (const alert of alertSets.bonusReportAlerts) {
+    for (const alert of bonusAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
@@ -45,7 +56,7 @@ export class AlertAggregationService {
     }
     
     // 随時改定アラート
-    for (const alert of alertSets.suijiAlerts) {
+    for (const alert of suijiAlerts) {
       if (alert.isEligible && alert.applyStartMonth) {
         const deadline = this.getSuijiReportDeadlineDate(alert);
         if (deadline) {
@@ -62,18 +73,18 @@ export class AlertAggregationService {
     }
     
     // 定時決定（算定基礎届）- 7月10日
-    const currentYear = this.getJSTDate().getFullYear();
+    const currentYear = getJSTDate().getFullYear();
     const teijiDeadline = new Date(currentYear, 6, 10); // 7月10日
     const teijiDateKey = this.formatDateKey(teijiDeadline);
     if (!scheduleData[teijiDateKey]) {
       scheduleData[teijiDateKey] = {};
     }
-    if (alertSets.teijiKetteiResults.length > 0) {
-      scheduleData[teijiDateKey]['定時決定（算定基礎届）'] = alertSets.teijiKetteiResults.length;
+    if (teijiKetteiResults.length > 0) {
+      scheduleData[teijiDateKey]['定時決定（算定基礎届）'] = teijiKetteiResults.length;
     }
     
     // 年齢到達アラート
-    for (const alert of alertSets.ageAlerts) {
+    for (const alert of ageAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
@@ -85,7 +96,7 @@ export class AlertAggregationService {
     }
     
     // 資格変更アラート
-    for (const alert of alertSets.qualificationChangeAlerts) {
+    for (const alert of qualificationChangeAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
@@ -97,7 +108,7 @@ export class AlertAggregationService {
     }
     
     // 産休・育休アラート
-    for (const alert of alertSets.maternityChildcareAlerts) {
+    for (const alert of maternityChildcareAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
@@ -109,7 +120,7 @@ export class AlertAggregationService {
     }
     
     // 扶養アラート
-    for (const alert of alertSets.supportAlerts) {
+    for (const alert of supportAlerts) {
       if (alert.submitDeadline) {
         const dateKey = this.formatDateKey(alert.submitDeadline);
         if (!scheduleData[dateKey]) {
@@ -143,7 +154,7 @@ export class AlertAggregationService {
       return null;
     }
     
-    const year = alert.year || this.getJSTDate().getFullYear();
+    const year = alert.year || getJSTDate().getFullYear();
     const applyStartMonth = alert.applyStartMonth;
     
     // 適用開始月の前月を計算
@@ -160,18 +171,6 @@ export class AlertAggregationService {
     const deadlineDate = new Date(deadlineYear, deadlineMonth, 0); // 0日目 = 前月の最終日
     
     return deadlineDate;
-  }
-
-  /**
-   * 日本時間（JST）の現在日時を取得
-   */
-  private getJSTDate(): Date {
-    const now = new Date();
-    // UTC+9時間（日本時間）に変換
-    const jstOffset = 9 * 60; // 分単位
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const jst = new Date(utc + (jstOffset * 60000));
-    return jst;
   }
 }
 

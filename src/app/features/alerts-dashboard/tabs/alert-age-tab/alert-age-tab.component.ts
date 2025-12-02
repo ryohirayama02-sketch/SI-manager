@@ -1,5 +1,7 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { AgeAlertListComponent } from './age-alert-list/age-alert-list.component';
+import { QualificationChangeAlertListComponent } from './qualification-change-alert-list/qualification-change-alert-list.component';
 
 export interface AgeAlert {
   id: string;
@@ -28,7 +30,7 @@ export interface QualificationChangeAlert {
 @Component({
   selector: 'app-alert-age-tab',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, AgeAlertListComponent, QualificationChangeAlertListComponent],
   templateUrl: './alert-age-tab.component.html',
   styleUrl: './alert-age-tab.component.css'
 })
@@ -43,64 +45,6 @@ export class AlertAgeTabComponent {
   @Output() qualificationChangeAlertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
   @Output() qualificationChangeSelectAllChange = new EventEmitter<boolean>();
   @Output() qualificationChangeDeleteSelected = new EventEmitter<void>();
-
-  /**
-   * 日付をフォーマット
-   */
-  formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
-  }
-
-  formatBirthDate(birthDateString: string): string {
-    const date = new Date(birthDateString);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
-  }
-
-  // 年齢到達アラートの選択管理
-  toggleAgeAlertSelection(alertId: string): void {
-    const isSelected = this.selectedAgeAlertIds.has(alertId);
-    this.ageAlertSelectionChange.emit({ alertId, selected: !isSelected });
-  }
-
-  toggleAllAgeAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.ageSelectAllChange.emit(target.checked);
-  }
-
-  isAgeAlertSelected(alertId: string): boolean {
-    return this.selectedAgeAlertIds.has(alertId);
-  }
-
-  // 年齢到達アラートの削除
-  deleteSelectedAgeAlerts(): void {
-    this.ageDeleteSelected.emit();
-  }
-
-  // 資格変更アラートの選択管理
-  toggleQualificationChangeAlertSelection(alertId: string): void {
-    const isSelected = this.selectedQualificationChangeAlertIds.has(alertId);
-    this.qualificationChangeAlertSelectionChange.emit({ alertId, selected: !isSelected });
-  }
-
-  toggleAllQualificationChangeAlertsChange(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this.qualificationChangeSelectAllChange.emit(target.checked);
-  }
-
-  isQualificationChangeAlertSelected(alertId: string): boolean {
-    return this.selectedQualificationChangeAlertIds.has(alertId);
-  }
-
-  // 資格変更アラートの削除
-  deleteSelectedQualificationChangeAlerts(): void {
-    this.qualificationChangeDeleteSelected.emit();
-  }
 }
 
 

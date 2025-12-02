@@ -1,5 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FamilyAlertUiService } from '../../../../services/family-alert-ui.service';
 
 export interface SupportAlert {
   id: string;
@@ -32,14 +33,15 @@ export class AlertFamilyTabComponent {
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
+  constructor(
+    private familyAlertUiService: FamilyAlertUiService
+  ) {}
+
   /**
    * 日付をフォーマット
    */
   formatDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}年${month}月${day}日`;
+    return this.familyAlertUiService.formatDate(date);
   }
 
   // 扶養アラートの選択管理

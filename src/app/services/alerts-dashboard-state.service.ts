@@ -83,15 +83,16 @@ export class AlertsDashboardStateService {
    * 届出スケジュールデータを更新
    */
   updateScheduleData(): void {
-    this.scheduleData = this.alertAggregationService.aggregateScheduleData({
-      bonusReportAlerts: this.bonusReportAlerts,
-      suijiAlerts: this.suijiAlerts,
-      teijiKetteiResults: this.teijiKetteiResults,
-      ageAlerts: this.ageAlerts,
-      qualificationChangeAlerts: this.qualificationChangeAlerts,
-      maternityChildcareAlerts: this.maternityChildcareAlerts,
-      supportAlerts: this.supportAlerts
-    });
+    this.scheduleData = this.alertAggregationService.aggregateScheduleData(
+      this.bonusReportAlerts,
+      this.suijiAlerts,
+      this.notificationAlerts,
+      this.ageAlerts,
+      this.qualificationChangeAlerts,
+      this.maternityChildcareAlerts,
+      this.supportAlerts,
+      this.teijiKetteiResults
+    );
   }
 
   // 賞与支払届アラートのイベントハンドラ

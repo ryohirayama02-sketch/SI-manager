@@ -1,5 +1,8 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { CalendarService } from '../../../../services/calendar.service';
+import { AlertsDashboardStateService } from '../../../../services/alerts-dashboard-state.service';
+import { getJSTDate } from '../../../../utils/alerts-helper';
 
 @Component({
   selector: 'app-alert-schedule-tab',
@@ -20,17 +23,10 @@ export class AlertScheduleTabComponent {
   @Output() scheduleYearChange = new EventEmitter<number>();
   @Output() dateClick = new EventEmitter<string>();
 
-  /**
-   * 日本時間（JST）の現在日時を取得
-   */
-  private getJSTDate(): Date {
-    const now = new Date();
-    // UTC+9時間（日本時間）に変換
-    const jstOffset = 9 * 60; // 分単位
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    const jst = new Date(utc + (jstOffset * 60000));
-    return jst;
-  }
+  constructor(
+    private calendarService: CalendarService,
+    private state: AlertsDashboardStateService
+  ) {}
 
   /**
    * 日付をYYYY-MM-DD形式のキーに変換
@@ -42,21 +38,6 @@ export class AlertScheduleTabComponent {
     return `${year}-${month}-${day}`;
   }
 
-  /**
-   * タブの色を取得
-   */
-  getTabColor(tabId: string): string {
-    const colorMap: { [key: string]: string } = {
-      'schedule': '#6c757d',      // グレー
-      'bonus': '#007bff',          // 青
-      'suiji': '#28a745',          // 緑
-      'teiji': '#ffc107',          // 黄色
-      'age': '#dc3545',            // 赤
-      'leave': '#17a2b8',          // シアン
-      'family': '#6f42c1'          // 紫
-    };
-    return colorMap[tabId] || '#6c757d';
-  }
 
   /**
    * カレンダーの日付に表示するスケジュール項目を取得（最大6件）
@@ -86,7 +67,7 @@ export class AlertScheduleTabComponent {
           tabName, 
           count, 
           tabId,
-          color: this.getTabColor(tabId)
+          color: this.state.getTabColor(tabId)
         });
       }
     }
@@ -123,51 +104,21 @@ export class AlertScheduleTabComponent {
    * カレンダーの日付が現在の月かどうか
    */
   isCurrentMonth(date: Date): boolean {
-    return date.getFullYear() === this.scheduleYear && date.getMonth() + 1 === this.scheduleMonth;
+    return this.calendarService.isCurrentMonth(date, this.scheduleYear, this.scheduleMonth);
   }
 
   /**
    * カレンダーの日付が今日かどうか
    */
   isToday(date: Date): boolean {
-    const today = this.getJSTDate();
-    return date.getFullYear() === today.getFullYear() &&
-           date.getMonth() === today.getMonth() &&
-           date.getDate() === today.getDate();
+    return this.calendarService.isToday(date);
   }
 
   /**
    * カレンダーの日付配列を生成
    */
   getCalendarDays(): Date[] {
-    const firstDay = new Date(this.scheduleYear, this.scheduleMonth - 1, 1);
-    const lastDay = new Date(this.scheduleYear, this.scheduleMonth, 0);
-    const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay(); // 0 (日) から 6 (土)
-    
-    const days: Date[] = [];
-    
-    // 前月の日付を追加（カレンダーの最初の週を埋める）
-    const prevMonth = this.scheduleMonth - 1;
-    const prevYear = prevMonth < 1 ? this.scheduleYear - 1 : this.scheduleYear;
-    const prevMonthLastDay = new Date(prevYear, prevMonth, 0).getDate();
-    for (let i = startDayOfWeek - 1; i >= 0; i--) {
-      days.push(new Date(prevYear, prevMonth - 1, prevMonthLastDay - i));
-    }
-    
-    // 今月の日付を追加
-    for (let day = 1; day <= daysInMonth; day++) {
-      days.push(new Date(this.scheduleYear, this.scheduleMonth - 1, day));
-    }
-    
-    // 次月の日付を追加（カレンダーの最後の週を埋める）
-    const totalDays = days.length;
-    const remainingDays = 42 - totalDays; // 6週間 × 7日 = 42日
-    for (let day = 1; day <= remainingDays; day++) {
-      days.push(new Date(this.scheduleYear, this.scheduleMonth, day));
-    }
-    
-    return days;
+    return this.calendarService.getCalendarDays(this.scheduleYear, this.scheduleMonth);
   }
 
   /**
@@ -175,11 +126,7 @@ export class AlertScheduleTabComponent {
    */
   getCalendarWeeks(): Date[][] {
     const days = this.getCalendarDays();
-    const weeks: Date[][] = [];
-    for (let i = 0; i < days.length; i += 7) {
-      weeks.push(days.slice(i, i + 7));
-    }
-    return weeks;
+    return this.calendarService.getCalendarWeeks(days);
   }
 }
 
