@@ -123,12 +123,29 @@ export class MonthlySalaryService {
       return result;
     }
 
-    const healthEmployee = Math.floor(standardMonthlyRemuneration * rates.health_employee);
-    const healthEmployer = Math.floor(standardMonthlyRemuneration * rates.health_employer);
-    const careEmployee = (age >= 40 && age <= 64) ? Math.floor(standardMonthlyRemuneration * rates.care_employee) : 0;
-    const careEmployer = (age >= 40 && age <= 64) ? Math.floor(standardMonthlyRemuneration * rates.care_employer) : 0;
-    const pensionEmployee = Math.floor(standardMonthlyRemuneration * rates.pension_employee);
-    const pensionEmployer = Math.floor(standardMonthlyRemuneration * rates.pension_employer);
+    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const healthTotal = standardMonthlyRemuneration * (rates.health_employee + rates.health_employer);
+    const healthHalf = healthTotal / 2;
+    const healthEmployee = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    const healthEmployer = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    
+    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const careTotal = (age >= 40 && age <= 64)
+      ? standardMonthlyRemuneration * (rates.care_employee + rates.care_employer)
+      : 0;
+    const careHalf = careTotal / 2;
+    const careEmployee = (age >= 40 && age <= 64)
+      ? Math.floor(careHalf / 10) * 10 // 10円未満切り捨て
+      : 0;
+    const careEmployer = (age >= 40 && age <= 64)
+      ? Math.floor(careHalf / 10) * 10 // 10円未満切り捨て
+      : 0;
+    
+    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
+    const pensionTotal = standardMonthlyRemuneration * (rates.pension_employee + rates.pension_employer);
+    const pensionHalf = pensionTotal / 2;
+    const pensionEmployee = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
+    const pensionEmployer = pensionTotal - pensionEmployee; // 会社分 = 総額 - 個人分
 
     // 12ヶ月分の保険料を設定（簡略化：標準報酬月額は年間を通じて同じと仮定）
     // TODO: 支給日基準 / 締日基準の切り替えに対応（設定画面の値を参照する）

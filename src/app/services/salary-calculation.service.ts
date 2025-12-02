@@ -1472,8 +1472,11 @@ export class SalaryCalculationService {
         standardMonthlyRemuneration,
       }
     );
-    const health_employee = Math.floor(healthBase * r.health_employee);
-    const health_employer = Math.floor(healthBase * r.health_employer);
+    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const healthTotal = healthBase * (r.health_employee + r.health_employer);
+    const healthHalf = healthTotal / 2;
+    const health_employee = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    const health_employer = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
 
     // 介護保険（Service統一ロジックを使用）
     // careTypeは既に1330行目で宣言済み
@@ -1501,8 +1504,11 @@ export class SalaryCalculationService {
         careBase = standardMonthlyRemuneration;
       }
     }
-    const care_employee = Math.floor(careBase * r.care_employee);
-    const care_employer = Math.floor(careBase * r.care_employer);
+    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const careTotal = careBase * (r.care_employee + r.care_employer);
+    const careHalf = careTotal / 2;
+    const care_employee = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
+    const care_employer = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
 
     // 厚生年金（70歳以上は0円、資格取得月の翌月から発生）
     // 資格取得月の場合は0円、資格取得月の翌月以降は標準報酬月額を使用
@@ -1534,8 +1540,11 @@ export class SalaryCalculationService {
       // 入社日が未設定の場合は通常通り計算
       pensionBase = ageFlags.isNoPension ? 0 : standardMonthlyRemuneration;
     }
-    const pension_employee = Math.floor(pensionBase * r.pension_employee);
-    const pension_employer = Math.floor(pensionBase * r.pension_employer);
+    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
+    const pensionTotal = pensionBase * (r.pension_employee + r.pension_employer);
+    const pensionHalf = pensionTotal / 2;
+    const pension_employee = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
+    const pension_employer = pensionTotal - pension_employee; // 会社分 = 総額 - 個人分
 
     return {
       health_employee,
@@ -1941,13 +1950,31 @@ export class SalaryCalculationService {
     const pension_employee = r.pension_employee;
     const pension_employer = r.pension_employer;
 
+    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const healthTotal = standard * (health_employee + health_employer);
+    const healthHalf = healthTotal / 2;
+    const health_employee_result = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    const health_employer_result = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    
+    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const careTotal = standard * (care_employee + care_employer);
+    const careHalf = careTotal / 2;
+    const care_employee_result = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
+    const care_employer_result = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
+    
+    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
+    const pensionTotal = standard * (pension_employee + pension_employer);
+    const pensionHalf = pensionTotal / 2;
+    const pension_employee_result = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
+    const pension_employer_result = pensionTotal - pension_employee_result; // 会社分 = 総額 - 個人分
+
     return {
-      health_employee: Math.floor(standard * health_employee),
-      health_employer: Math.floor(standard * health_employer),
-      care_employee: Math.floor(standard * care_employee),
-      care_employer: Math.floor(standard * care_employer),
-      pension_employee: Math.floor(standard * pension_employee),
-      pension_employer: Math.floor(standard * pension_employer),
+      health_employee: health_employee_result,
+      health_employer: health_employer_result,
+      care_employee: care_employee_result,
+      care_employer: care_employer_result,
+      pension_employee: pension_employee_result,
+      pension_employer: pension_employer_result,
     };
   }
 }

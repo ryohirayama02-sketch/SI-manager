@@ -303,20 +303,29 @@ export class BonusCalculationService {
     const isCareEligible = ageFlags.isCare2;
 
     // 保険料計算
-    const healthEmployee = Math.floor(actualHealthBase * rates.health_employee);
-    const healthEmployer = Math.floor(actualHealthBase * rates.health_employer);
+    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const healthTotal = actualHealthBase * (rates.health_employee + rates.health_employer);
+    const healthHalf = healthTotal / 2;
+    const healthEmployee = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    const healthEmployer = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    
+    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    const careTotal = isCareEligible
+      ? actualHealthBase * (rates.care_employee + rates.care_employer)
+      : 0;
+    const careHalf = careTotal / 2;
     const careEmployee = isCareEligible
-      ? Math.floor(actualHealthBase * rates.care_employee)
+      ? Math.floor(careHalf / 10) * 10 // 10円未満切り捨て
       : 0;
     const careEmployer = isCareEligible
-      ? Math.floor(actualHealthBase * rates.care_employer)
+      ? Math.floor(careHalf / 10) * 10 // 10円未満切り捨て
       : 0;
-    const pensionEmployee = Math.floor(
-      actualPensionBase * rates.pension_employee
-    );
-    const pensionEmployer = Math.floor(
-      actualPensionBase * rates.pension_employer
-    );
+    
+    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
+    const pensionTotal = actualPensionBase * (rates.pension_employee + rates.pension_employer);
+    const pensionHalf = pensionTotal / 2;
+    const pensionEmployee = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
+    const pensionEmployer = pensionTotal - pensionEmployee; // 会社分 = 総額 - 個人分
 
     return {
       healthEmployee,
