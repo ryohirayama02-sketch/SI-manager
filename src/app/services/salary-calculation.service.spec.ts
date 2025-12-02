@@ -807,13 +807,12 @@ describe('SalaryCalculationService', () => {
       );
     });
 
-    it('前月比20%以上減少した月は除外される', () => {
+    it('支払基礎日数17日未満の月は除外される', () => {
       const employeeId = 'test-employee-16';
       const salaries: { [key: string]: SalaryData } = {
-        [`${employeeId}_3`]: { total: 350000, fixed: 300000, variable: 50000 },
-        [`${employeeId}_4`]: { total: 250000, fixed: 200000, variable: 50000 },
-        [`${employeeId}_5`]: { total: 350000, fixed: 300000, variable: 50000 },
-        [`${employeeId}_6`]: { total: 350000, fixed: 300000, variable: 50000 },
+        [`${employeeId}_4`]: { total: 350000, fixed: 300000, variable: 50000, workingDays: 15 }, // 17日未満
+        [`${employeeId}_5`]: { total: 350000, fixed: 300000, variable: 50000, workingDays: 20 },
+        [`${employeeId}_6`]: { total: 350000, fixed: 300000, variable: 50000, workingDays: 22 },
       };
       const year = 2025;
 
@@ -826,7 +825,7 @@ describe('SalaryCalculationService', () => {
 
       expect(result.excludedMonths).toContain(4);
       expect(
-        result.reasons.some((r) => r.includes('4月') && r.includes('算定除外'))
+        result.reasons.some((r) => r.includes('4月') && r.includes('支払基礎日数') && r.includes('17日未満'))
       ).toBe(true);
     });
   });

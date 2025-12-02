@@ -39,7 +39,7 @@ export class NotificationCalculationService {
     // 1. 定時決定の届出要否判定
     if (salaryData) {
       const salaries: {
-        [key: string]: { total: number; fixed: number; variable: number };
+        [key: string]: { total: number; fixed: number; variable: number; workingDays?: number };
       } = {};
       for (let month = 1; month <= 12; month++) {
         const monthKey = this.salaryCalculationService.getSalaryKey(
@@ -53,6 +53,7 @@ export class NotificationCalculationService {
             fixed: monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0,
             variable:
               monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0,
+            workingDays: monthSalaryData.workingDays, // 支払基礎日数
           };
         }
       }
@@ -148,7 +149,7 @@ export class NotificationCalculationService {
     }
 
     const salaries: {
-      [key: string]: { total: number; fixed: number; variable: number };
+      [key: string]: { total: number; fixed: number; variable: number; workingDays?: number };
     } = {};
     for (let month = 1; month <= 12; month++) {
       const monthKey = this.salaryCalculationService.getSalaryKey(
@@ -162,6 +163,7 @@ export class NotificationCalculationService {
           fixed: monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0,
           variable:
             monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0,
+          workingDays: monthSalaryData.workingDays, // 支払基礎日数
         };
       }
     }

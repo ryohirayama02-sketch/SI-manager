@@ -17,6 +17,7 @@ export interface SalaryData {
   total: number;
   fixed: number;
   variable: number;
+  workingDays?: number; // 支払基礎日数
 }
 
 export interface TeijiKetteiResult {
@@ -292,51 +293,22 @@ export class SalaryCalculationService {
   ): { excluded: number[]; reasons: string[] } {
     const excluded: number[] = [];
     const reasons: string[] = [];
+    const months = [4, 5, 6];
 
-    // 4月は前月（3月）と比較
-    if (values[0].total > 0) {
-      const key3 = this.getSalaryKey(employeeId, 3);
-      const salaryData3 = salaries[key3];
-      const prevFixed = this.getFixedSalary(salaryData3);
-      const prevVariable = this.getVariableSalary(salaryData3);
-      const prevTotal = this.getTotalSalary(salaryData3); // totalSalary を優先、なければ fixed + variable
-
-      if (prevTotal > 0 && values[0].total < prevTotal * 0.8) {
-        excluded.push(4);
-        const decreaseRate = (
-          ((prevTotal - values[0].total) / prevTotal) *
-          100
-        ).toFixed(1);
+    // 4-6月それぞれについて、支払基礎日数が17日未満の場合は算定除外
+    for (let i = 0; i < months.length; i++) {
+      const month = months[i];
+      const key = this.getSalaryKey(employeeId, month);
+      const salaryData = salaries[key];
+      
+      // 支払基礎日数を取得（workingDaysフィールドから）
+      const workingDays = salaryData?.workingDays;
+      
+      // 支払基礎日数が17日未満の場合は算定除外
+      if (workingDays !== undefined && workingDays < 17) {
+        excluded.push(month);
         reasons.push(
-          `4月: 前月比${decreaseRate}%減少（20%以上）のため算定除外`
-        );
-      }
-    }
-
-    // 5月は4月と比較
-    if (values[1].total > 0 && values[0].total > 0) {
-      if (values[1].total < values[0].total * 0.8) {
-        excluded.push(5);
-        const decreaseRate = (
-          ((values[0].total - values[1].total) / values[0].total) *
-          100
-        ).toFixed(1);
-        reasons.push(
-          `5月: 前月比${decreaseRate}%減少（20%以上）のため算定除外`
-        );
-      }
-    }
-
-    // 6月は5月と比較
-    if (values[2].total > 0 && values[1].total > 0) {
-      if (values[2].total < values[1].total * 0.8) {
-        excluded.push(6);
-        const decreaseRate = (
-          ((values[1].total - values[2].total) / values[1].total) *
-          100
-        ).toFixed(1);
-        reasons.push(
-          `6月: 前月比${decreaseRate}%減少（20%以上）のため算定除外`
+          `${month}月: 支払基礎日数${workingDays}日（17日未満）のため算定除外`
         );
       }
     }

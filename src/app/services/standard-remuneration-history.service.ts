@@ -94,7 +94,7 @@ export class StandardRemunerationHistoryService {
       if (!salaryData) continue;
 
       // 給与データを整形
-      const salaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};
+      const salaries: { [key: string]: { total: number; fixed: number; variable: number; workingDays?: number } } = {};
       for (let month = 1; month <= 12; month++) {
         const monthKey = month.toString();
         const monthData = salaryData[monthKey];
@@ -103,7 +103,8 @@ export class StandardRemunerationHistoryService {
           salaries[key] = {
             total: monthData.totalSalary ?? monthData.total ?? 0,
             fixed: monthData.fixedSalary ?? monthData.fixed ?? 0,
-            variable: monthData.variableSalary ?? monthData.variable ?? 0
+            variable: monthData.variableSalary ?? monthData.variable ?? 0,
+            workingDays: monthData.workingDays // 支払基礎日数
           };
         }
       }
