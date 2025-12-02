@@ -39,7 +39,6 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
     EmployeeNotificationPanelComponent,
     PaymentSummaryHeaderComponent,
     PaymentSummaryYearSelectorComponent,
-    PaymentSummaryEmployeeSelectorComponent,
     ErrorPanelComponent,
     LoadingIndicatorComponent,
     ScrollToTopComponent,
@@ -53,7 +52,6 @@ export class PaymentSummaryPageComponent implements OnInit {
   year: number = 2025;
   selectedMonth: number | 'all' | string = new Date().getMonth() + 1;
   availableYears: number[] = [];
-  selectedEmployeeIds: string[] = [];
   prefecture: string = 'tokyo';
   rates: any = null;
   gradeTable: any[] = [];
@@ -190,7 +188,6 @@ export class PaymentSummaryPageComponent implements OnInit {
     try {
       const employeesData = await this.employeeService.getAllEmployees();
       this.employees = employeesData || [];
-      this.selectedEmployeeIds = this.employees.map((emp) => emp.id);
       await this.loadData();
     } finally {
       this.isLoading = false;
@@ -203,8 +200,6 @@ export class PaymentSummaryPageComponent implements OnInit {
     this.isLoading = true;
     this.cdr.markForCheck();
     try {
-      // 年度変更時に選択状態を全従業員にリセット
-      this.selectedEmployeeIds = this.employees.map((emp) => emp.id);
       // キャッシュをクリア
       this.salaryDataByEmployeeId = {};
       this.bonusesByEmployeeId = {};
@@ -223,18 +218,6 @@ export class PaymentSummaryPageComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  async onEmployeeSelectionChange(selectedIds: string[]): Promise<void> {
-    this.isLoading = true;
-    this.cdr.markForCheck();
-    try {
-      this.selectedEmployeeIds = selectedIds;
-      // フィルタ変更時に再計算を実行（賞与データは既に読み込み済みのため再利用）
-      await this.calculateMonthlyTotals(this.currentYearBonuses);
-    } finally {
-      this.isLoading = false;
-      this.cdr.markForCheck();
-    }
-  }
 
   private async loadData(): Promise<void> {
     this.rates = await this.settingsService.getRates(
@@ -329,12 +312,10 @@ export class PaymentSummaryPageComponent implements OnInit {
   }
 
   /**
-   * 選択された従業員のみを返す
+   * 全従業員を返す（フィルターなし）
    */
   getFilteredEmployees(): Employee[] {
-    return this.employees.filter((emp) =>
-      this.selectedEmployeeIds.includes(emp.id)
-    );
+    return this.employees;
   }
 
   /**
@@ -423,9 +404,8 @@ export class PaymentSummaryPageComponent implements OnInit {
       };
     }
 
-    // 選択された従業員の月次保険料を集計
-    const filteredEmployees = this.getFilteredEmployees();
-    for (const emp of filteredEmployees) {
+    // 全従業員の月次保険料を集計
+    for (const emp of this.employees) {
       const employeeRows = this.monthlyPremiumsByEmployee[emp.id];
       if (!employeeRows || employeeRows.length === 0) {
         continue;
@@ -444,19 +424,16 @@ export class PaymentSummaryPageComponent implements OnInit {
       }
     }
 
-    // 賞与保険料を月次合計に加算
+    // 賞与保険料を月次合計に加算（全従業員）
     for (const bonus of this.currentYearBonuses) {
       const bonusMonth = bonus.month;
       if (bonusMonth >= 1 && bonusMonth <= 12) {
-        // 選択された従業員の賞与のみを加算
-        if (this.selectedEmployeeIds.includes(bonus.employeeId)) {
-          monthlyTotalsByMonth[bonusMonth].healthEmployee += bonus.healthEmployee || 0;
-          monthlyTotalsByMonth[bonusMonth].healthEmployer += bonus.healthEmployer || 0;
-          monthlyTotalsByMonth[bonusMonth].careEmployee += bonus.careEmployee || 0;
-          monthlyTotalsByMonth[bonusMonth].careEmployer += bonus.careEmployer || 0;
-          monthlyTotalsByMonth[bonusMonth].pensionEmployee += bonus.pensionEmployee || 0;
-          monthlyTotalsByMonth[bonusMonth].pensionEmployer += bonus.pensionEmployer || 0;
-        }
+        monthlyTotalsByMonth[bonusMonth].healthEmployee += bonus.healthEmployee || 0;
+        monthlyTotalsByMonth[bonusMonth].healthEmployer += bonus.healthEmployer || 0;
+        monthlyTotalsByMonth[bonusMonth].careEmployee += bonus.careEmployee || 0;
+        monthlyTotalsByMonth[bonusMonth].careEmployer += bonus.careEmployer || 0;
+        monthlyTotalsByMonth[bonusMonth].pensionEmployee += bonus.pensionEmployee || 0;
+        monthlyTotalsByMonth[bonusMonth].pensionEmployer += bonus.pensionEmployer || 0;
       }
     }
 
@@ -508,7 +485,6 @@ export class PaymentSummaryPageComponent implements OnInit {
     totalEmployer: number;
     total: number;
   } {
-    const filteredEmployees = this.getFilteredEmployees();
     let healthEmployee = 0;
     let healthEmployer = 0;
     let careEmployee = 0;
@@ -517,8 +493,8 @@ export class PaymentSummaryPageComponent implements OnInit {
     let pensionEmployer = 0;
 
     if (month === 'all') {
-      // 全月の場合は年間合計を使用
-      for (const emp of filteredEmployees) {
+      // 全月の場合は年間合計を使用（全従業員）
+      for (const emp of this.employees) {
         const rows = this.monthlyPremiumsByEmployee[emp.id] || [];
         for (const row of rows) {
           healthEmployee += row.healthEmployee || 0;
@@ -530,9 +506,9 @@ export class PaymentSummaryPageComponent implements OnInit {
         }
       }
     } else {
-      // 特定月の集計
+      // 特定月の集計（全従業員）
       const monthNum = typeof month === 'string' ? Number(month) : (month as number);
-      for (const emp of filteredEmployees) {
+      for (const emp of this.employees) {
         const rows = this.monthlyPremiumsByEmployee[emp.id] || [];
         const monthRow = rows.find(r => r.month === monthNum);
         if (monthRow) {
@@ -577,8 +553,6 @@ export class PaymentSummaryPageComponent implements OnInit {
     totalEmployer: number;
     total: number;
   } {
-    const filteredEmployees = this.getFilteredEmployees();
-    const filteredEmployeeIds = filteredEmployees.map(e => e.id);
     let healthEmployee = 0;
     let healthEmployer = 0;
     let careEmployee = 0;
@@ -587,9 +561,9 @@ export class PaymentSummaryPageComponent implements OnInit {
     let pensionEmployer = 0;
 
     if (month === 'all') {
-      // 全月の場合は年間の賞与合計を使用
+      // 全月の場合は年間の賞与合計を使用（全従業員）
       for (const bonus of this.currentYearBonuses) {
-        if (filteredEmployeeIds.includes(bonus.employeeId) && !bonus.isExempted && !bonus.isSalaryInsteadOfBonus) {
+        if (!bonus.isExempted && !bonus.isSalaryInsteadOfBonus) {
           healthEmployee += bonus.healthEmployee || 0;
           healthEmployer += bonus.healthEmployer || 0;
           careEmployee += bonus.careEmployee || 0;
@@ -599,39 +573,17 @@ export class PaymentSummaryPageComponent implements OnInit {
         }
       }
     } else {
-      // 特定月の賞与を集計
+      // 特定月の賞与を集計（全従業員）
       const monthNum = typeof month === 'string' ? Number(month) : (month as number);
-      console.log(`[getBonusTotals] 集計開始: year=${year}, month=${monthNum}`);
-      console.log(`[getBonusTotals] bonusByMonth[${monthNum}]:`, this.bonusByMonth[monthNum]);
-      console.log(`[getBonusTotals] currentYearBonuses.length:`, this.currentYearBonuses.length);
-      console.log(`[getBonusTotals] filteredEmployeeIds:`, filteredEmployeeIds);
       
       // bonusByMonthから該当月の賞与を取得（既に月ごとにグループ化済み）
       const monthBonuses = this.bonusByMonth[monthNum] || [];
-      console.log(`[getBonusTotals] 該当月の賞与件数: ${monthBonuses.length}`);
       
       for (const bonus of monthBonuses) {
-        console.log(`[getBonusTotals] 賞与データ確認:`, {
-          employeeId: bonus.employeeId,
-          payDate: bonus.payDate,
-          month: bonus.month,
-          year: bonus.year,
-          healthEmployee: bonus.healthEmployee,
-          healthEmployer: bonus.healthEmployer,
-          isExempted: bonus.isExempted,
-          isSalaryInsteadOfBonus: bonus.isSalaryInsteadOfBonus
-        });
-        
-        if (!filteredEmployeeIds.includes(bonus.employeeId)) {
-          console.log(`[getBonusTotals] スキップ: 従業員ID不一致 employeeId=${bonus.employeeId}`);
-          continue;
-        }
         if (bonus.isExempted || bonus.isSalaryInsteadOfBonus) {
-          console.log(`[getBonusTotals] スキップ: 免除または給与扱い employeeId=${bonus.employeeId}`);
           continue;
         }
         
-        console.log(`[getBonusTotals] ★マッチ: 賞与を集計に追加 employeeId=${bonus.employeeId}, healthEmployee=${bonus.healthEmployee}, healthEmployer=${bonus.healthEmployer}`);
         healthEmployee += bonus.healthEmployee || 0;
         healthEmployer += bonus.healthEmployer || 0;
         careEmployee += bonus.careEmployee || 0;
@@ -642,9 +594,7 @@ export class PaymentSummaryPageComponent implements OnInit {
       
       // bonusByMonthにデータがない場合、currentYearBonusesから直接フィルタリング（フォールバック）
       if (monthBonuses.length === 0) {
-        console.log(`[getBonusTotals] bonusByMonthにデータがないため、currentYearBonusesから直接フィルタリング`);
         for (const bonus of this.currentYearBonuses) {
-          if (!filteredEmployeeIds.includes(bonus.employeeId)) continue;
           if (bonus.isExempted || bonus.isSalaryInsteadOfBonus) continue;
           
           // 支給日から月を抽出（bonus.monthも確認）
@@ -665,7 +615,6 @@ export class PaymentSummaryPageComponent implements OnInit {
           }
           
           if (bonusMonth && bonusYear === year && bonusMonth === monthNum) {
-            console.log(`[getBonusTotals] ★フォールバック: 賞与を集計に追加 employeeId=${bonus.employeeId}`);
             healthEmployee += bonus.healthEmployee || 0;
             healthEmployer += bonus.healthEmployer || 0;
             careEmployee += bonus.careEmployee || 0;
@@ -675,8 +624,6 @@ export class PaymentSummaryPageComponent implements OnInit {
           }
         }
       }
-      
-      console.log(`[getBonusTotals] ★集計結果: healthEmployee=${healthEmployee}, healthEmployer=${healthEmployer}, careEmployee=${careEmployee}, careEmployer=${careEmployer}, pensionEmployee=${pensionEmployee}, pensionEmployer=${pensionEmployer}`);
     }
 
     const totalEmployee = healthEmployee + careEmployee + pensionEmployee;

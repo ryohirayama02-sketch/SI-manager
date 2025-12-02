@@ -29,12 +29,6 @@
   </div>
 </div>
 
-<!-- 従業員セレクタ -->
-<app-payment-summary-employee-selector
-  [employees]="employees"
-  [selectedEmployeeIds]="selectedEmployeeIds"
-  (selectionChange)="onEmployeeSelectionChange($event)"
-></app-payment-summary-employee-selector>
 
 <!-- 集計値表示（指定月の合計のみ） -->
 <div class="card" style="margin-bottom: 1rem;">
