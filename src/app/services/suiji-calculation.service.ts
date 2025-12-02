@@ -10,6 +10,7 @@ import {
 } from './salary-calculation.service';
 import { SuijiDetectionService } from './suiji-detection.service';
 import { SuijiCalculationCoreService } from './suiji-calculation-core.service';
+import { SuijiKetteiCalculationService } from './suiji-kettei-calculation.service';
 import { SuijiRehabService } from './suiji-rehab.service';
 
 /**
@@ -23,6 +24,7 @@ export class SuijiCalculationService {
   constructor(
     private suijiDetectionService: SuijiDetectionService,
     private suijiCalculationCoreService: SuijiCalculationCoreService,
+    private suijiKetteiCalculationService: SuijiKetteiCalculationService,
     private suijiRehabService: SuijiRehabService
   ) {}
 
@@ -115,7 +117,7 @@ export class SuijiCalculationService {
     candidate: SuijiCandidate | null;
     excludedReason: ExcludedSuijiReason | null;
   } {
-    return this.suijiCalculationCoreService.calculateSuijiKetteiCore(
+    return this.suijiKetteiCalculationService.calculateSuijiKetteiCore(
       employeeId,
       changedMonth,
       salaries,

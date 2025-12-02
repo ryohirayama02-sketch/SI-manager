@@ -23,7 +23,7 @@ export class BonusValidationService {
     pensionEmployee: number,
     healthEmployee: number,
     careEmployee: number,
-    bonusCount: number,
+    bonusCount: number | undefined,
     bonusCountLast12Months: number | undefined
   ): {
     errorMessages: string[];
@@ -99,6 +99,7 @@ export class BonusValidationService {
 
     // 6. 賞与 → 給与扱いの誤判定
     if (
+      bonusCount !== undefined &&
       bonusCountLast12Months !== undefined &&
       Math.abs(bonusCount - (bonusCountLast12Months + 1)) > 2
     ) {

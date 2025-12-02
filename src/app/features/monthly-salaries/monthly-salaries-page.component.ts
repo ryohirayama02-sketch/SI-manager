@@ -27,6 +27,9 @@ import { ErrorWarningSectionComponent } from './components/error-warning-section
 import { SalaryCsvImportComponent } from './components/salary-csv-import/salary-csv-import.component';
 import { SalaryEditHandlerService } from '../../services/salary-edit-handler.service';
 import { MonthlySalaryUIService } from '../../services/monthly-salary-ui.service';
+import { MonthlySalaryEditUiService } from '../../services/monthly-salary-edit-ui.service';
+import { MonthlySalarySuijiUiService } from '../../services/monthly-salary-suiji-ui.service';
+import { MonthlySalaryCsvImportUiService } from '../../services/monthly-salary-csv-import-ui.service';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -88,10 +91,6 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
 
-  // CSVインポート関連
-  csvImportText: string = '';
-  csvImportResult: { type: 'success' | 'error'; message: string } | null = null;
-
   constructor(
     private employeeService: EmployeeService,
     private monthlySalaryService: MonthlySalaryService,
@@ -102,6 +101,9 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     private employeeEligibilityService: EmployeeEligibilityService,
     private salaryEditHandlerService: SalaryEditHandlerService,
     private monthlySalaryUIService: MonthlySalaryUIService,
+    private editUiService: MonthlySalaryEditUiService,
+    private suijiUiService: MonthlySalarySuijiUiService,
+    private csvImportUiService: MonthlySalaryCsvImportUiService,
     private router: Router
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
@@ -225,7 +227,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     value: string | number;
   }): Promise<void> {
     // サービスに処理を委譲
-    const result = this.salaryEditHandlerService.handleSalaryItemChange(
+    const result = await this.editUiService.handleSalaryItemChange(
       event,
       this.salaryItemData,
       this.salaries,
@@ -235,71 +237,22 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       this.gradeTable,
       this.year,
       this.results,
-      (avg: number | null) =>
-        this.monthlySalaryUIService.getStandardMonthlyRemuneration(
-          avg,
-          this.gradeTable
-        )
+      this.errorMessages,
+      this.warningMessages
     );
 
     // 結果をstateに反映
     this.salaryItemData = result.salaryItemData;
     this.salaries = result.salaries;
     this.results = result.results;
-
-    // バリデーション結果を反映
-    if (result.validationErrors[event.employeeId]) {
-      this.errorMessages[event.employeeId] =
-        result.validationErrors[event.employeeId];
-    }
-    if (result.validationWarnings[event.employeeId]) {
-      // システム警告は残す
-      const systemWarnings =
-        this.warningMessages[event.employeeId]?.filter((w) =>
-          w.includes('標準報酬等級表が設定されていません')
-        ) || [];
-      this.warningMessages[event.employeeId] = [
-        ...systemWarnings,
-        ...result.validationWarnings[event.employeeId],
-      ];
-    }
-
-    // 再計算が必要な場合
-    if (result.needsRecalculation && result.recalculateEmployeeId) {
-      const emp = this.employees.find(
-        (e) => e.id === result.recalculateEmployeeId
-      );
-      if (emp) {
-        const {
-          infoByEmployee: updatedInfo,
-          errorMessages: updatedErrors,
-          warningMessages: updatedWarnings,
-        } = await this.monthlySalaryUIService.updateAllCalculatedInfo(
-          [emp],
-          this.salaries,
-          this.months,
-          this.gradeTable,
-          this.year
-        );
-        this.infoByEmployee[emp.id] = updatedInfo[emp.id];
-        if (updatedErrors[emp.id]) {
-          this.errorMessages[emp.id] = updatedErrors[emp.id];
-        }
-        if (updatedWarnings[emp.id]) {
-          const systemWarnings =
-            this.warningMessages[emp.id]?.filter((w) =>
-              w.includes('標準報酬等級表が設定されていません')
-            ) || [];
-          this.warningMessages[emp.id] = [
-            ...systemWarnings,
-            ...updatedWarnings[emp.id],
-          ];
-        }
-      }
+    this.errorMessages = result.errorMessages;
+    this.warningMessages = result.warningMessages;
+    if (result.infoByEmployee && Object.keys(result.infoByEmployee).length > 0) {
+      this.infoByEmployee = { ...this.infoByEmployee, ...result.infoByEmployee };
     }
 
     // 随時改定の更新
-    this.updateRehabSuiji(result.recalculateEmployeeId || event.employeeId);
+    this.updateRehabSuiji(event.employeeId);
   }
 
   async onWorkingDaysChange(event: {
@@ -347,33 +300,19 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   updateRehabSuiji(employeeId: string): void {
-    const candidates = this.salaryCalculationService.checkRehabSuiji(
+    this.rehabSuijiCandidates = this.suijiUiService.updateRehabSuiji(
       employeeId,
       this.salaries,
       this.gradeTable,
       this.employees,
-      this.year.toString(),
-      this.results
+      this.year,
+      this.results,
+      this.rehabSuijiCandidates
     );
-
-    this.rehabSuijiCandidates = this.rehabSuijiCandidates.filter(
-      (c) => c.employeeId !== employeeId
-    );
-
-    for (const candidate of candidates) {
-      const exists = this.rehabSuijiCandidates.find(
-        (c) =>
-          c.employeeId === candidate.employeeId &&
-          c.changeMonth === candidate.changeMonth
-      );
-      if (!exists) {
-        this.rehabSuijiCandidates.push(candidate);
-      }
-    }
   }
 
   getRehabHighlightMonths(): { [employeeId: string]: number[] } {
-    return this.monthlySalaryUIService.getRehabHighlightMonths(
+    return this.suijiUiService.getRehabHighlightMonths(
       this.employees,
       this.year
     );
@@ -381,22 +320,26 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
   // CSVインポート処理
   async onCsvTextImport(csvText: string): Promise<void> {
-    this.csvImportText = csvText;
-    // CSVインポートコンポーネントが処理するため、ここでは何もしない
+    this.csvImportUiService.setCsvImportText(csvText);
   }
 
   onCsvImportClose(): void {
-    this.csvImportText = '';
-    this.csvImportResult = null;
+    this.csvImportUiService.closeCsvImport();
   }
 
   onCsvImportResult(result: {
     type: 'success' | 'error';
     message: string;
   }): void {
-    this.csvImportResult = result;
-    if (result.type === 'success') {
-      this.csvImportText = '';
-    }
+    this.csvImportUiService.setCsvImportResult(result);
+  }
+
+  // CSVインポート状態のゲッター
+  get csvImportText(): string {
+    return this.csvImportUiService.csvImportText;
+  }
+
+  get csvImportResult(): { type: 'success' | 'error'; message: string } | null {
+    return this.csvImportUiService.csvImportResult;
   }
 }
