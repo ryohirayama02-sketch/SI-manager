@@ -151,7 +151,7 @@ export class SettingsService {
   async getStandardTable(year: number): Promise<any[]> {
     const ref = collection(this.firestore, `grades/${year}/table`);
     const snap = await getDocs(ref);
-    return snap.docs.map(d => {
+    const rows = snap.docs.map(d => {
       const data = d.data();
       // Firestoreのフィールド名（grade, remuneration）を既存コードのフィールド名（rank, standard）にマッピング
       return {
@@ -162,11 +162,34 @@ export class SettingsService {
         standard: data['remuneration'] || data['standard'],
         year
       };
-    }).sort((a, b) => (a.rank || 0) - (b.rank || 0)); // 等級順にソート
+    });
+    
+    // 等級で重複を排除（同じ等級が複数ある場合は、最新のもの（idが大きいもの）を優先）
+    const rankMap = new Map<number, any>();
+    for (const row of rows) {
+      const rank = row.rank;
+      if (rank !== null && rank !== undefined) {
+        const existing = rankMap.get(rank);
+        if (!existing || (row.id && existing.id && row.id > existing.id)) {
+          rankMap.set(rank, row);
+        }
+      }
+    }
+    
+    // 等級順にソートして返す
+    return Array.from(rankMap.values()).sort((a, b) => (a.rank || 0) - (b.rank || 0));
   }
 
   async saveStandardTable(year: number, rows: any[]): Promise<void> {
     const basePath = `grades/${year}/table`;
+    
+    // 既存のデータをすべて削除（重複を防ぐため）
+    const existingRef = collection(this.firestore, basePath);
+    const existingSnap = await getDocs(existingRef);
+    const deletePromises = existingSnap.docs.map(d => deleteDoc(d.ref));
+    await Promise.all(deletePromises);
+    
+    // 新しいデータを保存
     for (const row of rows) {
       // 既存コードのフィールド名（rank, standard）をFirestoreのフィールド名（grade, remuneration）にマッピング
       const gradeId = row.id || row.rank?.toString() || `grade_${row.rank}`;
@@ -177,7 +200,7 @@ export class SettingsService {
         upper: row.upper,
         remuneration: row.standard,
         year
-      }, { merge: true });
+      });
     }
   }
 
