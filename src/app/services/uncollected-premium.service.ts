@@ -30,6 +30,8 @@ export class UncollectedPremiumService {
     employeeTotalPremium: number
   ): Promise<void> {
     // 徴収不能額を計算
+    // 条件：総支給額 < 本人負担保険料
+    // 本人負担保険料は、確定した標準報酬月額（定時決定・随時改定・資格取得時決定）に基づいて計算される
     if (totalSalary < employeeTotalPremium) {
       const uncollectedAmount = employeeTotalPremium - totalSalary;
       

@@ -1,13 +1,5 @@
 <div class="alert-uncollected-tab">
   <div class="header-controls">
-    <div class="year-selector">
-      <label>年度:</label>
-      <select [value]="selectedYear" (change)="onYearChange($event)">
-        <option *ngFor="let year of [2023, 2024, 2025, 2026, 2027]" [value]="year">
-          {{ year }}年度
-        </option>
-      </select>
-    </div>
     <div class="action-buttons" *ngIf="selectedAlertIds.size > 0">
       <button class="btn-resolve" (click)="markSelectedAsResolved()">
         選択した項目を対応済みにする ({{ selectedAlertIds.size }}件)

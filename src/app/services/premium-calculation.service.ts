@@ -91,20 +91,14 @@ export class PremiumCalculationService {
       };
     }
 
-    // ② 標準報酬月額の計算（fixedSalary + variableSalary）
+    // ② 標準報酬月額の取得
+    // 優先順位：
+    // 1. 随時改定で確定した標準報酬月額（適用開始月以降）
+    // 2. 従業員データの標準報酬月額（定時決定で確定したもの）
+    // 3. 資格取得時決定の標準報酬月額
+    // 4. その月の給与額から等級を判定（標準報酬月額が確定していない場合のみ）
+
     const totalSalary = fixedSalary + variableSalary;
-    if (totalSalary <= 0) {
-      reasons.push('給与が0円のため保険料は0円');
-      return {
-        health_employee: 0,
-        health_employer: 0,
-        care_employee: 0,
-        care_employer: 0,
-        pension_employee: 0,
-        pension_employer: 0,
-        reasons,
-      };
-    }
 
     // 随時改定の適用開始月をチェック
     let appliedSuiji: SuijiKouhoResult | null = null;
@@ -132,24 +126,77 @@ export class PremiumCalculationService {
       }
     }
 
-    // 随時改定が適用されている場合は新しい等級を使用
+    // 標準報酬月額の取得
     let gradeResult: { grade: number; remuneration: number } | null = null;
+    let standardMonthlyRemuneration: number | null = null;
+
+    // 1. 随時改定が適用されている場合は新しい等級を使用
     if (appliedSuiji) {
-      // 新しい等級から標準報酬月額を取得
       const newGradeRow = gradeTable.find((r: any) => r.rank === appliedSuiji!.newGrade);
-      if (newGradeRow) {
+      if (newGradeRow && newGradeRow.standard) {
+        const suijiStandard = newGradeRow.standard;
         gradeResult = {
           grade: appliedSuiji.newGrade,
-          remuneration: newGradeRow.standard
+          remuneration: suijiStandard
         };
+        standardMonthlyRemuneration = suijiStandard;
         reasons.push(
-          `随時改定適用（変動月: ${appliedSuiji.changeMonth}月、適用開始: ${appliedSuiji.applyStartMonth}月）により等級${appliedSuiji.newGrade}（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）を使用`
+          `随時改定適用（変動月: ${appliedSuiji.changeMonth}月、適用開始: ${appliedSuiji.applyStartMonth}月）により等級${appliedSuiji.newGrade}（標準報酬月額${suijiStandard.toLocaleString()}円）を使用`
         );
       }
     }
 
-    // 随時改定が適用されていない場合は通常の等級判定
-    if (!gradeResult) {
+    // 2. 随時改定が適用されていない場合、従業員データの標準報酬月額を確認
+    if (!standardMonthlyRemuneration && employee.standardMonthlyRemuneration && employee.standardMonthlyRemuneration > 0) {
+      // 定時決定で確定した標準報酬月額を使用
+      const teijiStandard = employee.standardMonthlyRemuneration;
+      standardMonthlyRemuneration = teijiStandard;
+      // 標準報酬月額から等級を逆引き
+      gradeResult = this.gradeDeterminationService.findGrade(gradeTable, teijiStandard);
+      if (gradeResult) {
+        reasons.push(
+          `定時決定で確定した標準報酬月額（等級${gradeResult.grade}、${teijiStandard.toLocaleString()}円）を使用`
+        );
+      } else {
+        // 等級が見つからない場合は標準報酬月額のみを使用
+        reasons.push(
+          `定時決定で確定した標準報酬月額（${teijiStandard.toLocaleString()}円）を使用（等級テーブルに該当なし）`
+        );
+      }
+    }
+
+    // 3. 資格取得時決定の標準報酬月額を確認
+    if (!standardMonthlyRemuneration && employee.acquisitionStandard && employee.acquisitionStandard > 0) {
+      const acquisitionStandard = employee.acquisitionStandard;
+      standardMonthlyRemuneration = acquisitionStandard;
+      // 標準報酬月額から等級を逆引き
+      gradeResult = this.gradeDeterminationService.findGrade(gradeTable, acquisitionStandard);
+      if (gradeResult) {
+        reasons.push(
+          `資格取得時決定の標準報酬月額（等級${gradeResult.grade}、${acquisitionStandard.toLocaleString()}円）を使用`
+        );
+      } else {
+        reasons.push(
+          `資格取得時決定の標準報酬月額（${acquisitionStandard.toLocaleString()}円）を使用（等級テーブルに該当なし）`
+        );
+      }
+    }
+
+    // 4. 標準報酬月額が確定していない場合のみ、その月の給与額から等級を判定
+    if (!standardMonthlyRemuneration) {
+      if (totalSalary <= 0) {
+        reasons.push('給与が0円のため保険料は0円');
+        return {
+          health_employee: 0,
+          health_employer: 0,
+          care_employee: 0,
+          care_employer: 0,
+          pension_employee: 0,
+          pension_employer: 0,
+          reasons,
+        };
+      }
+      
       gradeResult = this.gradeDeterminationService.findGrade(gradeTable, totalSalary);
       if (!gradeResult) {
         reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
@@ -163,14 +210,25 @@ export class PremiumCalculationService {
           reasons,
         };
       }
+      standardMonthlyRemuneration = gradeResult.remuneration;
       reasons.push(
-        `等級${
-          gradeResult.grade
-        }（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）`
+        `標準報酬月額未確定のため、その月の給与額から等級${gradeResult.grade}（標準報酬月額${standardMonthlyRemuneration.toLocaleString()}円）を判定`
       );
     }
 
-    const standardMonthlyRemuneration = gradeResult.remuneration;
+    // standardMonthlyRemunerationが確定していることを確認
+    if (!standardMonthlyRemuneration || standardMonthlyRemuneration <= 0) {
+      reasons.push('標準報酬月額が取得できません');
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons,
+      };
+    }
 
     // ③ 資格取得月の判定（同月得喪）
     let isAcquisitionMonth = false;

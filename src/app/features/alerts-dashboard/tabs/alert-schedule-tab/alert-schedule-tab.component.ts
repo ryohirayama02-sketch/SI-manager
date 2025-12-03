@@ -55,7 +55,7 @@ export class AlertScheduleTabComponent {
       '随時改定アラート': 'suiji',
       '定時決定（算定基礎届）': 'teiji',
       '年齢到達・資格変更': 'age',
-      '産休・育休・休職': 'leave',
+      '産休・育休': 'leave',
       '扶養・氏名・住所変更': 'family'
     };
     

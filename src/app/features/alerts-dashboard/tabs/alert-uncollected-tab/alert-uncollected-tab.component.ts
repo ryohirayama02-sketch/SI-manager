@@ -26,8 +26,6 @@ export interface UncollectedPremiumSummary {
 })
 export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
   @Input() employees: Employee[] = [];
-  @Input() selectedYear: number = new Date().getFullYear();
-  @Output() yearChange = new EventEmitter<number>();
 
   summaries: UncollectedPremiumSummary[] = [];
   expandedEmployees: Set<string> = new Set();
@@ -41,8 +39,8 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadUncollectedPremiums();
-    // リアルタイム購読
-    this.subscription = this.uncollectedPremiumService.observeUncollectedPremiums(this.selectedYear)
+    // リアルタイム購読（年度フィルタなし）
+    this.subscription = this.uncollectedPremiumService.observeUncollectedPremiums()
       .subscribe(premiums => {
         this.processPremiums(premiums);
       });
@@ -57,7 +55,7 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
     try {
       const premiums = await this.uncollectedPremiumService.getUncollectedPremiums(
         undefined,
-        this.selectedYear,
+        undefined, // 年度フィルタなし（すべての年度）
         false // 未対応のみ
       );
       this.processPremiums(premiums);
@@ -239,13 +237,6 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
 
   formatMonth(year: number, month: number): string {
     return `${year}年${month}月`;
-  }
-
-  onYearChange(event: Event): void {
-    const year = parseInt((event.target as HTMLSelectElement).value, 10);
-    this.selectedYear = year;
-    this.yearChange.emit(year);
-    this.loadUncollectedPremiums();
   }
 }
 

@@ -48,7 +48,7 @@
       [style.border-bottom-color]="state.activeTab === 'leave' ? state.getTabColor('leave') : 'transparent'"
       [style.color]="state.getTabColor('leave')"
       (click)="setActiveTab('leave')">
-      産休・育休・休職
+      産休・育休
     </button>
     <button 
       class="tab-button" 
@@ -126,7 +126,7 @@
       (qualificationChangeDeleteSelected)="deleteSelectedQualificationChangeAlerts()">
     </app-alert-age-tab>
 
-    <!-- 産休・育休・休職アラートタブ -->
+    <!-- 産休・育休アラートタブ -->
     <app-alert-leave-tab
       *ngIf="state.activeTab === 'leave'"
       [maternityChildcareAlerts]="state.maternityChildcareAlerts"
@@ -149,9 +149,7 @@
     <!-- 徴収不能アラートタブ -->
     <app-alert-uncollected-tab
       *ngIf="state.activeTab === 'uncollected'"
-      [employees]="employees"
-      [selectedYear]="state.teijiYear"
-      (yearChange)="onTeijiYearChange($event)">
+      [employees]="employees">
     </app-alert-uncollected-tab>
   </div>
 </div>
