@@ -68,6 +68,7 @@ export class LoginPageComponent implements OnInit, OnDestroy {
   }
 
   async onSubmit(): Promise<void> {
+    console.log("LOGIN BUTTON CLICKED");
     if (this.loginForm.invalid) {
       return;
     }
@@ -78,10 +79,12 @@ export class LoginPageComponent implements OnInit, OnDestroy {
       this.isLoading = true;
       this.errorMessage = '';
       
+      console.log("CALLING signInWithEmailAndPassword", email, password);
       await this.authService.signInWithEmailAndPassword(email, password);
       
       // 認証成功時はauthState$のsubscribeで遷移するため、ここでは何もしない
     } catch (error: any) {
+      console.error(error?.code, error?.message);
       console.error('[LoginPage] ログインエラー', error);
       
       let errorMsg = 'ログインに失敗しました。';

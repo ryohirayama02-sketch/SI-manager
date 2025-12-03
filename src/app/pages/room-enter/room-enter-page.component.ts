@@ -16,9 +16,18 @@ export class RoomEnterPageComponent implements OnInit {
   activeTab: 'enter' | 'create' = 'enter';
   roomForm: FormGroup;
   createRoomForm: FormGroup;
-  isLoading = false;
+  private _isLoading = false;
   errorMessage = '';
   successMessage = '';
+
+  get isLoading(): boolean {
+    return this._isLoading;
+  }
+
+  set isLoading(value: boolean) {
+    this._isLoading = value;
+    this.updateFormDisabledState();
+  }
 
   constructor(
     private roomService: RoomService,
@@ -56,6 +65,19 @@ export class RoomEnterPageComponent implements OnInit {
     this.activeTab = tab;
     this.errorMessage = '';
     this.successMessage = '';
+  }
+
+  /**
+   * isLoadingの状態に応じてフォームの有効/無効を切り替える
+   */
+  private updateFormDisabledState(): void {
+    if (this.isLoading) {
+      this.roomForm.disable();
+      this.createRoomForm.disable();
+    } else {
+      this.roomForm.enable();
+      this.createRoomForm.enable();
+    }
   }
 
   ngOnInit(): void {

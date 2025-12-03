@@ -180,6 +180,13 @@ export class AuthService {
     email: string,
     password: string
   ): Promise<User> {
+    console.log('[AuthService] signInWithEmailAndPassword: 開始', {
+      emailLength: email?.length,
+      passwordLength: password?.length,
+      authInstance: !!this.auth,
+      authAppName: this.auth?.app?.name,
+    });
+
     // メールアドレスの前後の空白を削除
     const trimmedEmail = email?.trim() || '';
 
@@ -200,12 +207,51 @@ export class AuthService {
       throw error;
     }
 
+    console.log('[AuthService] signInWithEmailAndPassword: Firebase API呼び出し前', {
+      trimmedEmail: trimmedEmail.substring(0, 10) + '...',
+      authReady: !!this.auth,
+      authApp: this.auth?.app?.name,
+      authAppOptions: this.auth?.app?.options,
+      authDomain: this.auth?.app?.options?.authDomain,
+      apiKey: this.auth?.app?.options?.apiKey ? '設定済み' : '未設定',
+    });
+
+    // Auth インスタンスの詳細な状態を確認
     try {
-      const userCredential = await firebaseSignInWithEmailAndPassword(
+      console.log('[AuthService] Authインスタンスの詳細確認', {
+        authExists: !!this.auth,
+        authAppExists: !!this.auth?.app,
+        authAppName: this.auth?.app?.name,
+        authConfig: {
+          authDomain: this.auth?.app?.options?.authDomain,
+          apiKey: this.auth?.app?.options?.apiKey ? '設定済み' : '未設定',
+          projectId: this.auth?.app?.options?.projectId,
+        },
+        currentUser: this.auth?.currentUser ? 'あり' : 'なし',
+      });
+    } catch (checkError) {
+      console.error('[AuthService] Authインスタンス確認エラー', checkError);
+    }
+
+    try {
+      console.log("CALLING signInWithEmailAndPassword", trimmedEmail, password);
+      console.log('[AuthService] signInWithEmailAndPassword: firebaseSignInWithEmailAndPassword呼び出し開始');
+      console.log('[AuthService] リクエスト送信前のタイムスタンプ:', new Date().toISOString());
+      
+      // ネットワークリクエストの送信を確認するため、Promise の状態を監視
+      const loginPromise = firebaseSignInWithEmailAndPassword(
         this.auth,
         trimmedEmail,
         password
       );
+      
+      console.log('[AuthService] Promise作成完了、待機中...');
+      
+      const userCredential = await loginPromise;
+      console.log('[AuthService] signInWithEmailAndPassword: 成功', {
+        uid: userCredential.user?.uid,
+        email: userCredential.user?.email,
+      });
       return userCredential.user;
     } catch (error: any) {
       console.error('[AuthService] signInWithEmailAndPassword: エラー', error);

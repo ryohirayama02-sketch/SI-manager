@@ -36,7 +36,6 @@
             class="form-control"
             [class.error]="roomForm.get('roomId')?.invalid && roomForm.get('roomId')?.touched"
             placeholder="企業ID"
-            [disabled]="isLoading"
           />
           <div *ngIf="roomForm.get('roomId')?.invalid && roomForm.get('roomId')?.touched" class="error-text">
             企業IDを入力してください
@@ -52,7 +51,6 @@
             class="form-control"
             [class.error]="roomForm.get('password')?.invalid && roomForm.get('password')?.touched"
             placeholder="パスワード"
-            [disabled]="isLoading"
           />
           <div *ngIf="roomForm.get('password')?.invalid && roomForm.get('password')?.touched" class="error-text">
             パスワードを入力してください
@@ -87,7 +85,6 @@
             class="form-control"
             [class.error]="createRoomForm.get('roomId')?.invalid && createRoomForm.get('roomId')?.touched"
             placeholder="企業ID（英数字、ハイフン、アンダースコアのみ）"
-            [disabled]="isLoading"
           />
           <div *ngIf="createRoomForm.get('roomId')?.invalid && createRoomForm.get('roomId')?.touched" class="error-text">
             <span *ngIf="createRoomForm.get('roomId')?.errors?.['required']">企業IDを入力してください</span>
@@ -104,7 +101,6 @@
             class="form-control"
             [class.error]="createRoomForm.get('companyName')?.invalid && createRoomForm.get('companyName')?.touched"
             placeholder="企業名"
-            [disabled]="isLoading"
           />
           <div *ngIf="createRoomForm.get('companyName')?.invalid && createRoomForm.get('companyName')?.touched" class="error-text">
             企業名を入力してください
@@ -120,7 +116,6 @@
             class="form-control"
             [class.error]="createRoomForm.get('password')?.invalid && createRoomForm.get('password')?.touched"
             placeholder="パスワード（6文字以上）"
-            [disabled]="isLoading"
           />
           <div *ngIf="createRoomForm.get('password')?.invalid && createRoomForm.get('password')?.touched" class="error-text">
             <span *ngIf="createRoomForm.get('password')?.errors?.['required']">パスワードを入力してください</span>
@@ -137,7 +132,6 @@
             class="form-control"
             [class.error]="createRoomForm.get('confirmPassword')?.invalid && createRoomForm.get('confirmPassword')?.touched"
             placeholder="パスワード（確認）"
-            [disabled]="isLoading"
           />
           <div *ngIf="createRoomForm.get('confirmPassword')?.invalid && createRoomForm.get('confirmPassword')?.touched" class="error-text">
             <span *ngIf="createRoomForm.get('confirmPassword')?.errors?.['required']">パスワード（確認）を入力してください</span>
