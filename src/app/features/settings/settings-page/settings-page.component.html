@@ -408,7 +408,7 @@
   <div *ngIf="activeTab === 'salaryItems'" class="tab-pane">
     <div class="card">
       <div class="info-label">
-        給与項目を「固定（fixed）」「非固定（variable）」で分類して管理します。
+        給与項目を「固定（fixed）」「非固定（variable）」「欠勤控除（deduction）」で分類して管理します。
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
         <div class="form-group" style="margin-bottom: 0;">
@@ -437,6 +437,7 @@
                   <select formControlName="type" class="form-control" required style="width: 100%;">
                     <option value="fixed">固定</option>
                     <option value="variable">非固定</option>
+                    <option value="deduction">欠勤控除</option>
                   </select>
                 </td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">

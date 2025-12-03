@@ -53,7 +53,7 @@
         <!-- 給与項目行 -->
         <tr *ngFor="let item of salaryItems; let itemIndex = index" [ngClass]="{ 'rehab-highlight-row': getRehabHighlightMonths(emp).length > 0 && itemIndex === 0 }">
           <td class="sticky-col">
-            <div style="white-space: nowrap;">{{ item.name }} <small style="color: #666;">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small></div>
+            <div style="white-space: nowrap;">{{ item.name }} <small style="color: #666;" *ngIf="item.type !== 'deduction'">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small></div>
           </td>
           <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m), 'exempt-month': isExemptMonth(emp.id, m) }">
             <!-- 免除月の場合 -->

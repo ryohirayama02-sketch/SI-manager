@@ -1,6 +1,6 @@
 export interface SalaryItem {
   id: string;
   name: string;
-  type: 'fixed' | 'variable';
+  type: 'fixed' | 'variable' | 'deduction';
 }
 
