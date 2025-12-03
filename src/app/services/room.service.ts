@@ -54,6 +54,28 @@ export class RoomService {
       throw error;
     }
   }
+
+  async getRoom(roomId: string): Promise<RoomData | null> {
+    try {
+      const roomRef = doc(this.firestore, `rooms/${roomId}`);
+      const roomSnap = await getDoc(roomRef);
+
+      if (!roomSnap.exists()) {
+        return null;
+      }
+
+      const data = roomSnap.data();
+      return {
+        password: data['password'],
+        companyName: data['companyName'],
+        createdAt: data['createdAt']?.toDate() || new Date(),
+        createdBy: data['createdBy'],
+      };
+    } catch (error) {
+      console.error('[RoomService] getRoom: エラー', error);
+      throw error;
+    }
+  }
 }
 
 

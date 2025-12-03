@@ -3,10 +3,13 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
 import { SettingsService } from '../../../services/settings.service';
 import { OfficeService } from '../../../services/office.service';
+import { AuthService } from '../../../services/auth.service';
+import { RoomService } from '../../../services/room.service';
 import { Settings } from '../../../models/settings.model';
 import { Rate } from '../../../models/rate.model';
 import { SalaryItem } from '../../../models/salary-item.model';
 import { Office } from '../../../models/office.model';
+import { User } from '@angular/fire/auth';
 
 @Component({
   selector: 'app-settings-page',
@@ -33,7 +36,7 @@ export class SettingsPageComponent implements OnInit {
   errorMessages: string[] = [];
   warningMessages: string[] = [];
   // タブ管理
-  activeTab: 'basic' | 'rate' | 'standard' | 'salaryItems' | 'office' = 'basic';
+  activeTab: 'basic' | 'rate' | 'standard' | 'salaryItems' | 'office' | 'userRoom' = 'basic';
   
   // 事業所マスタ関連
   offices: Office[] = [];
@@ -49,6 +52,10 @@ export class SettingsPageComponent implements OnInit {
   showStandardTableImportDialog: boolean = false;
   standardTableCsvImportText: string = '';
   standardTableImportResult: { type: 'success' | 'error'; message: string } | null = null;
+  
+  // ユーザー・ルーム情報関連
+  currentUser: User | null = null;
+  roomInfo: { id: string; name: string; password: string } | null = null;
   
   // 47都道府県の料率データ（パーセント形式で保持）
   prefectureRates: { [prefecture: string]: { health_employee: number; health_employer: number } } = {};
@@ -127,6 +134,8 @@ export class SettingsPageComponent implements OnInit {
     private fb: FormBuilder,
     private settingsService: SettingsService,
     private officeService: OfficeService,
+    private authService: AuthService,
+    private roomService: RoomService,
     private cdr: ChangeDetectorRef
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
@@ -323,6 +332,30 @@ export class SettingsPageComponent implements OnInit {
     await this.loadStandardTable();
     await this.loadSalaryItems();
     await this.loadOffices();
+    await this.loadUserRoomInfo();
+  }
+  
+  // ユーザー・ルーム情報を読み込む
+  async loadUserRoomInfo(): Promise<void> {
+    // 現在のユーザー情報を取得
+    this.currentUser = this.authService.getCurrentUser();
+    
+    // ルーム情報を取得
+    const roomId = sessionStorage.getItem('roomId');
+    if (roomId) {
+      try {
+        const roomData = await this.roomService.getRoom(roomId);
+        if (roomData) {
+          this.roomInfo = {
+            id: roomId,
+            name: roomData.companyName || '未設定',
+            password: roomData.password,
+          };
+        }
+      } catch (error) {
+        console.error('[SettingsPage] ルーム情報の取得エラー:', error);
+      }
+    }
   }
   
   // 事業所マスタ関連メソッド

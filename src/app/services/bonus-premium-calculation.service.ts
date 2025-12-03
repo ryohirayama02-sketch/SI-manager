@@ -210,3 +210,4 @@ export class BonusPremiumCalculationService {
     return bonusAnnualTotals;
   }
 }
+

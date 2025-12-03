@@ -23,6 +23,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
   private authSubscription?: Subscription;
   private routerSubscription?: Subscription;
 
+  // ナビバーを表示しないルート（認証前の画面）
+  private readonly publicRoutes = ['/login', '/signup', '/room-enter'];
+
   constructor(private authService: AuthService, private router: Router) {}
 
   ngOnInit(): void {
@@ -34,23 +37,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
       console.log('[Navbar] ngOnInit: 認証状態の監視を開始');
       this.authSubscription = authState$.subscribe({
         next: (user: User | null) => {
-          const roomId = sessionStorage.getItem('roomId');
-          this.isAuthenticated = !!user && !!roomId;
-          console.log('[Navbar] 認証状態更新', {
-            hasUser: !!user,
-            hasRoomId: !!roomId,
-            isAuthenticated: this.isAuthenticated,
-          });
+          this.updateAuthenticationStatus(user);
         },
         error: (error) => {
           console.error('[Navbar] 認証状態エラー:', error);
-          this.isAuthenticated = false;
+          this.updateAuthenticationStatus(null);
         },
       });
     } else {
       console.warn(
         '[Navbar] ngOnInit: authState$ が null のため監視をスキップ'
       );
+      this.updateAuthenticationStatus(null);
     }
 
     // 現在のパスを監視
@@ -59,10 +57,45 @@ export class NavbarComponent implements OnInit, OnDestroy {
       .subscribe((event: any) => {
         this.currentPath = event.url;
         console.log('[Navbar] ルート変更:', event.url);
+        // ルート変更時に認証状態を再評価
+        const currentUser = this.authService.getCurrentUser();
+        this.updateAuthenticationStatus(currentUser);
       });
 
     this.currentPath = this.router.url;
     console.log('[Navbar] ngOnInit: 現在のパス', this.currentPath);
+    
+    // 初期状態を設定
+    const currentUser = this.authService.getCurrentUser();
+    this.updateAuthenticationStatus(currentUser);
+  }
+
+  /**
+   * 認証状態を更新し、ナビバーの表示/非表示を決定
+   */
+  private updateAuthenticationStatus(user: User | null): void {
+    const roomId = sessionStorage.getItem('roomId');
+    const isPublicRoute = this.publicRoutes.includes(this.currentPath);
+    
+    // 公開ルート（ログイン、サインアップ、ルーム入室）ではナビバーを表示しない
+    if (isPublicRoute) {
+      this.isAuthenticated = false;
+      console.log('[Navbar] 公開ルートのためナビバーを非表示', {
+        path: this.currentPath,
+      });
+      return;
+    }
+
+    // 保護されたルートでは、ユーザーが存在する場合は常にナビバーを表示
+    // roomIdは後から設定される可能性があるため、ユーザーが存在することを優先
+    this.isAuthenticated = !!user;
+    
+    console.log('[Navbar] 認証状態更新', {
+      hasUser: !!user,
+      hasRoomId: !!roomId,
+      isAuthenticated: this.isAuthenticated,
+      currentPath: this.currentPath,
+    });
   }
 
   ngOnDestroy(): void {

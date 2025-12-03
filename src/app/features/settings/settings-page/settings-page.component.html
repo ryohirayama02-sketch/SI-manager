@@ -37,6 +37,13 @@
     (click)="activeTab = 'office'">
     事業所マスタ編集
   </button>
+  <button 
+    type="button"
+    class="tab-button" 
+    [class.active]="activeTab === 'userRoom'"
+    (click)="activeTab = 'userRoom'">
+    ユーザー・ルーム情報
+  </button>
 </div>
 
 <!-- タブコンテンツ -->
@@ -504,6 +511,61 @@
               <button type="button" (click)="selectOffice(null)" class="btn-secondary">キャンセル</button>
             </div>
           </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ユーザー・ルーム情報タブ -->
+  <div *ngIf="activeTab === 'userRoom'" class="tab-pane">
+    <div class="card">
+      <div class="info-label">
+        現在ログインしているユーザー情報とルーム情報を表示します。
+      </div>
+
+      <!-- ユーザー情報セクション -->
+      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">ユーザー情報</h3>
+      <div class="card" style="max-width: 600px; margin-bottom: 1.5rem;">
+        <div class="form-group">
+          <label>ユーザー名：</label>
+          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+            {{ currentUser?.displayName || '未設定' }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>メールアドレス：</label>
+          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+            {{ currentUser?.email || '未設定' }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>パスワード：</label>
+          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem; font-family: monospace;">
+            ********（セキュリティ上の理由により表示されません）
+          </div>
+        </div>
+      </div>
+
+      <!-- ルーム情報セクション -->
+      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">ルーム情報</h3>
+      <div class="card" style="max-width: 600px;">
+        <div class="form-group">
+          <label>ルーム名（企業名）：</label>
+          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+            {{ roomInfo?.name || '未設定' }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ルームID：</label>
+          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem; font-family: monospace;">
+            {{ roomInfo?.id || '未設定' }}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ルームパスワード：</label>
+          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem; font-family: monospace;">
+            {{ roomInfo?.password || '未設定' }}
+          </div>
         </div>
       </div>
     </div>
