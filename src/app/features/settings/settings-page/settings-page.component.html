@@ -40,6 +40,13 @@
   <button 
     type="button"
     class="tab-button" 
+    [class.active]="activeTab === 'editLog'"
+    (click)="activeTab = 'editLog'; loadEditLogs()">
+    編集ログ
+  </button>
+  <button 
+    type="button"
+    class="tab-button" 
     [class.active]="activeTab === 'userRoom'"
     (click)="activeTab = 'userRoom'">
     ユーザー・ルーム情報
@@ -512,6 +519,66 @@
             </div>
           </form>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 編集ログタブ -->
+  <div *ngIf="activeTab === 'editLog'" class="tab-pane">
+    <div class="card">
+      <div class="info-label">
+        アプリ内の情報を追加、編集、削除した時のログを表示します。
+      </div>
+
+      <div style="margin-top: 1rem; margin-bottom: 1rem;">
+        <button (click)="loadEditLogs()" class="btn-primary" [disabled]="isLoadingLogs">
+          {{ isLoadingLogs ? '読み込み中...' : '更新' }}
+        </button>
+      </div>
+
+      <div *ngIf="isLoadingLogs" style="padding: 2rem; text-align: center; color: #666;">
+        読み込み中...
+      </div>
+
+      <div *ngIf="!isLoadingLogs && editLogs.length === 0" style="padding: 2rem; text-align: center; color: #666;">
+        編集ログがありません
+      </div>
+
+      <div *ngIf="!isLoadingLogs && editLogs.length > 0" style="overflow-x: auto;">
+        <table class="edit-log-table" style="width: 100%; border-collapse: collapse;">
+          <thead>
+            <tr style="background-color: #f5f5f5;">
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 150px;">日時</th>
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 100px;">ユーザー名</th>
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 80px;">操作</th>
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 100px;">種類</th>
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 150px;">対象</th>
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">内容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let log of editLogs" style="border-bottom: 1px solid #eee;">
+              <td style="padding: 12px;">{{ formatDateTime(log.timestamp) }}</td>
+              <td style="padding: 12px;">{{ log.userName }}</td>
+              <td style="padding: 12px;">
+                <span [ngSwitch]="log.action" style="padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; font-weight: bold;"
+                      [ngClass]="{
+                        'create-badge': log.action === 'create',
+                        'update-badge': log.action === 'update',
+                        'delete-badge': log.action === 'delete'
+                      }">
+                  <span *ngSwitchCase="'create'" style="color: #28a745;">{{ getActionLabel(log.action) }}</span>
+                  <span *ngSwitchCase="'update'" style="color: #007bff;">{{ getActionLabel(log.action) }}</span>
+                  <span *ngSwitchCase="'delete'" style="color: #dc3545;">{{ getActionLabel(log.action) }}</span>
+                  <span *ngSwitchDefault>{{ getActionLabel(log.action) }}</span>
+                </span>
+              </td>
+              <td style="padding: 12px;">{{ getEntityTypeLabel(log.entityType) }}</td>
+              <td style="padding: 12px;">{{ log.entityName || '-' }}</td>
+              <td style="padding: 12px;">{{ log.description }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

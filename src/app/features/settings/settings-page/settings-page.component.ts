@@ -5,10 +5,12 @@ import { SettingsService } from '../../../services/settings.service';
 import { OfficeService } from '../../../services/office.service';
 import { AuthService } from '../../../services/auth.service';
 import { RoomService } from '../../../services/room.service';
+import { EditLogService } from '../../../services/edit-log.service';
 import { Settings } from '../../../models/settings.model';
 import { Rate } from '../../../models/rate.model';
 import { SalaryItem } from '../../../models/salary-item.model';
 import { Office } from '../../../models/office.model';
+import { EditLog } from '../../../models/edit-log.model';
 import { User } from '@angular/fire/auth';
 
 @Component({
@@ -36,7 +38,7 @@ export class SettingsPageComponent implements OnInit {
   errorMessages: string[] = [];
   warningMessages: string[] = [];
   // タブ管理
-  activeTab: 'basic' | 'rate' | 'standard' | 'salaryItems' | 'office' | 'userRoom' = 'basic';
+  activeTab: 'basic' | 'rate' | 'standard' | 'salaryItems' | 'office' | 'editLog' | 'userRoom' = 'basic';
   
   // 事業所マスタ関連
   offices: Office[] = [];
@@ -56,6 +58,10 @@ export class SettingsPageComponent implements OnInit {
   // ユーザー・ルーム情報関連
   currentUser: User | null = null;
   roomInfo: { id: string; name: string; password: string } | null = null;
+  
+  // 編集ログ関連
+  editLogs: EditLog[] = [];
+  isLoadingLogs = false;
   
   // 47都道府県の料率データ（パーセント形式で保持）
   prefectureRates: { [prefecture: string]: { health_employee: number; health_employer: number } } = {};
@@ -136,6 +142,7 @@ export class SettingsPageComponent implements OnInit {
     private officeService: OfficeService,
     private authService: AuthService,
     private roomService: RoomService,
+    private editLogService: EditLogService,
     private cdr: ChangeDetectorRef
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
@@ -333,6 +340,58 @@ export class SettingsPageComponent implements OnInit {
     await this.loadSalaryItems();
     await this.loadOffices();
     await this.loadUserRoomInfo();
+  }
+  
+  // 編集ログを読み込む
+  async loadEditLogs(): Promise<void> {
+    this.isLoadingLogs = true;
+    try {
+      this.editLogs = await this.editLogService.getEditLogs(100);
+    } catch (error) {
+      console.error('[SettingsPage] 編集ログの読み込みエラー:', error);
+    } finally {
+      this.isLoadingLogs = false;
+    }
+  }
+  
+  // アクション名を日本語に変換
+  getActionLabel(action: string): string {
+    switch (action) {
+      case 'create':
+        return '追加';
+      case 'update':
+        return '編集';
+      case 'delete':
+        return '削除';
+      default:
+        return action;
+    }
+  }
+  
+  // エンティティタイプ名を日本語に変換
+  getEntityTypeLabel(entityType: string): string {
+    const labels: { [key: string]: string } = {
+      'employee': '従業員',
+      'office': '事業所',
+      'settings': '設定',
+      'salary': '給与',
+      'bonus': '賞与',
+      'insurance': '保険料',
+    };
+    return labels[entityType] || entityType;
+  }
+  
+  // 日時をフォーマット
+  formatDateTime(date: Date): string {
+    if (!date) return '';
+    const d = date instanceof Date ? date : new Date(date);
+    return d.toLocaleString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   }
   
   // ユーザー・ルーム情報を読み込む

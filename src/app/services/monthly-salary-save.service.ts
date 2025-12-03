@@ -3,6 +3,7 @@ import { MonthlySalaryService } from './monthly-salary.service';
 import { SuijiService } from './suiji.service';
 import { SalaryCalculationService } from './salary-calculation.service';
 import { MonthlySalaryStateService } from './monthly-salary-state.service';
+import { EditLogService } from './edit-log.service';
 import { Employee } from '../models/employee.model';
 import { SalaryItem } from '../models/salary-item.model';
 import { SalaryItemEntry, MonthlySalaryData } from '../models/monthly-salary.model';
@@ -20,7 +21,8 @@ export class MonthlySalarySaveService {
     private monthlySalaryService: MonthlySalaryService,
     private suijiService: SuijiService,
     private salaryCalculationService: SalaryCalculationService,
-    private state: MonthlySalaryStateService
+    private state: MonthlySalaryStateService,
+    private editLogService: EditLogService
   ) {}
 
   /**
@@ -113,11 +115,47 @@ export class MonthlySalarySaveService {
       }
 
       if (Object.keys(payload).length > 0) {
-        await this.monthlySalaryService.saveEmployeeSalary(
-          emp.id,
-          year,
-          payload
-        );
+        // 既存データを取得して変更があったか確認
+        const existingData = await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+        const changeDetails: Array<{ month: number; details: string[] }> = [];
+        
+        // 各月のデータを比較
+        for (const monthStr of Object.keys(payload)) {
+          const month = parseInt(monthStr, 10);
+          const newMonthData = payload[monthStr];
+          const existingMonthData = existingData?.[monthStr];
+          
+          // 変更内容を取得
+          const details = this.getSalaryChangeDetails(newMonthData, existingMonthData, salaryItems);
+          if (details.length > 0) {
+            changeDetails.push({ month, details });
+          }
+        }
+        
+        // 変更があった月がある場合のみ保存とログ記録
+        if (changeDetails.length > 0) {
+          await this.monthlySalaryService.saveEmployeeSalary(
+            emp.id,
+            year,
+            payload
+          );
+          
+          // 編集ログを記録（変更があった月と詳細内容）
+          const logDescriptions: string[] = [];
+          for (const change of changeDetails) {
+            const detailsText = change.details.join('、');
+            logDescriptions.push(`${change.month}月の給与データ（${detailsText}）を更新しました`);
+          }
+          
+          const description = `${emp.name || emp.id}の${year}年${logDescriptions.join('。')}`;
+          await this.editLogService.logEdit(
+            'update',
+            'salary',
+            emp.id,
+            emp.name || emp.id,
+            description
+          );
+        }
       }
     }
 
@@ -202,6 +240,92 @@ export class MonthlySalarySaveService {
     }
 
     return { suijiAlerts };
+  }
+
+  /**
+   * 給与データの変更内容の詳細を取得
+   */
+  private getSalaryChangeDetails(
+    newData: any,
+    existingData: any,
+    salaryItems: SalaryItem[]
+  ): string[] {
+    const changes: string[] = [];
+    
+    // 既存データがない場合は新規作成として扱う
+    if (!existingData) {
+      return ['新規作成'];
+    }
+
+    // 給与項目の比較
+    if (newData.salaryItems && Array.isArray(newData.salaryItems)) {
+      const existingItems = existingData.salaryItems || [];
+      
+      // 各項目の金額を比較
+      const newItemsMap = new Map<string, number>();
+      newData.salaryItems.forEach((item: SalaryItemEntry) => {
+        newItemsMap.set(item.itemId, item.amount);
+      });
+      
+      const existingItemsMap = new Map<string, number>();
+      existingItems.forEach((item: SalaryItemEntry) => {
+        existingItemsMap.set(item.itemId, item.amount);
+      });
+      
+      // 給与項目名のマップを作成
+      const itemNameMap = new Map<string, string>();
+      salaryItems.forEach(item => {
+        itemNameMap.set(item.id, item.name);
+      });
+      
+      // 変更があった項目を特定
+      const allItemIds = new Set([...newItemsMap.keys(), ...existingItemsMap.keys()]);
+      for (const itemId of allItemIds) {
+        const newAmount = newItemsMap.get(itemId) || 0;
+        const existingAmount = existingItemsMap.get(itemId) || 0;
+        
+        if (Math.abs(newAmount - existingAmount) > 0.01) {
+          const itemName = itemNameMap.get(itemId) || itemId;
+          const formattedNew = this.formatCurrency(newAmount);
+          const formattedExisting = this.formatCurrency(existingAmount);
+          changes.push(`${itemName}：更新前：${formattedExisting}→${formattedNew}`);
+        }
+      }
+    } else {
+      // 給与総額の比較（項目別入力がない場合）
+      const newTotal = newData.total || newData.totalSalary || 0;
+      const newFixed = newData.fixedTotal || newData.fixedSalary || newData.fixed || 0;
+      const newVariable = newData.variableTotal || newData.variableSalary || newData.variable || 0;
+      const newWorkingDays = newData.workingDays || 0;
+      
+      const existingTotal = existingData.total || existingData.totalSalary || 0;
+      const existingFixed = existingData.fixedTotal || existingData.fixedSalary || existingData.fixed || 0;
+      const existingVariable = existingData.variableTotal || existingData.variableSalary || existingData.variable || 0;
+      const existingWorkingDays = existingData.workingDays || 0;
+      
+      // 0.01円以上の差があれば変更あり
+      if (Math.abs(newFixed - existingFixed) > 0.01) {
+        changes.push(`固定給：更新前：${this.formatCurrency(existingFixed)}→${this.formatCurrency(newFixed)}`);
+      }
+      if (Math.abs(newVariable - existingVariable) > 0.01) {
+        changes.push(`変動給：更新前：${this.formatCurrency(existingVariable)}→${this.formatCurrency(newVariable)}`);
+      }
+      if (Math.abs(newTotal - existingTotal) > 0.01) {
+        changes.push(`合計：更新前：${this.formatCurrency(existingTotal)}→${this.formatCurrency(newTotal)}`);
+      }
+      if (newWorkingDays !== existingWorkingDays) {
+        changes.push(`勤務日数：更新前：${existingWorkingDays}日→${newWorkingDays}日`);
+      }
+    }
+    
+    return changes;
+  }
+
+  /**
+   * 金額をフォーマット（カンマ区切り）
+   */
+  private formatCurrency(amount: number): string {
+    return Math.round(amount).toLocaleString('ja-JP');
   }
 }
 
