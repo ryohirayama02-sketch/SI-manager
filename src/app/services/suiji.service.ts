@@ -77,16 +77,20 @@ export class SuijiService {
   }
 
   /**
-   * 変動月を含む3か月平均を算出する
+   * 変動月を含む3か月平均を算出する（報酬月額ベース）
    * @param salaryData 給与データ（キー形式: employeeId_month）
+   * @param salaryItemData 給与項目データ（キー形式: employeeId_month: { itemId: amount }）
+   * @param salaryItems 給与項目マスタ
    * @param employeeId 従業員ID
    * @param changeMonth 変動月（1-12）
-   * @returns 3か月平均（M, M+1, M+2の平均）、いずれかが存在しない場合はnull
+   * @returns 3か月平均（M, M+1, M+2の報酬月額平均）、いずれかが存在しない場合はnull
    */
   calculateThreeMonthAverage(
     salaryData: { [key: string]: MonthlySalaryData },
     employeeId: string,
-    changeMonth: number
+    changeMonth: number,
+    salaryItemData?: { [key: string]: { [itemId: string]: number } },
+    salaryItems?: SalaryItem[]
   ): number | null {
     // M, M+1, M+2の月を取得
     const month1 = changeMonth;
@@ -112,21 +116,54 @@ export class SuijiService {
       return null;
     }
 
-    // fixedTotalを取得
-    const fixed1 = data1.fixedTotal ?? data1.fixed ?? data1.fixedSalary ?? null;
-    const fixed2 = data2.fixedTotal ?? data2.fixed ?? data2.fixedSalary ?? null;
-    const fixed3 = data3.fixedTotal ?? data3.fixed ?? data3.fixedSalary ?? null;
+    // 報酬月額を計算（総支給額 - 欠勤控除）
+    const remuneration1 = this.calculateRemunerationAmount(data1, key1, salaryItemData, salaryItems);
+    const remuneration2 = this.calculateRemunerationAmount(data2, key2, salaryItemData, salaryItems);
+    const remuneration3 = this.calculateRemunerationAmount(data3, key3, salaryItemData, salaryItems);
 
-    // いずれかがnullまたはundefinedの場合はnullを返す
-    if (fixed1 === null || fixed1 === undefined || 
-        fixed2 === null || fixed2 === undefined || 
-        fixed3 === null || fixed3 === undefined) {
+    // いずれかがnullの場合はnullを返す
+    if (remuneration1 === null || remuneration2 === null || remuneration3 === null) {
       return null;
     }
 
     // 3か月平均を計算
-    const average = (fixed1 + fixed2 + fixed3) / 3;
+    const average = (remuneration1 + remuneration2 + remuneration3) / 3;
     return average;
+  }
+
+  /**
+   * 報酬月額を計算（総支給額 - 欠勤控除）
+   * @param salaryData 給与データ
+   * @param key キー（employeeId_month）
+   * @param salaryItemData 給与項目データ
+   * @param salaryItems 給与項目マスタ
+   * @returns 報酬月額、計算できない場合はnull
+   */
+  private calculateRemunerationAmount(
+    salaryData: MonthlySalaryData,
+    key: string,
+    salaryItemData?: { [key: string]: { [itemId: string]: number } },
+    salaryItems?: SalaryItem[]
+  ): number | null {
+    // 総支給額を取得
+    const totalSalary = salaryData.total ?? salaryData.totalSalary ?? 0;
+    
+    // 欠勤控除を取得
+    let absenceDeduction = 0;
+    if (salaryItemData && salaryItems) {
+      const itemData = salaryItemData[key];
+      if (itemData) {
+        // 給与項目マスタから「欠勤控除」種別の項目を探す
+        const deductionItems = salaryItems.filter(item => item.type === 'deduction');
+        for (const item of deductionItems) {
+          absenceDeduction += itemData[item.id] || 0;
+        }
+      }
+    }
+    
+    // 報酬月額 = 総支給額 - 欠勤控除
+    const remuneration = totalSalary - absenceDeduction;
+    return remuneration >= 0 ? remuneration : null;
   }
 
   /**
@@ -153,7 +190,7 @@ export class SuijiService {
 
   /**
    * 随時改定の本判定を行う
-   * @param change 固定的賃金変動検出結果
+   * @param change 固定的賃金変動検出結果（互換性のため残すが、changeMonthのみ使用）
    * @param currentGrade 現行等級
    * @param newGrade 新等級（3か月平均から算出）
    * @param average 3か月平均額
@@ -171,7 +208,7 @@ export class SuijiService {
     }
 
     // 等級差を計算
-    const diff = newGrade - currentGrade;
+    const diff = Math.abs(newGrade - currentGrade);
 
     // 適用開始月を計算（変動月の4ヶ月後）
     const applyStartMonth = change.changeMonth + 4;
@@ -201,6 +238,36 @@ export class SuijiService {
       reasons: reasons,
       isEligible: isEligible
     };
+  }
+
+  /**
+   * 随時改定の判定（報酬月額ベース）
+   * @param currentGrade 現行等級
+   * @param last3MonthsRemunerations 過去3ヶ月の報酬月額配列
+   * @param gradeTable 標準報酬等級表
+   * @returns 随時改定が適用可能かどうか
+   */
+  isZujikoteiApplicable(
+    currentGrade: number | null,
+    last3MonthsRemunerations: number[],
+    gradeTable: any[]
+  ): boolean {
+    if (currentGrade === null || last3MonthsRemunerations.length !== 3) {
+      return false;
+    }
+
+    // 3ヶ月平均を計算
+    const average = (last3MonthsRemunerations[0] + last3MonthsRemunerations[1] + last3MonthsRemunerations[2]) / 3;
+
+    // 平均から等級を求める
+    const newGrade = this.getGradeFromAverage(average, gradeTable);
+    if (newGrade === null) {
+      return false;
+    }
+
+    // 等級差が2以上なら随時改定適用可能
+    const diff = Math.abs(newGrade - currentGrade);
+    return diff >= 2;
   }
 
   /**

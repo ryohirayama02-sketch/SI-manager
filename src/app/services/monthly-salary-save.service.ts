@@ -159,7 +159,7 @@ export class MonthlySalarySaveService {
       }
     }
 
-    // 固定的賃金の変動検出
+    // 報酬月額ベースの随時改定判定（固定給の変動は見ない）
     const salaryDataForDetection: { [key: string]: MonthlySalaryData } = {};
     for (const emp of employees) {
       for (const month of months) {
@@ -176,63 +176,79 @@ export class MonthlySalarySaveService {
       }
     }
 
-    const fixedChanges = this.suijiService.detectFixedSalaryChange(
-      salaryDataForDetection,
-      salaryItems
-    );
-    console.log('固定的賃金の変動検出結果:', fixedChanges);
-
     // 随時改定アラートをリセット
     const suijiAlerts: SuijiKouhoResult[] = [];
 
-    // 各変動について3か月平均を計算
-    for (const change of fixedChanges) {
-      const average = this.suijiService.calculateThreeMonthAverage(
-        salaryDataForDetection,
-        change.employeeId,
-        change.changeMonth
-      );
-      const newGrade =
-        average !== null
-          ? this.suijiService.getGradeFromAverage(average, gradeTable)
-          : null;
+    // 各従業員・各月について随時改定を判定（3ヶ月目以降）
+    for (const emp of employees) {
+      for (let month = 3; month <= 12; month++) {
+        // 過去3ヶ月の報酬月額平均を計算
+        const average = this.suijiService.calculateThreeMonthAverage(
+          salaryDataForDetection,
+          emp.id,
+          month,
+          salaryItemData,
+          salaryItems
+        );
+        
+        if (average === null) {
+          continue;
+        }
 
-      // 現行等級を取得（変動月の前月の給与から判定）
-      let currentGrade: number | null = null;
-      if (change.changeMonth > 1) {
-        const prevMonthKey = `${change.employeeId}_${change.changeMonth - 1}`;
-        const prevMonthData = salaryDataForDetection[prevMonthKey];
-        if (prevMonthData) {
-          const prevMonthTotal = prevMonthData.total ?? 0;
-          if (prevMonthTotal > 0) {
-            currentGrade = this.suijiService.getGradeFromAverage(
-              prevMonthTotal,
-              gradeTable
+        // 平均から新等級を求める
+        const newGrade = this.suijiService.getGradeFromAverage(average, gradeTable);
+        if (newGrade === null) {
+          continue;
+        }
+
+        // 現行等級を取得（変動月の前月の報酬月額から判定）
+        let currentGrade: number | null = null;
+        if (month > 1) {
+          const prevMonthKey = `${emp.id}_${month - 1}`;
+          const prevMonthData = salaryDataForDetection[prevMonthKey];
+          if (prevMonthData) {
+            const prevRemuneration = this.calculateRemunerationAmount(
+              prevMonthData,
+              prevMonthKey,
+              salaryItemData,
+              salaryItems
             );
+            if (prevRemuneration !== null && prevRemuneration > 0) {
+              currentGrade = this.suijiService.getGradeFromAverage(
+                prevRemuneration,
+                gradeTable
+              );
+            }
           }
         }
-      }
 
-      console.log(
-        `従業員ID: ${change.employeeId}, 変動月: ${
-          change.changeMonth
-        }月, 3か月平均: ${average?.toLocaleString() ?? 'null'}円 → 等級: ${
-          newGrade ?? '該当なし'
-        }`
-      );
+        // 現行等級が取得できない場合はスキップ
+        if (currentGrade === null) {
+          continue;
+        }
 
-      // 随時改定の本判定
-      const suijiResult = this.suijiService.judgeSuijiKouho(
-        change,
-        currentGrade,
-        newGrade,
-        average
-      );
-      if (suijiResult) {
-        console.log('随時改定候補:', suijiResult);
+        console.log(
+          `従業員ID: ${emp.id}, 判定月: ${month}月, 3か月報酬平均: ${average?.toLocaleString() ?? 'null'}円 → 新等級: ${newGrade}, 現行等級: ${currentGrade}`
+        );
 
-        // isEligible=trueの場合のみFirestoreに保存し、アラートに追加
-        if (suijiResult.isEligible) {
+        // 随時改定の本判定（等級差が2以上かチェック）
+        const diff = Math.abs(newGrade - currentGrade);
+        const isEligible = diff >= 2;
+
+        if (isEligible) {
+          const suijiResult: SuijiKouhoResult = {
+            employeeId: emp.id,
+            changeMonth: month,
+            averageSalary: average,
+            currentGrade: currentGrade,
+            newGrade: newGrade,
+            diff: diff,
+            applyStartMonth: month + 4 > 12 ? month + 4 - 12 : month + 4,
+            reasons: [`等級差${diff}で成立`],
+            isEligible: true
+          };
+
+          console.log('随時改定候補:', suijiResult);
           await this.suijiService.saveSuijiKouho(year, suijiResult);
           suijiAlerts.push(suijiResult);
         }
@@ -240,6 +256,34 @@ export class MonthlySalarySaveService {
     }
 
     return { suijiAlerts };
+  }
+
+  /**
+   * 報酬月額を計算（総支給額 - 欠勤控除）
+   */
+  private calculateRemunerationAmount(
+    salaryData: MonthlySalaryData,
+    key: string,
+    salaryItemData: { [key: string]: { [itemId: string]: number } },
+    salaryItems: SalaryItem[]
+  ): number | null {
+    // 総支給額を取得
+    const totalSalary = salaryData.total ?? salaryData.totalSalary ?? 0;
+    
+    // 欠勤控除を取得
+    let absenceDeduction = 0;
+    const itemData = salaryItemData[key];
+    if (itemData) {
+      // 給与項目マスタから「欠勤控除」種別の項目を探す
+      const deductionItems = salaryItems.filter(item => item.type === 'deduction');
+      for (const item of deductionItems) {
+        absenceDeduction += itemData[item.id] || 0;
+      }
+    }
+    
+    // 報酬月額 = 総支給額 - 欠勤控除
+    const remuneration = totalSalary - absenceDeduction;
+    return remuneration >= 0 ? remuneration : null;
   }
 
   /**
