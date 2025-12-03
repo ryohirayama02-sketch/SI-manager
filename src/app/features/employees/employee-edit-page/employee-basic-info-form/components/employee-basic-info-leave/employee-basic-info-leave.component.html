@@ -1,3 +1,56 @@
-<div>
-  <p>休職・産休・育休フォーム</p>
+<div class="form-section" [formGroup]="form">
+  <h3>休職・産休・育休</h3>
+  
+  <h4 style="margin-top: 1rem; margin-bottom: 1rem;">休職</h4>
+  
+  <div class="form-group">
+    <label for="leaveOfAbsenceStart">休職開始日</label>
+    <input id="leaveOfAbsenceStart" type="date" formControlName="leaveOfAbsenceStart" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="leaveOfAbsenceEnd">休職終了日</label>
+    <input id="leaveOfAbsenceEnd" type="date" formControlName="leaveOfAbsenceEnd" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="returnFromLeaveDate">復職日</label>
+    <input id="returnFromLeaveDate" type="date" formControlName="returnFromLeaveDate" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">産前産後休業</h4>
+  
+  <div class="form-group">
+    <label for="maternityLeaveStart">産前産後休業開始日</label>
+    <input id="maternityLeaveStart" type="date" formControlName="maternityLeaveStart" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="maternityLeaveEnd">産前産後休業終了日</label>
+    <input id="maternityLeaveEnd" type="date" formControlName="maternityLeaveEnd" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">育児休業</h4>
+  
+  <div class="form-group">
+    <label for="childcareLeaveStart">育児休業開始日</label>
+    <input id="childcareLeaveStart" type="date" formControlName="childcareLeaveStart" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="childcareLeaveEnd">育児休業終了日</label>
+    <input id="childcareLeaveEnd" type="date" formControlName="childcareLeaveEnd" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label>
+      <input type="checkbox" formControlName="childcareNotificationSubmitted"> 育児休業給付の受給資格確認票・支給申請書を提出済み
+    </label>
+  </div>
+
+  <div class="form-group">
+    <label>
+      <input type="checkbox" formControlName="childcareLivingTogether"> 育児休業中も同一世帯で生活している
+    </label>
+  </div>
 </div>

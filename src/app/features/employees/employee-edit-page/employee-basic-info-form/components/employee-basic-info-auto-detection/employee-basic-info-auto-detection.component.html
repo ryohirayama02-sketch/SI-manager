@@ -1,3 +1,35 @@
-<div>
-  <p>自動判定フォーム</p>
+<div class="form-section">
+  <h3>自動判定</h3>
+  
+  <div class="info-label" style="margin-bottom: 1rem;">
+    以下の情報は、入力された生年月日・入社日・退職日・休職・産休・育休の情報から自動的に判定されます。
+  </div>
+
+  <div class="form-group">
+    <label>健康保険加入区分</label>
+    <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+      {{ healthInsuranceStatus }}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>厚生年金加入区分</label>
+    <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+      {{ pensionStatus }}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>介護保険区分</label>
+    <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+      {{ careInsuranceStatus }}
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label>年齢到達による保険料停止</label>
+    <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
+      {{ ageLimitStatus }}
+    </div>
+  </div>
 </div>

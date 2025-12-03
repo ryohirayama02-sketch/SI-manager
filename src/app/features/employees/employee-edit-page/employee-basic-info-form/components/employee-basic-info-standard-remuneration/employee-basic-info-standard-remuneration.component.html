@@ -1,3 +1,41 @@
-<div>
-  <p>標準報酬フォーム</p>
+<div class="form-section" [formGroup]="form">
+  <h3>標準報酬</h3>
+  
+  <div class="form-group">
+    <label for="currentStandardMonthlyRemuneration">現在の標準報酬月額</label>
+    <input id="currentStandardMonthlyRemuneration" type="number" formControlName="currentStandardMonthlyRemuneration" class="form-control" min="0" placeholder="円">
+  </div>
+
+  <div class="form-group">
+    <label for="determinationReason">決定理由</label>
+    <select id="determinationReason" formControlName="determinationReason" class="form-control">
+      <option value="">選択してください</option>
+      <option value="teiji">定時決定</option>
+      <option value="suiji">随時改定</option>
+      <option value="shikaku">資格取得時決定</option>
+      <option value="other">その他</option>
+    </select>
+  </div>
+
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">最終決定情報</h4>
+  
+  <div class="form-group">
+    <label for="lastTeijiKetteiYear">最終定時決定年</label>
+    <input id="lastTeijiKetteiYear" type="number" formControlName="lastTeijiKetteiYear" class="form-control" min="2000" max="2100" placeholder="例: 2025">
+  </div>
+
+  <div class="form-group">
+    <label for="lastTeijiKetteiMonth">最終定時決定月</label>
+    <input id="lastTeijiKetteiMonth" type="number" formControlName="lastTeijiKetteiMonth" class="form-control" min="1" max="12" placeholder="1-12">
+  </div>
+
+  <div class="form-group">
+    <label for="lastSuijiKetteiYear">最終随時改定年</label>
+    <input id="lastSuijiKetteiYear" type="number" formControlName="lastSuijiKetteiYear" class="form-control" min="2000" max="2100" placeholder="例: 2025">
+  </div>
+
+  <div class="form-group">
+    <label for="lastSuijiKetteiMonth">最終随時改定月</label>
+    <input id="lastSuijiKetteiMonth" type="number" formControlName="lastSuijiKetteiMonth" class="form-control" min="1" max="12" placeholder="1-12">
+  </div>
 </div>

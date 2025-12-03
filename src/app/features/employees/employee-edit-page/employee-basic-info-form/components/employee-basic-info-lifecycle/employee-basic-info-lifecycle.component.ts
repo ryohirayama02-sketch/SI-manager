@@ -1,4 +1,4 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup } from '@angular/forms';
 
@@ -12,8 +12,13 @@ import { ReactiveFormsModule, FormGroup } from '@angular/forms';
 export class EmployeeBasicInfoLifecycleComponent implements OnInit {
   @Input() form!: FormGroup;
   @Input() employeeId: string | null = null;
+  @Output() validateDates = new EventEmitter<void>();
 
   constructor() {}
 
   ngOnInit(): void {}
+
+  onDateChange(): void {
+    this.validateDates.emit();
+  }
 }
