@@ -13,7 +13,7 @@ import { getJSTDate } from '../utils/alerts-helper';
   providedIn: 'root'
 })
 export class AlertsDashboardStateService {
-  activeTab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' = 'schedule';
+  activeTab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' | 'uncollected' = 'schedule';
   
   // 届出スケジュール（カレンダー）関連
   scheduleYear: number = getJSTDate().getFullYear();
@@ -74,7 +74,8 @@ export class AlertsDashboardStateService {
       'teiji': '#ffc107',
       'age': '#dc3545',
       'leave': '#17a2b8',
-      'family': '#6f42c1'
+      'family': '#6f42c1',
+      'uncollected': '#e91e63'
     };
     return colorMap[tabId] || '#6c757d';
   }

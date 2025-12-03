@@ -58,6 +58,18 @@ export class TeijiCalculationService {
         reasons.push(
           `${month}月: 支払基礎日数${workingDays}日（17日未満）のため算定除外`
         );
+        continue; // 既に除外されているので、次のチェックはスキップ
+      }
+      
+      // 固定的賃金の15%超の欠勤控除がある場合は算定除外
+      const fixed = values[i].fixed;
+      const absenceDeduction = salaryData?.deductionTotal ?? 0;
+      
+      if (fixed > 0 && absenceDeduction > fixed * 0.15) {
+        excluded.push(month);
+        reasons.push(
+          `${month}月: 欠勤控除${absenceDeduction.toLocaleString()}円が固定的賃金${fixed.toLocaleString()}円の15%超（${Math.round(absenceDeduction / fixed * 100)}%）のため算定除外`
+        );
       }
     }
 

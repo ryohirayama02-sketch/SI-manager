@@ -1,0 +1,192 @@
+import { Injectable } from '@angular/core';
+import { Firestore, collection, doc, setDoc, query, where, getDocs, onSnapshot, Timestamp } from '@angular/fire/firestore';
+import { UncollectedPremium } from '../models/uncollected-premium.model';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+/**
+ * UncollectedPremiumService
+ * 
+ * 徴収不能額（会社立替額）の管理を行うサービス
+ * 月次給与が本人負担保険料を下回る場合の差額を記録・管理
+ */
+@Injectable({ providedIn: 'root' })
+export class UncollectedPremiumService {
+  constructor(private firestore: Firestore) {}
+
+  /**
+   * 徴収不能額を計算してFirestoreに保存
+   * @param employeeId 従業員ID
+   * @param year 年
+   * @param month 月（1-12）
+   * @param totalSalary 総支給額
+   * @param employeeTotalPremium 本人負担保険料合計
+   */
+  async saveUncollectedPremium(
+    employeeId: string,
+    year: number,
+    month: number,
+    totalSalary: number,
+    employeeTotalPremium: number
+  ): Promise<void> {
+    // 徴収不能額を計算
+    if (totalSalary < employeeTotalPremium) {
+      const uncollectedAmount = employeeTotalPremium - totalSalary;
+      
+      // ドキュメントIDを生成（employeeId_year_month）
+      const docId = `${employeeId}_${year}_${month}`;
+      const ref = doc(this.firestore, 'uncollected-premiums', docId);
+      
+      const data: Omit<UncollectedPremium, 'id'> = {
+        employeeId,
+        year,
+        month,
+        amount: uncollectedAmount,
+        createdAt: Timestamp.now(),
+        reason: '給与 < 本人負担保険料 による徴収不能',
+        resolved: false,
+      };
+      
+      await setDoc(ref, data, { merge: true });
+    } else {
+      // 徴収不能額が0以下の場合は、既存データがあれば削除
+      const docId = `${employeeId}_${year}_${month}`;
+      const ref = doc(this.firestore, 'uncollected-premiums', docId);
+      const snapshot = await getDocs(query(collection(this.firestore, 'uncollected-premiums'), where('__name__', '==', docId)));
+      if (!snapshot.empty) {
+        // 金額を0に更新してresolvedをtrueにする（削除ではなく更新）
+        await setDoc(ref, {
+          employeeId,
+          year,
+          month,
+          amount: 0,
+          createdAt: Timestamp.now(),
+          reason: '給与 >= 本人負担保険料 により解消',
+          resolved: true,
+        }, { merge: true });
+      }
+    }
+  }
+
+  /**
+   * 従業員別・月別の徴収不能額を取得
+   * @param employeeId 従業員ID（省略時は全従業員）
+   * @param year 年（省略時は全年度）
+   * @param resolved 対応済みフラグ（省略時は全件）
+   */
+  async getUncollectedPremiums(
+    employeeId?: string,
+    year?: number,
+    resolved?: boolean
+  ): Promise<UncollectedPremium[]> {
+    const roomId = sessionStorage.getItem('roomId');
+    if (!roomId) {
+      return [];
+    }
+
+    let q = query(collection(this.firestore, 'uncollected-premiums'));
+    
+    // フィルタリング（roomIdは直接フィルタできないため、クライアント側でフィルタ）
+    // 注: 実際の実装では、employeeIdからroomIdを取得してフィルタする必要がある場合がある
+    
+    const snapshot = await getDocs(q);
+    const premiums: UncollectedPremium[] = [];
+    
+    snapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data();
+      const premium: UncollectedPremium = {
+        id: docSnapshot.id,
+        employeeId: data['employeeId'],
+        year: data['year'],
+        month: data['month'],
+        amount: data['amount'],
+        createdAt: data['createdAt'],
+        reason: data['reason'],
+        resolved: data['resolved'] ?? false,
+      };
+      
+      // クライアント側でフィルタ
+      if (employeeId && premium.employeeId !== employeeId) {
+        return;
+      }
+      if (year !== undefined && premium.year !== year) {
+        return;
+      }
+      if (resolved !== undefined && premium.resolved !== resolved) {
+        return;
+      }
+      
+      premiums.push(premium);
+    });
+    
+    return premiums;
+  }
+
+  /**
+   * 未対応の徴収不能額をリアルタイム購読
+   * @param year 年（省略時は全年度）
+   */
+  observeUncollectedPremiums(year?: number): Observable<UncollectedPremium[]> {
+    return new Observable((observer) => {
+      const q = query(collection(this.firestore, 'uncollected-premiums'));
+      
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const premiums: UncollectedPremium[] = [];
+        
+        snapshot.forEach((docSnapshot) => {
+          const data = docSnapshot.data();
+          const premium: UncollectedPremium = {
+            id: docSnapshot.id,
+            employeeId: data['employeeId'],
+            year: data['year'],
+            month: data['month'],
+            amount: data['amount'],
+            createdAt: data['createdAt'],
+            reason: data['reason'],
+            resolved: data['resolved'] ?? false,
+          };
+          
+          // フィルタリング
+          if (year !== undefined && premium.year !== year) {
+            return;
+          }
+          if (premium.resolved) {
+            return; // 未対応のみ
+          }
+          if (premium.amount <= 0) {
+            return; // 金額が0以下のものは除外
+          }
+          
+          premiums.push(premium);
+        });
+        
+        observer.next(premiums);
+      }, (error) => {
+        console.error('[UncollectedPremiumService] リアルタイム購読エラー:', error);
+        observer.error(error);
+      });
+      
+      return () => unsubscribe();
+    });
+  }
+
+  /**
+   * 対応済みフラグを更新
+   * @param id ドキュメントID
+   * @param resolved 対応済みフラグ
+   */
+  async updateResolvedStatus(id: string, resolved: boolean): Promise<void> {
+    const ref = doc(this.firestore, 'uncollected-premiums', id);
+    await setDoc(ref, { resolved }, { merge: true });
+  }
+
+  /**
+   * 複数の徴収不能額を一括で対応済みにする
+   * @param ids ドキュメントIDの配列
+   */
+  async markAsResolved(ids: string[]): Promise<void> {
+    const promises = ids.map(id => this.updateResolvedStatus(id, true));
+    await Promise.all(promises);
+  }
+}
+

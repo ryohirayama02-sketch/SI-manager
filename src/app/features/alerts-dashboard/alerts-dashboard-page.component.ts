@@ -11,6 +11,7 @@ import { AlertTeijiTabComponent, TeijiKetteiResultData } from './tabs/alert-teij
 import { AlertAgeTabComponent, AgeAlert, QualificationChangeAlert } from './tabs/alert-age-tab/alert-age-tab.component';
 import { AlertLeaveTabComponent, MaternityChildcareAlert } from './tabs/alert-leave-tab/alert-leave-tab.component';
 import { AlertFamilyTabComponent, SupportAlert } from './tabs/alert-family-tab/alert-family-tab.component';
+import { AlertUncollectedTabComponent } from './tabs/alert-uncollected-tab/alert-uncollected-tab.component';
 import { SuijiService } from '../../services/suiji.service';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
@@ -52,7 +53,8 @@ export interface AlertItem {
     AlertTeijiTabComponent,
     AlertAgeTabComponent,
     AlertLeaveTabComponent,
-    AlertFamilyTabComponent
+    AlertFamilyTabComponent,
+    AlertUncollectedTabComponent
   ],
   templateUrl: './alerts-dashboard-page.component.html',
   styleUrl: './alerts-dashboard-page.component.css'
@@ -735,18 +737,40 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         validSalaries.reduce((sum, s) => sum + s, 0) / validSalaries.length
       );
 
+      // 給与項目マスタを取得（欠勤控除を取得するため）
+      const salaryItems = await this.settingsService.loadSalaryItems(targetYear);
+      
       // 定時決定を計算（既存のロジックを使用）
       const salaries: { [key: string]: any } = {};
       for (let month = 1; month <= 12; month++) {
         const monthKey = this.getSalaryKey(emp.id, month);
         const monthData = salaryData[month.toString()];
         if (monthData) {
+          // 欠勤控除を取得（給与項目マスタから）
+          let deductionTotal = 0;
+          if (monthData.salaryItems && monthData.salaryItems.length > 0) {
+            const deductionItems = salaryItems.filter(item => item.type === 'deduction');
+            for (const entry of monthData.salaryItems) {
+              const deductionItem = deductionItems.find(item => item.id === entry.itemId);
+              if (deductionItem) {
+                deductionTotal += entry.amount || 0;
+              }
+            }
+          }
+          
           salaries[monthKey] = {
             fixedSalary: monthData.fixedSalary ?? monthData.fixed ?? 0,
             variableSalary: monthData.variableSalary ?? monthData.variable ?? 0,
             totalSalary: monthData.totalSalary ?? monthData.total ?? 
                         (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
                         (monthData.variableSalary ?? monthData.variable ?? 0),
+            deductionTotal: deductionTotal,
+            fixed: monthData.fixedSalary ?? monthData.fixed ?? 0,
+            variable: monthData.variableSalary ?? monthData.variable ?? 0,
+            total: (monthData.totalSalary ?? monthData.total ?? 
+                   (monthData.fixedSalary ?? monthData.fixed ?? 0) + 
+                   (monthData.variableSalary ?? monthData.variable ?? 0)) - deductionTotal,
+            workingDays: monthData.workingDays
           };
         }
       }
@@ -835,7 +859,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     this.state.updateScheduleData();
   }
 
-  async setActiveTab(tab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family'): Promise<void> {
+  async setActiveTab(tab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' | 'uncollected'): Promise<void> {
     this.state.activeTab = tab;
     // 算定決定タブが選択された場合のみデータを読み込む
     if (tab === 'teiji') {

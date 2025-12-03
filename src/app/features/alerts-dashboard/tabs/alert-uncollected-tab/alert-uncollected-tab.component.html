@@ -1,0 +1,100 @@
+<div class="alert-uncollected-tab">
+  <div class="header-controls">
+    <div class="year-selector">
+      <label>年度:</label>
+      <select [value]="selectedYear" (change)="onYearChange($event)">
+        <option *ngFor="let year of [2023, 2024, 2025, 2026, 2027]" [value]="year">
+          {{ year }}年度
+        </option>
+      </select>
+    </div>
+    <div class="action-buttons" *ngIf="selectedAlertIds.size > 0">
+      <button class="btn-resolve" (click)="markSelectedAsResolved()">
+        選択した項目を対応済みにする ({{ selectedAlertIds.size }}件)
+      </button>
+    </div>
+  </div>
+
+  <div class="loading-indicator" *ngIf="isLoading">
+    読み込み中...
+  </div>
+
+  <div class="summary-table" *ngIf="!isLoading">
+    <table>
+      <thead>
+        <tr>
+          <th>
+            <input 
+              type="checkbox" 
+              [checked]="isAllSelected()"
+              (change)="toggleSelectAll($event)">
+          </th>
+          <th>従業員名</th>
+          <th>合計不足額</th>
+          <th>月数</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let summary of summaries">
+          <tr class="summary-row">
+            <td>
+              <input 
+                type="checkbox" 
+                [checked]="isSummaryAllSelected(summary)"
+                (change)="toggleSummarySelection(summary, $event)">
+            </td>
+            <td>
+              <button 
+                class="btn-expand" 
+                (click)="toggleExpand(summary.employeeId)">
+                {{ isExpanded(summary.employeeId) ? '▼' : '▶' }}
+              </button>
+              {{ summary.employeeName }}
+            </td>
+            <td class="amount-cell">{{ formatAmount(summary.totalAmount) }}</td>
+            <td>{{ summary.monthlyDetails.length }}ヶ月</td>
+            <td>
+              <button 
+                class="btn-resolve-small" 
+                (click)="markSingleAsResolved(summary.monthlyDetails[0].id || '')"
+                *ngIf="summary.monthlyDetails.length === 1 && summary.monthlyDetails[0].id">
+                対応済み
+              </button>
+            </td>
+          </tr>
+          <!-- 月別詳細行 -->
+          <ng-container *ngIf="isExpanded(summary.employeeId)">
+            <tr 
+              *ngFor="let detail of summary.monthlyDetails" 
+              class="detail-row expanded">
+              <td>
+                <input 
+                  type="checkbox" 
+                  [checked]="detail.id && isAlertSelected(detail.id)"
+                  (change)="toggleAlertSelection(detail.id || '')"
+                  *ngIf="detail.id">
+              </td>
+              <td class="detail-indent">{{ formatMonth(detail.year, detail.month) }}</td>
+              <td class="amount-cell">{{ formatAmount(detail.amount) }}</td>
+              <td>{{ detail.reason }}</td>
+              <td>
+                <button 
+                  class="btn-resolve-small" 
+                  (click)="markSingleAsResolved(detail.id || '')"
+                  *ngIf="detail.id">
+                  対応済み
+                </button>
+              </td>
+            </tr>
+          </ng-container>
+        </ng-container>
+      </tbody>
+    </table>
+
+    <div class="empty-message" *ngIf="summaries.length === 0">
+      徴収不能額はありません。
+    </div>
+  </div>
+</div>
+

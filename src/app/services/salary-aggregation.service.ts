@@ -26,25 +26,30 @@ export class SalaryAggregationService {
 
   /**
    * 給与データから総支給を取得（後方互換性対応）
+   * 欠勤控除を引いた総支給額を返す
    */
   private getTotalSalary(salaryData: SalaryData | undefined): number {
     if (!salaryData) return 0;
     const fixed = this.getFixedSalary(salaryData);
     const variable = this.getVariableSalary(salaryData);
-    return (
-      (salaryData as any).totalSalary ?? salaryData.total ?? fixed + variable
-    );
+    const deduction = (salaryData as any).deductionTotal ?? 0;
+    // totalSalaryまたはtotalが存在する場合はそれを使用（既に欠勤控除を引いた値の可能性がある）
+    // ただし、deductionTotalが明示的に設定されている場合は、それを引く
+    const baseTotal = (salaryData as any).totalSalary ?? salaryData.total ?? fixed + variable;
+    // deductionTotalが設定されている場合は、それを引く
+    return baseTotal - deduction;
   }
 
   /**
-   * 給与項目マスタから固定/非固定の合計を計算
+   * 給与項目マスタから固定/非固定/控除の合計を計算
    */
   calculateSalaryTotals(
     salaryItems: SalaryItemEntry[],
     salaryItemMaster: SalaryItem[]
-  ): { fixedTotal: number; variableTotal: number; total: number } {
+  ): { fixedTotal: number; variableTotal: number; deductionTotal: number; total: number } {
     let fixedTotal = 0;
     let variableTotal = 0;
+    let deductionTotal = 0;
 
     for (const entry of salaryItems) {
       const master = salaryItemMaster.find((item) => item.id === entry.itemId);
@@ -53,6 +58,8 @@ export class SalaryAggregationService {
           fixedTotal += entry.amount;
         } else if (master.type === 'variable') {
           variableTotal += entry.amount;
+        } else if (master.type === 'deduction') {
+          deductionTotal += entry.amount;
         }
       }
     }
@@ -60,7 +67,8 @@ export class SalaryAggregationService {
     return {
       fixedTotal,
       variableTotal,
-      total: fixedTotal + variableTotal,
+      deductionTotal,
+      total: fixedTotal + variableTotal - deductionTotal, // 欠勤控除を引く
     };
   }
 

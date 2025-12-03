@@ -3,6 +3,7 @@ import { MonthlySalaryService } from './monthly-salary.service';
 import { MonthlyPremiumCalculationService } from './monthly-premium-calculation.service';
 import { BonusPremiumCalculationService } from './bonus-premium-calculation.service';
 import { PremiumValidationService } from './premium-validation.service';
+import { UncollectedPremiumService } from './uncollected-premium.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { MonthlyPremiumRow } from './payment-summary-calculation.service';
@@ -19,7 +20,8 @@ export class PaymentSummaryEmployeeCalculationService {
     private monthlySalaryService: MonthlySalaryService,
     private monthlyPremiumCalculationService: MonthlyPremiumCalculationService,
     private bonusPremiumCalculationService: BonusPremiumCalculationService,
-    private premiumValidationService: PremiumValidationService
+    private premiumValidationService: PremiumValidationService,
+    private uncollectedPremiumService: UncollectedPremiumService
   ) {}
 
   /**
@@ -86,6 +88,35 @@ export class PaymentSummaryEmployeeCalculationService {
         pensionEmployee: premiumRow.pensionEmployee,
         pensionEmployer: premiumRow.pensionEmployer,
       };
+
+      // 徴収不能額のチェック（monthly-premium-calculation.service内で実行されるが、
+      // 念のためここでも確認。ただし、給与データがない場合はスキップ）
+      if (salaryData) {
+        const monthKeyString = month.toString();
+        const monthSalaryData = salaryData[monthKeyString];
+        // totalSalaryまたはtotalが存在する場合はそれを使用（既に欠勤控除を引いた値）
+        // 存在しない場合は、fixedSalary + variableSalaryから計算（欠勤控除は既に引かれている可能性がある）
+        const totalSalary = 
+          (monthSalaryData?.totalSalary ?? monthSalaryData?.total ?? 0) ||
+          ((monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0) +
+           (monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0));
+        
+        const employeeTotalPremium = 
+          premiumRow.healthEmployee + 
+          premiumRow.careEmployee + 
+          premiumRow.pensionEmployee;
+        
+        // 産休・育休中でない場合のみチェック
+        if (!premiumRow.exempt && totalSalary > 0) {
+          await this.uncollectedPremiumService.saveUncollectedPremium(
+            emp.id,
+            year,
+            month,
+            totalSalary,
+            employeeTotalPremium
+          );
+        }
+      }
     }
 
     // 資格取得時決定の情報を追加

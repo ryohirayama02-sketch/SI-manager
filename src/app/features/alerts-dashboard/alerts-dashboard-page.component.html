@@ -58,6 +58,14 @@
       (click)="setActiveTab('family')">
       扶養・氏名・住所変更
     </button>
+    <button 
+      class="tab-button" 
+      [class.active]="state.activeTab === 'uncollected'"
+      [style.border-bottom-color]="state.activeTab === 'uncollected' ? state.getTabColor('uncollected') : 'transparent'"
+      [style.color]="state.getTabColor('uncollected')"
+      (click)="setActiveTab('uncollected')">
+      徴収不能
+    </button>
   </div>
 
   <div class="tab-content">
@@ -137,5 +145,13 @@
       (selectAllChange)="onSupportSelectAllChange($event)"
       (deleteSelected)="deleteSelectedSupportAlerts()">
     </app-alert-family-tab>
+
+    <!-- 徴収不能アラートタブ -->
+    <app-alert-uncollected-tab
+      *ngIf="state.activeTab === 'uncollected'"
+      [employees]="employees"
+      [selectedYear]="state.teijiYear"
+      (yearChange)="onTeijiYearChange($event)">
+    </app-alert-uncollected-tab>
   </div>
 </div>

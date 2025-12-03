@@ -178,10 +178,10 @@ export class MonthlySalaryDataService {
       salaryItems
     );
 
-    // 後方互換性のためsalariesにも設定
+    // 後方互換性のためsalariesにも設定（欠勤控除を引いた総支給額を設定）
     const salaryKey = this.state.getSalaryKey(employeeId, month);
     salaries[salaryKey] = {
-      total: totals.total,
+      total: totals.total, // 既に欠勤控除を引いた値
       fixed: totals.fixedTotal,
       variable: totals.variableTotal,
     };

@@ -6,7 +6,6 @@ import { SalaryAggregationService } from './salary-aggregation.service';
 import { MonthHelperService } from './month-helper.service';
 import { SettingsService } from './settings.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
-import { MaternityLeaveService } from './maternity-leave.service';
 import { EmployeeEligibilityService } from './employee-eligibility.service';
 import { SuijiService } from './suiji.service';
 import { SuijiKouhoResult } from './salary-calculation.service';
@@ -29,7 +28,6 @@ export class PremiumCalculationService {
     private monthHelper: MonthHelperService,
     private settingsService: SettingsService,
     private employeeLifecycleService: EmployeeLifecycleService,
-    private maternityLeaveService: MaternityLeaveService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private suijiService: SuijiService
   ) {}
@@ -73,16 +71,15 @@ export class PremiumCalculationService {
       // 厚生年金の処理は後続のロジックで処理される
     }
 
-    // ② 産休・育休免除判定
-    const exemptResult = this.maternityLeaveService.isExemptForSalary(
-      year,
-      month,
-      employee
-    );
+    // ② 産休・育休免除判定（月単位：1日でも含まれれば免除）
+    const isMaternityLeave = this.employeeLifecycleService.isMaternityLeave(employee, year, month);
+    const isChildcareLeave = this.employeeLifecycleService.isChildcareLeave(employee, year, month);
+    const isExempt = isMaternityLeave || isChildcareLeave;
 
-    if (exemptResult.exempt) {
+    if (isExempt) {
       // 産休・育休中は本人分・事業主負担ともに0円
-      reasons.push(exemptResult.reason);
+      const reason = isMaternityLeave ? '産前産後休業中（健康保険・厚生年金本人分免除）' : '育児休業中（健康保険・厚生年金本人分免除）';
+      reasons.push(reason);
       return {
         health_employee: 0,
         health_employer: 0,

@@ -90,13 +90,15 @@ export class MaternityLeaveService {
 
   /**
    * 指定年月の給与が免除対象かどうかを判定
+   * @deprecated このメソッドは月の1日のみを判定するため、月初復帰時に誤判定する可能性があります。
+   *             保険料計算では employeeLifecycleService.isMaternityLeave/isChildcareLeave を使用してください。
    * @param year 年
    * @param month 月（1〜12）
    * @param employee 従業員情報
    * @returns 免除結果
    */
   isExemptForSalary(year: number, month: number, employee: Employee): ExemptResult {
-    // 月の1日を基準に判定
+    // 月の1日を基準に判定（非推奨：月初復帰時に誤判定する可能性あり）
     const checkDate = new Date(year, month - 1, 1);
     return this.getExemptReason(checkDate, employee);
   }

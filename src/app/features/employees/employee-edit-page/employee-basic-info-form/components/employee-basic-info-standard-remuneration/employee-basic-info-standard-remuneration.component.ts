@@ -87,6 +87,9 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit, O
         return;
       }
 
+      // 給与項目マスタを取得（欠勤控除を取得するため）
+      const salaryItems = await this.settingsService.loadSalaryItems(currentYear);
+      
       // 給与データを変換（月次報酬入力画面と同じ形式に変換）
       // SalaryAggregationServiceを使用して、月次報酬入力画面と同じロジックで取得
       const salaries: { [key: string]: SalaryData } = {};
@@ -100,18 +103,32 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit, O
           const variable = this.salaryAggregationService.getVariableSalaryPublic(monthData as SalaryData);
           const total = this.salaryAggregationService.getTotalSalaryPublic(monthData as SalaryData);
           
+          // 欠勤控除を取得（給与項目マスタから）
+          let deductionTotal = 0;
+          if (monthData.salaryItems && monthData.salaryItems.length > 0) {
+            const deductionItems = salaryItems.filter(item => item.type === 'deduction');
+            for (const entry of monthData.salaryItems) {
+              const deductionItem = deductionItems.find(item => item.id === entry.itemId);
+              if (deductionItem) {
+                deductionTotal += entry.amount || 0;
+              }
+            }
+          }
+          
           salaries[key] = {
             total: total,
             fixed: fixed,
             variable: variable,
-            workingDays: monthData.workingDays
+            workingDays: monthData.workingDays,
+            deductionTotal: deductionTotal
           } as SalaryData;
         } else {
           // データがない月は0で初期化（定時決定の計算で必要）
           salaries[key] = {
             total: 0,
             fixed: 0,
-            variable: 0
+            variable: 0,
+            deductionTotal: 0
           } as SalaryData;
         }
       }

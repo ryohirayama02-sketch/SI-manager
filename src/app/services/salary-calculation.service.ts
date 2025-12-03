@@ -30,6 +30,7 @@ export interface SalaryData {
   fixed: number;
   variable: number;
   workingDays?: number;
+  deductionTotal?: number; // 欠勤控除合計（オプショナル）
 }
 
 export interface TeijiKetteiResult {
@@ -241,7 +242,7 @@ export class SalaryCalculationService {
   }
 
   /** 給与項目マスタから固定/非固定の合計を計算 */
-  calculateSalaryTotals(salaryItems: SalaryItemEntry[], salaryItemMaster: SalaryItem[]): { fixedTotal: number; variableTotal: number; total: number } {
+  calculateSalaryTotals(salaryItems: SalaryItemEntry[], salaryItemMaster: SalaryItem[]): { fixedTotal: number; variableTotal: number; deductionTotal: number; total: number } {
     return this.salaryAggregationService.calculateSalaryTotals(salaryItems, salaryItemMaster);
   }
 
