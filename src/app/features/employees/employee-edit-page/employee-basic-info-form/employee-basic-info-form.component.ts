@@ -6,6 +6,7 @@ import { EmployeeService } from '../../../../services/employee.service';
 import { EmployeeLifecycleService } from '../../../../services/employee-lifecycle.service';
 import { EmployeeEligibilityService } from '../../../../services/employee-eligibility.service';
 import { EmployeeChangeHistoryService } from '../../../../services/employee-change-history.service';
+import { EmployeeWorkCategoryService } from '../../../../services/employee-work-category.service';
 import { EmployeeBasicInfoPersonalComponent } from './components/employee-basic-info-personal/employee-basic-info-personal.component';
 import { EmployeeBasicInfoEmploymentComponent } from './components/employee-basic-info-employment/employee-basic-info-employment.component';
 import { EmployeeBasicInfoAffiliationComponent } from './components/employee-basic-info-affiliation/employee-basic-info-affiliation.component';
@@ -48,7 +49,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     private employeeService: EmployeeService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeEligibilityService: EmployeeEligibilityService,
-    private employeeChangeHistoryService: EmployeeChangeHistoryService
+    private employeeChangeHistoryService: EmployeeChangeHistoryService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
@@ -58,8 +60,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       address: [''],
       myNumber: [''],
       basicPensionNumber: [''],
-      employmentType: [''],
-      weeklyHours: [null],
+      employmentType: [''], // 後方互換性のため残す
+      weeklyWorkHoursCategory: [''],
       monthlyWage: [null],
       expectedEmploymentMonths: [null],
       isStudent: [false],
@@ -104,6 +106,13 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     const data = await this.employeeService.getEmployeeById(this.employeeId);
     if (data) {
+      console.log('[employee-basic-info-form] 読み込みデータ:', {
+        officeNumber: (data as any).officeNumber,
+        prefecture: data.prefecture,
+        department: (data as any).department,
+        fullData: data
+      });
+      
       this.originalEmployeeData = {
         name: data.name || '',
         nameKana: (data as any).nameKana || '',
@@ -128,7 +137,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         myNumber: (data as any).myNumber || '',
         basicPensionNumber: (data as any).basicPensionNumber || '',
         employmentType: (data as any).employmentType || '',
-        weeklyHours: data.weeklyHours || null,
+        weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
         monthlyWage: data.monthlyWage || null,
         expectedEmploymentMonths: data.expectedEmploymentMonths || null,
         isStudent: data.isStudent || false,
@@ -216,17 +225,29 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (!this.employeeId || !this.form.valid) return;
 
     const value = this.form.value;
-    const updateData: any = {
-      name: value.name,
-      birthDate: value.birthDate,
-      employmentType: value.employmentType || '',
-      weeklyHours: value.weeklyHours || null,
+    
+    // weeklyWorkHoursCategoryに基づいてisShortTimeを自動計算
+    const tempEmployee: any = {
+      weeklyWorkHoursCategory: value.weeklyWorkHoursCategory || '',
       monthlyWage: value.monthlyWage || null,
       expectedEmploymentMonths: value.expectedEmploymentMonths || null,
       isStudent: value.isStudent ?? false,
-      prefecture: value.prefecture || 'tokyo',
+    };
+    const isShortTime = this.employeeWorkCategoryService.isShortTimeWorker(tempEmployee);
+    
+    const updateData: any = {
+      name: value.name,
+      birthDate: value.birthDate,
+      employmentType: value.employmentType || '', // 後方互換性のため残す
+      weeklyWorkHoursCategory: value.weeklyWorkHoursCategory || '',
+      monthlyWage: value.monthlyWage || null,
+      expectedEmploymentMonths: value.expectedEmploymentMonths || null,
+      isStudent: value.isStudent ?? false,
+      prefecture: value.prefecture || 'tokyo', // 事業所選択時に自動設定される
+      officeNumber: value.officeNumber || '', // 事業所情報を必ず保存
+      department: value.department || '', // 部署情報を必ず保存
       joinDate: value.joinDate,
-      isShortTime: value.isShortTime ?? false,
+      isShortTime: isShortTime, // weeklyWorkHoursCategoryから自動計算
       childcareNotificationSubmitted: value.childcareNotificationSubmitted ?? false,
       childcareLivingTogether: value.childcareLivingTogether ?? false,
       sickPayApplicationRequest: value.sickPayApplicationRequest ?? false,
@@ -235,30 +256,31 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       childbirthAllowanceApplicationRequest: value.childbirthAllowanceApplicationRequest ?? false,
     };
 
-    if (value.nameKana) updateData.nameKana = value.nameKana;
-    if (value.gender) updateData.gender = value.gender;
-    if (value.address) updateData.address = value.address;
-    if (value.myNumber) updateData.myNumber = value.myNumber;
-    if (value.basicPensionNumber) updateData.basicPensionNumber = value.basicPensionNumber;
-    if (value.officeNumber) updateData.officeNumber = value.officeNumber;
-    if (value.department) updateData.department = value.department;
-    if (value.retireDate) updateData.retireDate = value.retireDate;
-    if (value.healthInsuranceAcquisitionDate) updateData.healthInsuranceAcquisitionDate = value.healthInsuranceAcquisitionDate;
-    if (value.pensionAcquisitionDate) updateData.pensionAcquisitionDate = value.pensionAcquisitionDate;
-    if (value.healthInsuranceLossDate) updateData.healthInsuranceLossDate = value.healthInsuranceLossDate;
-    if (value.pensionLossDate) updateData.pensionLossDate = value.pensionLossDate;
-    if (value.determinationReason) updateData.determinationReason = value.determinationReason;
-    if (value.lastTeijiKetteiYear) updateData.lastTeijiKetteiYear = value.lastTeijiKetteiYear;
-    if (value.lastTeijiKetteiMonth) updateData.lastTeijiKetteiMonth = value.lastTeijiKetteiMonth;
-    if (value.lastSuijiKetteiYear) updateData.lastSuijiKetteiYear = value.lastSuijiKetteiYear;
-    if (value.lastSuijiKetteiMonth) updateData.lastSuijiKetteiMonth = value.lastSuijiKetteiMonth;
-    if (value.leaveOfAbsenceStart) updateData.leaveOfAbsenceStart = value.leaveOfAbsenceStart;
-    if (value.leaveOfAbsenceEnd) updateData.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd;
-    if (value.returnFromLeaveDate) updateData.returnFromLeaveDate = value.returnFromLeaveDate;
-    if (value.maternityLeaveStart) updateData.maternityLeaveStart = value.maternityLeaveStart;
-    if (value.maternityLeaveEnd) updateData.maternityLeaveEnd = value.maternityLeaveEnd;
-    if (value.childcareLeaveStart) updateData.childcareLeaveStart = value.childcareLeaveStart;
-    if (value.childcareLeaveEnd) updateData.childcareLeaveEnd = value.childcareLeaveEnd;
+    // オプショナルフィールドの保存（空文字列も含めて保存）
+    if (value.nameKana !== undefined) updateData.nameKana = value.nameKana || '';
+    if (value.gender !== undefined) updateData.gender = value.gender || '';
+    if (value.address !== undefined) updateData.address = value.address || '';
+    if (value.myNumber !== undefined) updateData.myNumber = value.myNumber || '';
+    if (value.basicPensionNumber !== undefined) updateData.basicPensionNumber = value.basicPensionNumber || '';
+    // 事業所情報は上記のupdateDataで既に設定済み（必ず保存される）
+    // 日付フィールド（空の場合はnullを保存）
+    if (value.retireDate !== undefined) updateData.retireDate = value.retireDate || null;
+    if (value.healthInsuranceAcquisitionDate !== undefined) updateData.healthInsuranceAcquisitionDate = value.healthInsuranceAcquisitionDate || null;
+    if (value.pensionAcquisitionDate !== undefined) updateData.pensionAcquisitionDate = value.pensionAcquisitionDate || null;
+    if (value.healthInsuranceLossDate !== undefined) updateData.healthInsuranceLossDate = value.healthInsuranceLossDate || null;
+    if (value.pensionLossDate !== undefined) updateData.pensionLossDate = value.pensionLossDate || null;
+    if (value.determinationReason !== undefined) updateData.determinationReason = value.determinationReason || '';
+    if (value.lastTeijiKetteiYear !== undefined) updateData.lastTeijiKetteiYear = value.lastTeijiKetteiYear || null;
+    if (value.lastTeijiKetteiMonth !== undefined) updateData.lastTeijiKetteiMonth = value.lastTeijiKetteiMonth || null;
+    if (value.lastSuijiKetteiYear !== undefined) updateData.lastSuijiKetteiYear = value.lastSuijiKetteiYear || null;
+    if (value.lastSuijiKetteiMonth !== undefined) updateData.lastSuijiKetteiMonth = value.lastSuijiKetteiMonth || null;
+    if (value.leaveOfAbsenceStart !== undefined) updateData.leaveOfAbsenceStart = value.leaveOfAbsenceStart || null;
+    if (value.leaveOfAbsenceEnd !== undefined) updateData.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd || null;
+    if (value.returnFromLeaveDate !== undefined) updateData.returnFromLeaveDate = value.returnFromLeaveDate || null;
+    if (value.maternityLeaveStart !== undefined) updateData.maternityLeaveStart = value.maternityLeaveStart || null;
+    if (value.maternityLeaveEnd !== undefined) updateData.maternityLeaveEnd = value.maternityLeaveEnd || null;
+    if (value.childcareLeaveStart !== undefined) updateData.childcareLeaveStart = value.childcareLeaveStart || null;
+    if (value.childcareLeaveEnd !== undefined) updateData.childcareLeaveEnd = value.childcareLeaveEnd || null;
     if (value.sickPayApplicationRequest !== undefined) updateData.sickPayApplicationRequest = value.sickPayApplicationRequest;
     if (value.sickPayApplicationRequestDate) updateData.sickPayApplicationRequestDate = value.sickPayApplicationRequestDate;
     if (value.childcareEmployerCertificateRequest !== undefined) updateData.childcareEmployerCertificateRequest = value.childcareEmployerCertificateRequest;
@@ -268,6 +290,13 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.childbirthAllowanceApplicationRequest !== undefined) updateData.childbirthAllowanceApplicationRequest = value.childbirthAllowanceApplicationRequest;
     if (value.childbirthAllowanceApplicationRequestDate) updateData.childbirthAllowanceApplicationRequestDate = value.childbirthAllowanceApplicationRequestDate;
 
+    console.log('[employee-basic-info-form] 保存データ:', {
+      officeNumber: updateData.officeNumber,
+      prefecture: updateData.prefecture,
+      department: updateData.department,
+      fullUpdateData: updateData
+    });
+    
     await this.employeeService.updateEmployee(this.employeeId, updateData);
     await this.detectAndSaveChanges(this.originalEmployeeData, value);
 

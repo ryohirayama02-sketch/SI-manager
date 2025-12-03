@@ -7,6 +7,7 @@ import { MonthHelperService } from './month-helper.service';
 import { SettingsService } from './settings.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { EmployeeEligibilityService } from './employee-eligibility.service';
+import { EmployeeWorkCategoryService } from './employee-work-category.service';
 import { SuijiService } from './suiji.service';
 import { SuijiKouhoResult } from './salary-calculation.service';
 
@@ -29,6 +30,7 @@ export class PremiumCalculationService {
     private settingsService: SettingsService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeEligibilityService: EmployeeEligibilityService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
     private suijiService: SuijiService
   ) {}
 
@@ -81,14 +83,36 @@ export class PremiumCalculationService {
     }
 
     // ② 産休・育休免除判定（月単位：1日でも含まれれば免除）
-    const isMaternityLeave = this.employeeLifecycleService.isMaternityLeave(employee, year, month);
-    const isChildcareLeave = this.employeeLifecycleService.isChildcareLeave(employee, year, month);
+    // フルタイムのみ産休を取得可能
+    const isMaternityLeavePeriod = this.employeeLifecycleService.isMaternityLeave(employee, year, month);
+    const isChildcareLeavePeriod = this.employeeLifecycleService.isChildcareLeave(employee, year, month);
+    const canTakeMaternityLeave = this.employeeWorkCategoryService.canTakeMaternityLeave(employee);
+    const isExemptFromPremiums = this.employeeWorkCategoryService.isExemptFromPremiumsDuringMaternityLeave(employee);
+    
+    // 産休期間中で、かつフルタイムの場合のみ免除
+    const isMaternityLeave = isMaternityLeavePeriod && canTakeMaternityLeave && isExemptFromPremiums;
+    // 育休期間中で、かつ保険加入者の場合のみ免除
+    const isChildcareLeave = isChildcareLeavePeriod && isExemptFromPremiums;
     const isExempt = isMaternityLeave || isChildcareLeave;
 
     if (isExempt) {
       // 産休・育休中は本人分・事業主負担ともに0円
       const reason = isMaternityLeave ? '産前産後休業中（健康保険・厚生年金本人分免除）' : '育児休業中（健康保険・厚生年金本人分免除）';
       reasons.push(reason);
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons,
+      };
+    }
+    
+    // 保険未加入者の場合、産休・育休期間中でも保険料は0円（免除の概念がない）
+    if ((isMaternityLeavePeriod || isChildcareLeavePeriod) && this.employeeWorkCategoryService.isNonInsured(employee)) {
+      reasons.push('保険未加入者のため、産休・育休期間中でも社会保険料は0円');
       return {
         health_employee: 0,
         health_employer: 0,

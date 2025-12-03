@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { Employee } from '../models/employee.model';
 import { EmployeeService } from './employee.service';
+import { EmployeeWorkCategoryService } from './employee-work-category.service';
 
 export type AgeCategory = 'normal' | 'care-2nd' | 'care-1st' | 'no-pension' | 'no-health';
 
@@ -34,7 +35,10 @@ export interface EmployeeWorkInfo {
 export class EmployeeEligibilityService {
   private eligibilitySubject = new BehaviorSubject<{ [employeeId: string]: EmployeeEligibilityResult }>({});
 
-  constructor(private employeeService: EmployeeService) {
+  constructor(
+    private employeeService: EmployeeService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService
+  ) {
     // 従業員情報の変更を監視してeligibilityを再計算
     this.employeeService.observeEmployees().subscribe(async () => {
       await this.recalculateAllEligibility();
@@ -121,12 +125,29 @@ export class EmployeeEligibilityService {
     const isPensionEligibleByAge = !isPensionStopped;
     const isHealthInsuranceEligibleByAge = !isHealthAndCareStopped;
 
-    // 1. 週30時間以上 → 加入
-    if (workInfo?.weeklyHours && workInfo.weeklyHours >= 30) {
+    // 新しい週の所定労働時間カテゴリに基づく判定
+    const workCategory = this.employeeWorkCategoryService.getWorkCategory(employee);
+    
+    // 保険未加入者の場合
+    if (workCategory === 'non-insured') {
+      reasons.push('週20時間未満のため加入対象外');
+      if (workInfo?.consecutiveMonthsOver20Hours && workInfo.consecutiveMonthsOver20Hours >= 3) {
+        candidateFlag = true;
+        reasons.push('過去3ヶ月連続で20時間以上働いているため加入候補者');
+      }
+    }
+    // フルタイムまたは短時間労働者の場合（保険加入必須）
+    else if (workCategory === 'full-time' || workCategory === 'short-time-worker') {
+      if (workCategory === 'full-time') {
+        reasons.push('週30時間以上のため加入対象');
+      } else {
+        reasons.push('短時間労働者（週20-30時間、月額賃金8.8万円以上、雇用見込2ヶ月超、学生でない）のため加入対象');
+      }
+      
       healthInsuranceEligible = isHealthInsuranceEligibleByAge;
       pensionEligible = isPensionEligibleByAge;
       careInsuranceEligible = isCareInsuranceEligible;
-      reasons.push(`週${workInfo.weeklyHours}時間のため加入対象`);
+      
       if (!isHealthInsuranceEligibleByAge) {
         reasons.push('75歳以上のため健康保険・介護保険は加入不可');
       }
@@ -134,33 +155,49 @@ export class EmployeeEligibilityService {
         reasons.push('70歳以上のため厚生年金は加入不可');
       }
     }
-    // 2. 特定適用事業所の短時間労働者（週20〜30時間未満）判定
-    else if (workInfo?.weeklyHours && workInfo.weeklyHours >= 20 && workInfo.weeklyHours < 30) {
-      const shortTimeConditions = this.checkShortTimeWorkerConditions(workInfo, employee);
-      
-      if (shortTimeConditions.allMet) {
+    // 後方互換性: weeklyHoursが存在する場合の従来の判定
+    else if (workInfo?.weeklyHours) {
+      // 1. 週30時間以上 → 加入
+      if (workInfo.weeklyHours >= 30) {
         healthInsuranceEligible = isHealthInsuranceEligibleByAge;
         pensionEligible = isPensionEligibleByAge;
         careInsuranceEligible = isCareInsuranceEligible;
-        reasons.push(...shortTimeConditions.reasons);
+        reasons.push(`週${workInfo.weeklyHours}時間のため加入対象`);
         if (!isHealthInsuranceEligibleByAge) {
           reasons.push('75歳以上のため健康保険・介護保険は加入不可');
         }
         if (!isPensionEligibleByAge) {
           reasons.push('70歳以上のため厚生年金は加入不可');
         }
-      } else {
-        reasons.push(...shortTimeConditions.reasons);
-        reasons.push('特定適用事業所の短時間労働者条件を満たしていないため加入不可');
       }
-    }
-    // 3. 週20時間未満だが「3ヶ月連続で実働20時間以上」の場合 → 加入候補者アラート
-    else if (workInfo?.weeklyHours && workInfo.weeklyHours < 20) {
-      if (workInfo.consecutiveMonthsOver20Hours && workInfo.consecutiveMonthsOver20Hours >= 3) {
-        candidateFlag = true;
-        reasons.push(`週${workInfo.weeklyHours}時間だが、過去3ヶ月連続で20時間以上働いているため加入候補者`);
-      } else {
-        reasons.push(`週${workInfo.weeklyHours}時間のため加入対象外`);
+      // 2. 特定適用事業所の短時間労働者（週20〜30時間未満）判定
+      else if (workInfo.weeklyHours >= 20 && workInfo.weeklyHours < 30) {
+        const shortTimeConditions = this.checkShortTimeWorkerConditions(workInfo, employee);
+        
+        if (shortTimeConditions.allMet) {
+          healthInsuranceEligible = isHealthInsuranceEligibleByAge;
+          pensionEligible = isPensionEligibleByAge;
+          careInsuranceEligible = isCareInsuranceEligible;
+          reasons.push(...shortTimeConditions.reasons);
+          if (!isHealthInsuranceEligibleByAge) {
+            reasons.push('75歳以上のため健康保険・介護保険は加入不可');
+          }
+          if (!isPensionEligibleByAge) {
+            reasons.push('70歳以上のため厚生年金は加入不可');
+          }
+        } else {
+          reasons.push(...shortTimeConditions.reasons);
+          reasons.push('特定適用事業所の短時間労働者条件を満たしていないため加入不可');
+        }
+      }
+      // 3. 週20時間未満だが「3ヶ月連続で実働20時間以上」の場合 → 加入候補者アラート
+      else if (workInfo.weeklyHours < 20) {
+        if (workInfo.consecutiveMonthsOver20Hours && workInfo.consecutiveMonthsOver20Hours >= 3) {
+          candidateFlag = true;
+          reasons.push(`週${workInfo.weeklyHours}時間だが、過去3ヶ月連続で20時間以上働いているため加入候補者`);
+        } else {
+          reasons.push(`週${workInfo.weeklyHours}時間のため加入対象外`);
+        }
       }
     }
     // 労働時間情報がない場合

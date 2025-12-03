@@ -3,7 +3,8 @@ export interface Employee {
   name: string; // 氏名
   birthDate: string; // 生年月日（YYYY-MM-DD）
   joinDate: string; // 入社日
-  isShortTime: boolean; // 短時間労働者か
+  isShortTime: boolean; // 短時間労働者か（後方互換性のため残す）
+  weeklyWorkHoursCategory?: '30hours-or-more' | '20-30hours' | 'less-than-20hours'; // 週の所定労働時間カテゴリ
   standardMonthlyRemuneration?: number; // 標準報酬月額（算定後）
   returnFromLeaveDate?: string; // 復職日（YYYY-MM-DD）
   retireDate?: string; // 退職日（YYYY-MM-DD）

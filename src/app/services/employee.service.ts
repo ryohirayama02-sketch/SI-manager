@@ -71,7 +71,7 @@ export class EmployeeService {
   async updateEmployee(id: string, data: any): Promise<void> {
     const ref = doc(this.firestore, `employees/${id}`);
     
-    // undefinedの値を除外
+    // undefinedの値を除外（空文字列やnullは含める）
     const cleanData: any = {};
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
@@ -79,7 +79,24 @@ export class EmployeeService {
       }
     }
     
+    console.log('[employee.service] updateEmployee:', {
+      id,
+      cleanData,
+      officeNumber: cleanData.officeNumber,
+      prefecture: cleanData.prefecture,
+      department: cleanData.department
+    });
+    
     await updateDoc(ref, cleanData);
+    
+    // 保存後に確認
+    const savedDoc = await getDoc(ref);
+    const savedData = savedDoc.data();
+    console.log('[employee.service] 保存後の確認:', {
+      officeNumber: savedData?.['officeNumber'],
+      prefecture: savedData?.['prefecture'],
+      department: savedData?.['department']
+    });
   }
 
   async deleteEmployee(id: string): Promise<void> {

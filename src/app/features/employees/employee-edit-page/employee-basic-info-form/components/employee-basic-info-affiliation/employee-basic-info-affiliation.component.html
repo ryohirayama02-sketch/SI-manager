@@ -1,18 +1,32 @@
 <div class="form-section" [formGroup]="form">
   <h3>所属</h3>
-  
+
   <div class="form-group">
     <label for="office">事業所</label>
-    <select id="office" class="form-control" [value]="selectedOfficeId || ''" (change)="onOfficeChange($any($event.target).value)">
-      <option value="">選択してください</option>
-      <option *ngFor="let office of offices" [value]="office.id">{{ getOfficeDisplayName(office) }}</option>
+    <select
+      id="office"
+      class="form-control"
+      [ngModel]="selectedOfficeId"
+      (ngModelChange)="onOfficeChange($event)"
+      [ngModelOptions]="{ standalone: true }"
+    >
+      <option [ngValue]="null">選択してください</option>
+      <option *ngFor="let office of offices" [ngValue]="office.id">
+        {{ getOfficeDisplayName(office) }}
+      </option>
     </select>
-    <input type="hidden" formControlName="prefecture">
-    <input type="hidden" formControlName="officeNumber">
+    <input type="hidden" formControlName="prefecture" />
+    <input type="hidden" formControlName="officeNumber" />
   </div>
 
   <div class="form-group">
     <label for="department">部署</label>
-    <input id="department" type="text" formControlName="department" class="form-control" placeholder="例: 営業部">
+    <input
+      id="department"
+      type="text"
+      formControlName="department"
+      class="form-control"
+      placeholder="例: 営業部"
+    />
   </div>
 </div>
