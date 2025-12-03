@@ -183,31 +183,84 @@ export class MonthlySalarySaveService {
       }
     }
 
-    // 報酬月額ベースの随時改定判定（固定給の変動は見ない）
+    // 報酬月額ベースの随時改定判定（給与項目別データから直接計算）
     const salaryDataForDetection: { [key: string]: MonthlySalaryData } = {};
     for (const emp of employees) {
       for (const month of months) {
-        const key = this.state.getSalaryKey(emp.id, month);
-        const salaryData = salaries[key];
-        if (salaryData) {
-          const detectionKey = `${emp.id}_${month}`;
-          salaryDataForDetection[detectionKey] = {
-            fixedTotal: salaryData.fixed,
-            variableTotal: salaryData.variable,
-            total: salaryData.total,
-          };
+        const detectionKey = `${emp.id}_${month}`;
+        const itemKey = this.state.getSalaryItemKey(emp.id, month);
+        
+        // 給与項目別データから直接報酬月額を計算
+        const itemData = salaryItemData[itemKey];
+        if (itemData && salaryItems) {
+          // 固定給・変動給を集計（賞与と欠勤控除を除外）
+          let fixedTotal = 0;
+          let variableTotal = 0;
+          
+          for (const item of salaryItems) {
+            const amount = itemData[item.id] || 0;
+            
+            // 賞与を除外
+            if (item.name === '賞与' || item.name.includes('賞与') || item.name.includes('ボーナス')) {
+              continue;
+            }
+            
+            // 欠勤控除を除外
+            if (item.type === 'deduction') {
+              continue;
+            }
+            
+            // 固定給・変動給を集計
+            if (item.type === 'fixed') {
+              fixedTotal += amount;
+            } else if (item.type === 'variable') {
+              variableTotal += amount;
+            }
+          }
+          
+          // 報酬月額 = 固定給 + 変動給（賞与・欠勤控除は既に除外済み）
+          const total = fixedTotal + variableTotal;
+          
+          // データがある場合のみ追加
+          if (total > 0 || (itemData && Object.keys(itemData).length > 0)) {
+            salaryDataForDetection[detectionKey] = {
+              fixedTotal: fixedTotal,
+              variableTotal: variableTotal,
+              total: total,
+            };
+          }
+        } else {
+          // 給与項目別データがない場合は、salariesオブジェクトから取得（後方互換性）
+          const key = this.state.getSalaryKey(emp.id, month);
+          const salaryData = salaries[key];
+          if (salaryData) {
+            salaryDataForDetection[detectionKey] = {
+              fixedTotal: salaryData.fixed,
+              variableTotal: salaryData.variable,
+              total: salaryData.total,
+            };
+          }
         }
       }
     }
 
     // 随時改定アラートをリセット（既存のアラートを削除）
-    // まず、該当年度の既存アラートを全て削除
+    // まず、該当従業員の全年度の既存アラートを全て削除
+    // 従業員基本情報画面では前年、当年、翌年のアラートを表示するため、それらも含めて削除
+    const yearsToCheck = [year - 1, year, year + 1]; // 前年、当年、翌年
     for (const emp of employees) {
-      // 既存のアラートを取得して削除
-      const existingAlerts = await this.suijiService.loadAlerts(year);
-      const employeeAlerts = existingAlerts.filter(alert => alert.employeeId === emp.id);
-      for (const alert of employeeAlerts) {
-        await this.suijiService.deleteAlert(year, alert.employeeId, alert.changeMonth);
+      for (const checkYear of yearsToCheck) {
+        try {
+          // 既存のアラートを取得して削除
+          const existingAlerts = await this.suijiService.loadAlerts(checkYear);
+          const employeeAlerts = existingAlerts.filter(alert => alert.employeeId === emp.id);
+          for (const alert of employeeAlerts) {
+            await this.suijiService.deleteAlert(checkYear, alert.employeeId, alert.changeMonth);
+          }
+        } catch (error) {
+          // 年度のコレクションが存在しない場合はスキップ
+          console.warn(`[monthly-salary-save] 年度 ${checkYear} のアラート削除に失敗:`, error);
+        }
       }
     }
 
@@ -319,6 +372,9 @@ export class MonthlySalarySaveService {
 
   /**
    * 報酬月額を計算（総支給額 - 欠勤控除 - 賞与）
+   * 
+   * 注意: salaryDataForDetectionから来たデータの場合、既に賞与と欠勤控除が除外済みのtotalが入っているため、
+   * その場合はtotalをそのまま返す。それ以外の場合は、salaryItemDataから賞与と欠勤控除を除外して計算する。
    */
   private calculateRemunerationAmount(
     salaryData: MonthlySalaryData,
@@ -326,6 +382,16 @@ export class MonthlySalarySaveService {
     salaryItemData: { [key: string]: { [itemId: string]: number } },
     salaryItems: SalaryItem[]
   ): number | null {
+    // salaryDataForDetectionから来たデータの場合、既に賞与と欠勤控除が除外済み
+    // totalが存在し、かつsalaryItemDataに該当するデータがない場合は、totalをそのまま返す
+    const itemData = salaryItemData[key];
+    if (!itemData || !salaryItems || Object.keys(itemData).length === 0) {
+      // 給与項目別データがない場合は、totalをそのまま返す（既に除外済み）
+      const totalSalary = salaryData.total ?? salaryData.totalSalary ?? 0;
+      return totalSalary >= 0 ? totalSalary : null;
+    }
+    
+    // 給与項目別データがある場合は、賞与と欠勤控除を除外して計算
     // 総支給額を取得
     const totalSalary = salaryData.total ?? salaryData.totalSalary ?? 0;
     
@@ -334,21 +400,18 @@ export class MonthlySalarySaveService {
     // 賞与を取得（随時改定の計算から除外するため）
     let bonusAmount = 0;
     
-    const itemData = salaryItemData[key];
-    if (itemData) {
-      // 給与項目マスタから「欠勤控除」種別の項目を探す
-      const deductionItems = salaryItems.filter(item => item.type === 'deduction');
-      for (const item of deductionItems) {
-        absenceDeduction += itemData[item.id] || 0;
-      }
-      
-      // 給与項目マスタから「賞与」という名前の項目を探す（随時改定の計算から除外）
-      const bonusItems = salaryItems.filter(item => 
-        item.name === '賞与' || item.name.includes('賞与') || item.name.includes('ボーナス')
-      );
-      for (const item of bonusItems) {
-        bonusAmount += itemData[item.id] || 0;
-      }
+    // 給与項目マスタから「欠勤控除」種別の項目を探す
+    const deductionItems = salaryItems.filter(item => item.type === 'deduction');
+    for (const item of deductionItems) {
+      absenceDeduction += itemData[item.id] || 0;
+    }
+    
+    // 給与項目マスタから「賞与」という名前の項目を探す（随時改定の計算から除外）
+    const bonusItems = salaryItems.filter(item => 
+      item.name === '賞与' || item.name.includes('賞与') || item.name.includes('ボーナス')
+    );
+    for (const item of bonusItems) {
+      bonusAmount += itemData[item.id] || 0;
     }
     
     // 報酬月額 = 総支給額 - 欠勤控除 - 賞与

@@ -1,6 +1,9 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, OnChanges, SimpleChanges, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup } from '@angular/forms';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { MonthlySalaryService } from '../../../../../../services/monthly-salary.service';
 import { SalaryCalculationService, TeijiKetteiResult, SalaryData } from '../../../../../../services/salary-calculation.service';
 import { SettingsService } from '../../../../../../services/settings.service';
@@ -15,7 +18,7 @@ import { SalaryAggregationService } from '../../../../../../services/salary-aggr
   templateUrl: './employee-basic-info-standard-remuneration.component.html',
   styleUrl: './employee-basic-info-standard-remuneration.component.css'
 })
-export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit {
+export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit, OnChanges {
   @Input() form!: FormGroup;
   @Input() employeeId: string | null = null;
 
@@ -23,6 +26,8 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit {
   suijiResults: any[] = [];
   currentYear: number = new Date().getFullYear();
   isLoading: boolean = false;
+  private routerSubscription: Subscription | null = null;
+  private previousEmployeeId: string | null = null;
 
   constructor(
     private monthlySalaryService: MonthlySalaryService,
@@ -30,12 +35,42 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit {
     private settingsService: SettingsService,
     private employeeService: EmployeeService,
     private suijiService: SuijiService,
-    private salaryAggregationService: SalaryAggregationService
+    private salaryAggregationService: SalaryAggregationService,
+    private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
     await this.loadCalculationResults();
     await this.applyLatestResult();
+    
+    // ルーターイベントを購読（画面遷移後に再読み込み）
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe(async () => {
+        // 従業員編集画面に戻ってきた場合、データを再読み込み
+        if (this.employeeId) {
+          await this.loadCalculationResults();
+          await this.applyLatestResult();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.routerSubscription?.unsubscribe();
+  }
+
+  async ngOnChanges(changes: SimpleChanges): Promise<void> {
+    // employeeIdが変更された場合、データを再読み込み
+    if (changes['employeeId'] && !changes['employeeId'].firstChange) {
+      const newEmployeeId = changes['employeeId'].currentValue;
+      const oldEmployeeId = changes['employeeId'].previousValue;
+      
+      if (newEmployeeId !== oldEmployeeId) {
+        this.previousEmployeeId = oldEmployeeId;
+        await this.loadCalculationResults();
+        await this.applyLatestResult();
+      }
+    }
   }
 
   async loadCalculationResults(): Promise<void> {
@@ -109,6 +144,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit {
       this.isLoading = false;
     }
   }
+
 
   /**
    * 最新の標準報酬月額を自動適用（定時決定と随時改定のうち、現時点から近い方を採用）

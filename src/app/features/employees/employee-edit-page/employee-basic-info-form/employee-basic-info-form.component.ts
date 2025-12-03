@@ -12,7 +12,6 @@ import { EmployeeBasicInfoAffiliationComponent } from './components/employee-bas
 import { EmployeeBasicInfoLifecycleComponent } from './components/employee-basic-info-lifecycle/employee-basic-info-lifecycle.component';
 import { EmployeeBasicInfoStandardRemunerationComponent } from './components/employee-basic-info-standard-remuneration/employee-basic-info-standard-remuneration.component';
 import { EmployeeBasicInfoLeaveComponent } from './components/employee-basic-info-leave/employee-basic-info-leave.component';
-import { EmployeeBasicInfoAutoDetectionComponent } from './components/employee-basic-info-auto-detection/employee-basic-info-auto-detection.component';
 
 @Component({
   selector: 'app-employee-basic-info-form',
@@ -25,8 +24,7 @@ import { EmployeeBasicInfoAutoDetectionComponent } from './components/employee-b
     EmployeeBasicInfoAffiliationComponent,
     EmployeeBasicInfoLifecycleComponent,
     EmployeeBasicInfoStandardRemunerationComponent,
-    EmployeeBasicInfoLeaveComponent,
-    EmployeeBasicInfoAutoDetectionComponent
+    EmployeeBasicInfoLeaveComponent
   ],
   templateUrl: './employee-basic-info-form.component.html',
   styleUrl: './employee-basic-info-form.component.css'

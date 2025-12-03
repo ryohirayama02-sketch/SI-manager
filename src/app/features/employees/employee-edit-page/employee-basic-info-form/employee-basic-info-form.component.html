@@ -6,7 +6,6 @@
     <button type="button" class="tab-button" [class.active]="activeTab === 'lifecycle'" (click)="setActiveTab('lifecycle')">入退社</button>
     <button type="button" class="tab-button" [class.active]="activeTab === 'standard'" (click)="setActiveTab('standard')">標準報酬</button>
     <button type="button" class="tab-button" [class.active]="activeTab === 'leave'" (click)="setActiveTab('leave')">休職・産休・育休</button>
-    <button type="button" class="tab-button" [class.active]="activeTab === 'auto'" (click)="setActiveTab('auto')">自動判定</button>
   </div>
 
   <div *ngIf="activeTab === 'personal'" class="tab-content">
@@ -31,10 +30,6 @@
 
   <div *ngIf="activeTab === 'leave'" class="tab-content">
     <app-employee-basic-info-leave [form]="form" [employeeId]="employeeId" (validateDates)="validateDates()"></app-employee-basic-info-leave>
-  </div>
-
-  <div *ngIf="activeTab === 'auto'" class="tab-content">
-    <app-employee-basic-info-auto-detection [form]="form" [employeeId]="employeeId"></app-employee-basic-info-auto-detection>
   </div>
 
   <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">保存</button>
