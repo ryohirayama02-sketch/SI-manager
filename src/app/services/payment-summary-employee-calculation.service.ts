@@ -53,7 +53,6 @@ export class PaymentSummaryEmployeeCalculationService {
     // 給与データを取得
     const salaryData = salaryDataByEmployeeId?.[emp.id] || 
       await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
-    console.log(`[payment-summary-calculation] 従業員=${emp.name}, 給与データ=`, salaryData);
 
     // 月次保険料一覧を計算
     const monthlyPremiumRows: MonthlyPremiumRow[] = [];
@@ -91,6 +90,7 @@ export class PaymentSummaryEmployeeCalculationService {
 
       // 徴収不能額のチェック（monthly-premium-calculation.service内で実行されるが、
       // 念のためここでも確認。ただし、給与データがない場合はスキップ）
+      // 注意: 給与が0円でも、標準報酬月額が確定していれば保険料が発生するため、チェックが必要
       if (salaryData) {
         const monthKeyString = month.toString();
         const monthSalaryData = salaryData[monthKeyString];
@@ -106,8 +106,26 @@ export class PaymentSummaryEmployeeCalculationService {
           premiumRow.careEmployee + 
           premiumRow.pensionEmployee;
         
-        // 産休・育休中でない場合のみチェック
-        if (!premiumRow.exempt && totalSalary > 0) {
+        console.log(
+          `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]:`,
+          {
+            totalSalary,
+            employeeTotalPremium,
+            exempt: premiumRow.exempt,
+            monthSalaryData: monthSalaryData ? {
+              totalSalary: monthSalaryData.totalSalary,
+              total: monthSalaryData.total,
+              fixed: monthSalaryData.fixed,
+              variable: monthSalaryData.variable
+            } : null
+          }
+        );
+        
+        // 産休・育休中でない場合のみチェック（給与が0円でもチェック）
+        if (!premiumRow.exempt) {
+          console.log(
+            `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 産休・育休ではないためチェック実行`
+          );
           await this.uncollectedPremiumService.saveUncollectedPremium(
             emp.id,
             year,
@@ -115,7 +133,15 @@ export class PaymentSummaryEmployeeCalculationService {
             totalSalary,
             employeeTotalPremium
           );
+        } else {
+          console.log(
+            `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 産休・育休中のためスキップ`
+          );
         }
+      } else {
+        console.log(
+          `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 給与データなし`
+        );
       }
     }
 

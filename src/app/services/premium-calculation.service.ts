@@ -52,6 +52,15 @@ export class PremiumCalculationService {
     gradeTable: any[],
     suijiAlerts?: SuijiKouhoResult[]
   ): Promise<MonthlyPremiums & { reasons: string[] }> {
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 開始`,
+      {
+        fixedSalary,
+        variableSalary,
+        standardMonthlyRemuneration: employee.standardMonthlyRemuneration,
+        acquisitionStandard: employee.acquisitionStandard
+      }
+    );
     const reasons: string[] = [];
 
     // ① 月末在籍の健保判定（最優先）
@@ -151,6 +160,9 @@ export class PremiumCalculationService {
       // 定時決定で確定した標準報酬月額を使用
       const teijiStandard = employee.standardMonthlyRemuneration;
       standardMonthlyRemuneration = teijiStandard;
+      console.log(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiStandard}円`
+      );
       // 標準報酬月額から等級を逆引き
       gradeResult = this.gradeDeterminationService.findGrade(gradeTable, teijiStandard);
       if (gradeResult) {
@@ -163,6 +175,14 @@ export class PremiumCalculationService {
           `定時決定で確定した標準報酬月額（${teijiStandard.toLocaleString()}円）を使用（等級テーブルに該当なし）`
         );
       }
+    } else {
+      console.log(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定の標準報酬月額なし`,
+        {
+          standardMonthlyRemuneration,
+          employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration
+        }
+      );
     }
 
     // 3. 資格取得時決定の標準報酬月額を確認

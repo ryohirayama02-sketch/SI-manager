@@ -7,6 +7,8 @@ import { EditLogService } from './edit-log.service';
 import { EmployeeService } from './employee.service';
 import { GradeDeterminationService } from './grade-determination.service';
 import { MonthlySalaryCalculationService } from './monthly-salary-calculation.service';
+import { MonthlyPremiumCalculationService } from './monthly-premium-calculation.service';
+import { SettingsService } from './settings.service';
 import { Employee } from '../models/employee.model';
 import { SalaryItem } from '../models/salary-item.model';
 import {
@@ -31,7 +33,9 @@ export class MonthlySalarySaveService {
     private editLogService: EditLogService,
     private employeeService: EmployeeService,
     private gradeDeterminationService: GradeDeterminationService,
-    private monthlySalaryCalculationService: MonthlySalaryCalculationService
+    private monthlySalaryCalculationService: MonthlySalaryCalculationService,
+    private monthlyPremiumCalculationService: MonthlyPremiumCalculationService,
+    private settingsService: SettingsService
   ) {}
 
   /**
@@ -126,12 +130,8 @@ export class MonthlySalarySaveService {
           // 項目別入力がない場合、salariesオブジェクトから取得
           const salaryKey = this.state.getSalaryKey(emp.id, month);
           const salaryData = salaries[salaryKey];
-          if (
-            salaryData &&
-            (salaryData.total > 0 ||
-              salaryData.fixed > 0 ||
-              salaryData.variable > 0)
-          ) {
+          // 給与が0円でも、給与データが存在する場合は保存する（徴収不能アラートの判定に必要）
+          if (salaryData) {
             const fixed = salaryData.fixed || 0;
             const variable = salaryData.variable || 0;
             const total = salaryData.total || fixed + variable;
@@ -146,6 +146,21 @@ export class MonthlySalarySaveService {
               totalSalary: total,
               fixedSalary: fixed,
               variableSalary: variable,
+            };
+          } else {
+            // 給与データが存在しない場合でも、給与が0円として明示的に保存する
+            // これにより、保険料計算時に給与データが存在すると判定され、徴収不能アラートのチェックが行われる
+            payload[monthStr] = {
+              fixedTotal: 0,
+              variableTotal: 0,
+              total: 0,
+              workingDays: workingDays,
+              // 後方互換性
+              fixed: 0,
+              variable: 0,
+              totalSalary: 0,
+              fixedSalary: 0,
+              variableSalary: 0,
             };
           }
         }
@@ -269,31 +284,6 @@ export class MonthlySalarySaveService {
       }
     }
 
-    console.log(
-      '[随時改定判定] salaryDataForDetection:',
-      salaryDataForDetection
-    );
-
-    // デバッグ: salaryDataForDetectionのキー一覧を出力
-    const detectionKeys = Object.keys(salaryDataForDetection);
-    console.log(
-      '[随時改定判定] salaryDataForDetectionのキー一覧:',
-      detectionKeys
-    );
-
-    // デバッグ: 各従業員のデータが含まれているか確認
-    for (const emp of employees) {
-      const empKeys = detectionKeys.filter((key) =>
-        key.startsWith(`${emp.id}_`)
-      );
-      console.log(
-        `[随時改定判定] ${emp.name || emp.id} (ID: ${emp.id}): データキー数=${
-          empKeys.length
-        }`,
-        empKeys
-      );
-    }
-
     // 随時改定アラートをリセット（既存のアラートを削除）
     // まず、該当従業員の全年度の既存アラートを全て削除
     // 従業員基本情報画面では前年、当年、翌年のアラートを表示するため、それらも含めて削除
@@ -327,10 +317,6 @@ export class MonthlySalarySaveService {
 
     // 各従業員について随時改定を判定
     for (const emp of employees) {
-      console.log(
-        `[随時改定判定] 従業員処理開始: ${emp.name || emp.id} (ID: ${emp.id})`
-      );
-
       // 従業員の現在の標準報酬月額から現行等級を取得
       // まず従業員データから取得を試みる
       const employee = await this.employeeService.getEmployeeById(emp.id);
@@ -418,12 +404,6 @@ export class MonthlySalarySaveService {
         const currentMonthData = salaryDataForDetection[currentMonthKey];
         const prevMonthData = salaryDataForDetection[prevMonthKey];
 
-        console.log(
-          `[随時改定判定] 従業員: ${emp.name || emp.id}, 月: ${month}月`
-        );
-        console.log(`  currentMonthData:`, currentMonthData);
-        console.log(`  prevMonthData:`, prevMonthData);
-
         if (currentMonthData && prevMonthData) {
           const currentRemuneration = this.calculateRemunerationAmount(
             currentMonthData,
@@ -438,30 +418,16 @@ export class MonthlySalarySaveService {
             salaryItems
           );
 
-          console.log(
-            `  報酬月額: ${prevRemuneration}円 → ${currentRemuneration}円`
-          );
-
           // 報酬月額が変動した場合のみ判定対象とする
           if (
             currentRemuneration !== null &&
             prevRemuneration !== null &&
             Math.abs(currentRemuneration - prevRemuneration) > 0.01
           ) {
-            console.log(`  → 変動検出: ${month}月`);
             changedMonths.push(month);
-          } else {
-            console.log(`  → 変動なし（スキップ）`);
           }
-        } else {
-          console.log(`  → データ不足（スキップ）`);
         }
       }
-
-      console.log(
-        `[随時改定判定] 従業員: ${emp.name || emp.id}, 変動月:`,
-        changedMonths
-      );
 
       // 報酬月額が変動した月について随時改定を判定
       // 変動月を含む3ヶ月（変動月、変動月+1、変動月+2）のデータがあれば判定可能
@@ -490,11 +456,6 @@ export class MonthlySalarySaveService {
               );
               if (prevGradeResult) {
                 prevStandard = prevGradeResult.remuneration;
-                console.log(
-                  `[随時改定判定] ${
-                    emp.name || emp.id
-                  }, ${month}月判定: 変動前標準報酬=${prevStandard}円（${prevMonth}月の報酬月額${prevRemuneration}円から取得）`
-                );
               }
             }
           }
@@ -506,11 +467,6 @@ export class MonthlySalarySaveService {
           prevStandard
         );
         if (!prevGradeResult) {
-          console.log(
-            `[随時改定判定] ${
-              emp.name || emp.id
-            }, ${month}月判定: 変動前等級が取得できないためスキップ`
-          );
           continue;
         }
         const prevGrade = prevGradeResult.grade;
@@ -538,12 +494,6 @@ export class MonthlySalarySaveService {
           continue;
         }
 
-        console.log(
-          `従業員ID: ${emp.id}, 判定月: ${month}月, 3か月報酬平均: ${
-            average?.toLocaleString() ?? 'null'
-          }円 → 新等級: ${newGrade}, 変動前等級: ${prevGrade}`
-        );
-
         // 随時改定の本判定（等級差が2以上かチェック）
         const diff = Math.abs(newGrade - prevGrade);
         const isEligible = diff >= 2;
@@ -561,12 +511,88 @@ export class MonthlySalarySaveService {
             isEligible: true,
           };
 
-          console.log('随時改定候補:', suijiResult);
           await this.suijiService.saveSuijiKouho(year, suijiResult);
           suijiAlerts.push(suijiResult);
         }
       }
     }
+
+    // 保存後に各月の保険料計算を実行して徴収不能アラートをチェック
+    console.log('[徴収不能チェック] 保存後の保険料計算開始');
+    const prefecture = 'tokyo'; // デフォルト値（必要に応じて設定から取得）
+    const rates = await this.settingsService.getRates(
+      year.toString(),
+      prefecture
+    );
+
+    if (!rates) {
+      console.log('[徴収不能チェック] 保険料率が取得できないためスキップ');
+      return { suijiAlerts };
+    }
+
+    for (const emp of employees) {
+      // 保存後に最新の従業員データを再取得（standardMonthlyRemunerationを含む）
+      const updatedEmployee = await this.employeeService.getEmployeeById(
+        emp.id
+      );
+      if (!updatedEmployee) {
+        console.log(
+          `[徴収不能チェック] ${emp.name} (${emp.id}): 従業員データが取得できません`
+        );
+        continue;
+      }
+
+      // idが確実に含まれるようにする
+      if (!updatedEmployee.id) {
+        updatedEmployee.id = emp.id;
+      }
+
+      console.log(
+        `[徴収不能チェック] ${emp.name} (${emp.id}): 従業員データ再取得`,
+        {
+          id: updatedEmployee.id,
+          standardMonthlyRemuneration:
+            updatedEmployee.standardMonthlyRemuneration,
+          acquisitionStandard: updatedEmployee.acquisitionStandard,
+        }
+      );
+
+      // 保存された給与データを取得
+      const savedSalaryData = await this.monthlySalaryService.getEmployeeSalary(
+        emp.id,
+        year
+      );
+
+      for (const month of months) {
+        const monthKeyString = month.toString();
+        const monthSalaryData = savedSalaryData?.[monthKeyString];
+
+        // 給与データがある場合、保険料計算を実行
+        if (monthSalaryData) {
+          await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
+            updatedEmployee, // 最新の従業員データを使用
+            year,
+            month,
+            savedSalaryData,
+            gradeTable,
+            rates,
+            prefecture
+          );
+        } else {
+          // 給与データがない場合でも、標準報酬月額が確定していれば保険料計算を実行（給与0円として）
+          await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
+            updatedEmployee, // 最新の従業員データを使用
+            year,
+            month,
+            undefined,
+            gradeTable,
+            rates,
+            prefecture
+          );
+        }
+      }
+    }
+    console.log('[徴収不能チェック] 保存後の保険料計算完了');
 
     return { suijiAlerts };
   }
