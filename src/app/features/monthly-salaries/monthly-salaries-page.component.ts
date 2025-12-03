@@ -1,7 +1,8 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
+import { filter } from 'rxjs/operators';
 import { EmployeeService } from '../../services/employee.service';
 import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SettingsService } from '../../services/settings.service';
@@ -90,6 +91,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   exemptReasons: { [key: string]: string } = {};
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
+  // ルーターイベント購読用
+  routerSubscription: Subscription | null = null;
 
   constructor(
     private employeeService: EmployeeService,
@@ -140,10 +143,21 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.reloadEligibility();
       });
+
+    // ルーターイベントを購読（画面遷移後に再読み込み）
+    this.routerSubscription = this.router.events
+      .pipe(filter(event => event instanceof NavigationEnd))
+      .subscribe(async (event: any) => {
+        // 月次給与画面に戻ってきた場合、データを再読み込み
+        if (event.url === '/monthly-salaries' || event.urlAfterRedirects === '/monthly-salaries') {
+          await this.reloadData();
+        }
+      });
   }
 
   ngOnDestroy(): void {
     this.eligibilitySubscription?.unsubscribe();
+    this.routerSubscription?.unsubscribe();
   }
 
   async reloadEligibility(): Promise<void> {
@@ -285,10 +299,39 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     this.suijiAlerts = suijiAlerts;
     alert('給与データを保存しました');
 
+    // 保存後に画面の状態を再読み込み（データベースから最新データを取得）
+    await this.reloadData();
+
     // 随時改定候補が存在する場合、ダイアログを表示
     if (this.suijiAlerts.length > 0) {
       this.showSuijiDialog = true;
     }
+  }
+
+  /**
+   * 画面の状態を再読み込み
+   */
+  async reloadData(): Promise<void> {
+    // サービスに全データロードを委譲
+    const state = await this.monthlySalaryUIService.loadAllData(
+      this.year,
+      this.months
+    );
+
+    // 結果をstateに反映
+    this.employees = state.employees;
+    this.salaryItems = state.salaryItems;
+    this.salaryItemData = state.salaryItemData;
+    this.workingDaysData = state.workingDaysData;
+    this.salaries = state.salaries;
+    this.rates = state.rates;
+    this.gradeTable = state.gradeTable;
+    this.results = state.results;
+    this.exemptMonths = state.exemptMonths;
+    this.exemptReasons = state.exemptReasons;
+    this.errorMessages = state.errorMessages;
+    this.warningMessages = state.warningMessages;
+    this.infoByEmployee = state.infoByEmployee;
   }
 
   closeSuijiDialog(): void {

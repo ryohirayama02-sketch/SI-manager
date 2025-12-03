@@ -106,6 +106,7 @@ export class MonthlySalaryDataService {
             const itemKey = this.state.getSalaryItemKey(emp.id, month);
             salaryItemData[itemKey] = {};
             for (const entry of monthData.salaryItems) {
+              // 0の値も読み込む（明示的に0が設定されている場合）
               salaryItemData[itemKey][entry.itemId] = entry.amount;
             }
             // 集計を更新
@@ -163,8 +164,10 @@ export class MonthlySalaryDataService {
     const itemEntries: { itemId: string; amount: number }[] = [];
 
     for (const item of salaryItems) {
-      const amount = salaryItemData[key]?.[item.id] ?? 0;
-      if (amount > 0) {
+      const amount = salaryItemData[key]?.[item.id];
+      // 値が設定されている場合（0も含む）は含める
+      // undefinedの場合はスキップ（デフォルト値として扱う）
+      if (amount !== undefined && amount !== null) {
         itemEntries.push({ itemId: item.id, amount });
       }
     }

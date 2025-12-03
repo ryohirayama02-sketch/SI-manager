@@ -132,7 +132,7 @@ export class SuijiService {
   }
 
   /**
-   * 報酬月額を計算（総支給額 - 欠勤控除）
+   * 報酬月額を計算（総支給額 - 欠勤控除 - 賞与）
    * @param salaryData 給与データ
    * @param key キー（employeeId_month）
    * @param salaryItemData 給与項目データ
@@ -150,6 +150,9 @@ export class SuijiService {
     
     // 欠勤控除を取得
     let absenceDeduction = 0;
+    // 賞与を取得（随時改定の計算から除外するため）
+    let bonusAmount = 0;
+    
     if (salaryItemData && salaryItems) {
       const itemData = salaryItemData[key];
       if (itemData) {
@@ -158,11 +161,19 @@ export class SuijiService {
         for (const item of deductionItems) {
           absenceDeduction += itemData[item.id] || 0;
         }
+        
+        // 給与項目マスタから「賞与」という名前の項目を探す（随時改定の計算から除外）
+        const bonusItems = salaryItems.filter(item => 
+          item.name === '賞与' || item.name.includes('賞与') || item.name.includes('ボーナス')
+        );
+        for (const item of bonusItems) {
+          bonusAmount += itemData[item.id] || 0;
+        }
       }
     }
     
-    // 報酬月額 = 総支給額 - 欠勤控除
-    const remuneration = totalSalary - absenceDeduction;
+    // 報酬月額 = 総支給額 - 欠勤控除 - 賞与
+    const remuneration = totalSalary - absenceDeduction - bonusAmount;
     return remuneration >= 0 ? remuneration : null;
   }
 
