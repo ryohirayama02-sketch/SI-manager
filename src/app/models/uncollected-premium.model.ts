@@ -12,3 +12,4 @@ export interface UncollectedPremium {
   resolved: boolean; // 対応済みフラグ
 }
 
+

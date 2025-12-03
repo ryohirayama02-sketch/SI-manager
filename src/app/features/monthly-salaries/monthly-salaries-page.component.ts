@@ -146,10 +146,13 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
     // ルーターイベントを購読（画面遷移後に再読み込み）
     this.routerSubscription = this.router.events
-      .pipe(filter(event => event instanceof NavigationEnd))
+      .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe(async (event: any) => {
         // 月次給与画面に戻ってきた場合、データを再読み込み
-        if (event.url === '/monthly-salaries' || event.urlAfterRedirects === '/monthly-salaries') {
+        if (
+          event.url === '/monthly-salaries' ||
+          event.urlAfterRedirects === '/monthly-salaries'
+        ) {
           await this.reloadData();
         }
       });
@@ -261,8 +264,14 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     this.results = result.results;
     this.errorMessages = result.errorMessages;
     this.warningMessages = result.warningMessages;
-    if (result.infoByEmployee && Object.keys(result.infoByEmployee).length > 0) {
-      this.infoByEmployee = { ...this.infoByEmployee, ...result.infoByEmployee };
+    if (
+      result.infoByEmployee &&
+      Object.keys(result.infoByEmployee).length > 0
+    ) {
+      this.infoByEmployee = {
+        ...this.infoByEmployee,
+        ...result.infoByEmployee,
+      };
     }
 
     // 随時改定の更新
@@ -273,49 +282,57 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
    * CSVインポート時のバッチ更新処理
    * すべてのイベントを一度に処理して、最後に一度だけ再計算を行う
    */
-  async onSalaryItemBatchChange(events: Array<{
-    employeeId: string;
-    month: number;
-    itemId: string;
-    value: string | number;
-  }>): Promise<void> {
+  async onSalaryItemBatchChange(
+    events: Array<{
+      employeeId: string;
+      month: number;
+      itemId: string;
+      value: string | number;
+    }>
+  ): Promise<void> {
     console.log(`[MonthlySalariesPage] バッチ更新開始: ${events.length}件`);
-    
+
     if (events.length === 0) {
       return;
     }
-    
+
     // すべてのイベントを一度に処理
     let currentSalaryItemData = { ...this.salaryItemData };
     let currentSalaries = { ...this.salaries };
     const affectedEmployeeIds = new Set<string>();
-    
-      // 給与項目データを更新（salaryItemDataのキーはgetSalaryItemKeyを使用）
-      for (const event of events) {
-        const { employeeId, month, itemId, value } = event;
-        affectedEmployeeIds.add(employeeId);
-        
-        // 給与項目データを更新（キー形式: employeeId_month）
-        const itemKey = `${employeeId}_${month}`;
-        if (!currentSalaryItemData[itemKey]) {
-          currentSalaryItemData[itemKey] = {};
-        }
-        currentSalaryItemData[itemKey] = { ...currentSalaryItemData[itemKey] };
-        // valueを数値に変換
-        const numValue = typeof value === 'string' ? parseFloat(value.replace(/,/g, '')) || 0 : (value || 0);
-        currentSalaryItemData[itemKey][itemId] = numValue;
+
+    // 給与項目データを更新（salaryItemDataのキーはgetSalaryItemKeyを使用）
+    for (const event of events) {
+      const { employeeId, month, itemId, value } = event;
+      affectedEmployeeIds.add(employeeId);
+
+      // 給与項目データを更新（キー形式: employeeId_month）
+      const itemKey = `${employeeId}_${month}`;
+      if (!currentSalaryItemData[itemKey]) {
+        currentSalaryItemData[itemKey] = {};
       }
-    
+      currentSalaryItemData[itemKey] = { ...currentSalaryItemData[itemKey] };
+      // valueを数値に変換
+      const numValue =
+        typeof value === 'string'
+          ? parseFloat(value.replace(/,/g, '')) || 0
+          : value || 0;
+      currentSalaryItemData[itemKey][itemId] = numValue;
+    }
+
     // 給与合計を再計算（salariesのキーはgetSalaryKeyを使用）
     for (const employeeId of affectedEmployeeIds) {
       for (const month of this.months) {
-        const salaryKey = this.salaryCalculationService.getSalaryKey(employeeId, month);
+        const salaryKey = this.salaryCalculationService.getSalaryKey(
+          employeeId,
+          month
+        );
         const itemKey = `${employeeId}_${month}`;
         const itemData = currentSalaryItemData[itemKey];
         if (itemData) {
-          const itemEntries = Object.keys(itemData).map(itemId => ({
+          const itemEntries = Object.keys(itemData).map((itemId) => ({
             itemId,
-            amount: itemData[itemId] || 0
+            amount: itemData[itemId] || 0,
           }));
           const totals = this.salaryCalculationService.calculateSalaryTotals(
             itemEntries,
@@ -329,15 +346,17 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
         }
       }
     }
-    
+
     // stateを更新
     this.salaryItemData = currentSalaryItemData;
     this.salaries = currentSalaries;
-    
+
     // 影響を受けた従業員の計算結果を更新
-    const affectedEmployees = this.employees.filter(emp => affectedEmployeeIds.has(emp.id));
+    const affectedEmployees = this.employees.filter((emp) =>
+      affectedEmployeeIds.has(emp.id)
+    );
     if (affectedEmployees.length > 0) {
-      const { infoByEmployee, errorMessages, warningMessages } = 
+      const { infoByEmployee, errorMessages, warningMessages } =
         await this.monthlySalaryUIService.updateAllCalculatedInfo(
           affectedEmployees,
           currentSalaries,
@@ -345,17 +364,17 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
           this.gradeTable,
           this.year
         );
-      
+
       this.infoByEmployee = { ...this.infoByEmployee, ...infoByEmployee };
       this.errorMessages = { ...this.errorMessages, ...errorMessages };
       this.warningMessages = { ...this.warningMessages, ...warningMessages };
-      
+
       // 随時改定の更新
       for (const employeeId of affectedEmployeeIds) {
         this.updateRehabSuiji(employeeId);
       }
     }
-    
+
     console.log(`[MonthlySalariesPage] バッチ更新完了`);
   }
 

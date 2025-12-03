@@ -140,13 +140,29 @@ export class SalaryCalculationService {
   }
 
   /** 指定年月が介護保険適用対象かどうかを判定する（後方互換性のため残す） */
-  isCareInsuranceApplicable(birthDate: string, year: number, month: number): boolean {
-    return this.exemptionDeterminationService.isCareInsuranceApplicable(birthDate, year, month);
+  isCareInsuranceApplicable(
+    birthDate: string,
+    year: number,
+    month: number
+  ): boolean {
+    return this.exemptionDeterminationService.isCareInsuranceApplicable(
+      birthDate,
+      year,
+      month
+    );
   }
 
   /** 指定年月における介護保険区分を取得する（後方互換性のため残す） */
-  getCareInsuranceType(birthDate: string, year: number, month: number): 'none' | 'type1' | 'type2' {
-    return this.exemptionDeterminationService.getCareInsuranceType(birthDate, year, month);
+  getCareInsuranceType(
+    birthDate: string,
+    year: number,
+    month: number
+  ): 'none' | 'type1' | 'type2' {
+    return this.exemptionDeterminationService.getCareInsuranceType(
+      birthDate,
+      year,
+      month
+    );
   }
 
   /** 指定月が免除月（産前産後休業・育児休業）かどうかを判定する（後方互換性のため残す） */
@@ -155,43 +171,133 @@ export class SalaryCalculationService {
   }
 
   /** 指定年月の免除理由を取得（産休・育休・休職）（後方互換性のため残す） */
-  getExemptReasonForMonth(emp: Employee, year: number, month: number): { exempt: boolean; reason: string } {
-    return this.exemptionDeterminationService.getExemptReasonForMonth(emp, year, month);
+  getExemptReasonForMonth(
+    emp: Employee,
+    year: number,
+    month: number
+  ): { exempt: boolean; reason: string } {
+    return this.exemptionDeterminationService.getExemptReasonForMonth(
+      emp,
+      year,
+      month
+    );
   }
 
   /** 平均報酬から等級と標準報酬月額を検索（後方互換性のため残す） */
-  findGrade(gradeTable: any[], average: number): { grade: number; remuneration: number } | null {
+  findGrade(
+    gradeTable: any[],
+    average: number
+  ): { grade: number; remuneration: number } | null {
     return this.gradeDeterminationService.findGrade(gradeTable, average);
   }
 
   /** 定時決定を計算する（後方互換性のため残す） */
-  calculateTeijiKettei(employeeId: string, salaries: { [key: string]: SalaryData }, gradeTable: any[], year: number, currentStandardMonthlyRemuneration?: number): TeijiKetteiResult {
-    return this.teijiCalculationService.calculateTeijiKetteiCore(employeeId, salaries, gradeTable, year, currentStandardMonthlyRemuneration);
+  calculateTeijiKettei(
+    employeeId: string,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[],
+    year: number,
+    currentStandardMonthlyRemuneration?: number
+  ): TeijiKetteiResult {
+    return this.teijiCalculationService.calculateTeijiKetteiCore(
+      employeeId,
+      salaries,
+      gradeTable,
+      year,
+      currentStandardMonthlyRemuneration
+    );
   }
 
   /** 固定的賃金の変動を検出する（後方互換性のため残す） */
-  detectFixedSalaryChanges(employeeId: string, salaries: { [key: string]: SalaryData }): number[] {
-    return this.suijiCalculationService.detectFixedSalaryChanges(employeeId, salaries);
+  detectFixedSalaryChanges(
+    employeeId: string,
+    salaries: { [key: string]: SalaryData }
+  ): number[] {
+    return this.suijiCalculationService.detectFixedSalaryChanges(
+      employeeId,
+      salaries
+    );
   }
 
   /** 随時改定（固定的賃金の変動）を判定する（後方互換性のため残す） */
-  calculateFixedSalaryChangeSuiji(employeeId: string, changeMonth: number, salaries: { [key: string]: SalaryData }, gradeTable: any[], currentGrade: number): FixedSalaryChangeSuijiResult {
-    return this.suijiCalculationService.calculateFixedSalaryChangeSuiji(employeeId, changeMonth, salaries, gradeTable, currentGrade);
+  calculateFixedSalaryChangeSuiji(
+    employeeId: string,
+    changeMonth: number,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[],
+    currentGrade: number
+  ): FixedSalaryChangeSuijiResult {
+    return this.suijiCalculationService.calculateFixedSalaryChangeSuiji(
+      employeeId,
+      changeMonth,
+      salaries,
+      gradeTable,
+      currentGrade
+    );
   }
 
   /** 随時改定（固定的賃金の変動）を判定する（後方互換性のため残す） */
-  calculateSuijiKettei(employeeId: string, changedMonth: number, salaries: { [key: string]: SalaryData }, gradeTable: any[], employees: Employee[], year: string, currentResults: { [employeeId: string]: TeijiKetteiResult }): { candidate: SuijiCandidate | null; excludedReason: ExcludedSuijiReason | null; } {
-    return this.suijiCalculationService.calculateSuijiKetteiCore(employeeId, changedMonth, salaries, gradeTable, employees, year, currentResults);
+  calculateSuijiKettei(
+    employeeId: string,
+    changedMonth: number,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[],
+    employees: Employee[],
+    year: string,
+    currentResults: { [employeeId: string]: TeijiKetteiResult }
+  ): {
+    candidate: SuijiCandidate | null;
+    excludedReason: ExcludedSuijiReason | null;
+  } {
+    return this.suijiCalculationService.calculateSuijiKetteiCore(
+      employeeId,
+      changedMonth,
+      salaries,
+      gradeTable,
+      employees,
+      year,
+      currentResults
+    );
   }
 
   /** 復職（産休・育休終了）に伴う固定的賃金の変動を検出し、随時改定候補を判定する（後方互換性のため残す） */
-  checkRehabSuiji(employeeId: string, salaries: { [key: string]: SalaryData }, gradeTable: any[], employees: Employee[], year: string, currentResults: { [employeeId: string]: TeijiKetteiResult }): SuijiKouhoResult[] {
-    return this.suijiCalculationService.checkRehabSuiji(employeeId, salaries, gradeTable, employees, year, currentResults);
+  checkRehabSuiji(
+    employeeId: string,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[],
+    employees: Employee[],
+    year: string,
+    currentResults: { [employeeId: string]: TeijiKetteiResult }
+  ): SuijiKouhoResult[] {
+    return this.suijiCalculationService.checkRehabSuiji(
+      employeeId,
+      salaries,
+      gradeTable,
+      employees,
+      year,
+      currentResults
+    );
   }
 
   /** 月次給与の保険料を計算（後方互換性のため残す） */
-  async calculateMonthlyPremiums(employee: Employee, year: number, month: number, fixedSalary: number, variableSalary: number, gradeTable: any[], suijiAlerts?: SuijiKouhoResult[]): Promise<MonthlyPremiums & { reasons: string[] }> {
-    return this.premiumCalculationService.calculateMonthlyPremiumsCore(employee, year, month, fixedSalary, variableSalary, gradeTable, suijiAlerts);
+  async calculateMonthlyPremiums(
+    employee: Employee,
+    year: number,
+    month: number,
+    fixedSalary: number,
+    variableSalary: number,
+    gradeTable: any[],
+    suijiAlerts?: SuijiKouhoResult[]
+  ): Promise<MonthlyPremiums & { reasons: string[] }> {
+    return this.premiumCalculationService.calculateMonthlyPremiumsCore(
+      employee,
+      year,
+      month,
+      fixedSalary,
+      variableSalary,
+      gradeTable,
+      suijiAlerts
+    );
   }
 
   /** 復職ハイライト月を取得（後方互換性のため残す） */
@@ -200,69 +306,140 @@ export class SalaryCalculationService {
   }
 
   /** 給与扱いとなった賞与を標準報酬月額に合算する（外部から呼ばれるため公開） */
-  async addBonusAsSalary(employeeId: string, year: number, month: number, standardBonus: number): Promise<void> {
-    const salaryData = await this.monthlySalaryService.getEmployeeSalary(employeeId, year);
+  async addBonusAsSalary(
+    employeeId: string,
+    year: number,
+    month: number,
+    standardBonus: number
+  ): Promise<void> {
+    const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+      employeeId,
+      year
+    );
     const monthKey = month.toString();
 
     if (!salaryData) {
       await this.monthlySalaryService.saveEmployeeSalary(employeeId, year, {
         [monthKey]: {
-        fixedSalary: 0,
-        variableSalary: standardBonus,
-        totalSalary: standardBonus,
-        fixed: 0,
-        variable: standardBonus,
-        total: standardBonus,
+          fixedSalary: 0,
+          variableSalary: standardBonus,
+          totalSalary: standardBonus,
+          fixed: 0,
+          variable: standardBonus,
+          total: standardBonus,
         },
       });
       return;
     }
 
-    const monthData = salaryData[monthKey] || { fixedSalary: 0, variableSalary: 0, totalSalary: 0 };
+    const monthData = salaryData[monthKey] || {
+      fixedSalary: 0,
+      variableSalary: 0,
+      totalSalary: 0,
+    };
     const currentFixed = (monthData as any).fixedSalary ?? monthData.fixed ?? 0;
-    const currentVariable = (monthData as any).variableSalary ?? monthData.variable ?? 0;
+    const currentVariable =
+      (monthData as any).variableSalary ?? monthData.variable ?? 0;
     const newTotal = currentFixed + currentVariable + standardBonus;
 
     await this.monthlySalaryService.saveEmployeeSalary(employeeId, year, {
       ...salaryData,
       [monthKey]: {
-      fixedSalary: currentFixed,
-      variableSalary: currentVariable + standardBonus,
-      totalSalary: newTotal,
-      fixed: currentFixed,
-      variable: currentVariable + standardBonus,
-      total: newTotal,
+        fixedSalary: currentFixed,
+        variableSalary: currentVariable + standardBonus,
+        totalSalary: newTotal,
+        fixed: currentFixed,
+        variable: currentVariable + standardBonus,
+        total: newTotal,
       },
     });
   }
 
   /** 資格取得時決定（入社月の標準報酬決定）を計算する（後方互換性のため残す） */
-  async calculateShikakuShutoku(employee: Employee, year: number, salaries: { [key: string]: SalaryData }, gradeTable: any[]): Promise<ShikakuShutokuResult | null> {
-    return this.shikakuCalculationService.calculateShikakuShutokuCore(employee, year, salaries, gradeTable);
+  async calculateShikakuShutoku(
+    employee: Employee,
+    year: number,
+    salaries: { [key: string]: SalaryData },
+    gradeTable: any[]
+  ): Promise<ShikakuShutokuResult | null> {
+    return this.shikakuCalculationService.calculateShikakuShutokuCore(
+      employee,
+      year,
+      salaries,
+      gradeTable
+    );
   }
 
   /** 給与項目マスタから固定/非固定の合計を計算 */
-  calculateSalaryTotals(salaryItems: SalaryItemEntry[], salaryItemMaster: SalaryItem[]): { fixedTotal: number; variableTotal: number; deductionTotal: number; total: number } {
-    return this.salaryAggregationService.calculateSalaryTotals(salaryItems, salaryItemMaster);
+  calculateSalaryTotals(
+    salaryItems: SalaryItemEntry[],
+    salaryItemMaster: SalaryItem[]
+  ): {
+    fixedTotal: number;
+    variableTotal: number;
+    deductionTotal: number;
+    total: number;
+  } {
+    return this.salaryAggregationService.calculateSalaryTotals(
+      salaryItems,
+      salaryItemMaster
+    );
   }
 
   /** 給与データから固定/非固定/総支給を取得 */
-  getSalaryFromData(data: MonthlySalaryData | SalaryData | undefined): { fixed: number; variable: number; total: number; } {
+  getSalaryFromData(data: MonthlySalaryData | SalaryData | undefined): {
+    fixed: number;
+    variable: number;
+    total: number;
+  } {
     return this.salaryAggregationService.getSalaryFromData(data);
   }
 
   /** 4〜6月の平均報酬を計算 */
-  getAverageForAprToJun(employeeId: string, salaries: { [key: string]: SalaryData }): number | null {
-    return this.salaryAggregationService.getAverageForAprToJun(employeeId, salaries, (values, excludedMonths) => this.teijiCalculationService.calculateAverage(values, excludedMonths));
+  getAverageForAprToJun(
+    employeeId: string,
+    salaries: { [key: string]: SalaryData }
+  ): number | null {
+    return this.salaryAggregationService.getAverageForAprToJun(
+      employeeId,
+      salaries,
+      (values, excludedMonths) =>
+        this.teijiCalculationService.calculateAverage(values, excludedMonths)
+    );
   }
 
   /** 標準報酬月額を取得 */
-  getStandardMonthlyRemuneration(avg: number | null, gradeTable: any[]): { rank: number; standard: number } | null {
-    return this.gradeDeterminationService.getStandardMonthlyRemuneration(avg, gradeTable);
+  getStandardMonthlyRemuneration(
+    avg: number | null,
+    gradeTable: any[]
+  ): { rank: number; standard: number } | null {
+    return this.gradeDeterminationService.getStandardMonthlyRemuneration(
+      avg,
+      gradeTable
+    );
   }
 
   /** 月次保険料を計算（簡易版）（後方互換性のため残す） */
-  calculateInsurancePremiums(standard: number, birthDate: string, year: number, month: number, rates: any): { health_employee: number; health_employer: number; care_employee: number; care_employer: number; pension_employee: number; pension_employer: number; } | null {
-    return this.premiumCalculationService.calculateInsurancePremiumsCore(standard, birthDate, year, month, rates);
+  calculateInsurancePremiums(
+    standard: number,
+    birthDate: string,
+    year: number,
+    month: number,
+    rates: any
+  ): {
+    health_employee: number;
+    health_employer: number;
+    care_employee: number;
+    care_employer: number;
+    pension_employee: number;
+    pension_employer: number;
+  } | null {
+    return this.premiumCalculationService.calculateInsurancePremiumsCore(
+      standard,
+      birthDate,
+      year,
+      month,
+      rates
+    );
   }
 }
