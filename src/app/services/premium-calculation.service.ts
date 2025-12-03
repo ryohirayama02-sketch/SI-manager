@@ -8,6 +8,8 @@ import { SettingsService } from './settings.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { MaternityLeaveService } from './maternity-leave.service';
 import { EmployeeEligibilityService } from './employee-eligibility.service';
+import { SuijiService } from './suiji.service';
+import { SuijiKouhoResult } from './salary-calculation.service';
 
 export interface MonthlyPremiums {
   health_employee: number;
@@ -28,7 +30,8 @@ export class PremiumCalculationService {
     private settingsService: SettingsService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private maternityLeaveService: MaternityLeaveService,
-    private employeeEligibilityService: EmployeeEligibilityService
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private suijiService: SuijiService
   ) {}
 
   /**
@@ -39,6 +42,7 @@ export class PremiumCalculationService {
    * @param fixedSalary 固定的賃金
    * @param variableSalary 非固定的賃金
    * @param gradeTable 標準報酬月額テーブル
+   * @param suijiAlerts 随時改定アラート（オプション）
    * @returns 月次保険料
    */
   async calculateMonthlyPremiumsCore(
@@ -47,7 +51,8 @@ export class PremiumCalculationService {
     month: number,
     fixedSalary: number,
     variableSalary: number,
-    gradeTable: any[]
+    gradeTable: any[],
+    suijiAlerts?: SuijiKouhoResult[]
   ): Promise<MonthlyPremiums & { reasons: string[] }> {
     const reasons: string[] = [];
 
@@ -104,27 +109,71 @@ export class PremiumCalculationService {
       };
     }
 
-    // 標準報酬月額テーブルから等級を検索
-    const gradeResult = this.gradeDeterminationService.findGrade(gradeTable, totalSalary);
+    // 随時改定の適用開始月をチェック
+    let appliedSuiji: SuijiKouhoResult | null = null;
+    if (suijiAlerts && suijiAlerts.length > 0) {
+      // 該当従業員の随時改定を検索
+      const employeeSuiji = suijiAlerts.filter(
+        alert => alert.employeeId === employee.id && alert.isEligible
+      );
+      
+      // 適用開始月が現在の月以降のものを検索（最も早い適用開始月）
+      const applicableSuiji = employeeSuiji
+        .filter(alert => {
+          // 適用開始月の判定（変動月+4ヶ月後）
+          const applyStartMonth = alert.applyStartMonth;
+          // 適用開始月が現在の月以降の場合に適用
+          return applyStartMonth <= month;
+        })
+        .sort((a, b) => {
+          // 適用開始月が早い順にソート
+          return a.applyStartMonth - b.applyStartMonth;
+        });
+      
+      if (applicableSuiji.length > 0) {
+        appliedSuiji = applicableSuiji[0];
+      }
+    }
+
+    // 随時改定が適用されている場合は新しい等級を使用
+    let gradeResult: { grade: number; remuneration: number } | null = null;
+    if (appliedSuiji) {
+      // 新しい等級から標準報酬月額を取得
+      const newGradeRow = gradeTable.find((r: any) => r.rank === appliedSuiji!.newGrade);
+      if (newGradeRow) {
+        gradeResult = {
+          grade: appliedSuiji.newGrade,
+          remuneration: newGradeRow.standard
+        };
+        reasons.push(
+          `随時改定適用（変動月: ${appliedSuiji.changeMonth}月、適用開始: ${appliedSuiji.applyStartMonth}月）により等級${appliedSuiji.newGrade}（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）を使用`
+        );
+      }
+    }
+
+    // 随時改定が適用されていない場合は通常の等級判定
     if (!gradeResult) {
-      reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
-      return {
-        health_employee: 0,
-        health_employer: 0,
-        care_employee: 0,
-        care_employer: 0,
-        pension_employee: 0,
-        pension_employer: 0,
-        reasons,
-      };
+      gradeResult = this.gradeDeterminationService.findGrade(gradeTable, totalSalary);
+      if (!gradeResult) {
+        reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
+        return {
+          health_employee: 0,
+          health_employer: 0,
+          care_employee: 0,
+          care_employer: 0,
+          pension_employee: 0,
+          pension_employer: 0,
+          reasons,
+        };
+      }
+      reasons.push(
+        `等級${
+          gradeResult.grade
+        }（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）`
+      );
     }
 
     const standardMonthlyRemuneration = gradeResult.remuneration;
-    reasons.push(
-      `等級${
-        gradeResult.grade
-      }（標準報酬月額${standardMonthlyRemuneration.toLocaleString()}円）`
-    );
 
     // ③ 資格取得月の判定（同月得喪）
     let isAcquisitionMonth = false;

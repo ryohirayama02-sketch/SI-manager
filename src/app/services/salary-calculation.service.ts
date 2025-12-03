@@ -189,8 +189,8 @@ export class SalaryCalculationService {
   }
 
   /** 月次給与の保険料を計算（後方互換性のため残す） */
-  async calculateMonthlyPremiums(employee: Employee, year: number, month: number, fixedSalary: number, variableSalary: number, gradeTable: any[]): Promise<MonthlyPremiums & { reasons: string[] }> {
-    return this.premiumCalculationService.calculateMonthlyPremiumsCore(employee, year, month, fixedSalary, variableSalary, gradeTable);
+  async calculateMonthlyPremiums(employee: Employee, year: number, month: number, fixedSalary: number, variableSalary: number, gradeTable: any[], suijiAlerts?: SuijiKouhoResult[]): Promise<MonthlyPremiums & { reasons: string[] }> {
+    return this.premiumCalculationService.calculateMonthlyPremiumsCore(employee, year, month, fixedSalary, variableSalary, gradeTable, suijiAlerts);
   }
 
   /** 復職ハイライト月を取得（後方互換性のため残す） */

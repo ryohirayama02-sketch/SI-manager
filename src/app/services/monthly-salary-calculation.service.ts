@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
-import { SalaryCalculationService, TeijiKetteiResult } from './salary-calculation.service';
+import { SalaryCalculationService, TeijiKetteiResult, SuijiKouhoResult } from './salary-calculation.service';
 import { ValidationService } from './validation.service';
 import { MonthlySalaryStateService } from './monthly-salary-state.service';
 import { Employee } from '../models/employee.model';
+import { SuijiService } from './suiji.service';
 
 /**
  * MonthlySalaryCalculationService
@@ -15,7 +16,8 @@ export class MonthlySalaryCalculationService {
   constructor(
     private salaryCalculationService: SalaryCalculationService,
     private validationService: ValidationService,
-    private state: MonthlySalaryStateService
+    private state: MonthlySalaryStateService,
+    private suijiService: SuijiService
   ) {}
 
   /**
@@ -62,6 +64,9 @@ export class MonthlySalaryCalculationService {
     errorMessages: { [employeeId: string]: string[] };
     warningMessages: { [employeeId: string]: string[] };
   }> {
+    // 随時改定アラートを読み込む
+    const suijiAlerts = await this.suijiService.loadAlerts(year);
+    
     const infoByEmployee: {
       [employeeId: string]: {
         avg: number | null;
@@ -80,7 +85,8 @@ export class MonthlySalaryCalculationService {
         months,
         gradeTable,
         year,
-        infoByEmployee
+        infoByEmployee,
+        suijiAlerts
       );
       errorMessages[emp.id] = errors;
       warningMessages[emp.id] = warnings;
@@ -112,7 +118,8 @@ export class MonthlySalaryCalculationService {
         rank: number | null;
         premiums: any;
       };
-    }
+    },
+    suijiAlerts: SuijiKouhoResult[]
   ): Promise<{ errors: string[]; warnings: string[] }> {
     const avg = this.getAverageForAprToJun(emp.id, salaries);
     const stdResult =
@@ -135,7 +142,8 @@ export class MonthlySalaryCalculationService {
             4,
             fixedSalary,
             variableSalary,
-            gradeTable
+            gradeTable,
+            suijiAlerts
           )
         : null;
 
