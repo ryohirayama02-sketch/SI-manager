@@ -113,10 +113,10 @@ export class AlertAggregationService {
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
-      if (!scheduleData[dateKey]['産休・育休・休職']) {
-        scheduleData[dateKey]['産休・育休・休職'] = 0;
+      if (!scheduleData[dateKey]['産休・育休']) {
+        scheduleData[dateKey]['産休・育休'] = 0;
       }
-      scheduleData[dateKey]['産休・育休・休職']++;
+      scheduleData[dateKey]['産休・育休']++;
     }
     
     // 扶養アラート

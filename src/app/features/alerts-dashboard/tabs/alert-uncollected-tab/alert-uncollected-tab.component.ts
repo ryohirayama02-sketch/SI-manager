@@ -216,20 +216,6 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
     }
   }
 
-  async markSingleAsResolved(alertId: string): Promise<void> {
-    if (!alertId) {
-      return;
-    }
-
-    try {
-      await this.uncollectedPremiumService.updateResolvedStatus(alertId, true);
-      // データを再読み込み
-      await this.loadUncollectedPremiums();
-    } catch (error) {
-      console.error('[AlertUncollectedTab] 対応済み更新エラー:', error);
-      alert('対応済みの更新に失敗しました');
-    }
-  }
 
   formatAmount(amount: number): string {
     return `¥${amount.toLocaleString()}`;

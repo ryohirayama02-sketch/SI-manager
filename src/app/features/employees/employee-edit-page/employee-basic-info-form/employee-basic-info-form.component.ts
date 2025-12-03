@@ -88,6 +88,14 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       childcareLeaveEnd: [''],
       childcareNotificationSubmitted: [false],
       childcareLivingTogether: [false],
+      sickPayApplicationRequest: [false],
+      sickPayApplicationRequestDate: [null],
+      childcareEmployerCertificateRequest: [false],
+      childcareEmployerCertificateRequestDate: [null],
+      maternityAllowanceApplicationRequest: [false],
+      maternityAllowanceApplicationRequestDate: [null],
+      childbirthAllowanceApplicationRequest: [false],
+      childbirthAllowanceApplicationRequestDate: [null],
     });
   }
 
@@ -148,7 +156,15 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         childcareLeaveStart: data.childcareLeaveStart || '',
         childcareLeaveEnd: data.childcareLeaveEnd || '',
         childcareNotificationSubmitted: data.childcareNotificationSubmitted || false,
-        childcareLivingTogether: data.childcareLivingTogether || false
+        childcareLivingTogether: data.childcareLivingTogether || false,
+        sickPayApplicationRequest: data.sickPayApplicationRequest || false,
+        sickPayApplicationRequestDate: data.sickPayApplicationRequestDate || null,
+        childcareEmployerCertificateRequest: data.childcareEmployerCertificateRequest || false,
+        childcareEmployerCertificateRequestDate: data.childcareEmployerCertificateRequestDate || null,
+        maternityAllowanceApplicationRequest: data.maternityAllowanceApplicationRequest || false,
+        maternityAllowanceApplicationRequestDate: data.maternityAllowanceApplicationRequestDate || null,
+        childbirthAllowanceApplicationRequest: data.childbirthAllowanceApplicationRequest || false,
+        childbirthAllowanceApplicationRequestDate: data.childbirthAllowanceApplicationRequestDate || null
       });
     }
 
@@ -213,6 +229,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       isShortTime: value.isShortTime ?? false,
       childcareNotificationSubmitted: value.childcareNotificationSubmitted ?? false,
       childcareLivingTogether: value.childcareLivingTogether ?? false,
+      sickPayApplicationRequest: value.sickPayApplicationRequest ?? false,
+      childcareEmployerCertificateRequest: value.childcareEmployerCertificateRequest ?? false,
+      maternityAllowanceApplicationRequest: value.maternityAllowanceApplicationRequest ?? false,
+      childbirthAllowanceApplicationRequest: value.childbirthAllowanceApplicationRequest ?? false,
     };
 
     if (value.nameKana) updateData.nameKana = value.nameKana;
@@ -239,6 +259,14 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.maternityLeaveEnd) updateData.maternityLeaveEnd = value.maternityLeaveEnd;
     if (value.childcareLeaveStart) updateData.childcareLeaveStart = value.childcareLeaveStart;
     if (value.childcareLeaveEnd) updateData.childcareLeaveEnd = value.childcareLeaveEnd;
+    if (value.sickPayApplicationRequest !== undefined) updateData.sickPayApplicationRequest = value.sickPayApplicationRequest;
+    if (value.sickPayApplicationRequestDate) updateData.sickPayApplicationRequestDate = value.sickPayApplicationRequestDate;
+    if (value.childcareEmployerCertificateRequest !== undefined) updateData.childcareEmployerCertificateRequest = value.childcareEmployerCertificateRequest;
+    if (value.childcareEmployerCertificateRequestDate) updateData.childcareEmployerCertificateRequestDate = value.childcareEmployerCertificateRequestDate;
+    if (value.maternityAllowanceApplicationRequest !== undefined) updateData.maternityAllowanceApplicationRequest = value.maternityAllowanceApplicationRequest;
+    if (value.maternityAllowanceApplicationRequestDate) updateData.maternityAllowanceApplicationRequestDate = value.maternityAllowanceApplicationRequestDate;
+    if (value.childbirthAllowanceApplicationRequest !== undefined) updateData.childbirthAllowanceApplicationRequest = value.childbirthAllowanceApplicationRequest;
+    if (value.childbirthAllowanceApplicationRequestDate) updateData.childbirthAllowanceApplicationRequestDate = value.childbirthAllowanceApplicationRequestDate;
 
     await this.employeeService.updateEmployee(this.employeeId, updateData);
     await this.detectAndSaveChanges(this.originalEmployeeData, value);

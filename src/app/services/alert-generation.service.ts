@@ -269,6 +269,85 @@ export class AlertGenerationService {
       const allBonuses = await this.bonusService.loadBonus(currentYear);
 
       for (const emp of employees) {
+        // 傷病手当金支給申請書の記入依頼アラート
+        if (emp.sickPayApplicationRequest && emp.sickPayApplicationRequestDate) {
+          const requestDate = normalizeDate(new Date(emp.sickPayApplicationRequestDate));
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(submitDeadline, today);
+          
+          maternityChildcareAlerts.push({
+            id: `sick_pay_application_${emp.id}_${emp.sickPayApplicationRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '傷病手当金支給申請書の記入依頼',
+            notificationName: '傷病手当金支給申請書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '', // 一旦未記入
+          });
+        }
+
+        // 育児休業関係の事業主証明書の記入依頼アラート
+        if (emp.childcareEmployerCertificateRequest && emp.childcareEmployerCertificateRequestDate) {
+          const requestDate = normalizeDate(new Date(emp.childcareEmployerCertificateRequestDate));
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(submitDeadline, today);
+          
+          maternityChildcareAlerts.push({
+            id: `childcare_employer_certificate_${emp.id}_${emp.childcareEmployerCertificateRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '育児休業関係の事業主証明書の記入依頼',
+            notificationName: '育児休業関係の事業主証明書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '', // 一旦未記入
+          });
+        }
+
+        // 出産手当金支給申請書の記入依頼アラート
+        if (emp.maternityAllowanceApplicationRequest && emp.maternityAllowanceApplicationRequestDate) {
+          const requestDate = normalizeDate(new Date(emp.maternityAllowanceApplicationRequestDate));
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(submitDeadline, today);
+          
+          maternityChildcareAlerts.push({
+            id: `maternity_allowance_application_${emp.id}_${emp.maternityAllowanceApplicationRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '出産手当金支給申請書の記入依頼',
+            notificationName: '出産手当金支給申請書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '', // 一旦未記入
+          });
+        }
+
+        // 出産育児一時金支給申請書の記入依頼アラート
+        if (emp.childbirthAllowanceApplicationRequest && emp.childbirthAllowanceApplicationRequestDate) {
+          const requestDate = normalizeDate(new Date(emp.childbirthAllowanceApplicationRequestDate));
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(submitDeadline, today);
+          
+          maternityChildcareAlerts.push({
+            id: `childbirth_allowance_application_${emp.id}_${emp.childbirthAllowanceApplicationRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '出産育児一時金支給申請書の記入依頼',
+            notificationName: '出産育児一時金支給申請書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '', // 一旦未記入
+          });
+        }
         if (emp.maternityLeaveStart) {
           const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
           const submitDeadline = calculateSubmitDeadline(startDate);
