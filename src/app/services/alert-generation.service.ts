@@ -7,6 +7,7 @@ import { SettingsService } from './settings.service';
 import { EmployeeChangeHistoryService } from './employee-change-history.service';
 import { QualificationChangeAlertService } from './qualification-change-alert.service';
 import { NotificationFormatService } from './notification-format.service';
+import { OfficeService } from './office.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { SuijiKouhoResultWithDiff } from '../features/alerts-dashboard/tabs/alert-suiji-tab/alert-suiji-tab.component';
@@ -36,7 +37,8 @@ export class AlertGenerationService {
     private settingsService: SettingsService,
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private qualificationChangeAlertService: QualificationChangeAlertService,
-    private notificationFormatService: NotificationFormatService
+    private notificationFormatService: NotificationFormatService,
+    private officeService: OfficeService
   ) {}
 
   async generateSuijiAlerts(
@@ -216,11 +218,18 @@ export class AlertGenerationService {
         } else if (history.changeType === '生年月日訂正') {
           details = `${history.oldValue} → ${history.newValue}`;
         } else if (history.changeType === '性別変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
+          const oldValueDisplay = this.formatGenderValue(history.oldValue);
+          const newValueDisplay = this.formatGenderValue(history.newValue);
+          details = `${oldValueDisplay} → ${newValueDisplay}`;
         } else if (history.changeType === '所属事業所変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
+          // 事業所番号の場合は事業所名を取得
+          const oldValueDisplay = await this.formatOfficeValue(history.oldValue);
+          const newValueDisplay = await this.formatOfficeValue(history.newValue);
+          details = `${oldValueDisplay} → ${newValueDisplay}`;
         } else if (history.changeType === '適用区分変更') {
-          details = `${history.oldValue} → ${history.newValue}`;
+          const oldValueDisplay = this.formatApplicableCategoryValue(history.oldValue);
+          const newValueDisplay = this.formatApplicableCategoryValue(history.newValue);
+          details = `${oldValueDisplay} → ${newValueDisplay}`;
         }
 
         const existingAlert = qualificationChangeAlerts.find(
@@ -496,6 +505,59 @@ export class AlertGenerationService {
       return a.submitDeadline.getTime() - b.submitDeadline.getTime();
     });
     return bonusReportAlerts;
+  }
+
+  /**
+   * 性別のコード値を表示用の文字に変換
+   */
+  private formatGenderValue(value: string | null | undefined): string {
+    if (!value) return '';
+    const genderMap: { [key: string]: string } = {
+      'female': '女性',
+      'male': '男性',
+      '女性': '女性',
+      '男性': '男性',
+      'F': '女性',
+      'M': '男性',
+    };
+    return genderMap[value.toLowerCase()] || value;
+  }
+
+  /**
+   * 事業所番号を事業所名に変換
+   */
+  private async formatOfficeValue(value: string | null | undefined): Promise<string> {
+    if (!value) return '';
+    // 事業所番号の場合は事業所名を取得
+    try {
+      const offices = await this.officeService.getAllOffices();
+      const office = offices.find(o => o.officeNumber === value);
+      if (office && office.officeName) {
+        return office.officeName;
+      }
+    } catch (error) {
+      console.error('事業所情報の取得エラー:', error);
+    }
+    return value;
+  }
+
+  /**
+   * 適用区分のコード値を表示用の文字に変換
+   */
+  private formatApplicableCategoryValue(value: string | null | undefined): string {
+    if (!value) return '';
+    const categoryMap: { [key: string]: string } = {
+      'full-time': 'フルタイム',
+      'part-time': 'パートタイム',
+      'short-time': '短時間労働者',
+      'フルタイム': 'フルタイム',
+      'パートタイム': 'パートタイム',
+      '短時間労働者': '短時間労働者',
+      '30hours-or-more': '30時間以上',
+      '20-30hours': '20-30時間',
+      'less-than-20hours': '20時間未満',
+    };
+    return categoryMap[value] || value;
   }
 }
 
