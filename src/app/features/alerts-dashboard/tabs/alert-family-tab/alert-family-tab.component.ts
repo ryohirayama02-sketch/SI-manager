@@ -182,11 +182,11 @@ export class AlertFamilyTabComponent implements OnInit {
                 familyMemberName: member.name,
                 relationship: relationship,
                 alertType: '配偶者60歳到達',
-                notificationName: '国民年金第3号被保険者資格喪失届',
+                notificationName: '国民年金第3号被保険者資格喪失届の確認',
                 alertDate: age60Date,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
-                details: `配偶者が60歳に到達します。国民年金第3号被保険者資格喪失届が必要です（提出期限: ${this.formatDate(
+                details: `配偶者が60歳に到達します。国民年金第3号被保険者資格喪失届の確認が必要です（提出期限: ${this.formatDate(
                   submitDeadline
                 )}）。`,
               });
