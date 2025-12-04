@@ -88,97 +88,86 @@ export class AlertBonusTabComponent {
     }
 
     try {
-      // 事業所情報を取得（最初の従業員の事業所を使用）
-      const firstEmployee = this.employees.find(e => 
-        this.bonusReportAlerts.some(a => a.employeeId === e.id)
-      );
-      let office: Office | null = null;
-      if (firstEmployee?.officeNumber) {
-        const offices = await this.officeService.getAllOffices();
-        office = offices.find(o => o.officeNumber === firstEmployee.officeNumber) || offices[0] || null;
-      } else {
-        const offices = await this.officeService.getAllOffices();
-        office = offices[0] || null;
-      }
-
-      // 支給日ごとにグループ化
-      const alertsByPayDate: { [payDate: string]: BonusReportAlert[] } = {};
-      for (const alert of this.bonusReportAlerts) {
-        if (!alertsByPayDate[alert.payDate]) {
-          alertsByPayDate[alert.payDate] = [];
-        }
-        alertsByPayDate[alert.payDate].push(alert);
-      }
-
       // CSVデータを生成
       const csvLines: string[] = [];
 
-      // 支給日ごとに処理
-      for (const payDate of Object.keys(alertsByPayDate).sort()) {
-        const alerts = alertsByPayDate[payDate];
-        
-        // ① ヘッダー情報（1支給日に1度）
-        csvLines.push('賞与支払届');
-        // 事業所整理記号のフォーマット（例：01-イ）
+      // 「賞与支払届」は最初だけ
+      csvLines.push('賞与支払届');
+      csvLines.push('');
+
+      // 各従業員ごとに処理
+      for (let i = 0; i < this.bonusReportAlerts.length; i++) {
+        const alert = this.bonusReportAlerts[i];
+        const employee = this.employees.find(e => e.id === alert.employeeId);
+        if (!employee) continue;
+
+        // 事業所情報を取得
+        let office: Office | null = null;
+        if (employee.officeNumber) {
+          const offices = await this.officeService.getAllOffices();
+          office = offices.find(o => o.officeNumber === employee.officeNumber) || null;
+        }
+        if (!office) {
+          const offices = await this.officeService.getAllOffices();
+          office = offices[0] || null;
+        }
+
+        // 事業所整理記号のフォーマット（例：01-イ-1234567）
         const officeCodeStr = office?.officeCode || '';
         const officeNumberStr = office?.officeNumber || '';
-        const officeCodeFormatted = officeCodeStr && officeNumberStr ? `${officeCodeStr}-${officeNumberStr}` : (officeCodeStr || officeNumberStr || '');
-        csvLines.push(`事業所整理記号,${officeCodeFormatted}`);
-        csvLines.push(`事業所所在地,${office?.address || ''}`);
-        csvLines.push(`事業所名称,${office?.officeName || ''}`);
-        csvLines.push(`事業主氏名,${office?.ownerName || ''}`);
-        csvLines.push(`電話番号,${office?.phoneNumber || ''}`);
-        
+        const officeCodeFormatted = officeCodeStr && officeNumberStr 
+          ? `${officeCodeStr}-${officeNumberStr}` 
+          : (officeCodeStr || officeNumberStr || '');
+
         // 支給日を令和YYMMDD形式に変換
-        const payDateObj = new Date(payDate);
+        const payDateObj = new Date(alert.payDate);
         const year = payDateObj.getFullYear();
         const month = String(payDateObj.getMonth() + 1).padStart(2, '0');
         const day = String(payDateObj.getDate()).padStart(2, '0');
         // 令和年を計算（2019年が令和1年）
         const reiwaYear = year >= 2019 ? year - 2018 : 0;
         const reiwaYearStr = String(reiwaYear).padStart(2, '0');
-        csvLines.push(`賞与支給日,R${reiwaYearStr}${month}${day}`);
-        csvLines.push(''); // 空行
+        const payDateFormatted = `R${reiwaYearStr}${month}${day}`;
 
-        // ② 従業員ごとのデータ
-        csvLines.push('被保険者整理番号,被保険者氏名,生年月日,賞与額,賞与額（1000円未満切り捨て）,個人番号,基礎年金番号,年齢');
+        // 賞与データを取得（1000円未満切り捨て額を取得）
+        const bonuses = await this.bonusService.getBonusesByEmployee(alert.employeeId, payDateObj);
+        const bonus = bonuses.find(b => b.payDate === alert.payDate);
+        const standardBonusAmount = bonus?.standardBonusAmount || Math.floor(alert.bonusAmount / 1000) * 1000;
+
+        // 生年月日を和暦形式に変換
+        const birthDate = this.formatBirthDateToEra(employee.birthDate);
         
-        for (const alert of alerts) {
-          const employee = this.employees.find(e => e.id === alert.employeeId);
-          if (!employee) continue;
+        // 年齢を計算
+        const age = this.calculateAge(employee.birthDate, alert.payDate);
 
-          // 賞与データを取得（1000円未満切り捨て額を取得）
-          const payDateObj = new Date(payDate);
-          const bonuses = await this.bonusService.getBonusesByEmployee(alert.employeeId, payDateObj);
-          const bonus = bonuses.find(b => b.payDate === payDate);
-          const standardBonusAmount = bonus?.standardBonusAmount || Math.floor(alert.bonusAmount / 1000) * 1000;
+        // 被保険者整理番号（従業員の被保険者整理番号フィールドを使用）
+        const insuredNumber = employee.insuredNumber || '';
 
-          // 生年月日を和暦形式に変換
-          const birthDate = this.formatBirthDateToEra(employee.birthDate);
-          
-          // 年齢を計算
-          const age = this.calculateAge(employee.birthDate, payDate);
+        // 個人番号と基礎年金番号を取得
+        const myNumber = employee.myNumber || '';
+        const basicPensionNumber = employee.basicPensionNumber || '';
 
-          // 被保険者整理番号（従業員の被保険者整理番号フィールドを使用）
-          const insuredNumber = employee.insuredNumber || '';
+        // 各従業員の情報を出力（各項目を1行ずつ）
+        csvLines.push(`事業所整理記号,${officeCodeFormatted}`);
+        csvLines.push(`事業所所在地,${office?.address || ''}`);
+        csvLines.push(`事業所名称,${office?.officeName || ''}`);
+        csvLines.push(`事業主氏名,${office?.ownerName || ''}`);
+        csvLines.push(`電話番号,${office?.phoneNumber || ''}`);
+        csvLines.push(`賞与支給日,${payDateFormatted}`);
+        csvLines.push(`被保険者整理番号,${insuredNumber}`);
+        csvLines.push(`被保険者氏名,${employee.name || ''}`);
+        csvLines.push(`生年月日,${birthDate}`);
+        csvLines.push(`賞与額,${String(alert.bonusAmount)}`);
+        csvLines.push(`賞与額（1000円未満切り捨て）,${String(standardBonusAmount)}`);
+        csvLines.push(`個人番号,${myNumber}`);
+        csvLines.push(`基礎年金番号,${basicPensionNumber}`);
+        csvLines.push(`年齢,${String(age)}`);
 
-          // 個人番号と基礎年金番号を取得
-          const myNumber = employee.myNumber || '';
-          const basicPensionNumber = employee.basicPensionNumber || '';
-
-          csvLines.push([
-            insuredNumber,
-            employee.name || '',
-            birthDate,
-            String(alert.bonusAmount), // 賞与額（カンマなし）
-            String(standardBonusAmount), // 賞与額（1000円未満切り捨て）（カンマなし）
-            myNumber, // 個人番号
-            basicPensionNumber, // 基礎年金番号
-            String(age)
-          ].join(','));
+        // 従業員情報間には2行の改行スペースを入れる（最後の従業員以外）
+        if (i < this.bonusReportAlerts.length - 1) {
+          csvLines.push('');
+          csvLines.push('');
         }
-
-        csvLines.push(''); // 支給日ごとの区切り空行
       }
 
       // CSVファイルをダウンロード

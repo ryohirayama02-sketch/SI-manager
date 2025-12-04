@@ -930,6 +930,19 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadScheduleData();
   }
 
+  onTeijiAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    this.state.onTeijiAlertSelectionChange(event);
+  }
+
+  onTeijiSelectAllChange(checked: boolean): void {
+    this.state.onTeijiSelectAllChange(checked, (result: TeijiKetteiResultData) => result.employeeId);
+  }
+
+  deleteSelectedTeijiAlerts(): void {
+    this.state.deleteSelectedTeijiAlerts();
+    this.loadScheduleData();
+  }
+
   onAgeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
     this.state.onAgeAlertSelectionChange(event);
   }

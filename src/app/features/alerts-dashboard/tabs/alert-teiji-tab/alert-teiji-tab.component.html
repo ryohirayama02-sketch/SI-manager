@@ -14,7 +14,24 @@
     平均額との差が10%以上の月は算定除外月候補として表示されます。
   </p>
   
-  <div *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0" style="margin-bottom: 1rem;">
+  <div *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <button 
+        *ngIf="selectedTeijiAlertIds.size > 0"
+        (click)="deleteSelectedTeijiAlerts()"
+        class="btn-danger"
+        style="margin-right: 0.5rem;">
+        選択した{{ selectedTeijiAlertIds.size }}件を削除（非表示にする）
+      </button>
+      <label style="margin-left: 1rem;">
+        <input 
+          type="checkbox" 
+          [checked]="selectedTeijiAlertIds.size === teijiKetteiResults.length && teijiKetteiResults.length > 0"
+          (change)="toggleAllTeijiAlertsChange($event)"
+          style="margin-right: 0.5rem;">
+        すべてのアラートを削除対象に選択
+      </label>
+    </div>
     <button 
       (click)="exportToCsv()"
       class="btn-success"
@@ -34,6 +51,7 @@
   <table class="alert-table" *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0">
     <thead>
       <tr>
+        <th style="width: 80px; text-align: center;">削除対象</th>
         <th>従業員</th>
         <th>4月給与</th>
         <th>4月支払基礎日数</th>
@@ -51,8 +69,16 @@
     <tbody>
       <tr *ngFor="let result of teijiKetteiResults"
           [ngClass]="{
-            'alert-row': result.exclusionCandidates.length > 0 || result.excludedMonths.length > 0
+            'alert-row': result.exclusionCandidates.length > 0 || result.excludedMonths.length > 0,
+            'selected-row': isTeijiAlertSelected(getTeijiAlertId(result))
           }">
+        <td style="width: 80px; text-align: center;">
+          <input 
+            type="checkbox" 
+            [checked]="isTeijiAlertSelected(getTeijiAlertId(result))"
+            (change)="toggleTeijiAlertSelection(getTeijiAlertId(result))"
+            title="削除対象に選択">
+        </td>
         <td>
           <span *ngIf="result.exclusionCandidates.length > 0">⚠️ </span>
           {{ result.employeeName }}

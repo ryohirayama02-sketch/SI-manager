@@ -42,6 +42,7 @@ export class AlertsDashboardStateService {
   
   // 算定決定タブ関連
   teijiKetteiResults: TeijiKetteiResultData[] = [];
+  selectedTeijiAlertIds: Set<string> = new Set();
   
   // 年齢到達アラート関連
   ageAlerts: AgeAlert[] = [];
@@ -168,6 +169,44 @@ export class AlertsDashboardStateService {
       alert => !selectedIds.includes(getSuijiAlertId(alert))
     );
     this.selectedSuijiAlertIds.clear();
+    this.updateScheduleData();
+  }
+
+  // 算定基礎届アラートのイベントハンドラ
+  onTeijiAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+    if (event.selected) {
+      this.selectedTeijiAlertIds.add(event.alertId);
+    } else {
+      this.selectedTeijiAlertIds.delete(event.alertId);
+    }
+  }
+
+  onTeijiSelectAllChange(checked: boolean, getTeijiAlertId: (result: TeijiKetteiResultData) => string): void {
+    if (checked) {
+      this.teijiKetteiResults.forEach(result => {
+        const alertId = getTeijiAlertId(result);
+        this.selectedTeijiAlertIds.add(alertId);
+      });
+    } else {
+      this.selectedTeijiAlertIds.clear();
+    }
+  }
+
+  deleteSelectedTeijiAlerts(): void {
+    const selectedIds = Array.from(this.selectedTeijiAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の算定基礎届アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    this.teijiKetteiResults = this.teijiKetteiResults.filter(
+      result => !selectedIds.includes(result.employeeId)
+    );
+    this.selectedTeijiAlertIds.clear();
     this.updateScheduleData();
   }
 

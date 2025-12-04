@@ -39,7 +39,11 @@ export class AlertTeijiTabComponent {
   @Input() availableYears: number[] = [];
   @Input() isLoadingTeijiKettei: boolean = false;
   @Input() employees: Employee[] = [];
+  @Input() selectedTeijiAlertIds: Set<string> = new Set();
   @Output() yearChange = new EventEmitter<number>();
+  @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
+  @Output() selectAllChange = new EventEmitter<boolean>();
+  @Output() deleteSelected = new EventEmitter<void>();
 
   constructor(
     private teijiAlertUiService: TeijiAlertUiService,
@@ -61,6 +65,37 @@ export class AlertTeijiTabComponent {
    */
   onTeijiYearChange(): void {
     this.yearChange.emit(this.teijiYear);
+  }
+
+  /**
+   * 算定基礎届アラートのIDを取得
+   */
+  getTeijiAlertId(result: TeijiKetteiResultData): string {
+    return result.employeeId;
+  }
+
+  /**
+   * 算定基礎届アラートの選択管理
+   */
+  toggleTeijiAlertSelection(alertId: string): void {
+    const isSelected = this.selectedTeijiAlertIds.has(alertId);
+    this.alertSelectionChange.emit({ alertId, selected: !isSelected });
+  }
+
+  toggleAllTeijiAlertsChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.selectAllChange.emit(target.checked);
+  }
+
+  isTeijiAlertSelected(alertId: string): boolean {
+    return this.selectedTeijiAlertIds.has(alertId);
+  }
+
+  /**
+   * 選択した算定基礎届アラートを削除
+   */
+  deleteSelectedTeijiAlerts(): void {
+    this.deleteSelected.emit();
   }
 
   /**

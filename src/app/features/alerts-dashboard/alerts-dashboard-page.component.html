@@ -110,7 +110,11 @@
       [availableYears]="state.availableYears"
       [isLoadingTeijiKettei]="isLoadingTeijiKettei"
       [employees]="employees"
-      (yearChange)="onTeijiYearChange($event)">
+      [selectedTeijiAlertIds]="state.selectedTeijiAlertIds"
+      (yearChange)="onTeijiYearChange($event)"
+      (alertSelectionChange)="onTeijiAlertSelectionChange($event)"
+      (selectAllChange)="onTeijiSelectAllChange($event)"
+      (deleteSelected)="deleteSelectedTeijiAlerts()">
     </app-alert-teiji-tab>
 
     <!-- 年齢到達・資格変更アラートタブ -->
