@@ -10,6 +10,7 @@
 <app-qualification-change-alert-list
   [qualificationChangeAlerts]="qualificationChangeAlerts"
   [selectedQualificationChangeAlertIds]="selectedQualificationChangeAlertIds"
+  [employees]="employees"
   (alertSelectionChange)="qualificationChangeAlertSelectionChange.emit($event)"
   (selectAllChange)="qualificationChangeSelectAllChange.emit($event)"
   (deleteSelected)="qualificationChangeDeleteSelected.emit()">
