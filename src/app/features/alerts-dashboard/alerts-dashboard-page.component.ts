@@ -115,6 +115,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       () => this.loadBonusReportAlerts()
     );
     
+    // 扶養アラートを読み込み
+    await this.loadSupportAlerts();
+    
     // 届出スケジュールデータを読み込み
     await this.loadScheduleData();
     
@@ -275,41 +278,33 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 扶養アラートを読み込む
    */
   async loadSupportAlerts(): Promise<void> {
-    this.state.supportAlerts = [];
+    const alerts: SupportAlert[] = [];
     const today = this.getJSTDate();
     today.setHours(0, 0, 0, 0);
 
-    console.log(`[loadSupportAlerts] 開始: 今日=${this.formatDate(today)}, 従業員数=${this.employees.length}`);
-
     try {
       for (const emp of this.employees) {
-        // 従業員の家族情報を取得
         const familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(emp.id);
-        console.log(`[loadSupportAlerts] 従業員=${emp.name}, 家族数=${familyMembers.length}`);
 
         for (const member of familyMembers) {
           const birthDate = new Date(member.birthDate);
           birthDate.setHours(0, 0, 0, 0);
           const age = this.familyMemberService.calculateAge(member.birthDate);
           const relationship = member.relationship || '';
-          
-          console.log(`[loadSupportAlerts] 家族チェック: 従業員=${emp.name}, 家族=${member.name}, 続柄=${relationship}, 生年月日=${member.birthDate}, 現在年齢=${age}`);
 
           // 【1】配偶者に関するアラート
           if (relationship === '配偶者' || relationship === '妻' || relationship === '夫') {
             // ① 20歳到達（年金加入開始）
             const age20Date = new Date(birthDate.getFullYear() + 20, birthDate.getMonth(), birthDate.getDate());
             age20Date.setHours(0, 0, 0, 0);
-            // 20歳到達の1ヶ月前からアラート表示
             const age20AlertStart = new Date(age20Date);
             age20AlertStart.setMonth(age20AlertStart.getMonth() - 1);
             if (today >= age20AlertStart && age >= 19 && age < 21) {
-              // 提出期限：事実発生日から14日以内
               const submitDeadline = new Date(age20Date);
               submitDeadline.setDate(submitDeadline.getDate() + 14);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `spouse_20_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -328,16 +323,14 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             // ② 60歳到達（第3号の終了）
             const age60Date = new Date(birthDate.getFullYear() + 60, birthDate.getMonth(), birthDate.getDate());
             age60Date.setHours(0, 0, 0, 0);
-            // 60歳到達の1ヶ月前からアラート表示
             const age60AlertStart = new Date(age60Date);
             age60AlertStart.setMonth(age60AlertStart.getMonth() - 1);
             if (today >= age60AlertStart && age >= 59 && age < 61) {
-              // 提出期限：事実発生日から5日以内
               const submitDeadline = new Date(age60Date);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `spouse_60_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -355,12 +348,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
             // ③ 収入増加（130万円超または月108,333円超）
             if (member.expectedIncome && member.expectedIncome > 1300000) {
-              // 提出期限：収入超過が判明した日から5日以内
               const submitDeadline = new Date(today);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `spouse_income_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -378,12 +370,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
             // ④ 同居⇒別居の変更
             if (!member.livingTogether) {
-              // 扶養削除が必要な場合、提出期限：5日以内
               const submitDeadline = new Date(today);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `spouse_separate_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -402,16 +393,14 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             // ⑤ 75歳到達（後期高齢者医療／扶養不可）
             const age75Date = new Date(birthDate.getFullYear() + 75, birthDate.getMonth(), birthDate.getDate());
             age75Date.setHours(0, 0, 0, 0);
-            // 75歳到達の1ヶ月前からアラート表示
             const age75AlertStart = new Date(age75Date);
             age75AlertStart.setMonth(age75AlertStart.getMonth() - 1);
             if (today >= age75AlertStart && age >= 74 && age < 76) {
-              // 提出期限：75歳到達日から5日以内
               const submitDeadline = new Date(age75Date);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `spouse_75_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -432,14 +421,12 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           if (relationship === '子' || relationship === '長男' || relationship === '長女' || relationship === '次男' || relationship === '次女' || relationship.includes('子')) {
             // ① 18歳到達（高校卒業）
             const age18Year = birthDate.getFullYear() + 18;
-            const age18GraduationDate = new Date(age18Year, 2, 31); // 3月31日（年度末）
+            const age18GraduationDate = new Date(age18Year, 2, 31);
             age18GraduationDate.setHours(0, 0, 0, 0);
-            // 18歳到達年度末の1ヶ月前からアラート表示
             const age18AlertStart = new Date(age18GraduationDate);
             age18AlertStart.setMonth(age18AlertStart.getMonth() - 1);
             if (today >= age18AlertStart && age >= 17 && age < 19) {
-              // 18歳到達は届出不要（提出期限なし）
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `child_18_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -456,21 +443,15 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             // ② 20歳到達（国民年金加入開始）
             const age20Date = new Date(birthDate.getFullYear() + 20, birthDate.getMonth(), birthDate.getDate());
             age20Date.setHours(0, 0, 0, 0);
-            // 20歳到達の1ヶ月前からアラート表示
             const age20AlertStart = new Date(age20Date);
             age20AlertStart.setMonth(age20AlertStart.getMonth() - 1);
             
-            console.log(`[loadSupportAlerts] 子20歳到達チェック: 従業員=${emp.name}, 家族=${member.name}, 生年月日=${member.birthDate}, 現在年齢=${age}, 20歳到達日=${this.formatDate(age20Date)}, アラート開始日=${this.formatDate(age20AlertStart)}, 今日=${this.formatDate(today)}, 条件1=${today >= age20AlertStart}, 条件2=${age >= 19 && age < 21}`);
-            
             if (today >= age20AlertStart && age >= 19 && age < 21) {
-              // 提出期限：事実発生日から14日以内
               const submitDeadline = new Date(age20Date);
               submitDeadline.setDate(submitDeadline.getDate() + 14);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              console.log(`[loadSupportAlerts] 子20歳到達アラート追加: ${member.name}, 提出期限=${this.formatDate(submitDeadline)}, 残り日数=${daysUntilDeadline}`);
-              
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `child_20_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -488,18 +469,16 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
             // ③ 22歳到達（大学卒業＋収入増の可能性）
             const age22Year = birthDate.getFullYear() + 22;
-            const age22GraduationDate = new Date(age22Year, 2, 31); // 3月31日（年度末）
+            const age22GraduationDate = new Date(age22Year, 2, 31);
             age22GraduationDate.setHours(0, 0, 0, 0);
-            // 22歳到達年度末の1ヶ月前からアラート表示
             const age22AlertStart = new Date(age22GraduationDate);
             age22AlertStart.setMonth(age22AlertStart.getMonth() - 1);
             if (today >= age22AlertStart && age >= 21 && age < 23) {
-              // 扶養外れる場合、提出期限：扶養要件喪失から5日以内
               const submitDeadline = new Date(age22GraduationDate);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `child_22_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -517,12 +496,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
             // ④ 同居→別居（実家・一人暮らし）
             if (!member.livingTogether) {
-              // 仕送りがない場合、提出期限：5日以内
               const submitDeadline = new Date(today);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `child_separate_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -540,12 +518,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
             // ⑤ アルバイト収入の増減（130万円基準）
             if (member.expectedIncome && member.expectedIncome > 1300000) {
-              // 提出期限：収入超過が判明して5日以内
               const submitDeadline = new Date(today);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `child_income_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -566,9 +543,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           if (relationship === '父' || relationship === '母' || relationship === '父母' || relationship.includes('父') || relationship.includes('母')) {
             // ① 60歳以上の親の所得増減
             if (age >= 60) {
-              // 収入見込が設定されている場合、扶養基準を超えていないか確認
               if (member.expectedIncome && member.expectedIncome > 1300000) {
-                this.state.supportAlerts.push({
+                alerts.push({
                   id: `parent_income_${emp.id}_${member.id}`,
                   employeeId: emp.id,
                   employeeName: emp.name,
@@ -585,12 +561,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
             // ② 同居→別居
             if (!member.livingTogether) {
-              // 仕送りがない場合、提出期限：5日以内
               const submitDeadline = new Date(today);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `parent_separate_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -609,16 +584,14 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             // ③ 75歳到達（後期高齢者医療へ切替）
             const age75Date = new Date(birthDate.getFullYear() + 75, birthDate.getMonth(), birthDate.getDate());
             age75Date.setHours(0, 0, 0, 0);
-            // 75歳到達の1ヶ月前からアラート表示
             const age75AlertStart = new Date(age75Date);
             age75AlertStart.setMonth(age75AlertStart.getMonth() - 1);
             if (today >= age75AlertStart && age >= 74 && age < 76) {
-              // 提出期限：75歳到達日から5日以内
               const submitDeadline = new Date(age75Date);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
-              this.state.supportAlerts.push({
+              alerts.push({
                 id: `parent_75_${emp.id}_${member.id}`,
                 employeeId: emp.id,
                 employeeName: emp.name,
@@ -637,10 +610,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         }
       }
 
-      // アラート日でソート（新しい順）
-      this.state.supportAlerts.sort((a, b) => {
+      alerts.sort((a, b) => {
         return b.alertDate.getTime() - a.alertDate.getTime();
       });
+
+      this.state.supportAlerts = alerts;
     } catch (error) {
       console.error('[alerts-dashboard] loadSupportAlertsエラー:', error);
     }
@@ -866,10 +840,10 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       await this.loadTeijiKetteiData();
     } else if (tab === 'leave') {
       await this.loadMaternityChildcareAlerts();
-    } else if (tab === 'family') {
-      await this.loadSupportAlerts();
     } else if (tab === 'bonus') {
       await this.loadBonusReportAlerts();
+    } else if (tab === 'family') {
+      await this.loadSupportAlerts();
     }
     // スケジュールデータを再読み込み
     await this.loadScheduleData();
