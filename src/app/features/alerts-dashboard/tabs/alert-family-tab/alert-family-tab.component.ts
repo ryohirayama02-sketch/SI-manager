@@ -239,8 +239,7 @@ export class AlertFamilyTabComponent implements OnInit {
                 familyMemberName: member.name,
                 relationship: relationship,
                 alertType: '配偶者別居',
-                notificationName:
-                  '被扶養者（異動）削除届（扶養継続不可の場合）',
+                notificationName: '被扶養者（異動）の仕送り状況確認',
                 alertDate: today,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
@@ -375,7 +374,7 @@ export class AlertFamilyTabComponent implements OnInit {
                 familyMemberName: member.name,
                 relationship: relationship,
                 alertType: '子22歳到達',
-                notificationName: '被扶養者（異動）削除届（扶養外れる場合）',
+                notificationName: '子の就職状況・収入を確認',
                 alertDate: age22GraduationDate,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
@@ -452,7 +451,7 @@ export class AlertFamilyTabComponent implements OnInit {
           ) {
             // ① 60歳以上の親の所得増減
             if (age >= 60) {
-              if (member.expectedIncome && member.expectedIncome > 1300000) {
+              if (member.expectedIncome && member.expectedIncome > 1800000) {
                 alerts.push({
                   id: `parent_income_${emp.id}_${member.id}`,
                   employeeId: emp.id,
@@ -487,7 +486,7 @@ export class AlertFamilyTabComponent implements OnInit {
                 familyMemberName: member.name,
                 relationship: relationship,
                 alertType: '親別居',
-                notificationName: '被扶養者（異動）削除届（仕送りがない場合）',
+                notificationName: '被扶養者（異動）の仕送り状況確認',
                 alertDate: today,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
