@@ -304,9 +304,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             const age20AlertStart = new Date(age20Date);
             age20AlertStart.setMonth(age20AlertStart.getMonth() - 1);
             if (today >= age20AlertStart && age >= 19 && age < 21) {
-              // 提出期限：事実発生日から5日以内
+              // 提出期限：事実発生日から14日以内
               const submitDeadline = new Date(age20Date);
-              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
               this.state.supportAlerts.push({
@@ -463,9 +463,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
             console.log(`[loadSupportAlerts] 子20歳到達チェック: 従業員=${emp.name}, 家族=${member.name}, 生年月日=${member.birthDate}, 現在年齢=${age}, 20歳到達日=${this.formatDate(age20Date)}, アラート開始日=${this.formatDate(age20AlertStart)}, 今日=${this.formatDate(today)}, 条件1=${today >= age20AlertStart}, 条件2=${age >= 19 && age < 21}`);
             
             if (today >= age20AlertStart && age >= 19 && age < 21) {
-              // 提出期限：事実発生日から5日以内
+              // 提出期限：事実発生日から14日以内
               const submitDeadline = new Date(age20Date);
-              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
               const daysUntilDeadline = Math.ceil((submitDeadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
               
               console.log(`[loadSupportAlerts] 子20歳到達アラート追加: ${member.name}, 提出期限=${this.formatDate(submitDeadline)}, 残り日数=${daysUntilDeadline}`);
