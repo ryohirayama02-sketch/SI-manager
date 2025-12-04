@@ -40,6 +40,9 @@ export interface Employee {
   acquisitionYear?: number; // 資格取得年
   acquisitionMonth?: number; // 資格取得月（1-12）
   // 個人情報
+  nameKana?: string; // 氏名（カナ）
+  gender?: string; // 性別（'male' | 'female' | 'other'）
+  address?: string; // 住所
   myNumber?: string; // マイナンバー（個人番号）
   basicPensionNumber?: string; // 基礎年金番号
   insuredNumber?: string; // 被保険者整理番号

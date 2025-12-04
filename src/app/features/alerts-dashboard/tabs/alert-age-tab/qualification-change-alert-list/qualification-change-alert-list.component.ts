@@ -141,7 +141,7 @@ export class QualificationChangeAlertListComponent {
       csvRows.push(`被保険者氏名,${employee.name || ''}`);
       csvRows.push(`性別,${gender}`);
       csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
-      csvRows.push(`住所,${(employee as any).address || ''}`);
+      csvRows.push(`住所,${employee.address || ''}`);
       csvRows.push(`個人番号,${employee.myNumber || ''}`);
       csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
       csvRows.push(`被保険者番号,${employee.insuredNumber || ''}`);
@@ -287,7 +287,7 @@ export class QualificationChangeAlertListComponent {
     }
 
     // それ以外の場合は、Employeeモデルから取得（存在する場合）
-    return this.formatGenderValue((employee as any).gender) || '';
+    return this.formatGenderValue(employee.gender) || '';
   }
 
   /**
