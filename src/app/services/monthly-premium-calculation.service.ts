@@ -6,6 +6,7 @@ import { MonthHelperService } from './month-helper.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { SettingsService } from './settings.service';
 import { UncollectedPremiumService } from './uncollected-premium.service';
+import { StandardRemunerationHistoryService } from './standard-remuneration-history.service';
 import { Employee } from '../models/employee.model';
 import { MonthlyPremiumRow } from './payment-summary-calculation.service';
 
@@ -24,7 +25,8 @@ export class MonthlyPremiumCalculationService {
     private monthHelper: MonthHelperService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private settingsService: SettingsService,
-    private uncollectedPremiumService: UncollectedPremiumService
+    private uncollectedPremiumService: UncollectedPremiumService,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService
   ) {}
 
   /**
@@ -71,54 +73,129 @@ export class MonthlyPremiumCalculationService {
       `[徴収不能チェック] ${emp.name} (${year}年${month}月): employeeWithStandard.id=`,
       employeeWithStandard.id,
       `emp.id=`,
-      emp.id
+      emp.id,
+      `standardMonthlyRemuneration=`,
+      employeeWithStandard.standardMonthlyRemuneration
     );
-    if (!employeeWithStandard.standardMonthlyRemuneration && salaryData) {
-      // 年度の給与データから定時決定を計算
-      const empSalaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};
-      for (let m = 1; m <= 12; m++) {
-        const monthKey = m.toString();
-        const monthData = salaryData[monthKey];
-        if (monthData) {
-          const key = `${emp.id}_${m}`;
-          empSalaries[key] = {
-            total: monthData.totalSalary ?? monthData.total ?? 0,
-            fixed: monthData.fixedSalary ?? monthData.fixed ?? 0,
-            variable: monthData.variableSalary ?? monthData.variable ?? 0,
-          };
-        }
-      }
-      
-      // 定時決定を計算
-      const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
+    
+    // 標準報酬月額が確定していない場合のみ、標準報酬履歴またはsalaryDataから定時決定を計算
+    // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
+    // その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要があります。
+    // 保険料は標準報酬月額×料率で計算するため、その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要があります。
+    // 優先順位：
+    // 1. 従業員データの標準報酬月額
+    // 2. 標準報酬履歴から取得（指定された年月に適用される標準報酬月額）
+    // 3. 年度全体の給与データから定時決定を計算
+    if (!employeeWithStandard.standardMonthlyRemuneration || employeeWithStandard.standardMonthlyRemuneration <= 0) {
+      // まず標準報酬履歴から取得を試みる
+      const historyStandard = await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
         emp.id,
-        empSalaries,
-        gradeTable,
-        year
+        year,
+        month
       );
       
-      if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
-        employeeWithStandard.standardMonthlyRemuneration = teijiResult.standardMonthlyRemuneration;
+      if (historyStandard && historyStandard > 0) {
+        employeeWithStandard.standardMonthlyRemuneration = historyStandard;
         console.log(
-          `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiResult.standardMonthlyRemuneration}円`
+          `[徴収不能チェック] ${emp.name} (${year}年${month}月): 標準報酬履歴から標準報酬月額を取得: ${historyStandard}円（給与が0円でも保険料を計算）`
         );
+      } else {
+        // 標準報酬履歴から取得できない場合、年度全体の給与データから定時決定を計算して標準報酬月額を取得
+        // salaryDataが存在しない場合でも、給与データを取得して定時決定を計算する必要があります
+        let dataToUse = salaryData;
+        if (!dataToUse) {
+          // salaryDataが存在しない場合、給与データを取得
+          dataToUse = await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+        }
+        
+        if (dataToUse) {
+          // 年度の給与データから定時決定を計算（その月の給与が0円でも、年度全体の給与データから標準報酬月額を取得）
+          const empSalaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};
+          for (let m = 1; m <= 12; m++) {
+            const monthKey = m.toString();
+            const monthData = dataToUse[monthKey];
+            if (monthData) {
+              const key = `${emp.id}_${m}`;
+              empSalaries[key] = {
+                total: monthData.totalSalary ?? monthData.total ?? 0,
+                fixed: monthData.fixedSalary ?? monthData.fixed ?? 0,
+                variable: monthData.variableSalary ?? monthData.variable ?? 0,
+              };
+            }
+          }
+          
+          console.log(
+            `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定を計算します`,
+            {
+              empSalariesCount: Object.keys(empSalaries).length,
+              empSalariesKeys: Object.keys(empSalaries),
+              currentMonthSalary: dataToUse[month.toString()],
+              salaryDataExists: !!salaryData,
+              dataToUseExists: !!dataToUse
+            }
+          );
+          
+          // 定時決定を計算
+          const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
+            emp.id,
+            empSalaries,
+            gradeTable,
+            year
+          );
+          
+          if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
+            employeeWithStandard.standardMonthlyRemuneration = teijiResult.standardMonthlyRemuneration;
+            console.log(
+              `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiResult.standardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
+            );
+          } else {
+            console.log(
+              `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定の計算結果が取得できませんでした`,
+              {
+                teijiResult,
+                empSalariesCount: Object.keys(empSalaries).length,
+                empSalaries: empSalaries
+              }
+            );
+          }
+        } else {
+          console.log(
+            `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データが取得できませんでした（年度全体の給与データから定時決定を計算できません）`
+          );
+        }
       }
+    } else if (employeeWithStandard.standardMonthlyRemuneration && employeeWithStandard.standardMonthlyRemuneration > 0) {
+      console.log(
+        `[徴収不能チェック] ${emp.name} (${year}年${month}月): 従業員データから標準報酬月額を取得: ${employeeWithStandard.standardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
+      );
     }
 
     // 給与データがある場合のみ通常の計算を実行
-    if (salaryData) {
-      const monthKeyString = month.toString();
-      const monthSalaryData = salaryData[monthKeyString];
-      
-      console.log(
-        `[徴収不能チェック] ${emp.name} (${year}年${month}月): salaryData存在、monthSalaryData=`,
-        monthSalaryData
-      );
-      
-      const fixedSalary =
-        monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0;
-      const variableSalary =
-        monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0;
+    // 重要：その月の給与が0円でも、標準報酬月額が確定していれば保険料を計算する必要があるため、
+    // salaryDataが存在する場合でも、その月のデータが存在しない場合は給与0円として計算を実行
+    // 標準報酬月額が確定していれば、salaryDataが存在しなくても保険料を計算する必要がある
+    const monthKeyString = month.toString();
+    const monthSalaryData = salaryData ? salaryData[monthKeyString] : undefined;
+    
+    console.log(
+      `[徴収不能チェック] ${emp.name} (${year}年${month}月): salaryData存在チェック`,
+      {
+        salaryDataExists: !!salaryData,
+        monthSalaryDataExists: !!monthSalaryData,
+        monthSalaryData: monthSalaryData,
+        employeeWithStandardStandardMonthlyRemuneration: employeeWithStandard.standardMonthlyRemuneration
+      }
+    );
+    
+    const fixedSalary =
+      monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0;
+    const variableSalary =
+      monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0;
+    
+    // その月の給与が0円でも、標準報酬月額が確定していれば保険料を計算する必要がある
+    // 標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、その月の給与が0円でも標準報酬月額に基づいて保険料を計算する
+    // 標準報酬月額が確定していれば、salaryDataが存在しなくても保険料を計算する必要がある
+    if (salaryData || employeeWithStandard.standardMonthlyRemuneration) {
 
       // 年度料率の改定月ロジック：月ごとに料率を取得
       let monthRates = rates;
@@ -135,6 +212,15 @@ export class MonthlyPremiumCalculationService {
 
       // calculateMonthlyPremiums を呼び出し
       // monthSalaryDataが存在しない場合でも、標準報酬月額が確定していれば保険料を計算する必要がある
+      console.log(
+        `[徴収不能チェック] ${emp.name} (${year}年${month}月): calculateMonthlyPremiums呼び出し前`,
+        {
+          employeeWithStandardStandardMonthlyRemuneration: employeeWithStandard.standardMonthlyRemuneration,
+          fixedSalary,
+          variableSalary,
+          totalSalary: fixedSalary + variableSalary
+        }
+      );
       const premiumResult =
         await this.salaryCalculationService.calculateMonthlyPremiums(
           employeeWithStandard, // 標準報酬月額を含む従業員データを使用
@@ -233,15 +319,15 @@ export class MonthlyPremiumCalculationService {
 
       return premiumRow;
     } else {
-      // 給与データがなく、産休・育休でもない場合
-      // 標準報酬月額が確定していれば保険料を計算する必要があるため、給与0円として計算を実行
+      // 給与データがなく、標準報酬月額も設定されていない場合
+      // 年度全体の給与データから定時決定を計算して標準報酬月額を取得し、給与0円として保険料計算を実行
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データなし、給与0円として保険料計算を実行`
       );
       
       // 給与データがない場合でも、従業員データにstandardMonthlyRemunerationがない場合は、
       // 給与データを取得して定時決定を計算
-      if (!employeeWithStandard.standardMonthlyRemuneration) {
+      if (!employeeWithStandard.standardMonthlyRemuneration || employeeWithStandard.standardMonthlyRemuneration <= 0) {
         const fetchedSalaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
         if (fetchedSalaryData) {
           const empSalaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};

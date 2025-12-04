@@ -83,6 +83,28 @@ export class StandardRemunerationHistoryService {
   }
 
   /**
+   * 指定された年月に適用される標準報酬月額を取得
+   * @param employeeId 従業員ID
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 標準報酬月額（見つからない場合はnull）
+   */
+  async getStandardRemunerationForMonth(employeeId: string, year: number, month: number): Promise<number | null> {
+    const histories = await this.getStandardRemunerationHistories(employeeId);
+    
+    // 指定された年月以前で最も新しい履歴を取得
+    // 履歴は降順ソートされているので、最初に見つかったものが該当する
+    for (const history of histories) {
+      if (history.applyStartYear < year || 
+          (history.applyStartYear === year && history.applyStartMonth <= month)) {
+        return history.standardMonthlyRemuneration;
+      }
+    }
+    
+    return null;
+  }
+
+  /**
    * 月次給与データから標準報酬履歴を自動生成
    */
   async generateStandardRemunerationHistory(employeeId: string, employee: Employee): Promise<void> {

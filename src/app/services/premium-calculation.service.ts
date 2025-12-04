@@ -130,8 +130,23 @@ export class PremiumCalculationService {
     // 2. 従業員データの標準報酬月額（定時決定で確定したもの）
     // 3. 資格取得時決定の標準報酬月額
     // 4. その月の給与額から等級を判定（標準報酬月額が確定していない場合のみ）
+    // 
+    // 重要：標準報酬月額が確定している場合（1-3のいずれかで確定）は、
+    // その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要がある。
+    // 給与が0円でも保険料は発生する（標準報酬月額に基づく）。
 
     const totalSalary = fixedSalary + variableSalary;
+    
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額取得開始`,
+      {
+        totalSalary,
+        fixedSalary,
+        variableSalary,
+        employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration,
+        employeeAcquisitionStandard: employee.acquisitionStandard
+      }
+    );
 
     // 随時改定の適用開始月をチェック
     let appliedSuiji: SuijiKouhoResult | null = null;
@@ -185,7 +200,12 @@ export class PremiumCalculationService {
       const teijiStandard = employee.standardMonthlyRemuneration;
       standardMonthlyRemuneration = teijiStandard;
       console.log(
-        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiStandard}円`
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiStandard}円（給与が0円でも保険料を計算）`,
+        {
+          totalSalary,
+          fixedSalary,
+          variableSalary
+        }
       );
       // 標準報酬月額から等級を逆引き
       gradeResult = this.gradeDeterminationService.findGrade(gradeTable, teijiStandard);
@@ -201,10 +221,11 @@ export class PremiumCalculationService {
       }
     } else {
       console.log(
-        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定の標準報酬月額なし`,
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定の標準報酬月額チェック`,
         {
           standardMonthlyRemuneration,
-          employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration
+          employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration,
+          totalSalary
         }
       );
     }
@@ -226,43 +247,43 @@ export class PremiumCalculationService {
       }
     }
 
-    // 4. 標準報酬月額が確定していない場合のみ、その月の給与額から等級を判定
+    // 4. 標準報酬月額が確定していない場合の処理
+    // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
+    // その月の給与から毎月計算するものではありません。
+    // 標準報酬月額が確定していない場合は、monthly-premium-calculation.service.ts で
+    // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
+    // しかし、その月の給与が0円の場合、monthly-premium-calculation.service.ts で標準報酬月額を取得できていない可能性があります。
+    // そのため、ここでは標準報酬月額が取得できない場合でも、その月の給与が0円の場合は保険料を0円とします。
     if (!standardMonthlyRemuneration) {
-      if (totalSalary <= 0) {
-        reasons.push('給与が0円のため保険料は0円');
-        return {
-          health_employee: 0,
-          health_employer: 0,
-          care_employee: 0,
-          care_employer: 0,
-          pension_employee: 0,
-          pension_employer: 0,
-          reasons,
-        };
-      }
-      
-      gradeResult = this.gradeDeterminationService.findGrade(gradeTable, totalSalary);
-      if (!gradeResult) {
-        reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
-        return {
-          health_employee: 0,
-          health_employer: 0,
-          care_employee: 0,
-          care_employer: 0,
-          pension_employee: 0,
-          pension_employer: 0,
-          reasons,
-        };
-      }
-      standardMonthlyRemuneration = gradeResult.remuneration;
-      reasons.push(
-        `標準報酬月額未確定のため、その月の給与額から等級${gradeResult.grade}（標準報酬月額${standardMonthlyRemuneration.toLocaleString()}円）を判定`
-      );
+      // 標準報酬月額が確定していない場合、monthly-premium-calculation.service.ts で
+      // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
+      // しかし、その月の給与が0円の場合、monthly-premium-calculation.service.ts で標準報酬月額を取得できていない可能性があります。
+      // そのため、ここでは標準報酬月額が取得できない場合は保険料を0円とします。
+      reasons.push('標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）');
     }
 
     // standardMonthlyRemunerationが確定していることを確認
+    // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
+    // その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要があります。
+    // 標準報酬月額が取得できない場合は、monthly-premium-calculation.service.ts で
+    // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
+    // そのため、ここで早期リターンしないようにします。
     if (!standardMonthlyRemuneration || standardMonthlyRemuneration <= 0) {
-      reasons.push('標準報酬月額が取得できません');
+      // 標準報酬月額が取得できない場合でも、その月の給与が0円の場合は
+      // monthly-premium-calculation.service.ts で年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
+      // そのため、ここで早期リターンしないようにします。
+      console.warn(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額が取得できませんでした`,
+        {
+          employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration,
+          employeeAcquisitionStandard: employee.acquisitionStandard,
+          totalSalary,
+          standardMonthlyRemuneration
+        }
+      );
+      reasons.push('標準報酬月額が取得できません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）');
+      // 早期リターンしない（monthly-premium-calculation.service.ts で標準報酬月額を取得しているはず）
+      // ただし、標準報酬月額が取得できない場合は保険料を0円とする
       return {
         health_employee: 0,
         health_employer: 0,
