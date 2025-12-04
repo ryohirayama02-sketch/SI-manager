@@ -25,11 +25,11 @@
     <thead>
       <tr>
         <th style="width: 80px; text-align: center;">削除対象</th>
-        <th>年度</th>
         <th>従業員</th>
+        <th>年度</th>
         <th>変動月</th>
         <th>前月比</th>
-        <th>前後3ヶ月平均</th>
+        <th>3ヶ月平均</th>
         <th>現行等級</th>
         <th>新等級候補</th>
         <th>等級差</th>
@@ -52,11 +52,10 @@
             (change)="toggleSuijiAlertSelection(getSuijiAlertId(alert))"
             title="削除対象に選択">
         </td>
-        <td>{{ alert.year || '-' }}年</td>
         <td>
-          <span *ngIf="alert.isEligible">⚠️ </span>
           {{ getEmployeeName(alert.employeeId) }}
         </td>
+        <td>{{ alert.year || '-' }}年</td>
         <td>{{ alert.changeMonth }}月</td>
         <td>
           <span *ngIf="alert.diffPrev != null">
