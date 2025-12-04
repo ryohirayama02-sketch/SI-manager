@@ -274,9 +274,6 @@ export class AlertGenerationService {
     const today = normalizeDate(getJSTDate());
 
     try {
-      const currentYear = today.getFullYear();
-      const allBonuses = await this.bonusService.loadBonus(currentYear);
-
       for (const emp of employees) {
         // 傷病手当金支給申請書の記入依頼アラート
         if (emp.sickPayApplicationRequest && emp.sickPayApplicationRequestDate) {
@@ -427,29 +424,6 @@ export class AlertGenerationService {
             daysUntilDeadline: daysUntilDeadline,
             details: `育休終了日: ${formatDate(endDate)}`,
           });
-        }
-
-        if (!emp.childcareLivingTogether) {
-          const employeeBonuses = allBonuses.filter(b => b.employeeId === emp.id && b.amount > 0);
-          
-          for (const bonus of employeeBonuses) {
-            if (bonus.payDate) {
-              const payDate = normalizeDate(new Date(bonus.payDate));
-              const submitDeadline = calculateSubmitDeadline(payDate);
-              const daysUntilDeadline = calculateDaysUntilDeadline(submitDeadline, today);
-              maternityChildcareAlerts.push({
-                id: `childcare_bonus_${emp.id}_${bonus.id}`,
-                employeeId: emp.id,
-                employeeName: emp.name,
-                alertType: '育児休業等取得者申出書（賞与用）',
-                notificationName: '育児休業等取得者申出書（賞与用）',
-                startDate: payDate,
-                submitDeadline: submitDeadline,
-                daysUntilDeadline: daysUntilDeadline,
-                details: `賞与支給日: ${formatDate(payDate)}, 賞与額: ${bonus.amount.toLocaleString('ja-JP')}円`,
-              });
-            }
-          }
         }
       }
 
