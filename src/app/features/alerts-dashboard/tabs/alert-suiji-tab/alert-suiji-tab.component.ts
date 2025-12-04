@@ -182,7 +182,7 @@ export class AlertSuijiTabComponent {
           office?.prefecture || employee.prefecture || ''
         )}`
       );
-      csvRows.push(`事業所整理番号,${office?.officeCode || ''}`);
+      csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
       csvRows.push(`事業所所在地,${office?.address || ''}`);
       csvRows.push(
         `事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`
