@@ -103,8 +103,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       childcareEmployerCertificateRequestDate: [null],
       maternityAllowanceApplicationRequest: [false],
       maternityAllowanceApplicationRequestDate: [null],
-      childbirthAllowanceApplicationRequest: [false],
-      childbirthAllowanceApplicationRequestDate: [null],
     });
   }
 
@@ -185,9 +183,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         childcareEmployerCertificateRequest: data.childcareEmployerCertificateRequest || false,
         childcareEmployerCertificateRequestDate: data.childcareEmployerCertificateRequestDate || null,
         maternityAllowanceApplicationRequest: data.maternityAllowanceApplicationRequest || false,
-        maternityAllowanceApplicationRequestDate: data.maternityAllowanceApplicationRequestDate || null,
-        childbirthAllowanceApplicationRequest: data.childbirthAllowanceApplicationRequest || false,
-        childbirthAllowanceApplicationRequestDate: data.childbirthAllowanceApplicationRequestDate || null
+        maternityAllowanceApplicationRequestDate: data.maternityAllowanceApplicationRequestDate || null
       });
     }
 
@@ -267,7 +263,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       sickPayApplicationRequest: value.sickPayApplicationRequest ?? false,
       childcareEmployerCertificateRequest: value.childcareEmployerCertificateRequest ?? false,
       maternityAllowanceApplicationRequest: value.maternityAllowanceApplicationRequest ?? false,
-      childbirthAllowanceApplicationRequest: value.childbirthAllowanceApplicationRequest ?? false,
     };
 
     // オプショナルフィールドの保存（空文字列も含めて保存）
@@ -308,8 +303,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.childcareEmployerCertificateRequestDate) updateData.childcareEmployerCertificateRequestDate = value.childcareEmployerCertificateRequestDate;
     if (value.maternityAllowanceApplicationRequest !== undefined) updateData.maternityAllowanceApplicationRequest = value.maternityAllowanceApplicationRequest;
     if (value.maternityAllowanceApplicationRequestDate) updateData.maternityAllowanceApplicationRequestDate = value.maternityAllowanceApplicationRequestDate;
-    if (value.childbirthAllowanceApplicationRequest !== undefined) updateData.childbirthAllowanceApplicationRequest = value.childbirthAllowanceApplicationRequest;
-    if (value.childbirthAllowanceApplicationRequestDate) updateData.childbirthAllowanceApplicationRequestDate = value.childbirthAllowanceApplicationRequestDate;
 
     console.log('[employee-basic-info-form] 保存データ:', {
       officeNumber: updateData.officeNumber,

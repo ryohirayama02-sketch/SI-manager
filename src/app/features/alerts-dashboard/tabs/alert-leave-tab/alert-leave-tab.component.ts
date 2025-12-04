@@ -97,6 +97,8 @@ export class AlertLeaveTabComponent {
         await this.generateCsvForSickPayApplication(alert, emp);
       } else if (alert.alertType === '育児休業関係の事業主証明書の記入依頼') {
         await this.generateCsvForChildcareEmployerCertificate(alert, emp);
+      } else if (alert.alertType === '出産手当金支給申請書の記入依頼') {
+        await this.generateCsvForMaternityAllowanceApplication(alert, emp);
       }
     } catch (error) {
       console.error('CSV出力エラー:', error);
@@ -341,6 +343,61 @@ export class AlertLeaveTabComponent {
     link.setAttribute(
       'download',
       `育児休業関係の事業主証明書_${employee.name}_${year}年${month}月.csv`
+    );
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * 出産手当金支給申請書のCSVを生成
+   */
+  private async generateCsvForMaternityAllowanceApplication(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+    // 事業所情報を取得
+    let office: Office | null = null;
+    if (employee.officeNumber) {
+      const offices = await this.officeService.getAllOffices();
+      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+    }
+    if (!office) {
+      const offices = await this.officeService.getAllOffices();
+      office = offices[0] || null;
+    }
+
+    // 性別を取得
+    const gender = this.getGender(employee);
+
+    // CSVデータを生成
+    const csvRows: string[] = [];
+
+    csvRows.push('出産手当金支給申請書');
+    csvRows.push('');
+    csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
+    csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+    csvRows.push(`性別,${gender}`);
+    csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
+    csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
+    csvRows.push(`事業所所在地,${office?.address || ''}`);
+    csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
+    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
+
+    // CSVファイルをダウンロード
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    link.setAttribute(
+      'download',
+      `出産手当金支給申請書_${employee.name}_${year}年${month}月.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);

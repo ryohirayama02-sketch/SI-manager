@@ -24,12 +24,10 @@ export interface Employee {
   sickPayApplicationRequest?: boolean; // 傷病手当金支給申請書の記入依頼あり
   childcareEmployerCertificateRequest?: boolean; // 育児休業関係の事業主証明書の記入依頼あり
   maternityAllowanceApplicationRequest?: boolean; // 出産手当金支給申請書の記入依頼あり
-  childbirthAllowanceApplicationRequest?: boolean; // 出産育児一時金支給申請書の記入依頼あり
   // 申請書記入依頼のチェック日時（アラート生成用）
   sickPayApplicationRequestDate?: string; // 傷病手当金支給申請書の記入依頼日（YYYY-MM-DD）
   childcareEmployerCertificateRequestDate?: string; // 育児休業関係の事業主証明書の記入依頼日（YYYY-MM-DD）
   maternityAllowanceApplicationRequestDate?: string; // 出産手当金支給申請書の記入依頼日（YYYY-MM-DD）
-  childbirthAllowanceApplicationRequestDate?: string; // 出産育児一時金支給申請書の記入依頼日（YYYY-MM-DD）
   // 加入判定用の追加属性（オプショナル）
   weeklyHours?: number; // 週労働時間
   monthlyWage?: number; // 月額賃金（円）

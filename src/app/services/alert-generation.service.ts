@@ -335,25 +335,6 @@ export class AlertGenerationService {
           });
         }
 
-        // 出産育児一時金支給申請書の記入依頼アラート
-        if (emp.childbirthAllowanceApplicationRequest && emp.childbirthAllowanceApplicationRequestDate) {
-          const requestDate = normalizeDate(new Date(emp.childbirthAllowanceApplicationRequestDate));
-          const submitDeadline = new Date(requestDate);
-          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
-          const daysUntilDeadline = calculateDaysUntilDeadline(submitDeadline, today);
-          
-          maternityChildcareAlerts.push({
-            id: `childbirth_allowance_application_${emp.id}_${emp.childbirthAllowanceApplicationRequestDate}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '出産育児一時金支給申請書の記入依頼',
-            notificationName: '出産育児一時金支給申請書の記入依頼',
-            startDate: requestDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: '', // 一旦未記入
-          });
-        }
         if (emp.maternityLeaveStart) {
           const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
           const submitDeadline = calculateSubmitDeadline(startDate);
