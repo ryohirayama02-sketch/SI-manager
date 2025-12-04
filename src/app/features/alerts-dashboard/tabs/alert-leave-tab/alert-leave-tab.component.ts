@@ -70,47 +70,35 @@ export class AlertLeaveTabComponent {
   }
 
   /**
-   * CSV出力（産前産後休業取得者申出書 / 産前産後休業取得者変更（終了）届 / 育児休業等取得者申出書 / 育児休業等取得者終了届）
+   * CSV出力（産前産後休業取得者申出書 / 産前産後休業取得者変更（終了）届 / 育児休業等取得者申出書 / 育児休業等取得者終了届 / 傷病手当金支給申請書の記入依頼）
    */
   async exportToCsv(alert: MaternityChildcareAlert): Promise<void> {
-    if (alert.alertType === '産前産後休業取得者申出書' || alert.alertType === '産前産後休業取得者変更（終了）届') {
-      try {
-        const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
-        if (!employee) {
-          // employeesにない場合は、EmployeeServiceから取得
-          const emp = await this.employeeService.getEmployeeById(alert.employeeId);
-          if (!emp) {
-            window.alert('従業員情報が見つかりません');
-            return;
-          }
-          await this.generateCsvForMaternityLeave(alert, emp as Employee);
+    try {
+      const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
+      let emp: Employee | null = null;
+      
+      if (!employee) {
+        // employeesにない場合は、EmployeeServiceから取得
+        const fetchedEmp = await this.employeeService.getEmployeeById(alert.employeeId);
+        if (!fetchedEmp) {
+          window.alert('従業員情報が見つかりません');
           return;
         }
-
-        await this.generateCsvForMaternityLeave(alert, employee);
-      } catch (error) {
-        console.error('CSV出力エラー:', error);
-        window.alert('CSV出力中にエラーが発生しました');
+        emp = fetchedEmp as Employee;
+      } else {
+        emp = employee;
       }
-    } else if (alert.alertType === '育児休業等取得者申出書' || alert.alertType === '育児休業等取得者終了届') {
-      try {
-        const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
-        if (!employee) {
-          // employeesにない場合は、EmployeeServiceから取得
-          const emp = await this.employeeService.getEmployeeById(alert.employeeId);
-          if (!emp) {
-            window.alert('従業員情報が見つかりません');
-            return;
-          }
-          await this.generateCsvForChildcareLeave(alert, emp as Employee);
-          return;
-        }
 
-        await this.generateCsvForChildcareLeave(alert, employee);
-      } catch (error) {
-        console.error('CSV出力エラー:', error);
-        window.alert('CSV出力中にエラーが発生しました');
+      if (alert.alertType === '産前産後休業取得者申出書' || alert.alertType === '産前産後休業取得者変更（終了）届') {
+        await this.generateCsvForMaternityLeave(alert, emp);
+      } else if (alert.alertType === '育児休業等取得者申出書' || alert.alertType === '育児休業等取得者終了届') {
+        await this.generateCsvForChildcareLeave(alert, emp);
+      } else if (alert.alertType === '傷病手当金支給申請書の記入依頼') {
+        await this.generateCsvForSickPayApplication(alert, emp);
       }
+    } catch (error) {
+      console.error('CSV出力エラー:', error);
+      window.alert('CSV出力中にエラーが発生しました');
     }
   }
 
@@ -225,6 +213,82 @@ export class AlertLeaveTabComponent {
     }
 
     return `${era}${eraYear}年${month}月${day}日`;
+  }
+
+  /**
+   * 傷病手当金支給申請書のCSVを生成
+   */
+  private async generateCsvForSickPayApplication(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+    // 事業所情報を取得
+    let office: Office | null = null;
+    if (employee.officeNumber) {
+      const offices = await this.officeService.getAllOffices();
+      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+    }
+    if (!office) {
+      const offices = await this.officeService.getAllOffices();
+      office = offices[0] || null;
+    }
+
+    // 性別を取得
+    const gender = this.getGender(employee);
+
+    // CSVデータを生成
+    const csvRows: string[] = [];
+
+    csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
+    csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+    csvRows.push(`性別,${gender}`);
+    csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
+    csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
+    csvRows.push(`事業所所在地,${office?.address || ''}`);
+    csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
+    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
+
+    // CSVファイルをダウンロード
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    link.setAttribute(
+      'download',
+      `傷病手当金支給申請書_${employee.name}_${year}年${month}月.csv`
+    );
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * 性別を取得
+   */
+  private getGender(employee: Employee): string {
+    return this.formatGenderValue(employee.gender) || '';
+  }
+
+  /**
+   * 性別のコード値を表示用の文字に変換
+   */
+  private formatGenderValue(value: string | null | undefined): string {
+    if (!value) return '';
+    const genderMap: { [key: string]: string } = {
+      'female': '女性',
+      'male': '男性',
+      '女性': '女性',
+      '男性': '男性',
+      'F': '女性',
+      'M': '男性',
+    };
+    return genderMap[value.toLowerCase()] || value;
   }
 
   /**
