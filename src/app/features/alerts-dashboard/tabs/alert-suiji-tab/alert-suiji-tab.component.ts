@@ -46,6 +46,18 @@ export class AlertSuijiTabComponent {
     return this.suijiAlertUiService.getSuijiReportDeadline(alert);
   }
 
+  /**
+   * 適用開始月を取得（変動月から再計算）
+   */
+  getApplyStartMonth(alert: SuijiKouhoResultWithDiff): number {
+    if (!alert.changeMonth) {
+      return alert.applyStartMonth || 0;
+    }
+    // 変動月+3ヶ月後が適用開始月
+    const applyStartMonthRaw = alert.changeMonth + 3;
+    return applyStartMonthRaw > 12 ? applyStartMonthRaw - 12 : applyStartMonthRaw;
+  }
+
   getReasonText(result: SuijiKouhoResultWithDiff): string {
     return result.reasons.join(' / ');
   }

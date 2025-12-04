@@ -1,5 +1,12 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, setDoc, deleteDoc, collection, getDocs } from '@angular/fire/firestore';
+import {
+  Firestore,
+  doc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+} from '@angular/fire/firestore';
 import { MonthlySalaryData } from '../models/monthly-salary.model';
 import { SalaryItem } from '../models/salary-item.model';
 import { FixedChangeResult } from '../models/suiji.model';
@@ -19,7 +26,7 @@ export class SuijiService {
     private firestore: Firestore,
     private settingsService: SettingsService
   ) {}
-  
+
   /**
    * 固定的賃金の変動を検出する
    * @param salaryData 給与データ（キー形式: employeeId_month）
@@ -31,21 +38,23 @@ export class SuijiService {
     salaryItemMaster: SalaryItem[]
   ): FixedChangeResult[] {
     const results: FixedChangeResult[] = [];
-    const employeeMonths: { [employeeId: string]: { [month: number]: number } } = {};
+    const employeeMonths: {
+      [employeeId: string]: { [month: number]: number };
+    } = {};
 
     // 給与データを従業員IDと月ごとに整理
     for (const key in salaryData) {
       const parts = key.split('_');
       if (parts.length !== 2) continue;
-      
+
       const employeeId = parts[0];
       const month = parseInt(parts[1], 10);
-      
+
       if (isNaN(month) || month < 1 || month > 12) continue;
-      
+
       const data = salaryData[key];
       const fixedTotal = data.fixedTotal ?? data.fixed ?? data.fixedSalary ?? 0;
-      
+
       if (!employeeMonths[employeeId]) {
         employeeMonths[employeeId] = {};
       }
@@ -55,19 +64,19 @@ export class SuijiService {
     // 各従業員について、月ごとの変動を検出
     for (const employeeId in employeeMonths) {
       const months = employeeMonths[employeeId];
-      
+
       // 2月以降について、前月と比較
       for (let month = 2; month <= 12; month++) {
         const currentFixed = months[month] ?? 0;
         const previousFixed = months[month - 1] ?? 0;
-        
+
         // 変動がある場合（0以外の差分）
         if (currentFixed !== previousFixed) {
           results.push({
             employeeId,
             changeMonth: month,
             fixedBefore: previousFixed,
-            fixedAfter: currentFixed
+            fixedAfter: currentFixed,
           });
         }
       }
@@ -117,12 +126,31 @@ export class SuijiService {
     }
 
     // 報酬月額を計算（総支給額 - 欠勤控除）
-    const remuneration1 = this.calculateRemunerationAmount(data1, key1, salaryItemData, salaryItems);
-    const remuneration2 = this.calculateRemunerationAmount(data2, key2, salaryItemData, salaryItems);
-    const remuneration3 = this.calculateRemunerationAmount(data3, key3, salaryItemData, salaryItems);
+    const remuneration1 = this.calculateRemunerationAmount(
+      data1,
+      key1,
+      salaryItemData,
+      salaryItems
+    );
+    const remuneration2 = this.calculateRemunerationAmount(
+      data2,
+      key2,
+      salaryItemData,
+      salaryItems
+    );
+    const remuneration3 = this.calculateRemunerationAmount(
+      data3,
+      key3,
+      salaryItemData,
+      salaryItems
+    );
 
     // いずれかがnullの場合はnullを返す
-    if (remuneration1 === null || remuneration2 === null || remuneration3 === null) {
+    if (
+      remuneration1 === null ||
+      remuneration2 === null ||
+      remuneration3 === null
+    ) {
       return null;
     }
 
@@ -147,31 +175,36 @@ export class SuijiService {
   ): number | null {
     // 総支給額を取得
     const totalSalary = salaryData.total ?? salaryData.totalSalary ?? 0;
-    
+
     // 欠勤控除を取得
     let absenceDeduction = 0;
     // 賞与を取得（随時改定の計算から除外するため）
     let bonusAmount = 0;
-    
+
     if (salaryItemData && salaryItems) {
       const itemData = salaryItemData[key];
       if (itemData) {
         // 給与項目マスタから「欠勤控除」種別の項目を探す
-        const deductionItems = salaryItems.filter(item => item.type === 'deduction');
+        const deductionItems = salaryItems.filter(
+          (item) => item.type === 'deduction'
+        );
         for (const item of deductionItems) {
           absenceDeduction += itemData[item.id] || 0;
         }
-        
+
         // 給与項目マスタから「賞与」という名前の項目を探す（随時改定の計算から除外）
-        const bonusItems = salaryItems.filter(item => 
-          item.name === '賞与' || item.name.includes('賞与') || item.name.includes('ボーナス')
+        const bonusItems = salaryItems.filter(
+          (item) =>
+            item.name === '賞与' ||
+            item.name.includes('賞与') ||
+            item.name.includes('ボーナス')
         );
         for (const item of bonusItems) {
           bonusAmount += itemData[item.id] || 0;
         }
       }
     }
-    
+
     // 報酬月額 = 総支給額 - 欠勤控除 - 賞与
     const remuneration = totalSalary - absenceDeduction - bonusAmount;
     return remuneration >= 0 ? remuneration : null;
@@ -183,10 +216,7 @@ export class SuijiService {
    * @param standardTable 標準報酬等級表（rank, lower, upper, standardを含む配列）
    * @returns 等級（rank）、該当しない場合はnull
    */
-  getGradeFromAverage(
-    average: number,
-    standardTable: any[]
-  ): number | null {
+  getGradeFromAverage(average: number, standardTable: any[]): number | null {
     if (!standardTable || standardTable.length === 0) {
       return null;
     }
@@ -221,10 +251,11 @@ export class SuijiService {
     // 等級差を計算
     const diff = Math.abs(newGrade - currentGrade);
 
-    // 適用開始月を計算（変動月の4ヶ月後）
-    const applyStartMonth = change.changeMonth + 4;
+    // 適用開始月を計算（変動月の3ヶ月後、つまり変動月が1か月目として4か月目が適用開始）
+    const applyStartMonth = change.changeMonth + 3;
     // 12を超える場合は翌年扱いだが、今回は月のみ計算でOK
-    const normalizedApplyMonth = applyStartMonth > 12 ? applyStartMonth - 12 : applyStartMonth;
+    const normalizedApplyMonth =
+      applyStartMonth > 12 ? applyStartMonth - 12 : applyStartMonth;
 
     // 判定理由を設定（シンプルに）
     const reasons: string[] = [];
@@ -247,7 +278,7 @@ export class SuijiService {
       diff: diff,
       applyStartMonth: normalizedApplyMonth,
       reasons: reasons,
-      isEligible: isEligible
+      isEligible: isEligible,
     };
   }
 
@@ -268,7 +299,11 @@ export class SuijiService {
     }
 
     // 3ヶ月平均を計算
-    const average = (last3MonthsRemunerations[0] + last3MonthsRemunerations[1] + last3MonthsRemunerations[2]) / 3;
+    const average =
+      (last3MonthsRemunerations[0] +
+        last3MonthsRemunerations[1] +
+        last3MonthsRemunerations[2]) /
+      3;
 
     // 平均から等級を求める
     const newGrade = this.getGradeFromAverage(average, gradeTable);
@@ -297,10 +332,14 @@ export class SuijiService {
    * @param year 年度
    * @returns 随時改定候補結果の配列
    */
-  async loadAlerts(year: number): Promise<(SuijiKouhoResult & { id: string })[]> {
+  async loadAlerts(
+    year: number
+  ): Promise<(SuijiKouhoResult & { id: string })[]> {
     const ref = collection(this.firestore, `suiji/${year}/alerts`);
     const snap = await getDocs(ref);
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as SuijiKouhoResult & { id: string }));
+    return snap.docs.map(
+      (d) => ({ ...d.data(), id: d.id } as SuijiKouhoResult & { id: string })
+    );
   }
 
   /**
@@ -308,25 +347,33 @@ export class SuijiService {
    * @param years 取得対象の年度配列（例: [2023, 2024, 2025, 2026]）
    * @returns 随時改定候補結果の配列（年度情報を含む）
    */
-  async loadAllAlerts(years: number[]): Promise<(SuijiKouhoResult & { id: string; year: number })[]> {
+  async loadAllAlerts(
+    years: number[]
+  ): Promise<(SuijiKouhoResult & { id: string; year: number })[]> {
     const allAlerts: (SuijiKouhoResult & { id: string; year: number })[] = [];
-    
+
     for (const year of years) {
       try {
         const ref = collection(this.firestore, `suiji/${year}/alerts`);
         const snap = await getDocs(ref);
-        const yearAlerts = snap.docs.map(d => ({
-          ...d.data(),
-          id: d.id,
-          year: year
-        } as SuijiKouhoResult & { id: string; year: number }));
+        const yearAlerts = snap.docs.map(
+          (d) =>
+            ({
+              ...d.data(),
+              id: d.id,
+              year: year,
+            } as SuijiKouhoResult & { id: string; year: number })
+        );
         allAlerts.push(...yearAlerts);
       } catch (error) {
         // 年度のコレクションが存在しない場合はスキップ
-        console.warn(`[suiji-service] 年度 ${year} のアラート取得に失敗:`, error);
+        console.warn(
+          `[suiji-service] 年度 ${year} のアラート取得に失敗:`,
+          error
+        );
       }
     }
-    
+
     return allAlerts;
   }
 
@@ -336,7 +383,11 @@ export class SuijiService {
    * @param employeeId 従業員ID
    * @param changeMonth 変動月
    */
-  async deleteAlert(year: number, employeeId: string, changeMonth: number): Promise<void> {
+  async deleteAlert(
+    year: number,
+    employeeId: string,
+    changeMonth: number
+  ): Promise<void> {
     const docId = `${employeeId}_${changeMonth}`;
     const ref = doc(this.firestore, `suiji/${year}/alerts/${docId}`);
     await deleteDoc(ref);
@@ -360,10 +411,15 @@ export class SuijiService {
     employeeName: string = ''
   ): Promise<{ hasChange: boolean; warningMessage?: string }> {
     // 年度テーブルを取得
-    const prefecture = employee ? ((employee as any).prefecture || 'tokyo') : 'tokyo';
-    const rates = await this.settingsService.getRates(year.toString(), prefecture);
+    const prefecture = employee
+      ? (employee as any).prefecture || 'tokyo'
+      : 'tokyo';
+    const rates = await this.settingsService.getRates(
+      year.toString(),
+      prefecture
+    );
     const gradeTable = await this.settingsService.getStandardTable(year);
-    
+
     // 年度テーブルが取得できない場合はエラー
     if (!rates || !gradeTable || gradeTable.length === 0) {
       return { hasChange: false };
@@ -392,4 +448,3 @@ export class SuijiService {
     return { hasChange, warningMessage };
   }
 }
-

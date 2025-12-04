@@ -148,36 +148,30 @@ export class AlertAggregationService {
 
   /**
    * 随時改定の届出提出期日をDateオブジェクトで取得
-   * 変動月+4ヶ月後が適用開始月なので、変動月が9月の場合、適用開始月は翌年1月になる
+   * 適用開始月の7日が提出期日
+   * 変動月+3ヶ月後が適用開始月なので、変動月が4月の場合、適用開始月は7月になる
    */
   private getSuijiReportDeadlineDate(alert: SuijiKouhoResultWithDiff): Date | null {
-    if (!alert.applyStartMonth) {
+    if (!alert.applyStartMonth || !alert.changeMonth) {
       return null;
     }
     
     const changeYear = alert.year || getJSTDate().getFullYear();
     const changeMonth = alert.changeMonth;
-    const applyStartMonth = alert.applyStartMonth;
+    
+    // 適用開始月を変動月から再計算（変動月+3ヶ月後）
+    const applyStartMonthRaw = changeMonth + 3;
     
     // 適用開始月の年度を計算
-    // 変動月+4が適用開始月なので、変動月が9月以上の場合、適用開始月は翌年になる
     let applyStartYear = changeYear;
-    if (changeMonth + 4 > 12) {
+    let applyStartMonth = applyStartMonthRaw;
+    if (applyStartMonthRaw > 12) {
+      applyStartMonth = applyStartMonthRaw - 12;
       applyStartYear = changeYear + 1;
     }
     
-    // 適用開始月の前月を計算
-    let deadlineMonth = applyStartMonth - 1;
-    let deadlineYear = applyStartYear;
-    
-    // 1月の場合は前年の12月
-    if (deadlineMonth < 1) {
-      deadlineMonth = 12;
-      deadlineYear = applyStartYear - 1;
-    }
-    
-    // 前月の月末日を取得
-    const deadlineDate = new Date(deadlineYear, deadlineMonth, 0); // 0日目 = 前月の最終日
+    // 適用開始月の7日を提出期日とする
+    const deadlineDate = new Date(applyStartYear, applyStartMonth - 1, 7); // 月は0ベースなので-1
     
     return deadlineDate;
   }

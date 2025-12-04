@@ -123,15 +123,15 @@ export class SuijiFixedSalaryChangeService {
       );
     }
 
-    // 適用開始月は「変動月の4ヶ月後」
+    // 適用開始月は「変動月の3ヶ月後」（変動月が1か月目として4か月目が適用開始）
     let applyMonth: number | null = null;
     if (willApply) {
-      applyMonth = changeMonth + 4;
+      applyMonth = changeMonth + 3;
       if (applyMonth > 12) {
         applyMonth = applyMonth - 12;
       }
       reasons.push(
-        `適用開始月: ${applyMonth}月（変動月${changeMonth}月の4ヶ月後）`
+        `適用開始月: ${applyMonth}月（変動月${changeMonth}月の3ヶ月後）`
       );
     }
 

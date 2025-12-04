@@ -329,11 +329,11 @@ export class NotificationCalculationService {
         // 定時決定：7月10日
         return `${year}-07-10`;
       case 'suiji':
-        // 随時改定：変動月の4ヶ月後の翌月10日
+        // 随時改定：適用開始月の7日（変動月+3ヶ月後が適用開始月）
         if (changeMonth) {
-          const applyYear = changeMonth + 4 > 12 ? year + 1 : year;
-          const applyMonth = changeMonth + 4 > 12 ? changeMonth + 4 - 12 : changeMonth + 4;
-          const submitDate = new Date(applyYear, applyMonth, 10);
+          const applyYear = changeMonth + 3 > 12 ? year + 1 : year;
+          const applyMonth = changeMonth + 3 > 12 ? changeMonth + 3 - 12 : changeMonth + 3;
+          const submitDate = new Date(applyYear, applyMonth - 1, 7); // 適用開始月の7日（月は0ベースなので-1）
           return submitDate.toISOString().split('T')[0];
         }
         return null;

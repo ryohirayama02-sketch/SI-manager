@@ -107,8 +107,8 @@ export class SuijiKetteiCalculationService {
       const emp = employees.find((e) => e.id === employeeId);
       const name = emp?.name || '';
 
-      // 適用開始月＝変動月 + 4ヶ月
-      let applyMonth = changedMonth + 4;
+      // 適用開始月＝変動月 + 3ヶ月（変動月が1か月目として4か月目が適用開始）
+      let applyMonth = changedMonth + 3;
       if (applyMonth > 12) {
         applyMonth = applyMonth - 12;
       }

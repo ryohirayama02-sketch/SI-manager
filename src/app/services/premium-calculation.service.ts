@@ -144,7 +144,7 @@ export class PremiumCalculationService {
       // 適用開始月が現在の月以降のものを検索（最も早い適用開始月）
       const applicableSuiji = employeeSuiji
         .filter(alert => {
-          // 適用開始月の判定（変動月+4ヶ月後）
+          // 適用開始月の判定（変動月+3ヶ月後、変動月が1か月目として4か月目が適用開始）
           const applyStartMonth = alert.applyStartMonth;
           // 適用開始月が現在の月以降の場合に適用
           return applyStartMonth <= month;

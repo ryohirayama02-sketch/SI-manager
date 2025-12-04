@@ -114,16 +114,15 @@ export class NotificationDecisionService {
         `固定的賃金変動により等級${suijiResult.currentGrade}から等級${suijiResult.newGrade}に変更（${suijiResult.diff}等級差）のため、月額変更届の提出が必要`
       );
 
-      // 提出期限：変動月の4ヶ月後の翌月10日（適用開始月の翌月10日）
-      const applyYear = suijiResult.applyStartMonth > 12 ? year + 1 : year;
-      const applyMonth =
-        suijiResult.applyStartMonth > 12
-          ? suijiResult.applyStartMonth - 12
-          : suijiResult.applyStartMonth;
-      const submitDate = new Date(applyYear, applyMonth, 10); // 適用開始月の翌月10日
+      // 提出期限：適用開始月の7日
+      const changeMonth = suijiResult.changeMonth || 0;
+      const applyStartMonth = suijiResult.applyStartMonth;
+      // 適用開始月の年度を計算（変動月+3が適用開始月なので、変動月が10月以上の場合、適用開始月は翌年になる）
+      const applyYear = changeMonth + 3 > 12 ? year + 1 : year;
+      const submitDate = new Date(applyYear, applyStartMonth - 1, 7); // 適用開始月の7日（月は0ベースなので-1）
       const submitUntil = submitDate.toISOString().split('T')[0];
 
-      reasons.push(`提出期限：${submitUntil}（適用開始月の翌月10日）`);
+      reasons.push(`提出期限：${submitUntil}（適用開始月の7日）`);
 
       return {
         type: 'suiji',

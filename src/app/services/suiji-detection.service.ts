@@ -222,13 +222,13 @@ export class SuijiDetectionService {
       );
     }
 
-    // 適用開始月は「変動月の4ヶ月後」
-    let applyStartMonth = month + 4;
+    // 適用開始月は「変動月の3ヶ月後」（変動月が1か月目として4か月目が適用開始）
+    let applyStartMonth = month + 3;
     if (applyStartMonth > 12) {
       applyStartMonth = applyStartMonth - 12;
     }
     reasons.push(
-      `適用開始月: ${applyStartMonth}月（変動月${month}月の4ヶ月後）`
+      `適用開始月: ${applyStartMonth}月（変動月${month}月の3ヶ月後）`
     );
 
     return {
