@@ -35,6 +35,7 @@
         <th>等級差</th>
         <th>適用開始月</th>
         <th>届出提出期日</th>
+        <th style="width: 100px; text-align: center;">CSV出力</th>
       </tr>
     </thead>
     <tbody>
@@ -70,6 +71,15 @@
         <td>{{ getApplyStartMonth(alert) }}月</td>
         <td>
           <strong>{{ getSuijiReportDeadline(alert) }}</strong>
+        </td>
+        <td style="width: 100px; text-align: center;">
+          <button 
+            (click)="exportToCsv(alert)"
+            class="btn-primary"
+            style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"
+            title="CSV出力">
+            CSV出力
+          </button>
         </td>
       </tr>
     </tbody>
