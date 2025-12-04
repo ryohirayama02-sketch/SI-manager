@@ -58,10 +58,10 @@ export class AgeAlertListComponent {
   }
 
   /**
-   * CSV出力（70歳到達厚生年金喪失届）
+   * CSV出力（70歳到達厚生年金喪失届 / 75歳到達健保資格喪失届）
    */
   async exportToCsv(alert: AgeAlert): Promise<void> {
-    if (alert.alertType !== '70歳到達') {
+    if (alert.alertType !== '70歳到達' && alert.alertType !== '75歳到達') {
       return;
     }
 
@@ -83,83 +83,125 @@ export class AgeAlertListComponent {
         office = offices[0] || null;
       }
 
-      // 70歳到達日を取得
+      // 到達日を取得
       const reachDate = alert.reachDate;
       const reachYear = reachDate.getFullYear();
       const reachMonth = reachDate.getMonth() + 1;
-
-      // 喪失年月日と該当年月日は70歳到達の誕生日の前日（reachDateが既に前日を表している）
-      const lossDate = reachDate;
-
-      // 70歳到達月の前月の報酬月額を取得
-      const prevMonth = reachMonth - 1;
-      const prevYear = prevMonth < 1 ? reachYear - 1 : reachYear;
-      const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
-
-      // 給与データを取得
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, prevYear);
-      const prevMonthData = salaryData?.[actualPrevMonth.toString()];
-
-      // 給与項目マスタを取得
-      const salaryItems = await this.settingsService.loadSalaryItems(prevYear);
-
-      // 報酬月額を計算
-      let remunerationAmount = 0;
-      if (prevMonthData) {
-        // 給与項目データを準備
-        const salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
-        if (prevMonthData.salaryItems) {
-          const key = `${employee.id}_${actualPrevMonth}`;
-          salaryItemData[key] = {};
-          for (const item of prevMonthData.salaryItems) {
-            salaryItemData[key][item.itemId] = item.amount;
-          }
-        }
-
-        remunerationAmount = this.calculateRemuneration(
-          prevMonthData,
-          `${employee.id}_${actualPrevMonth}`,
-          salaryItemData,
-          salaryItems
-        );
-      }
+      const reachDay = reachDate.getDate();
 
       // CSVデータを生成
       const csvRows: string[] = [];
 
-      csvRows.push('70歳到達厚生年金喪失届');
-      csvRows.push('');
-      csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
-      csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
-      csvRows.push(`事業所所在地,${office?.address || ''}`);
-      csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-      csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
-      csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
-      csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
-      csvRows.push(`被保険者氏名,${employee.name || ''}`);
-      csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
-      csvRows.push(`個人番号,${employee.myNumber || ''}`);
-      csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
-      csvRows.push(`喪失年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
-      csvRows.push(`該当年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
-      csvRows.push(`報酬月額,${remunerationAmount.toString()}`);
+      if (alert.alertType === '70歳到達') {
+        // 70歳到達厚生年金喪失届
+        // 喪失年月日と該当年月日は70歳到達の誕生日の前日（reachDateが既に前日を表している）
+        const lossDate = reachDate;
 
-      // CSVファイルをダウンロード
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob(['\uFEFF' + csvContent], {
-        type: 'text/csv;charset=utf-8;',
-      });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute(
-        'download',
-        `70歳到達厚生年金喪失届_${employee.name}_${reachYear}年${reachMonth}月.csv`
-      );
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        // 70歳到達月の前月の報酬月額を取得
+        const prevMonth = reachMonth - 1;
+        const prevYear = prevMonth < 1 ? reachYear - 1 : reachYear;
+        const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
+
+        // 給与データを取得
+        const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, prevYear);
+        const prevMonthData = salaryData?.[actualPrevMonth.toString()];
+
+        // 給与項目マスタを取得
+        const salaryItems = await this.settingsService.loadSalaryItems(prevYear);
+
+        // 報酬月額を計算
+        let remunerationAmount = 0;
+        if (prevMonthData) {
+          // 給与項目データを準備
+          const salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
+          if (prevMonthData.salaryItems) {
+            const key = `${employee.id}_${actualPrevMonth}`;
+            salaryItemData[key] = {};
+            for (const item of prevMonthData.salaryItems) {
+              salaryItemData[key][item.itemId] = item.amount;
+            }
+          }
+
+          remunerationAmount = this.calculateRemuneration(
+            prevMonthData,
+            `${employee.id}_${actualPrevMonth}`,
+            salaryItemData,
+            salaryItems
+          );
+        }
+
+        csvRows.push('70歳到達厚生年金喪失届');
+        csvRows.push('');
+        csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
+        csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
+        csvRows.push(`事業所所在地,${office?.address || ''}`);
+        csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
+        csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+        csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
+        csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
+        csvRows.push(`被保険者氏名,${employee.name || ''}`);
+        csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+        csvRows.push(`個人番号,${employee.myNumber || ''}`);
+        csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
+        csvRows.push(`喪失年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
+        csvRows.push(`該当年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
+        csvRows.push(`報酬月額,${remunerationAmount.toString()}`);
+
+        // CSVファイルをダウンロード
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], {
+          type: 'text/csv;charset=utf-8;',
+        });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute(
+          'download',
+          `70歳到達厚生年金喪失届_${employee.name}_${reachYear}年${reachMonth}月.csv`
+        );
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (alert.alertType === '75歳到達') {
+        // 75歳到達健保資格喪失届
+        // 喪失年月日は75歳到達の誕生日（reachDateから1日後を計算）
+        // 生年月日から75歳到達日を計算
+        const birthDate = new Date(employee.birthDate);
+        const lossDate = new Date(birthDate.getFullYear() + 75, birthDate.getMonth(), birthDate.getDate());
+
+        csvRows.push('75歳到達健保資格喪失届');
+        csvRows.push('');
+        csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
+        csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
+        csvRows.push(`事業所所在地,${office?.address || ''}`);
+        csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
+        csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+        csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
+        csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
+        csvRows.push(`被保険者氏名,${employee.name || ''}`);
+        csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+        csvRows.push(`個人番号,${employee.myNumber || ''}`);
+        csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
+        csvRows.push(`喪失年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
+
+        // CSVファイルをダウンロード
+        const csvContent = csvRows.join('\n');
+        const blob = new Blob(['\uFEFF' + csvContent], {
+          type: 'text/csv;charset=utf-8;',
+        });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute(
+          'download',
+          `75歳到達健保資格喪失届_${employee.name}_${lossDate.getFullYear()}年${lossDate.getMonth() + 1}月.csv`
+        );
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
     } catch (error) {
       console.error('CSV出力エラー:', error);
       window.alert('CSV出力中にエラーが発生しました');

@@ -71,7 +71,7 @@
         </td>
         <td style="width: 100px; text-align: center;">
           <button 
-            *ngIf="alert.alertType === '70歳到達'"
+            *ngIf="alert.alertType === '70歳到達' || alert.alertType === '75歳到達'"
             (click)="exportToCsv(alert)"
             class="btn-primary"
             style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"
