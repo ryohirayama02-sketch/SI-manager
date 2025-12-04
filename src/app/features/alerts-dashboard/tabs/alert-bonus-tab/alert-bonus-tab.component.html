@@ -10,28 +10,29 @@
     賞与支払届のアラートはありません。
   </div>
   
-  <div *ngIf="bonusReportAlerts.length > 0" style="margin-bottom: 1rem;">
+  <div *ngIf="bonusReportAlerts.length > 0" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <button 
+        *ngIf="selectedBonusReportAlertIds.size > 0"
+        (click)="deleteSelectedBonusReportAlerts()"
+        class="btn-danger"
+        style="margin-right: 0.5rem;">
+        選択した{{ selectedBonusReportAlertIds.size }}件を削除（非表示にする）
+      </button>
+      <label style="margin-left: 1rem;">
+        <input 
+          type="checkbox" 
+          [checked]="selectedBonusReportAlertIds.size === bonusReportAlerts.length && bonusReportAlerts.length > 0"
+          (change)="toggleAllBonusReportAlertsChange($event)"
+          style="margin-right: 0.5rem;">
+        すべてのアラートを削除対象に選択
+      </label>
+    </div>
     <button 
       (click)="exportToCsv()"
-      class="btn-success"
-      style="margin-right: 0.5rem;">
+      class="btn-success">
       CSV出力
     </button>
-    <button 
-      *ngIf="selectedBonusReportAlertIds.size > 0"
-      (click)="deleteSelectedBonusReportAlerts()"
-      class="btn-danger"
-      style="margin-right: 0.5rem;">
-      選択した{{ selectedBonusReportAlertIds.size }}件を削除（非表示にする）
-    </button>
-    <label style="margin-left: 1rem;">
-      <input 
-        type="checkbox" 
-        [checked]="selectedBonusReportAlertIds.size === bonusReportAlerts.length && bonusReportAlerts.length > 0"
-        (change)="toggleAllBonusReportAlertsChange($event)"
-        style="margin-right: 0.5rem;">
-      すべてのアラートを削除対象に選択
-    </label>
   </div>
   
   <table class="alert-table" *ngIf="bonusReportAlerts.length > 0">
@@ -59,7 +60,6 @@
             title="削除対象に選択">
         </td>
         <td>
-          <span *ngIf="alert.daysUntilDeadline <= 7">⚠️ </span>
           {{ alert.employeeName }}
         </td>
         <td>{{ alert.bonusAmount | number:'1.0-0' }}円</td>
