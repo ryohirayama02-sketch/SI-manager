@@ -1,6 +1,7 @@
 <app-age-alert-list
   [ageAlerts]="ageAlerts"
   [selectedAgeAlertIds]="selectedAgeAlertIds"
+  [employees]="employees"
   (alertSelectionChange)="ageAlertSelectionChange.emit($event)"
   (selectAllChange)="ageSelectAllChange.emit($event)"
   (deleteSelected)="ageDeleteSelected.emit()">

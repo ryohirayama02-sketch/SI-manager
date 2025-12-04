@@ -34,6 +34,7 @@
         <th>到達日（資格喪失日）</th>
         <th>届出提出期日</th>
         <th>提出期限まで</th>
+        <th style="width: 100px; text-align: center;">CSV出力</th>
       </tr>
     </thead>
     <tbody>
@@ -67,6 +68,16 @@
           <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
             期限切れ
           </span>
+        </td>
+        <td style="width: 100px; text-align: center;">
+          <button 
+            *ngIf="alert.alertType === '70歳到達'"
+            (click)="exportToCsv(alert)"
+            class="btn-primary"
+            style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"
+            title="CSV出力">
+            CSV出力
+          </button>
         </td>
       </tr>
     </tbody>

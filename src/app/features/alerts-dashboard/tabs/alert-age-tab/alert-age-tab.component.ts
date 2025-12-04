@@ -39,6 +39,7 @@ export class AlertAgeTabComponent {
   @Input() selectedAgeAlertIds: Set<string> = new Set();
   @Input() qualificationChangeAlerts: QualificationChangeAlert[] = [];
   @Input() selectedQualificationChangeAlertIds: Set<string> = new Set();
+  @Input() employees: any[] = [];
   @Output() ageAlertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
   @Output() ageSelectAllChange = new EventEmitter<boolean>();
   @Output() ageDeleteSelected = new EventEmitter<void>();
