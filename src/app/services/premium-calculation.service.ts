@@ -285,21 +285,35 @@ export class PremiumCalculationService {
       }
     }
 
-    // 4. 標準報酬月額が確定していない場合の処理
+    // 4. 標準報酬月額が確定していない場合、その月の給与額から等級を判定
     // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
     // その月の給与から毎月計算するものではありません。
-    // 標準報酬月額が確定していない場合は、monthly-premium-calculation.service.ts で
-    // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
-    // しかし、その月の給与が0円の場合、monthly-premium-calculation.service.ts で標準報酬月額を取得できていない可能性があります。
-    // そのため、ここでは標準報酬月額が取得できない場合でも、その月の給与が0円の場合は保険料を0円とします。
+    // しかし、標準報酬月額が確定していない場合（新規入社など）は、
+    // その月の給与から一時的に等級を判定して標準報酬月額を取得します。
     if (!standardMonthlyRemuneration) {
-      // 標準報酬月額が確定していない場合、monthly-premium-calculation.service.ts で
-      // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
-      // しかし、その月の給与が0円の場合、monthly-premium-calculation.service.ts で標準報酬月額を取得できていない可能性があります。
-      // そのため、ここでは標準報酬月額が取得できない場合は保険料を0円とします。
-      reasons.push(
-        '標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
-      );
+      const totalSalary = fixedSalary + variableSalary;
+      if (totalSalary > 0 && gradeTable.length > 0) {
+        const gradeResult = this.gradeDeterminationService.findGrade(
+          gradeTable,
+          totalSalary
+        );
+        if (gradeResult) {
+          standardMonthlyRemuneration = gradeResult.remuneration;
+          reasons.push(
+            `その月の給与（${totalSalary.toLocaleString()}円）から等級${
+              gradeResult.grade
+            }（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）を一時的に使用（標準報酬月額が確定していないため）`
+          );
+        } else {
+          reasons.push(
+            '標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
+          );
+        }
+      } else {
+        reasons.push(
+          '標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
+        );
+      }
     }
 
     // standardMonthlyRemunerationが確定していることを確認

@@ -68,9 +68,9 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     };
   } = {};
 
-  // 現在の年月
-  currentYear: number = new Date().getFullYear();
-  currentMonth: number = new Date().getMonth() + 1;
+  // 表示対象の年月（先月）
+  currentYear: number;
+  currentMonth: number;
 
   // 加入判定の説明辞書
   eligibilityDescriptions: { [key: string]: string } = {
@@ -88,7 +88,13 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     private salaryCalculationService: SalaryCalculationService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private router: Router
-  ) {}
+  ) {
+    // 先月の年月を計算
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    this.currentYear = lastMonth.getFullYear();
+    this.currentMonth = lastMonth.getMonth() + 1;
+  }
 
   async ngOnInit(): Promise<void> {
     await this.reloadEmployees();
@@ -129,6 +135,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       // 当月の保険料を計算
       // 注: payment-summary-calculation.service.tsは全従業員の年間データを計算するサービスで、
       // 従業員一覧画面で当月だけを取得するには重いため、SalaryCalculationServiceを直接使用
+      // 重要：標準報酬月額が確定している場合は、給与が0円でも保険料を計算する
       let currentMonthPremium = null;
       let standardMonthlyRemuneration: number | null = null;
       let grade: number | null = null;
@@ -139,16 +146,19 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
           this.currentYear
         );
         
+        let fixedSalary = 0;
+        let variableSalary = 0;
+        
         if (salaryData) {
           const monthKey = this.currentMonth.toString();
           const monthData = salaryData[monthKey];
           
           if (monthData) {
-            const fixedSalary = monthData.fixedTotal ?? monthData.fixed ?? monthData.fixedSalary ?? 0;
-            const variableSalary = monthData.variableTotal ?? monthData.variable ?? monthData.variableSalary ?? 0;
+            fixedSalary = monthData.fixedTotal ?? monthData.fixed ?? monthData.fixedSalary ?? 0;
+            variableSalary = monthData.variableTotal ?? monthData.variable ?? monthData.variableSalary ?? 0;
             const totalSalary = fixedSalary + variableSalary;
             
-            // 標準報酬月額と等級を計算
+            // 標準報酬月額と等級を計算（給与がある場合のみ）
             if (totalSalary > 0 && gradeTable.length > 0) {
               const gradeResult = this.salaryCalculationService.findGrade(gradeTable, totalSalary);
               if (gradeResult) {
@@ -156,44 +166,44 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
                 grade = gradeResult.grade;
               }
             }
-            
-            if (fixedSalary > 0 || variableSalary > 0) {
-              const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
-                emp,
-                this.currentYear,
-                this.currentMonth,
-                fixedSalary,
-                variableSalary,
-                gradeTable
-              );
-              
-              currentMonthPremium = {
-                healthEmployee: premiums.health_employee,
-                healthEmployer: premiums.health_employer,
-                careEmployee: premiums.care_employee,
-                careEmployer: premiums.care_employer,
-                pensionEmployee: premiums.pension_employee,
-                pensionEmployer: premiums.pension_employer,
-                total: premiums.health_employee + premiums.health_employer +
-                       premiums.care_employee + premiums.care_employer +
-                       premiums.pension_employee + premiums.pension_employer,
-              };
-              
-              // monthlyPremiumSummaryにも格納
-              this.monthlyPremiumSummary[emp.id] = {
-                healthEmployee: premiums.health_employee,
-                healthEmployer: premiums.health_employer,
-                careEmployee: premiums.care_employee,
-                careEmployer: premiums.care_employer,
-                pensionEmployee: premiums.pension_employee,
-                pensionEmployer: premiums.pension_employer,
-                total: premiums.health_employee + premiums.health_employer +
-                       premiums.care_employee + premiums.care_employer +
-                       premiums.pension_employee + premiums.pension_employer,
-              };
-            }
           }
         }
+        
+        // 標準報酬月額が確定している場合は、給与が0円でも保険料を計算
+        // 標準報酬月額は、従業員データのstandardMonthlyRemunerationまたはacquisitionStandardから取得される
+        const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
+          emp,
+          this.currentYear,
+          this.currentMonth,
+          fixedSalary,
+          variableSalary,
+          gradeTable
+        );
+        
+        currentMonthPremium = {
+          healthEmployee: premiums.health_employee,
+          healthEmployer: premiums.health_employer,
+          careEmployee: premiums.care_employee,
+          careEmployer: premiums.care_employer,
+          pensionEmployee: premiums.pension_employee,
+          pensionEmployer: premiums.pension_employer,
+          total: premiums.health_employee + premiums.health_employer +
+                 premiums.care_employee + premiums.care_employer +
+                 premiums.pension_employee + premiums.pension_employer,
+        };
+        
+        // monthlyPremiumSummaryにも格納
+        this.monthlyPremiumSummary[emp.id] = {
+          healthEmployee: premiums.health_employee,
+          healthEmployer: premiums.health_employer,
+          careEmployee: premiums.care_employee,
+          careEmployer: premiums.care_employer,
+          pensionEmployee: premiums.pension_employee,
+          pensionEmployer: premiums.pension_employer,
+          total: premiums.health_employee + premiums.health_employer +
+                 premiums.care_employee + premiums.care_employer +
+                 premiums.pension_employee + premiums.pension_employer,
+        };
       } catch (error) {
         console.error(`従業員 ${emp.id} の保険料計算エラー:`, error);
       }
@@ -236,22 +246,20 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         }
       }
       
-      // 休職中の判定（復職日が設定されていて、復職日が未来の場合）
+      // 休職中の判定（先月の状態をチェック）
       if (emp.returnFromLeaveDate) {
         const returnDate = new Date(emp.returnFromLeaveDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const lastMonthDate = new Date(this.currentYear, this.currentMonth - 1, 1);
         returnDate.setHours(0, 0, 0, 0);
+        lastMonthDate.setHours(0, 0, 0, 0);
         
-        // 復職日が未来なら休職中
-        if (returnDate > today) {
-          // 当月が休職期間中かどうかを判定
-          const currentDate = new Date(this.currentYear, this.currentMonth - 1, 1);
+        // 復職日が先月より未来なら休職中
+        if (returnDate > lastMonthDate) {
           const returnDateStart = new Date(returnDate);
           returnDateStart.setDate(1); // 復職日の月初日
           
-          // 復職日が当月より未来なら休職中
-          if (returnDateStart > currentDate) {
+          // 復職日が先月より未来なら休職中
+          if (returnDateStart > lastMonthDate) {
             notes.push('休職中');
           }
         }
@@ -439,13 +447,14 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * 現在の休業ステータスを取得
+   * 先月の休業ステータスを取得（保険料表示用）
    */
   getCurrentLeaveStatus(employee: Employee): {
     status: 'maternity' | 'childcare' | 'leave' | 'none';
     startDate: string | null;
     endDate: string | null;
   } {
+    // 先月の状態を返す（保険料表示と一致させるため）
     return this.getLeaveStatusForMonth(employee, this.currentYear, this.currentMonth);
   }
 
@@ -466,16 +475,20 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * 徴収不能アラートがあるかチェック
+   * 徴収不能アラートがあるかチェック（先月のデータをチェック）
    */
   async hasCollectionImpossibleAlert(employee: Employee): Promise<boolean> {
-    // 無給休職中の場合
-    const leaveStatus = this.getCurrentLeaveStatus(employee);
+    // 無給休職中の場合（先月の状態をチェック）
+    const now = new Date();
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthYear = lastMonth.getFullYear();
+    const lastMonthMonth = lastMonth.getMonth() + 1;
+    const leaveStatus = this.getLeaveStatusForMonth(employee, lastMonthYear, lastMonthMonth);
     if (leaveStatus.status === 'leave') {
       return true;
     }
 
-    // 給与 < 本人負担保険料の月があるかチェック
+    // 給与 < 本人負担保険料の月があるかチェック（先月のデータをチェック）
     try {
       const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, this.currentYear);
       if (!salaryData) return false;
