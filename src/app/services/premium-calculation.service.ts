@@ -72,8 +72,19 @@ export class PremiumCalculationService {
       month
     );
 
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 月末在籍判定`,
+      {
+        isLastDayEligible,
+        retireDate: employee.retireDate,
+      }
+    );
+
     if (!isLastDayEligible) {
       // 月末在籍がない場合、健康保険・介護保険の保険料は0円
+      console.warn(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ⚠️ 月末在籍なし（健康保険・介護保険は0円）`
+      );
       reasons.push(
         `${month}月は退職月で月末在籍がないため、健康保険・介護保険の保険料は0円です`
       );
@@ -102,11 +113,32 @@ export class PremiumCalculationService {
     const isChildcareLeave = isChildcareLeavePeriod && isExemptFromPremiums;
     const isExempt = isMaternityLeave || isChildcareLeave;
 
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 産休・育休判定`,
+      {
+        isMaternityLeavePeriod,
+        isChildcareLeavePeriod,
+        canTakeMaternityLeave,
+        isExemptFromPremiums,
+        isMaternityLeave,
+        isChildcareLeave,
+        isExempt,
+        maternityLeaveStart: employee.maternityLeaveStart,
+        maternityLeaveEnd: employee.maternityLeaveEnd,
+        childcareLeaveStart: employee.childcareLeaveStart,
+        childcareLeaveEnd: employee.childcareLeaveEnd,
+      }
+    );
+
     if (isExempt) {
       // 産休・育休中は本人分・事業主負担ともに0円
       const reason = isMaternityLeave
         ? '産前産後休業中（健康保険・厚生年金本人分免除）'
         : '育児休業中（健康保険・厚生年金本人分免除）';
+      console.warn(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ⚠️ 産休・育休中 → 保険料0円を返します`,
+        { reason }
+      );
       reasons.push(reason);
       return {
         health_employee: 0,
@@ -191,6 +223,19 @@ export class PremiumCalculationService {
     let gradeResult: { grade: number; remuneration: number } | null = null;
     let standardMonthlyRemuneration: number | null = null;
 
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額取得開始`,
+      {
+        appliedSuiji: appliedSuiji ? 'あり' : 'なし',
+        employeeStandardMonthlyRemuneration:
+          employee.standardMonthlyRemuneration,
+        employeeAcquisitionStandard: employee.acquisitionStandard,
+        fixedSalary,
+        variableSalary,
+        totalSalary: fixedSalary + variableSalary,
+      }
+    );
+
     // 1. 随時改定が適用されている場合は新しい等級を使用
     if (appliedSuiji) {
       const newGradeRow = gradeTable.find(
@@ -267,6 +312,9 @@ export class PremiumCalculationService {
     ) {
       const acquisitionStandard = employee.acquisitionStandard;
       standardMonthlyRemuneration = acquisitionStandard;
+      console.log(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 資格取得時決定から標準報酬月額を取得: ${acquisitionStandard}円`
+      );
       // 標準報酬月額から等級を逆引き
       gradeResult = this.gradeDeterminationService.findGrade(
         gradeTable,
@@ -292,6 +340,13 @@ export class PremiumCalculationService {
     // その月の給与から一時的に等級を判定して標準報酬月額を取得します。
     if (!standardMonthlyRemuneration) {
       const totalSalary = fixedSalary + variableSalary;
+      console.log(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額が未確定、給与から判定を試行`,
+        {
+          totalSalary,
+          gradeTableLength: gradeTable.length,
+        }
+      );
       if (totalSalary > 0 && gradeTable.length > 0) {
         const gradeResult = this.gradeDeterminationService.findGrade(
           gradeTable,
@@ -299,17 +354,28 @@ export class PremiumCalculationService {
         );
         if (gradeResult) {
           standardMonthlyRemuneration = gradeResult.remuneration;
+          console.log(
+            `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 給与から標準報酬月額を取得: ${gradeResult.remuneration}円（等級${gradeResult.grade}）`
+          );
           reasons.push(
             `その月の給与（${totalSalary.toLocaleString()}円）から等級${
               gradeResult.grade
             }（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）を一時的に使用（標準報酬月額が確定していないため）`
           );
         } else {
+          console.warn(
+            `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 給与から等級を判定できませんでした`,
+            { totalSalary }
+          );
           reasons.push(
             '標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
           );
         }
       } else {
+        console.warn(
+          `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 給与が0円または等級テーブルが空のため、標準報酬月額を取得できません`,
+          { totalSalary, gradeTableLength: gradeTable.length }
+        );
         reasons.push(
           '標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
         );
@@ -322,18 +388,29 @@ export class PremiumCalculationService {
     // 標準報酬月額が取得できない場合は、monthly-premium-calculation.service.ts で
     // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
     // そのため、ここで早期リターンしないようにします。
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額取得結果`,
+      {
+        standardMonthlyRemuneration,
+        employeeStandardMonthlyRemuneration:
+          employee.standardMonthlyRemuneration,
+        employeeAcquisitionStandard: employee.acquisitionStandard,
+        totalSalary: fixedSalary + variableSalary,
+      }
+    );
     if (!standardMonthlyRemuneration || standardMonthlyRemuneration <= 0) {
       // 標準報酬月額が取得できない場合でも、その月の給与が0円の場合は
       // monthly-premium-calculation.service.ts で年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
       // そのため、ここで早期リターンしないようにします。
-      console.warn(
-        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額が取得できませんでした`,
+      console.error(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ❌ 標準報酬月額が取得できませんでした → 保険料0円を返します`,
         {
           employeeStandardMonthlyRemuneration:
             employee.standardMonthlyRemuneration,
           employeeAcquisitionStandard: employee.acquisitionStandard,
-          totalSalary,
+          totalSalary: fixedSalary + variableSalary,
           standardMonthlyRemuneration,
+          reasons,
         }
       );
       reasons.push(
@@ -489,6 +566,10 @@ export class PremiumCalculationService {
 
     // ⑤ 通常の保険料計算（年齢到達・同月得喪を考慮）
     const prefecture = (employee as any).prefecture || 'tokyo';
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 料率取得を開始`,
+      { year, prefecture, month }
+    );
     const ratesResult = await this.settingsService.getRates(
       year.toString(),
       prefecture,
@@ -498,13 +579,16 @@ export class PremiumCalculationService {
       reasons.push(
         `保険料率の取得に失敗しました（年度: ${year}, 都道府県: ${prefecture}, 月: ${month}）。設定画面で料率を設定してください。`
       );
-      console.error(`[calculateMonthlyPremiums] 料率取得失敗:`, {
-        year,
-        prefecture,
-        month,
-        employeeId: employee.id,
-        employeeName: employee.name,
-      });
+      console.error(
+        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ❌ 料率取得失敗 → 保険料0円を返します`,
+        {
+          year,
+          prefecture,
+          month,
+          employeeId: employee.id,
+          employeeName: employee.name,
+        }
+      );
       return {
         health_employee: 0,
         health_employer: 0,
@@ -517,7 +601,7 @@ export class PremiumCalculationService {
     }
     const r = ratesResult;
     console.log(
-      `[calculateMonthlyPremiums] ${employee.name} (${year}年${month}月) 料率取得成功:`,
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ✅ 料率取得成功`,
       r
     );
 
@@ -666,7 +750,7 @@ export class PremiumCalculationService {
     const pension_employee = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
     const pension_employer = pensionTotal - pension_employee; // 会社分 = 総額 - 個人分
 
-    return {
+    const result = {
       health_employee,
       health_employer,
       care_employee,
@@ -675,6 +759,31 @@ export class PremiumCalculationService {
       pension_employer,
       reasons,
     };
+
+    const totalPremium =
+      health_employee +
+      health_employer +
+      care_employee +
+      care_employer +
+      pension_employee +
+      pension_employer;
+    console.log(
+      `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ✅ 保険料計算完了`,
+      {
+        standardMonthlyRemuneration,
+        healthBase,
+        careBase,
+        pensionBase,
+        healthTotal: healthBase * (r.health_employee + r.health_employer),
+        careTotal: careBase * (r.care_employee + r.care_employer),
+        pensionTotal,
+        result,
+        totalPremium,
+        reasons,
+      }
+    );
+
+    return result;
   }
 
   /**

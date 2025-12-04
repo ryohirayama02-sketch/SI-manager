@@ -421,64 +421,111 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         const monthKey = month.toString();
         const monthData = monthlySalaryData?.[monthKey];
         
-        if (monthData) {
-          const fixedSalary = monthData.fixedTotal ?? monthData.fixed ?? monthData.fixedSalary ?? 0;
-          const variableSalary = monthData.variableTotal ?? monthData.variable ?? monthData.variableSalary ?? 0;
-          
-          if (fixedSalary > 0 || variableSalary > 0) {
-            const premiumResult = await this.salaryCalculationService.calculateMonthlyPremiums(
-              emp,
-              this.year,
-              month,
-              fixedSalary,
-              variableSalary,
-              gradeTable
-            );
+        // 給与データの取得（存在しない場合は0）
+        const fixedSalary = monthData?.fixedTotal ?? monthData?.fixed ?? monthData?.fixedSalary ?? 0;
+        const variableSalary = monthData?.variableTotal ?? monthData?.variable ?? monthData?.variableSalary ?? 0;
+        
+        // 重要：標準報酬月額が確定している場合は、給与が0円でも保険料を計算する
+        // 標準報酬月額は、従業員データのstandardMonthlyRemunerationまたはacquisitionStandardから取得される
+        const hasStandardRemuneration = 
+          (emp.standardMonthlyRemuneration && emp.standardMonthlyRemuneration > 0) ||
+          (emp.acquisitionStandard && emp.acquisitionStandard > 0);
+        
+        console.log(
+          `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ループ処理開始`,
+          {
+            month,
+            monthKey,
+            monthDataExists: !!monthData,
+            fixedSalary,
+            variableSalary,
+            hasStandardRemuneration,
+            employeeStandardMonthlyRemuneration: emp.standardMonthlyRemuneration,
+            employeeAcquisitionStandard: emp.acquisitionStandard,
+            willCalculate: (fixedSalary > 0 || variableSalary > 0) || hasStandardRemuneration,
+          }
+        );
+        
+        // 給与がある場合、または標準報酬月額が確定している場合は保険料を計算
+        if ((fixedSalary > 0 || variableSalary > 0) || hasStandardRemuneration) {
+          console.log(
+            `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ✅ 保険料計算を実行`
+          );
+          const premiumResult = await this.salaryCalculationService.calculateMonthlyPremiums(
+            emp,
+            this.year,
+            month,
+            fixedSalary,
+            variableSalary,
+            gradeTable
+          );
 
-            // 標準報酬等級を取得（gradeTableから直接検索）
-            const totalSalary = fixedSalary + variableSalary;
-            let grade: number | null = null;
-            let standardMonthlyRemuneration = 0;
-            
-            // gradeTableから等級を検索
+          // 標準報酬等級を取得（gradeTableから直接検索）
+          const totalSalary = fixedSalary + variableSalary;
+          let grade: number | null = null;
+          let standardMonthlyRemuneration = 0;
+          
+          // 給与がある場合はgradeTableから等級を検索
+          if (totalSalary > 0) {
             const gradeRow = gradeTable.find((r: any) => totalSalary >= r.lower && totalSalary < r.upper);
             if (gradeRow) {
               grade = gradeRow.rank;
               standardMonthlyRemuneration = gradeRow.standard;
             }
-
-            // 免除判定（Service統一ロジックを使用）
-            const isExempt = this.salaryCalculationService.isExemptMonth(emp, this.year, month);
-            const exemptReason = isExempt ? '免除中' : '';
-
-            const monthlyPremium: MonthlyPremiumData = {
-              month,
-              grade,
-              standardMonthlyRemuneration,
-              healthEmployee: premiumResult.health_employee,
-              healthEmployer: premiumResult.health_employer,
-              careEmployee: premiumResult.care_employee,
-              careEmployer: premiumResult.care_employer,
-              pensionEmployee: premiumResult.pension_employee,
-              pensionEmployer: premiumResult.pension_employer,
-              total: premiumResult.health_employee + premiumResult.health_employer +
-                     premiumResult.care_employee + premiumResult.care_employer +
-                     premiumResult.pension_employee + premiumResult.pension_employer,
-              isExempt,
-              exemptReason,
-              reasons: [],
-            };
-
-            monthlyPremiums.push(monthlyPremium);
-
-            // 月次合計に加算
-            monthlyTotal.healthEmployee += premiumResult.health_employee;
-            monthlyTotal.healthEmployer += premiumResult.health_employer;
-            monthlyTotal.careEmployee += premiumResult.care_employee;
-            monthlyTotal.careEmployer += premiumResult.care_employer;
-            monthlyTotal.pensionEmployee += premiumResult.pension_employee;
-            monthlyTotal.pensionEmployer += premiumResult.pension_employer;
+          } else if (hasStandardRemuneration) {
+            // 給与が0円でも標準報酬月額が確定している場合は、標準報酬月額から等級を逆引き
+            const standard = emp.standardMonthlyRemuneration || emp.acquisitionStandard || 0;
+            const gradeRow = gradeTable.find((r: any) => r.standard === standard);
+            if (gradeRow) {
+              grade = gradeRow.rank;
+              standardMonthlyRemuneration = gradeRow.standard;
+            } else {
+              // 等級が見つからない場合は標準報酬月額のみを使用
+              standardMonthlyRemuneration = standard;
+            }
           }
+
+          // 免除判定（Service統一ロジックを使用）
+          const isExempt = this.salaryCalculationService.isExemptMonth(emp, this.year, month);
+          const exemptReason = isExempt ? '免除中' : '';
+
+          const monthlyPremium: MonthlyPremiumData = {
+            month,
+            grade,
+            standardMonthlyRemuneration,
+            healthEmployee: premiumResult.health_employee,
+            healthEmployer: premiumResult.health_employer,
+            careEmployee: premiumResult.care_employee,
+            careEmployer: premiumResult.care_employer,
+            pensionEmployee: premiumResult.pension_employee,
+            pensionEmployer: premiumResult.pension_employer,
+            total: premiumResult.health_employee + premiumResult.health_employer +
+                   premiumResult.care_employee + premiumResult.care_employer +
+                   premiumResult.pension_employee + premiumResult.pension_employer,
+            isExempt,
+            exemptReason,
+            reasons: [],
+          };
+
+          monthlyPremiums.push(monthlyPremium);
+
+          // 月次合計に加算
+          monthlyTotal.healthEmployee += premiumResult.health_employee;
+          monthlyTotal.healthEmployer += premiumResult.health_employer;
+          monthlyTotal.careEmployee += premiumResult.care_employee;
+          monthlyTotal.careEmployer += premiumResult.care_employer;
+          monthlyTotal.pensionEmployee += premiumResult.pension_employee;
+          monthlyTotal.pensionEmployer += premiumResult.pension_employer;
+        } else {
+          console.log(
+            `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ❌ 条件を満たさないためスキップ`,
+            {
+              fixedSalary,
+              variableSalary,
+              hasStandardRemuneration,
+              condition: (fixedSalary > 0 || variableSalary > 0) || hasStandardRemuneration,
+            }
+          );
         }
       }
 
