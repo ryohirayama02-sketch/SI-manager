@@ -222,7 +222,7 @@ export class AlertGenerationService {
           const newValueDisplay = this.formatGenderValue(history.newValue);
           details = `${oldValueDisplay} → ${newValueDisplay}`;
         } else if (history.changeType === '所属事業所変更') {
-          // 事業所番号の場合は事業所名を取得
+          // 事業所番号の場合は事業所名を取得し、都道府県を漢字に変換
           const oldValueDisplay = await this.formatOfficeValue(history.oldValue);
           const newValueDisplay = await this.formatOfficeValue(history.newValue);
           details = `${oldValueDisplay} → ${newValueDisplay}`;
@@ -524,11 +524,34 @@ export class AlertGenerationService {
   }
 
   /**
-   * 事業所番号を事業所名に変換
+   * 事業所番号を事業所名に変換（都道府県も漢字に変換）
    */
   private async formatOfficeValue(value: string | null | undefined): Promise<string> {
     if (!value) return '';
-    // 事業所番号の場合は事業所名を取得
+    
+    // 値が「事業所番号 (都道府県)」の形式かどうかをチェック
+    const match = value.match(/^(\d+)\s*\(([^)]+)\)$/);
+    if (match) {
+      const officeNumber = match[1];
+      const prefecture = match[2];
+      const prefectureKanji = this.formatPrefectureValue(prefecture);
+      
+      // 事業所番号から事業所名を取得
+      try {
+        const offices = await this.officeService.getAllOffices();
+        const office = offices.find(o => o.officeNumber === officeNumber);
+        if (office && office.officeName) {
+          return `${office.officeName} (${prefectureKanji})`;
+        }
+      } catch (error) {
+        console.error('事業所情報の取得エラー:', error);
+      }
+      
+      // 事業所名が取得できない場合は、事業所番号と都道府県（漢字）を返す
+      return `${officeNumber} (${prefectureKanji})`;
+    }
+    
+    // 事業所番号のみの場合
     try {
       const offices = await this.officeService.getAllOffices();
       const office = offices.find(o => o.officeNumber === value);
@@ -539,6 +562,58 @@ export class AlertGenerationService {
       console.error('事業所情報の取得エラー:', error);
     }
     return value;
+  }
+
+  /**
+   * 都道府県のローマ字を漢字に変換
+   */
+  private formatPrefectureValue(value: string | null | undefined): string {
+    if (!value) return '';
+    const prefectureMap: { [key: string]: string } = {
+      'tokyo': '東京都',
+      'kanagawa': '神奈川県',
+      'saitama': '埼玉県',
+      'chiba': '千葉県',
+      'osaka': '大阪府',
+      'kyoto': '京都府',
+      'hyogo': '兵庫県',
+      'aichi': '愛知県',
+      'fukuoka': '福岡県',
+      'hokkaido': '北海道',
+      'miyagi': '宮城県',
+      'hiroshima': '広島県',
+      'okinawa': '沖縄県',
+      'shizuoka': '静岡県',
+      'ibaraki': '茨城県',
+      'tochigi': '栃木県',
+      'gunma': '群馬県',
+      'niigata': '新潟県',
+      'toyama': '富山県',
+      'ishikawa': '石川県',
+      'fukui': '福井県',
+      'yamanashi': '山梨県',
+      'nagano': '長野県',
+      'gifu': '岐阜県',
+      'mie': '三重県',
+      'shiga': '滋賀県',
+      'nara': '奈良県',
+      'wakayama': '和歌山県',
+      'tottori': '鳥取県',
+      'shimane': '島根県',
+      'okayama': '岡山県',
+      'yamaguchi': '山口県',
+      'tokushima': '徳島県',
+      'kagawa': '香川県',
+      'ehime': '愛媛県',
+      'kochi': '高知県',
+      'saga': '佐賀県',
+      'nagasaki': '長崎県',
+      'kumamoto': '熊本県',
+      'oita': '大分県',
+      'miyazaki': '宮崎県',
+      'kagoshima': '鹿児島県',
+    };
+    return prefectureMap[value.toLowerCase()] || value;
   }
 
   /**
