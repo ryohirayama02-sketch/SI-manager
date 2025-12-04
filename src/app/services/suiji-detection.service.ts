@@ -7,7 +7,7 @@ import { MonthHelperService } from './month-helper.service';
 
 /**
  * SuijiDetectionService
- * 
+ *
  * 固定的賃金の変動検出を担当するサービス
  * 給与データから固定的賃金の変動を検出し、随時改定の候補を判定
  */
@@ -43,7 +43,8 @@ export class SuijiDetectionService {
     for (let month = 1; month <= 12; month++) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const currentFixed = this.salaryAggregationService.getFixedSalaryPublic(salaryData); // fixedSalary を優先
+      const currentFixed =
+        this.salaryAggregationService.getFixedSalaryPublic(salaryData); // fixedSalary を優先
 
       // 前月と比較して変動があったか判定
       if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
@@ -125,13 +126,15 @@ export class SuijiDetectionService {
     if (prevMonth) {
       const prevKey = this.getSalaryKey(employeeId, prevMonth);
       const prevSalaryData = salaries[prevKey];
-      prevFixed = this.salaryAggregationService.getFixedSalaryPublic(prevSalaryData); // fixedSalary を優先
+      prevFixed =
+        this.salaryAggregationService.getFixedSalaryPublic(prevSalaryData); // fixedSalary を優先
     }
 
     // 当月の固定的賃金を取得
     const currentKey = this.getSalaryKey(employeeId, month);
     const currentSalaryData = salaries[currentKey];
-    const currentFixed = this.salaryAggregationService.getFixedSalaryPublic(currentSalaryData); // fixedSalary を優先
+    const currentFixed =
+      this.salaryAggregationService.getFixedSalaryPublic(currentSalaryData); // fixedSalary を優先
 
     // 固定的賃金の変動がない場合はスキップ
     if (prevFixed === 0 || currentFixed === prevFixed) {
@@ -171,7 +174,8 @@ export class SuijiDetectionService {
     for (const targetMonth of targetMonths) {
       const key = this.getSalaryKey(employeeId, targetMonth);
       const salaryData = salaries[key];
-      const total = this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総支給）
+      const total =
+        this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総支給）
       totalSalaryValues.push(total);
     }
 
@@ -191,7 +195,10 @@ export class SuijiDetectionService {
     const currentGrade = currentResult?.grade || 0;
 
     // 新等級を判定
-    const gradeResult = this.gradeDeterminationService.findGrade(gradeTable, averageSalary);
+    const gradeResult = this.gradeDeterminationService.findGrade(
+      gradeTable,
+      averageSalary
+    );
     if (!gradeResult) {
       reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
       return {
@@ -244,6 +251,3 @@ export class SuijiDetectionService {
     };
   }
 }
-
-
-

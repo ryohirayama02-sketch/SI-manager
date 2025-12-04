@@ -1,36 +1,41 @@
 <div class="card">
   <h3>扶養アラート</h3>
-  <p class="info-text" style="margin-bottom: 1rem;">
-    配偶者・子・親の扶養に関する届出が必要なタイミングをアラートで表示します。<br>
+  <p class="info-text" style="margin-bottom: 1rem">
+    配偶者・子・親の扶養に関する届出が必要なタイミングをアラートで表示します。<br />
     年齢到達、収入増加、別居などの変更があった場合にアラートを表示します。
   </p>
-  
+
   <div *ngIf="supportAlerts.length === 0" class="info-label">
     扶養アラートはありません。
   </div>
-  
-  <div *ngIf="supportAlerts.length > 0" style="margin-bottom: 1rem;">
-    <button 
+
+  <div *ngIf="supportAlerts.length > 0" style="margin-bottom: 1rem">
+    <button
       *ngIf="selectedSupportAlertIds.size > 0"
       (click)="deleteSelectedSupportAlerts()"
       class="btn-danger"
-      style="margin-right: 0.5rem;">
+      style="margin-right: 0.5rem"
+    >
       選択した{{ selectedSupportAlertIds.size }}件を削除（非表示にする）
     </button>
-    <label style="margin-left: 1rem;">
-      <input 
-        type="checkbox" 
-        [checked]="selectedSupportAlertIds.size === supportAlerts.length && supportAlerts.length > 0"
+    <label style="margin-left: 1rem">
+      <input
+        type="checkbox"
+        [checked]="
+          selectedSupportAlertIds.size === supportAlerts.length &&
+          supportAlerts.length > 0
+        "
         (change)="toggleAllSupportAlertsChange($event)"
-        style="margin-right: 0.5rem;">
+        style="margin-right: 0.5rem"
+      />
       すべてのアラートを削除対象に選択
     </label>
   </div>
-  
+
   <table class="alert-table" *ngIf="supportAlerts.length > 0">
     <thead>
       <tr>
-        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th style="width: 80px; text-align: center">削除対象</th>
         <th>届出名前</th>
         <th>従業員</th>
         <th>家族氏名</th>
@@ -42,17 +47,22 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let alert of supportAlerts"
-          [ngClass]="{
-            'alert-row': alert.daysUntilDeadline !== undefined && alert.daysUntilDeadline <= 7,
-            'selected-row': isSupportAlertSelected(alert.id)
-          }">
-        <td style="width: 80px; text-align: center;">
-          <input 
-            type="checkbox" 
+      <tr
+        *ngFor="let alert of supportAlerts"
+        [ngClass]="{
+          'alert-row':
+            alert.daysUntilDeadline !== undefined &&
+            alert.daysUntilDeadline <= 7,
+          'selected-row': isSupportAlertSelected(alert.id)
+        }"
+      >
+        <td style="width: 80px; text-align: center">
+          <input
+            type="checkbox"
             [checked]="isSupportAlertSelected(alert.id)"
             (change)="toggleSupportAlertSelection(alert.id)"
-            title="削除対象に選択">
+            title="削除対象に選択"
+          />
         </td>
         <td>{{ alert.notificationName }}</td>
         <td>{{ alert.employeeName }}</td>
@@ -62,10 +72,19 @@
         <td>{{ alert.details }}</td>
         <td>{{ formatDate(alert.alertDate) }}</td>
         <td>
-          <span *ngIf="alert.submitDeadline" 
-                [ngClass]="{'urgent': alert.daysUntilDeadline !== undefined && alert.daysUntilDeadline <= 7}">
+          <span
+            *ngIf="alert.submitDeadline"
+            [ngClass]="{
+              urgent:
+                alert.daysUntilDeadline !== undefined &&
+                alert.daysUntilDeadline <= 7
+            }"
+          >
             <strong>{{ formatDate(alert.submitDeadline) }}</strong>
-            <span *ngIf="alert.daysUntilDeadline !== undefined" style="margin-left: 0.5rem;">
+            <span
+              *ngIf="alert.daysUntilDeadline !== undefined"
+              style="margin-left: 0.5rem"
+            >
               (残り{{ alert.daysUntilDeadline }}日)
             </span>
           </span>
@@ -75,8 +94,3 @@
     </tbody>
   </table>
 </div>
-
-
-
-
-

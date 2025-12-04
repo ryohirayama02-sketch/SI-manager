@@ -1,57 +1,76 @@
 <div class="card">
-  <div style="max-width: 400px; margin-bottom: 1rem;">
+  <div style="max-width: 400px; margin-bottom: 1rem">
     <div class="form-group">
       <label>年度：</label>
-      <select [(ngModel)]="teijiYear" (change)="onTeijiYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+      <select
+        [(ngModel)]="teijiYear"
+        (change)="onTeijiYearChange()"
+        class="form-control"
+        [ngModelOptions]="{ standalone: true }"
+      >
         <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
       </select>
     </div>
   </div>
-  
+
   <h3>算定基礎届対象者一覧</h3>
-  <p class="info-text" style="margin-bottom: 1rem;">
-    支払基礎日数が17日以上の4〜6月の給与所得と平均額を表示します。<br>
+  <p class="info-text" style="margin-bottom: 1rem">
+    支払基礎日数が17日以上の4〜6月の給与所得と平均額を表示します。<br />
     平均額との差が10%以上の月は算定除外月候補として表示されます。
   </p>
-  
-  <div *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+
+  <div
+    *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0"
+    style="
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    "
+  >
     <div>
-      <button 
+      <button
         *ngIf="selectedTeijiAlertIds.size > 0"
         (click)="deleteSelectedTeijiAlerts()"
         class="btn-danger"
-        style="margin-right: 0.5rem;">
+        style="margin-right: 0.5rem"
+      >
         選択した{{ selectedTeijiAlertIds.size }}件を削除（非表示にする）
       </button>
-      <label style="margin-left: 1rem;">
-        <input 
-          type="checkbox" 
-          [checked]="selectedTeijiAlertIds.size === teijiKetteiResults.length && teijiKetteiResults.length > 0"
+      <label style="margin-left: 1rem">
+        <input
+          type="checkbox"
+          [checked]="
+            selectedTeijiAlertIds.size === teijiKetteiResults.length &&
+            teijiKetteiResults.length > 0
+          "
           (change)="toggleAllTeijiAlertsChange($event)"
-          style="margin-right: 0.5rem;">
+          style="margin-right: 0.5rem"
+        />
         すべてのアラートを削除対象に選択
       </label>
     </div>
-    <button 
-      (click)="exportToCsv()"
-      class="btn-success"
-      title="CSV出力">
+    <button (click)="exportToCsv()" class="btn-success" title="CSV出力">
       CSV出力
     </button>
   </div>
-  
-  <div *ngIf="isLoadingTeijiKettei" class="info-label">
-    読み込み中...
-  </div>
-  
-  <div *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length === 0" class="info-label">
+
+  <div *ngIf="isLoadingTeijiKettei" class="info-label">読み込み中...</div>
+
+  <div
+    *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length === 0"
+    class="info-label"
+  >
     算定基礎届の対象者はありません。
   </div>
-  
-  <table class="alert-table" *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0">
+
+  <table
+    class="alert-table"
+    *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0"
+  >
     <thead>
       <tr>
-        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th style="width: 80px; text-align: center">削除対象</th>
         <th>従業員</th>
         <th>4月給与</th>
         <th>4月支払基礎日数</th>
@@ -67,49 +86,92 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let result of teijiKetteiResults"
-          [ngClass]="{
-            'alert-row': result.exclusionCandidates.length > 0 || result.excludedMonths.length > 0,
-            'selected-row': isTeijiAlertSelected(getTeijiAlertId(result))
-          }">
-        <td style="width: 80px; text-align: center;">
-          <input 
-            type="checkbox" 
+      <tr
+        *ngFor="let result of teijiKetteiResults"
+        [ngClass]="{
+          'alert-row':
+            result.exclusionCandidates.length > 0 ||
+            result.excludedMonths.length > 0,
+          'selected-row': isTeijiAlertSelected(getTeijiAlertId(result))
+        }"
+      >
+        <td style="width: 80px; text-align: center">
+          <input
+            type="checkbox"
             [checked]="isTeijiAlertSelected(getTeijiAlertId(result))"
             (change)="toggleTeijiAlertSelection(getTeijiAlertId(result))"
-            title="削除対象に選択">
+            title="削除対象に選択"
+          />
         </td>
         <td>
           <span *ngIf="result.exclusionCandidates.length > 0">⚠️ </span>
           {{ result.employeeName }}
         </td>
-        <td [ngClass]="{'exclusion-candidate': result.exclusionCandidates.includes(4)}">
-          {{ result.aprilSalary | number:'1.0-0' }}円
-          <span *ngIf="result.aprilWorkingDays < 17" style="color: #999; font-size: 0.9em;">(日数不足)</span>
+        <td
+          [ngClass]="{
+            'exclusion-candidate': result.exclusionCandidates.includes(4)
+          }"
+        >
+          {{ result.aprilSalary | number : "1.0-0" }}円
+          <span
+            *ngIf="result.aprilWorkingDays < 17"
+            style="color: #999; font-size: 0.9em"
+            >(日数不足)</span
+          >
         </td>
         <td>{{ result.aprilWorkingDays }}日</td>
-        <td [ngClass]="{'exclusion-candidate': result.exclusionCandidates.includes(5)}">
-          {{ result.maySalary | number:'1.0-0' }}円
-          <span *ngIf="result.mayWorkingDays < 17" style="color: #999; font-size: 0.9em;">(日数不足)</span>
+        <td
+          [ngClass]="{
+            'exclusion-candidate': result.exclusionCandidates.includes(5)
+          }"
+        >
+          {{ result.maySalary | number : "1.0-0" }}円
+          <span
+            *ngIf="result.mayWorkingDays < 17"
+            style="color: #999; font-size: 0.9em"
+            >(日数不足)</span
+          >
         </td>
         <td>{{ result.mayWorkingDays }}日</td>
-        <td [ngClass]="{'exclusion-candidate': result.exclusionCandidates.includes(6)}">
-          {{ result.juneSalary | number:'1.0-0' }}円
-          <span *ngIf="result.juneWorkingDays < 17" style="color: #999; font-size: 0.9em;">(日数不足)</span>
+        <td
+          [ngClass]="{
+            'exclusion-candidate': result.exclusionCandidates.includes(6)
+          }"
+        >
+          {{ result.juneSalary | number : "1.0-0" }}円
+          <span
+            *ngIf="result.juneWorkingDays < 17"
+            style="color: #999; font-size: 0.9em"
+            >(日数不足)</span
+          >
         </td>
         <td>{{ result.juneWorkingDays }}日</td>
-        <td><strong>{{ result.averageSalary | number:'1.0-0' }}円</strong></td>
         <td>
-          <span *ngIf="result.exclusionCandidates.length > 0" style="color: #f57c00; font-weight: bold;">
-            ⚠️ {{ result.exclusionCandidates.join(', ') }}月
+          <strong>{{ result.averageSalary | number : "1.0-0" }}円</strong>
+        </td>
+        <td>
+          <span
+            *ngIf="result.exclusionCandidates.length > 0"
+            style="color: #f57c00; font-weight: bold"
+          >
+            ⚠️ {{ result.exclusionCandidates.join(", ") }}月
           </span>
           <span *ngIf="result.exclusionCandidates.length === 0">-</span>
         </td>
-        <td>{{ result.teijiResult.grade > 0 ? result.teijiResult.grade + '等級' : '-' }}</td>
         <td>
-          {{ result.teijiResult.standardMonthlyRemuneration > 0 
-            ? (result.teijiResult.standardMonthlyRemuneration | number:'1.0-0') + '円' 
-            : '-' }}
+          {{
+            result.teijiResult.grade > 0
+              ? result.teijiResult.grade + "等級"
+              : "-"
+          }}
+        </td>
+        <td>
+          {{
+            result.teijiResult.standardMonthlyRemuneration > 0
+              ? (result.teijiResult.standardMonthlyRemuneration
+                  | number : "1.0-0") + "円"
+              : "-"
+          }}
         </td>
         <td>
           <strong>{{ getTeijiReportDeadline(teijiYear) }}</strong>
@@ -118,8 +180,3 @@
     </tbody>
   </table>
 </div>
-
-
-
-
-

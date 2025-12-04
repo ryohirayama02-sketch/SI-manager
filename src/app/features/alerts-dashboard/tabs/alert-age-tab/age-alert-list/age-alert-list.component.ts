@@ -1,7 +1,10 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AgeAlert } from '../alert-age-tab.component';
-import { formatDate as formatDateHelper, getJSTDate } from '../../../../../utils/alerts-helper';
+import {
+  formatDate as formatDateHelper,
+  getJSTDate,
+} from '../../../../../utils/alerts-helper';
 import { OfficeService } from '../../../../../services/office.service';
 import { MonthlySalaryService } from '../../../../../services/monthly-salary.service';
 import { SettingsService } from '../../../../../services/settings.service';
@@ -15,13 +18,16 @@ import { SalaryItem } from '../../../../../models/salary-item.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './age-alert-list.component.html',
-  styleUrl: './age-alert-list.component.css'
+  styleUrl: './age-alert-list.component.css',
 })
 export class AgeAlertListComponent {
   @Input() ageAlerts: AgeAlert[] = [];
   @Input() selectedAgeAlertIds: Set<string> = new Set();
   @Input() employees: Employee[] = [];
-  @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
+  @Output() alertSelectionChange = new EventEmitter<{
+    alertId: string;
+    selected: boolean;
+  }>();
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
@@ -68,7 +74,9 @@ export class AgeAlertListComponent {
     }
 
     try {
-      const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
+      const employee = this.employees.find((e) => e.id === alert.employeeId) as
+        | Employee
+        | undefined;
       if (!employee) {
         window.alert('従業員情報が見つかりません');
         return;
@@ -78,7 +86,8 @@ export class AgeAlertListComponent {
       let office: Office | null = null;
       if (employee.officeNumber) {
         const offices = await this.officeService.getAllOffices();
-        office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+        office =
+          offices.find((o) => o.officeNumber === employee.officeNumber) || null;
       }
       if (!office) {
         const offices = await this.officeService.getAllOffices();
@@ -105,17 +114,24 @@ export class AgeAlertListComponent {
         const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
 
         // 給与データを取得
-        const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, prevYear);
+        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+          employee.id,
+          prevYear
+        );
         const prevMonthData = salaryData?.[actualPrevMonth.toString()];
 
         // 給与項目マスタを取得
-        const salaryItems = await this.settingsService.loadSalaryItems(prevYear);
+        const salaryItems = await this.settingsService.loadSalaryItems(
+          prevYear
+        );
 
         // 報酬月額を計算
         let remunerationAmount = 0;
         if (prevMonthData) {
           // 給与項目データを準備
-          const salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
+          const salaryItemData: {
+            [key: string]: { [itemId: string]: number };
+          } = {};
           if (prevMonthData.salaryItems) {
             const key = `${employee.id}_${actualPrevMonth}`;
             salaryItemData[key] = {};
@@ -136,13 +152,20 @@ export class AgeAlertListComponent {
         const gender = this.getGender(employee);
 
         // 扶養の有無を確認
-        const familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(employee.id);
+        const familyMembers =
+          await this.familyMemberService.getFamilyMembersByEmployeeId(
+            employee.id
+          );
         const hasDependents = familyMembers.length > 0;
         const dependentStatus = hasDependents ? '有' : '無';
 
         // 70歳到達の誕生日の翌日を計算（reachDateは前日なので、そこから2日後）
         const birthDate = new Date(employee.birthDate);
-        const age70Birthday = new Date(birthDate.getFullYear() + 70, birthDate.getMonth(), birthDate.getDate());
+        const age70Birthday = new Date(
+          birthDate.getFullYear() + 70,
+          birthDate.getMonth(),
+          birthDate.getDate()
+        );
         const nextDay = new Date(age70Birthday);
         nextDay.setDate(nextDay.getDate() + 1);
 
@@ -153,20 +176,44 @@ export class AgeAlertListComponent {
         csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
         csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
         csvRows.push(`事業所所在地,${office?.address || ''}`);
-        csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-        csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+        csvRows.push(
+          `事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`
+        );
+        csvRows.push(
+          `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+        );
         csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
         csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
         csvRows.push(`被保険者氏名,${employee.name || ''}`);
-        csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+        csvRows.push(
+          `生年月日,${this.formatBirthDateToEra(employee.birthDate)}`
+        );
         csvRows.push(`性別,${gender}`);
         csvRows.push(`個人番号,${employee.myNumber || ''}`);
         csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
-        csvRows.push(`喪失年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
-        csvRows.push(`該当年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
+        csvRows.push(
+          `喪失年月日,${this.formatJapaneseEra(
+            lossDate.getFullYear(),
+            lossDate.getMonth() + 1,
+            lossDate.getDate()
+          )}`
+        );
+        csvRows.push(
+          `該当年月日,${this.formatJapaneseEra(
+            lossDate.getFullYear(),
+            lossDate.getMonth() + 1,
+            lossDate.getDate()
+          )}`
+        );
         csvRows.push(`報酬月額,${remunerationAmount.toString()}`);
         csvRows.push(`扶養,${dependentStatus}`);
-        csvRows.push(`70歳以上被用者該当届,${this.formatJapaneseEra(nextDay.getFullYear(), nextDay.getMonth() + 1, nextDay.getDate())}`);
+        csvRows.push(
+          `70歳以上被用者該当届,${this.formatJapaneseEra(
+            nextDay.getFullYear(),
+            nextDay.getMonth() + 1,
+            nextDay.getDate()
+          )}`
+        );
 
         // CSVファイルをダウンロード
         const csvContent = csvRows.join('\n');
@@ -189,22 +236,38 @@ export class AgeAlertListComponent {
         // 喪失年月日は75歳到達の誕生日（reachDateから1日後を計算）
         // 生年月日から75歳到達日を計算
         const birthDate = new Date(employee.birthDate);
-        const lossDate = new Date(birthDate.getFullYear() + 75, birthDate.getMonth(), birthDate.getDate());
+        const lossDate = new Date(
+          birthDate.getFullYear() + 75,
+          birthDate.getMonth(),
+          birthDate.getDate()
+        );
 
         csvRows.push('75歳到達健保資格喪失届');
         csvRows.push('');
         csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
         csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
         csvRows.push(`事業所所在地,${office?.address || ''}`);
-        csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-        csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+        csvRows.push(
+          `事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`
+        );
+        csvRows.push(
+          `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+        );
         csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
         csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
         csvRows.push(`被保険者氏名,${employee.name || ''}`);
-        csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+        csvRows.push(
+          `生年月日,${this.formatBirthDateToEra(employee.birthDate)}`
+        );
         csvRows.push(`個人番号,${employee.myNumber || ''}`);
         csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
-        csvRows.push(`喪失年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
+        csvRows.push(
+          `喪失年月日,${this.formatJapaneseEra(
+            lossDate.getFullYear(),
+            lossDate.getMonth() + 1,
+            lossDate.getDate()
+          )}`
+        );
 
         // CSVファイルをダウンロード
         const csvContent = csvRows.join('\n');
@@ -216,7 +279,9 @@ export class AgeAlertListComponent {
         link.setAttribute('href', url);
         link.setAttribute(
           'download',
-          `75歳到達健保資格喪失届_${employee.name}_${lossDate.getFullYear()}年${lossDate.getMonth() + 1}月.csv`
+          `75歳到達健保資格喪失届_${employee.name}_${lossDate.getFullYear()}年${
+            lossDate.getMonth() + 1
+          }月.csv`
         );
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
@@ -295,12 +360,12 @@ export class AgeAlertListComponent {
   private formatGenderValue(value: string | null | undefined): string {
     if (!value) return '';
     const genderMap: { [key: string]: string } = {
-      'female': '女性',
-      'male': '男性',
-      '女性': '女性',
-      '男性': '男性',
-      'F': '女性',
-      'M': '男性',
+      female: '女性',
+      male: '男性',
+      女性: '女性',
+      男性: '男性',
+      F: '女性',
+      M: '男性',
     };
     return genderMap[value.toLowerCase()] || value;
   }
@@ -324,7 +389,9 @@ export class AgeAlertListComponent {
         let bonusAmount = 0;
 
         // 給与項目マスタから「欠勤控除」種別の項目を探す
-        const deductionItems = salaryItems.filter((item) => item.type === 'deduction');
+        const deductionItems = salaryItems.filter(
+          (item) => item.type === 'deduction'
+        );
         for (const item of deductionItems) {
           absenceDeduction += itemData[item.id] || 0;
         }
@@ -350,4 +417,3 @@ export class AgeAlertListComponent {
     return total;
   }
 }
-

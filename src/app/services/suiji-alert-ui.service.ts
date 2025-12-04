@@ -3,7 +3,7 @@ import { SuijiKouhoResultWithDiff } from '../features/alerts-dashboard/tabs/aler
 import { getJSTDate, formatDate } from '../utils/alerts-helper';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class SuijiAlertUiService {
   /**
@@ -27,13 +27,13 @@ export class SuijiAlertUiService {
     if (!alert.applyStartMonth || !alert.changeMonth) {
       return '-';
     }
-    
+
     const changeYear = alert.year || getJSTDate().getFullYear();
     const changeMonth = alert.changeMonth;
-    
+
     // 適用開始月を変動月から再計算（変動月+3ヶ月後）
     const applyStartMonthRaw = changeMonth + 3;
-    
+
     // 適用開始月の年度を計算
     let applyStartYear = changeYear;
     let applyStartMonth = applyStartMonthRaw;
@@ -41,10 +41,10 @@ export class SuijiAlertUiService {
       applyStartMonth = applyStartMonthRaw - 12;
       applyStartYear = changeYear + 1;
     }
-    
+
     // 適用開始月の7日を提出期日とする
     const deadlineDate = new Date(applyStartYear, applyStartMonth - 1, 7); // 月は0ベースなので-1
-    
+
     return formatDate(deadlineDate);
   }
 
@@ -63,6 +63,3 @@ export class SuijiAlertUiService {
     return formatDate(date);
   }
 }
-
-
-

@@ -11,4 +11,3 @@ export interface Office {
   createdAt?: Date; // 作成日時
   updatedAt?: Date; // 更新日時
 }
-

@@ -9,13 +9,14 @@ import { getJSTDate } from '../../../../utils/alerts-helper';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './alert-schedule-tab.component.html',
-  styleUrl: './alert-schedule-tab.component.css'
+  styleUrl: './alert-schedule-tab.component.css',
 })
 export class AlertScheduleTabComponent {
   @Input() scheduleData: {
-    [dateKey: string]: { // YYYY-MM-DD形式
+    [dateKey: string]: {
+      // YYYY-MM-DD形式
       [tabName: string]: number; // タブ名: 件数
-    }
+    };
   } = {};
   @Input() scheduleYear: number = new Date().getFullYear();
   @Input() scheduleMonth: number = new Date().getMonth() + 1;
@@ -38,40 +39,47 @@ export class AlertScheduleTabComponent {
     return `${year}-${month}-${day}`;
   }
 
-
   /**
    * カレンダーの日付に表示するスケジュール項目を取得（最大6件）
    */
-  getScheduleItemsForDate(date: Date): { tabName: string; count: number; tabId: string; color: string }[] {
+  getScheduleItemsForDate(
+    date: Date
+  ): { tabName: string; count: number; tabId: string; color: string }[] {
     const dateKey = this.formatDateKey(date);
     const items = this.scheduleData[dateKey];
     if (!items) {
       return [];
     }
-    
+
     // タブ名とタブIDのマッピング
     const tabMapping: { [key: string]: string } = {
-      '賞与支払届': 'bonus',
-      '随時改定アラート': 'suiji',
+      賞与支払届: 'bonus',
+      随時改定アラート: 'suiji',
       '定時決定（算定基礎届）': 'teiji',
       '年齢到達・資格変更': 'age',
       '産休・育休・休職': 'leave',
-      '扶養・氏名・住所変更': 'family'
+      '扶養・氏名・住所変更': 'family',
+      徴収不能: 'uncollected',
     };
-    
-    const result: { tabName: string; count: number; tabId: string; color: string }[] = [];
+
+    const result: {
+      tabName: string;
+      count: number;
+      tabId: string;
+      color: string;
+    }[] = [];
     for (const [tabName, count] of Object.entries(items)) {
       const tabId = tabMapping[tabName] || '';
       if (tabId) {
-        result.push({ 
-          tabName, 
-          count, 
+        result.push({
+          tabName,
+          count,
           tabId,
-          color: this.state.getTabColor(tabId)
+          color: this.state.getTabColor(tabId),
         });
       }
     }
-    
+
     // 最大6件まで
     return result.slice(0, 6);
   }
@@ -104,7 +112,11 @@ export class AlertScheduleTabComponent {
    * カレンダーの日付が現在の月かどうか
    */
   isCurrentMonth(date: Date): boolean {
-    return this.calendarService.isCurrentMonth(date, this.scheduleYear, this.scheduleMonth);
+    return this.calendarService.isCurrentMonth(
+      date,
+      this.scheduleYear,
+      this.scheduleMonth
+    );
   }
 
   /**
@@ -118,7 +130,10 @@ export class AlertScheduleTabComponent {
    * カレンダーの日付配列を生成
    */
   getCalendarDays(): Date[] {
-    return this.calendarService.getCalendarDays(this.scheduleYear, this.scheduleMonth);
+    return this.calendarService.getCalendarDays(
+      this.scheduleYear,
+      this.scheduleMonth
+    );
   }
 
   /**
@@ -129,6 +144,3 @@ export class AlertScheduleTabComponent {
     return this.calendarService.getCalendarWeeks(days);
   }
 }
-
-
-

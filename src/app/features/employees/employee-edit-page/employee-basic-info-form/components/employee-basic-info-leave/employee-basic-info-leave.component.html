@@ -1,100 +1,197 @@
 <div class="form-section" [formGroup]="form">
   <h3>休職・産休・育休</h3>
-  
-  <h4 style="margin-top: 1rem; margin-bottom: 1rem;">休職</h4>
-  
+
+  <h4 style="margin-top: 1rem; margin-bottom: 1rem">休職</h4>
+
   <div class="form-group">
     <label for="leaveOfAbsenceStart">休職開始日</label>
-    <input id="leaveOfAbsenceStart" type="date" formControlName="leaveOfAbsenceStart" class="form-control" (change)="onDateChange()">
+    <input
+      id="leaveOfAbsenceStart"
+      type="date"
+      formControlName="leaveOfAbsenceStart"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="leaveOfAbsenceEnd">休職終了日</label>
-    <input id="leaveOfAbsenceEnd" type="date" formControlName="leaveOfAbsenceEnd" class="form-control" (change)="onDateChange()">
+    <input
+      id="leaveOfAbsenceEnd"
+      type="date"
+      formControlName="leaveOfAbsenceEnd"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="returnFromLeaveDate">復職日</label>
-    <input id="returnFromLeaveDate" type="date" formControlName="returnFromLeaveDate" class="form-control" (change)="onDateChange()">
+    <input
+      id="returnFromLeaveDate"
+      type="date"
+      formControlName="returnFromLeaveDate"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
-  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">産前産後休業</h4>
-  
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">産前産後休業</h4>
+
   <div class="form-group">
     <label for="expectedDeliveryDate">出産予定日</label>
-    <input id="expectedDeliveryDate" type="date" formControlName="expectedDeliveryDate" class="form-control" (change)="onDateChange()">
+    <input
+      id="expectedDeliveryDate"
+      type="date"
+      formControlName="expectedDeliveryDate"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="maternityLeaveStart">産前産後休業開始日</label>
-    <input id="maternityLeaveStart" type="date" formControlName="maternityLeaveStart" class="form-control" (change)="onDateChange()">
+    <input
+      id="maternityLeaveStart"
+      type="date"
+      formControlName="maternityLeaveStart"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="maternityLeaveEndExpected">産前産後休業終了予定日</label>
-    <input id="maternityLeaveEndExpected" type="date" formControlName="maternityLeaveEndExpected" class="form-control" (change)="onDateChange()">
+    <input
+      id="maternityLeaveEndExpected"
+      type="date"
+      formControlName="maternityLeaveEndExpected"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="actualDeliveryDate">出産日</label>
-    <input id="actualDeliveryDate" type="date" formControlName="actualDeliveryDate" class="form-control" (change)="onDateChange()">
+    <input
+      id="actualDeliveryDate"
+      type="date"
+      formControlName="actualDeliveryDate"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="maternityLeaveEnd">産前産後休業終了日</label>
-    <input id="maternityLeaveEnd" type="date" formControlName="maternityLeaveEnd" class="form-control" (change)="onDateChange()">
+    <input
+      id="maternityLeaveEnd"
+      type="date"
+      formControlName="maternityLeaveEnd"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
-  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">育児休業</h4>
-  
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">育児休業</h4>
+
   <div class="form-group">
     <label for="childcareChildName">養育する子の氏名</label>
-    <input id="childcareChildName" type="text" formControlName="childcareChildName" class="form-control">
+    <input
+      id="childcareChildName"
+      type="text"
+      formControlName="childcareChildName"
+      class="form-control"
+    />
   </div>
 
   <div class="form-group">
     <label for="childcareChildBirthDate">養育する子の生年月日</label>
-    <input id="childcareChildBirthDate" type="date" formControlName="childcareChildBirthDate" class="form-control" (change)="onDateChange()">
+    <input
+      id="childcareChildBirthDate"
+      type="date"
+      formControlName="childcareChildBirthDate"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="childcareLeaveStart">育児休業等開始日</label>
-    <input id="childcareLeaveStart" type="date" formControlName="childcareLeaveStart" class="form-control" (change)="onDateChange()">
+    <input
+      id="childcareLeaveStart"
+      type="date"
+      formControlName="childcareLeaveStart"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="childcareLeaveEndExpected">育児休業等終了予定日</label>
-    <input id="childcareLeaveEndExpected" type="date" formControlName="childcareLeaveEndExpected" class="form-control" (change)="onDateChange()">
+    <input
+      id="childcareLeaveEndExpected"
+      type="date"
+      formControlName="childcareLeaveEndExpected"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
   <div class="form-group">
     <label for="childcareLeaveEnd">育児休業等終了日</label>
-    <input id="childcareLeaveEnd" type="date" formControlName="childcareLeaveEnd" class="form-control" (change)="onDateChange()">
+    <input
+      id="childcareLeaveEnd"
+      type="date"
+      formControlName="childcareLeaveEnd"
+      class="form-control"
+      (change)="onDateChange()"
+    />
   </div>
 
-  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">申請書記入依頼</h4>
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">申請書記入依頼</h4>
 
   <div class="form-group">
     <label>
-      <input type="checkbox" formControlName="sickPayApplicationRequest" (change)="onCheckboxChange('sickPayApplicationRequest', $event)"> 傷病手当金支給申請書の記入依頼あり
+      <input
+        type="checkbox"
+        formControlName="sickPayApplicationRequest"
+        (change)="onCheckboxChange('sickPayApplicationRequest', $event)"
+      />
+      傷病手当金支給申請書の記入依頼あり
     </label>
   </div>
 
   <div class="form-group">
     <label>
-      <input type="checkbox" formControlName="childcareEmployerCertificateRequest" (change)="onCheckboxChange('childcareEmployerCertificateRequest', $event)"> 育児休業関係の事業主証明書の記入依頼あり
+      <input
+        type="checkbox"
+        formControlName="childcareEmployerCertificateRequest"
+        (change)="
+          onCheckboxChange('childcareEmployerCertificateRequest', $event)
+        "
+      />
+      育児休業関係の事業主証明書の記入依頼あり
     </label>
   </div>
 
   <div class="form-group">
     <label>
-      <input type="checkbox" formControlName="maternityAllowanceApplicationRequest" (change)="onCheckboxChange('maternityAllowanceApplicationRequest', $event)"> 出産手当金支給申請書の記入依頼あり
+      <input
+        type="checkbox"
+        formControlName="maternityAllowanceApplicationRequest"
+        (change)="
+          onCheckboxChange('maternityAllowanceApplicationRequest', $event)
+        "
+      />
+      出産手当金支給申請書の記入依頼あり
     </label>
   </div>
 
   <div class="form-group">
     <label>
-      <input type="checkbox" formControlName="childcareLivingTogether"> 育児休業中も同一世帯で生活している
+      <input type="checkbox" formControlName="childcareLivingTogether" />
+      育児休業中も同一世帯で生活している
     </label>
   </div>
 </div>

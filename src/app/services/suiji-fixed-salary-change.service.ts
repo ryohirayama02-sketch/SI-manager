@@ -1,11 +1,14 @@
 import { Injectable } from '@angular/core';
-import { SalaryData, FixedSalaryChangeSuijiResult } from './salary-calculation.service';
+import {
+  SalaryData,
+  FixedSalaryChangeSuijiResult,
+} from './salary-calculation.service';
 import { SalaryAggregationService } from './salary-aggregation.service';
 import { GradeDeterminationService } from './grade-determination.service';
 
 /**
  * SuijiFixedSalaryChangeService
- * 
+ *
  * 固定的賃金の変動による随時改定判定を担当するサービス
  * 変動月を含む3ヶ月の平均報酬を計算し、等級差を判定
  */
@@ -62,7 +65,8 @@ export class SuijiFixedSalaryChangeService {
     for (const month of targetMonths) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const total = this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総額）
+      const total =
+        this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総額）
       totalSalaryValues.push(total);
     }
 
@@ -93,7 +97,10 @@ export class SuijiFixedSalaryChangeService {
     );
 
     // 新等級を判定
-    const gradeResult = this.gradeDeterminationService.findGrade(gradeTable, averageSalary);
+    const gradeResult = this.gradeDeterminationService.findGrade(
+      gradeTable,
+      averageSalary
+    );
     if (!gradeResult) {
       reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
       return {
@@ -147,6 +154,3 @@ export class SuijiFixedSalaryChangeService {
     };
   }
 }
-
-
-

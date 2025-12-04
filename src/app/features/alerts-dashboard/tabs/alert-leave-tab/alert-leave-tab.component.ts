@@ -12,7 +12,15 @@ export interface MaternityChildcareAlert {
   id: string;
   employeeId: string;
   employeeName: string;
-  alertType: '産前産後休業取得者申出書' | '産前産後休業取得者変更（終了）届' | '育児休業等取得者申出書' | '育児休業等取得者終了届' | '傷病手当金支給申請書の記入依頼' | '育児休業関係の事業主証明書の記入依頼' | '出産手当金支給申請書の記入依頼' | '出産育児一時金支給申請書の記入依頼';
+  alertType:
+    | '産前産後休業取得者申出書'
+    | '産前産後休業取得者変更（終了）届'
+    | '育児休業等取得者申出書'
+    | '育児休業等取得者終了届'
+    | '傷病手当金支給申請書の記入依頼'
+    | '育児休業関係の事業主証明書の記入依頼'
+    | '出産手当金支給申請書の記入依頼'
+    | '出産育児一時金支給申請書の記入依頼';
   notificationName: string;
   startDate: Date; // 開始日（産休開始日、育休開始日、産休終了日の翌日、育休終了日の翌日、賞与支給日、申請書記入依頼日）
   submitDeadline: Date; // 提出期限（開始日から5日後、または申請書記入依頼日から1週間後）
@@ -25,13 +33,16 @@ export interface MaternityChildcareAlert {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './alert-leave-tab.component.html',
-  styleUrl: './alert-leave-tab.component.css'
+  styleUrl: './alert-leave-tab.component.css',
 })
 export class AlertLeaveTabComponent {
   @Input() maternityChildcareAlerts: MaternityChildcareAlert[] = [];
   @Input() selectedMaternityChildcareAlertIds: Set<string> = new Set();
   @Input() employees: Employee[] = [];
-  @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
+  @Output() alertSelectionChange = new EventEmitter<{
+    alertId: string;
+    selected: boolean;
+  }>();
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
@@ -74,12 +85,16 @@ export class AlertLeaveTabComponent {
    */
   async exportToCsv(alert: MaternityChildcareAlert): Promise<void> {
     try {
-      const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
+      const employee = this.employees.find((e) => e.id === alert.employeeId) as
+        | Employee
+        | undefined;
       let emp: Employee | null = null;
-      
+
       if (!employee) {
         // employeesにない場合は、EmployeeServiceから取得
-        const fetchedEmp = await this.employeeService.getEmployeeById(alert.employeeId);
+        const fetchedEmp = await this.employeeService.getEmployeeById(
+          alert.employeeId
+        );
         if (!fetchedEmp) {
           window.alert('従業員情報が見つかりません');
           return;
@@ -89,9 +104,15 @@ export class AlertLeaveTabComponent {
         emp = employee;
       }
 
-      if (alert.alertType === '産前産後休業取得者申出書' || alert.alertType === '産前産後休業取得者変更（終了）届') {
+      if (
+        alert.alertType === '産前産後休業取得者申出書' ||
+        alert.alertType === '産前産後休業取得者変更（終了）届'
+      ) {
         await this.generateCsvForMaternityLeave(alert, emp);
-      } else if (alert.alertType === '育児休業等取得者申出書' || alert.alertType === '育児休業等取得者終了届') {
+      } else if (
+        alert.alertType === '育児休業等取得者申出書' ||
+        alert.alertType === '育児休業等取得者終了届'
+      ) {
         await this.generateCsvForChildcareLeave(alert, emp);
       } else if (alert.alertType === '傷病手当金支給申請書の記入依頼') {
         await this.generateCsvForSickPayApplication(alert, emp);
@@ -109,12 +130,16 @@ export class AlertLeaveTabComponent {
   /**
    * 産前産後休業のCSVを生成
    */
-  private async generateCsvForMaternityLeave(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+  private async generateCsvForMaternityLeave(
+    alert: MaternityChildcareAlert,
+    employee: Employee
+  ): Promise<void> {
     // 事業所情報を取得
     let office: Office | null = null;
     if (employee.officeNumber) {
       const offices = await this.officeService.getAllOffices();
-      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+      office =
+        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
     }
     if (!office) {
       const offices = await this.officeService.getAllOffices();
@@ -132,32 +157,65 @@ export class AlertLeaveTabComponent {
     csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
     csvRows.push(`事業所所在地,${office?.address || ''}`);
     csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(
+      `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+    );
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`個人番号,${employee.myNumber || ''}`);
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
-    
+
     // 出産予定日
     const expectedDeliveryDate = (employee as any).expectedDeliveryDate;
-    csvRows.push(`出産予定日,${expectedDeliveryDate ? this.formatJapaneseEraFromString(expectedDeliveryDate) : ''}`);
-    
+    csvRows.push(
+      `出産予定日,${
+        expectedDeliveryDate
+          ? this.formatJapaneseEraFromString(expectedDeliveryDate)
+          : ''
+      }`
+    );
+
     // 産前産後休業開始日
     const maternityLeaveStart = employee.maternityLeaveStart;
-    csvRows.push(`産前産後休業開始日,${maternityLeaveStart ? this.formatJapaneseEraFromString(maternityLeaveStart) : ''}`);
-    
+    csvRows.push(
+      `産前産後休業開始日,${
+        maternityLeaveStart
+          ? this.formatJapaneseEraFromString(maternityLeaveStart)
+          : ''
+      }`
+    );
+
     // 産前産後休業終了予定日
-    const maternityLeaveEndExpected = (employee as any).maternityLeaveEndExpected;
-    csvRows.push(`産前産後休業終了予定日,${maternityLeaveEndExpected ? this.formatJapaneseEraFromString(maternityLeaveEndExpected) : ''}`);
-    
+    const maternityLeaveEndExpected = (employee as any)
+      .maternityLeaveEndExpected;
+    csvRows.push(
+      `産前産後休業終了予定日,${
+        maternityLeaveEndExpected
+          ? this.formatJapaneseEraFromString(maternityLeaveEndExpected)
+          : ''
+      }`
+    );
+
     // 出産日
     const actualDeliveryDate = (employee as any).actualDeliveryDate;
-    csvRows.push(`出産日,${actualDeliveryDate ? this.formatJapaneseEraFromString(actualDeliveryDate) : ''}`);
-    
+    csvRows.push(
+      `出産日,${
+        actualDeliveryDate
+          ? this.formatJapaneseEraFromString(actualDeliveryDate)
+          : ''
+      }`
+    );
+
     // 産前産後休業終了日
     const maternityLeaveEnd = employee.maternityLeaveEnd;
-    csvRows.push(`産前産後休業終了日,${maternityLeaveEnd ? this.formatJapaneseEraFromString(maternityLeaveEnd) : ''}`);
+    csvRows.push(
+      `産前産後休業終了日,${
+        maternityLeaveEnd
+          ? this.formatJapaneseEraFromString(maternityLeaveEnd)
+          : ''
+      }`
+    );
 
     // CSVファイルをダウンロード
     const csvContent = csvRows.join('\n');
@@ -185,7 +243,11 @@ export class AlertLeaveTabComponent {
    */
   private formatBirthDateToEra(birthDateStr: string): string {
     const date = new Date(birthDateStr);
-    return this.formatJapaneseEra(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    return this.formatJapaneseEra(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      date.getDate()
+    );
   }
 
   /**
@@ -193,7 +255,11 @@ export class AlertLeaveTabComponent {
    */
   private formatJapaneseEraFromString(dateStr: string): string {
     const date = new Date(dateStr);
-    return this.formatJapaneseEra(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    return this.formatJapaneseEra(
+      date.getFullYear(),
+      date.getMonth() + 1,
+      date.getDate()
+    );
   }
 
   /**
@@ -222,12 +288,16 @@ export class AlertLeaveTabComponent {
   /**
    * 傷病手当金支給申請書のCSVを生成
    */
-  private async generateCsvForSickPayApplication(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+  private async generateCsvForSickPayApplication(
+    alert: MaternityChildcareAlert,
+    employee: Employee
+  ): Promise<void> {
     // 事業所情報を取得
     let office: Office | null = null;
     if (employee.officeNumber) {
       const offices = await this.officeService.getAllOffices();
-      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+      office =
+        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
     }
     if (!office) {
       const offices = await this.officeService.getAllOffices();
@@ -248,7 +318,9 @@ export class AlertLeaveTabComponent {
     csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
     csvRows.push(`事業所所在地,${office?.address || ''}`);
     csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(
+      `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+    );
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
 
     // CSVファイルをダウンロード
@@ -285,12 +357,12 @@ export class AlertLeaveTabComponent {
   private formatGenderValue(value: string | null | undefined): string {
     if (!value) return '';
     const genderMap: { [key: string]: string } = {
-      'female': '女性',
-      'male': '男性',
-      '女性': '女性',
-      '男性': '男性',
-      'F': '女性',
-      'M': '男性',
+      female: '女性',
+      male: '男性',
+      女性: '女性',
+      男性: '男性',
+      F: '女性',
+      M: '男性',
     };
     return genderMap[value.toLowerCase()] || value;
   }
@@ -298,12 +370,16 @@ export class AlertLeaveTabComponent {
   /**
    * 育児休業関係の事業主証明書のCSVを生成
    */
-  private async generateCsvForChildcareEmployerCertificate(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+  private async generateCsvForChildcareEmployerCertificate(
+    alert: MaternityChildcareAlert,
+    employee: Employee
+  ): Promise<void> {
     // 事業所情報を取得
     let office: Office | null = null;
     if (employee.officeNumber) {
       const offices = await this.officeService.getAllOffices();
-      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+      office =
+        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
     }
     if (!office) {
       const offices = await this.officeService.getAllOffices();
@@ -326,7 +402,9 @@ export class AlertLeaveTabComponent {
     csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
     csvRows.push(`事業所所在地,${office?.address || ''}`);
     csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(
+      `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+    );
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
 
     // CSVファイルをダウンロード
@@ -353,12 +431,16 @@ export class AlertLeaveTabComponent {
   /**
    * 出産手当金支給申請書のCSVを生成
    */
-  private async generateCsvForMaternityAllowanceApplication(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+  private async generateCsvForMaternityAllowanceApplication(
+    alert: MaternityChildcareAlert,
+    employee: Employee
+  ): Promise<void> {
     // 事業所情報を取得
     let office: Office | null = null;
     if (employee.officeNumber) {
       const offices = await this.officeService.getAllOffices();
-      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+      office =
+        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
     }
     if (!office) {
       const offices = await this.officeService.getAllOffices();
@@ -381,7 +463,9 @@ export class AlertLeaveTabComponent {
     csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
     csvRows.push(`事業所所在地,${office?.address || ''}`);
     csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(
+      `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+    );
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
 
     // CSVファイルをダウンロード
@@ -408,12 +492,16 @@ export class AlertLeaveTabComponent {
   /**
    * 育児休業等のCSVを生成
    */
-  private async generateCsvForChildcareLeave(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+  private async generateCsvForChildcareLeave(
+    alert: MaternityChildcareAlert,
+    employee: Employee
+  ): Promise<void> {
     // 事業所情報を取得
     let office: Office | null = null;
     if (employee.officeNumber) {
       const offices = await this.officeService.getAllOffices();
-      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+      office =
+        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
     }
     if (!office) {
       const offices = await this.officeService.getAllOffices();
@@ -423,16 +511,19 @@ export class AlertLeaveTabComponent {
     // 養育する子の情報を取得（Employeeモデルから取得、なければ家族情報から取得）
     let childName = (employee as any).childcareChildName || '';
     let childBirthDate = (employee as any).childcareChildBirthDate || '';
-    
+
     // Employeeモデルに情報がない場合は、家族情報から取得
     if (!childName || !childBirthDate) {
-      const familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(employee.id);
+      const familyMembers =
+        await this.familyMemberService.getFamilyMembersByEmployeeId(
+          employee.id
+        );
       // 子の情報を取得（relationshipに「子」が含まれるもの）
-      const children = familyMembers.filter(member => {
+      const children = familyMembers.filter((member) => {
         const relationship = (member.relationship || '').toLowerCase();
         return relationship.includes('子') || relationship.includes('child');
       });
-      
+
       // 最初の子の情報を使用（複数の子がいる場合は最初の1人）
       const child = children.length > 0 ? children[0] : null;
       if (child) {
@@ -450,26 +541,51 @@ export class AlertLeaveTabComponent {
     csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
     csvRows.push(`事業所所在地,${office?.address || ''}`);
     csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(
+      `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+    );
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`個人番号,${employee.myNumber || ''}`);
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
     csvRows.push(`養育する子の氏名,${childName}`);
-    csvRows.push(`養育する子の生年月日,${childBirthDate ? this.formatJapaneseEraFromString(childBirthDate) : ''}`);
-    
+    csvRows.push(
+      `養育する子の生年月日,${
+        childBirthDate ? this.formatJapaneseEraFromString(childBirthDate) : ''
+      }`
+    );
+
     // 育児休業等開始日
     const childcareLeaveStart = employee.childcareLeaveStart;
-    csvRows.push(`育児休業等開始日,${childcareLeaveStart ? this.formatJapaneseEraFromString(childcareLeaveStart) : ''}`);
-    
+    csvRows.push(
+      `育児休業等開始日,${
+        childcareLeaveStart
+          ? this.formatJapaneseEraFromString(childcareLeaveStart)
+          : ''
+      }`
+    );
+
     // 育児休業等終了予定日（フィールドが存在する場合）
-    const childcareLeaveEndExpected = (employee as any).childcareLeaveEndExpected;
-    csvRows.push(`育児休業等終了予定日,${childcareLeaveEndExpected ? this.formatJapaneseEraFromString(childcareLeaveEndExpected) : ''}`);
-    
+    const childcareLeaveEndExpected = (employee as any)
+      .childcareLeaveEndExpected;
+    csvRows.push(
+      `育児休業等終了予定日,${
+        childcareLeaveEndExpected
+          ? this.formatJapaneseEraFromString(childcareLeaveEndExpected)
+          : ''
+      }`
+    );
+
     // 育児休業等終了日
     const childcareLeaveEnd = employee.childcareLeaveEnd;
-    csvRows.push(`育児休業等終了日,${childcareLeaveEnd ? this.formatJapaneseEraFromString(childcareLeaveEnd) : ''}`);
+    csvRows.push(
+      `育児休業等終了日,${
+        childcareLeaveEnd
+          ? this.formatJapaneseEraFromString(childcareLeaveEnd)
+          : ''
+      }`
+    );
 
     // CSVファイルをダウンロード
     const csvContent = csvRows.join('\n');
@@ -492,6 +608,3 @@ export class AlertLeaveTabComponent {
     document.body.removeChild(link);
   }
 }
-
-
-

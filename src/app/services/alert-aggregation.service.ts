@@ -2,14 +2,19 @@ import { Injectable } from '@angular/core';
 import { BonusReportAlert } from '../features/alerts-dashboard/tabs/alert-bonus-tab/alert-bonus-tab.component';
 import { SuijiKouhoResultWithDiff } from '../features/alerts-dashboard/tabs/alert-suiji-tab/alert-suiji-tab.component';
 import { TeijiKetteiResultData } from '../features/alerts-dashboard/tabs/alert-teiji-tab/alert-teiji-tab.component';
-import { AgeAlert, QualificationChangeAlert } from '../features/alerts-dashboard/tabs/alert-age-tab/alert-age-tab.component';
+import {
+  AgeAlert,
+  QualificationChangeAlert,
+} from '../features/alerts-dashboard/tabs/alert-age-tab/alert-age-tab.component';
 import { MaternityChildcareAlert } from '../features/alerts-dashboard/tabs/alert-leave-tab/alert-leave-tab.component';
 import { SupportAlert } from '../features/alerts-dashboard/tabs/alert-family-tab/alert-family-tab.component';
 import { AlertItem } from './alert-generation.service';
+import { UncollectedPremium } from '../models/uncollected-premium.model';
 import { getJSTDate } from '../utils/alerts-helper';
 
 export interface ScheduleData {
-  [dateKey: string]: { // YYYY-MM-DD形式
+  [dateKey: string]: {
+    // YYYY-MM-DD形式
     [tabName: string]: number; // タブ名: 件数
   };
 }
@@ -25,7 +30,7 @@ export interface AlertSets {
 }
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AlertAggregationService {
   /**
@@ -39,10 +44,11 @@ export class AlertAggregationService {
     qualificationChangeAlerts: QualificationChangeAlert[],
     maternityChildcareAlerts: MaternityChildcareAlert[],
     supportAlerts: SupportAlert[],
-    teijiKetteiResults: TeijiKetteiResultData[]
+    teijiKetteiResults: TeijiKetteiResultData[],
+    uncollectedPremiums: UncollectedPremium[] = []
   ): ScheduleData {
     const scheduleData: ScheduleData = {};
-    
+
     // 賞与支払届アラート
     for (const alert of bonusAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
@@ -54,7 +60,7 @@ export class AlertAggregationService {
       }
       scheduleData[dateKey]['賞与支払届']++;
     }
-    
+
     // 随時改定アラート
     for (const alert of suijiAlerts) {
       if (alert.isEligible && alert.applyStartMonth) {
@@ -71,7 +77,7 @@ export class AlertAggregationService {
         }
       }
     }
-    
+
     // 定時決定（算定基礎届）- 7月10日
     const currentYear = getJSTDate().getFullYear();
     const teijiDeadline = new Date(currentYear, 6, 10); // 7月10日
@@ -80,9 +86,10 @@ export class AlertAggregationService {
       scheduleData[teijiDateKey] = {};
     }
     if (teijiKetteiResults.length > 0) {
-      scheduleData[teijiDateKey]['定時決定（算定基礎届）'] = teijiKetteiResults.length;
+      scheduleData[teijiDateKey]['定時決定（算定基礎届）'] =
+        teijiKetteiResults.length;
     }
-    
+
     // 年齢到達アラート
     for (const alert of ageAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
@@ -94,7 +101,7 @@ export class AlertAggregationService {
       }
       scheduleData[dateKey]['年齢到達・資格変更']++;
     }
-    
+
     // 資格変更アラート
     for (const alert of qualificationChangeAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
@@ -106,7 +113,7 @@ export class AlertAggregationService {
       }
       scheduleData[dateKey]['年齢到達・資格変更']++;
     }
-    
+
     // 産休・育休アラート
     for (const alert of maternityChildcareAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
@@ -118,7 +125,7 @@ export class AlertAggregationService {
       }
       scheduleData[dateKey]['産休・育休']++;
     }
-    
+
     // 扶養アラート
     for (const alert of supportAlerts) {
       if (alert.submitDeadline) {
@@ -132,7 +139,33 @@ export class AlertAggregationService {
         scheduleData[dateKey]['扶養・氏名・住所変更']++;
       }
     }
-    
+
+    // 徴収不能アラート - 毎月1日に表示（提出期限の概念がないため）
+    // 徴収不能額を年月ごとに集計
+    const uncollectedByMonth = new Map<string, number>(); // key: "YYYY-MM", value: 件数
+    for (const premium of uncollectedPremiums) {
+      if (!premium.resolved && premium.amount > 0) {
+        const monthKey = `${premium.year}-${String(premium.month).padStart(
+          2,
+          '0'
+        )}`;
+        uncollectedByMonth.set(
+          monthKey,
+          (uncollectedByMonth.get(monthKey) || 0) + 1
+        );
+      }
+    }
+
+    // 毎月1日に件数を設定
+    for (const [monthKey, count] of uncollectedByMonth.entries()) {
+      const [year, month] = monthKey.split('-').map(Number);
+      const dateKey = this.formatDateKey(new Date(year, month - 1, 1)); // 毎月1日
+      if (!scheduleData[dateKey]) {
+        scheduleData[dateKey] = {};
+      }
+      scheduleData[dateKey]['徴収不能'] = count;
+    }
+
     return scheduleData;
   }
 
@@ -151,17 +184,19 @@ export class AlertAggregationService {
    * 適用開始月の7日が提出期日
    * 変動月+3ヶ月後が適用開始月なので、変動月が4月の場合、適用開始月は7月になる
    */
-  private getSuijiReportDeadlineDate(alert: SuijiKouhoResultWithDiff): Date | null {
+  private getSuijiReportDeadlineDate(
+    alert: SuijiKouhoResultWithDiff
+  ): Date | null {
     if (!alert.applyStartMonth || !alert.changeMonth) {
       return null;
     }
-    
+
     const changeYear = alert.year || getJSTDate().getFullYear();
     const changeMonth = alert.changeMonth;
-    
+
     // 適用開始月を変動月から再計算（変動月+3ヶ月後）
     const applyStartMonthRaw = changeMonth + 3;
-    
+
     // 適用開始月の年度を計算
     let applyStartYear = changeYear;
     let applyStartMonth = applyStartMonthRaw;
@@ -169,13 +204,10 @@ export class AlertAggregationService {
       applyStartMonth = applyStartMonthRaw - 12;
       applyStartYear = changeYear + 1;
     }
-    
+
     // 適用開始月の7日を提出期日とする
     const deadlineDate = new Date(applyStartYear, applyStartMonth - 1, 7); // 月は0ベースなので-1
-    
+
     return deadlineDate;
   }
 }
-
-
-

@@ -1,6 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
 import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
@@ -17,13 +23,13 @@ import { Office } from '../../../models/office.model';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './employee-create-page.component.html',
-  styleUrl: './employee-create-page.component.css'
+  styleUrl: './employee-create-page.component.css',
 })
 export class EmployeeCreatePageComponent implements OnInit {
   form: FormGroup;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
-  
+
   // 自動判定結果の表示用
   eligibilityStatus: string = '';
   ageInfo: string = '';
@@ -116,22 +122,33 @@ export class EmployeeCreatePageComponent implements OnInit {
     });
 
     // 事業所選択時に都道府県を自動設定
-    this.form.get('officeNumber')?.valueChanges.subscribe((officeNumber: string) => {
-      if (officeNumber) {
-        const selectedOffice = this.offices.find(office => office.officeNumber === officeNumber);
-        if (selectedOffice) {
-          if (selectedOffice.prefecture) {
-            this.form.patchValue({ prefecture: selectedOffice.prefecture }, { emitEvent: false });
+    this.form
+      .get('officeNumber')
+      ?.valueChanges.subscribe((officeNumber: string) => {
+        if (officeNumber) {
+          const selectedOffice = this.offices.find(
+            (office) => office.officeNumber === officeNumber
+          );
+          if (selectedOffice) {
+            if (selectedOffice.prefecture) {
+              this.form.patchValue(
+                { prefecture: selectedOffice.prefecture },
+                { emitEvent: false }
+              );
+            } else {
+              console.warn(
+                `事業所 ${officeNumber} の都道府県情報が設定されていません。事業所マスタで都道府県を設定してください。`
+              );
+            }
           } else {
-            console.warn(`事業所 ${officeNumber} の都道府県情報が設定されていません。事業所マスタで都道府県を設定してください。`);
+            console.warn(
+              `事業所 ${officeNumber} が事業所マスタに見つかりません。`
+            );
           }
         } else {
-          console.warn(`事業所 ${officeNumber} が事業所マスタに見つかりません。`);
+          this.form.patchValue({ prefecture: 'tokyo' }, { emitEvent: false });
         }
-      } else {
-        this.form.patchValue({ prefecture: 'tokyo' }, { emitEvent: false });
-      }
-    });
+      });
   }
 
   async ngOnInit(): Promise<void> {
@@ -152,7 +169,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       isThirdCategory: [false],
       supportStartDate: [''],
       supportEndDate: [''],
-      changeDate: ['']
+      changeDate: [''],
     });
   }
 
@@ -162,7 +179,7 @@ export class EmployeeCreatePageComponent implements OnInit {
 
   updateAutoDetection(): void {
     const value = this.form.value;
-    
+
     if (!value.birthDate) {
       this.eligibilityStatus = '';
       this.ageInfo = '';
@@ -178,10 +195,12 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (age >= 75) {
       this.insuranceStatus.health = '停止（75歳以上）';
       this.insuranceStatus.care = '停止（75歳以上）';
-      this.insuranceStatus.pension = age >= 70 ? '停止（70歳以上）' : '加入可能';
+      this.insuranceStatus.pension =
+        age >= 70 ? '停止（70歳以上）' : '加入可能';
     } else if (age >= 70) {
       this.insuranceStatus.health = '加入可能';
-      this.insuranceStatus.care = age >= 65 ? '第1号被保険者' : (age >= 40 ? 'あり（40〜64歳）' : 'なし');
+      this.insuranceStatus.care =
+        age >= 65 ? '第1号被保険者' : age >= 40 ? 'あり（40〜64歳）' : 'なし';
       this.insuranceStatus.pension = '停止（70歳以上）';
     } else if (age >= 65) {
       this.insuranceStatus.health = '加入可能';
@@ -198,14 +217,18 @@ export class EmployeeCreatePageComponent implements OnInit {
     }
 
     // 加入判定（EmployeeEligibilityServiceを使用）
-    if (value.joinDate && value.weeklyHours !== null && value.weeklyHours !== undefined) {
+    if (
+      value.joinDate &&
+      value.weeklyHours !== null &&
+      value.weeklyHours !== undefined
+    ) {
       const workInfo = {
         weeklyHours: value.weeklyHours,
         monthlyWage: value.monthlyWage,
         expectedEmploymentMonths: value.expectedEmploymentMonths,
         isStudent: value.isStudent,
       };
-      
+
       const tempEmployee: Partial<Employee> = {
         birthDate: value.birthDate,
         joinDate: value.joinDate,
@@ -216,7 +239,7 @@ export class EmployeeCreatePageComponent implements OnInit {
         expectedEmploymentMonths: value.expectedEmploymentMonths,
         isStudent: value.isStudent,
       };
-      
+
       const eligibility = this.employeeEligibilityService.checkEligibility(
         tempEmployee as Employee,
         workInfo
@@ -224,8 +247,14 @@ export class EmployeeCreatePageComponent implements OnInit {
 
       if (eligibility.candidateFlag) {
         this.eligibilityStatus = '加入候補者（3ヶ月連続で実働20時間以上）';
-      } else if (eligibility.healthInsuranceEligible || eligibility.pensionEligible) {
-        if (value.isShortTime || (value.weeklyHours >= 20 && value.weeklyHours < 30)) {
+      } else if (
+        eligibility.healthInsuranceEligible ||
+        eligibility.pensionEligible
+      ) {
+        if (
+          value.isShortTime ||
+          (value.weeklyHours >= 20 && value.weeklyHours < 30)
+        ) {
           this.eligibilityStatus = '短時間対象（加入対象）';
         } else {
           this.eligibilityStatus = '加入対象';
@@ -240,18 +269,19 @@ export class EmployeeCreatePageComponent implements OnInit {
 
   validateDates(): void {
     const value = this.form.value;
-    const validationResult = this.employeeLifecycleService.validateEmployeeDates({
-      birthDate: value.birthDate,
-      joinDate: value.joinDate,
-      retireDate: value.retireDate,
-      maternityLeaveStart: value.maternityLeaveStart,
-      maternityLeaveEnd: value.maternityLeaveEnd,
-      childcareLeaveStart: value.childcareLeaveStart,
-      childcareLeaveEnd: value.childcareLeaveEnd,
-      returnFromLeaveDate: value.returnFromLeaveDate,
-      childcareNotificationSubmitted: value.childcareNotificationSubmitted,
-      childcareLivingTogether: value.childcareLivingTogether,
-    });
+    const validationResult =
+      this.employeeLifecycleService.validateEmployeeDates({
+        birthDate: value.birthDate,
+        joinDate: value.joinDate,
+        retireDate: value.retireDate,
+        maternityLeaveStart: value.maternityLeaveStart,
+        maternityLeaveEnd: value.maternityLeaveEnd,
+        childcareLeaveStart: value.childcareLeaveStart,
+        childcareLeaveEnd: value.childcareLeaveEnd,
+        returnFromLeaveDate: value.returnFromLeaveDate,
+        childcareNotificationSubmitted: value.childcareNotificationSubmitted,
+        childcareLivingTogether: value.childcareLivingTogether,
+      });
 
     this.errorMessages = validationResult.errors;
     this.warningMessages = validationResult.warnings;
@@ -260,19 +290,19 @@ export class EmployeeCreatePageComponent implements OnInit {
   onCheckboxChange(fieldName: string, event: Event): void {
     const checkbox = event.target as HTMLInputElement;
     const isChecked = checkbox.checked;
-    
+
     // チェックが入った場合、今日の日付を設定
     if (isChecked) {
       const today = new Date().toISOString().split('T')[0];
       const dateFieldName = `${fieldName}Date`;
       this.form.patchValue({
-        [dateFieldName]: today
+        [dateFieldName]: today,
       });
     } else {
       // チェックが外れた場合、日付も削除
       const dateFieldName = `${fieldName}Date`;
       this.form.patchValue({
-        [dateFieldName]: null
+        [dateFieldName]: null,
       });
     }
   }
@@ -295,7 +325,8 @@ export class EmployeeCreatePageComponent implements OnInit {
       isShortTime: value.isShortTime ?? false,
       prefecture: value.prefecture || 'tokyo',
       isStudent: value.isStudent ?? false,
-      childcareNotificationSubmitted: value.childcareNotificationSubmitted ?? false,
+      childcareNotificationSubmitted:
+        value.childcareNotificationSubmitted ?? false,
       childcareLivingTogether: value.childcareLivingTogether ?? false,
     };
 
@@ -304,47 +335,77 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.gender) employee.gender = value.gender;
     if (value.address) employee.address = value.address;
     if (value.myNumber) employee.myNumber = value.myNumber;
-    if (value.basicPensionNumber) employee.basicPensionNumber = value.basicPensionNumber;
+    if (value.basicPensionNumber)
+      employee.basicPensionNumber = value.basicPensionNumber;
     if (value.employmentType) employee.employmentType = value.employmentType;
     if (value.officeNumber) employee.officeNumber = value.officeNumber;
     if (value.department) employee.department = value.department;
     if (value.retireDate) employee.retireDate = value.retireDate;
-    if (value.healthInsuranceAcquisitionDate) employee.healthInsuranceAcquisitionDate = value.healthInsuranceAcquisitionDate;
-    if (value.pensionAcquisitionDate) employee.pensionAcquisitionDate = value.pensionAcquisitionDate;
-    if (value.healthInsuranceLossDate) employee.healthInsuranceLossDate = value.healthInsuranceLossDate;
+    if (value.healthInsuranceAcquisitionDate)
+      employee.healthInsuranceAcquisitionDate =
+        value.healthInsuranceAcquisitionDate;
+    if (value.pensionAcquisitionDate)
+      employee.pensionAcquisitionDate = value.pensionAcquisitionDate;
+    if (value.healthInsuranceLossDate)
+      employee.healthInsuranceLossDate = value.healthInsuranceLossDate;
     if (value.pensionLossDate) employee.pensionLossDate = value.pensionLossDate;
     if (value.weeklyHours) employee.weeklyHours = value.weeklyHours;
     if (value.monthlyWage) employee.monthlyWage = value.monthlyWage;
-    if (value.expectedEmploymentMonths) employee.expectedEmploymentMonths = value.expectedEmploymentMonths;
-    if (value.leaveOfAbsenceStart) employee.leaveOfAbsenceStart = value.leaveOfAbsenceStart;
-    if (value.leaveOfAbsenceEnd) employee.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd;
-    if (value.returnFromLeaveDate) employee.returnFromLeaveDate = value.returnFromLeaveDate;
-    if (value.expectedDeliveryDate) employee.expectedDeliveryDate = value.expectedDeliveryDate;
-    if (value.maternityLeaveStart) employee.maternityLeaveStart = value.maternityLeaveStart;
-    if (value.maternityLeaveEndExpected) employee.maternityLeaveEndExpected = value.maternityLeaveEndExpected;
-    if (value.actualDeliveryDate) employee.actualDeliveryDate = value.actualDeliveryDate;
-    if (value.maternityLeaveEnd) employee.maternityLeaveEnd = value.maternityLeaveEnd;
-    if (value.childcareChildName) employee.childcareChildName = value.childcareChildName;
-    if (value.childcareChildBirthDate) employee.childcareChildBirthDate = value.childcareChildBirthDate;
-    if (value.childcareLeaveStart) employee.childcareLeaveStart = value.childcareLeaveStart;
-    if (value.childcareLeaveEndExpected) employee.childcareLeaveEndExpected = value.childcareLeaveEndExpected;
-    if (value.childcareLeaveEnd) employee.childcareLeaveEnd = value.childcareLeaveEnd;
-    if (value.sickPayApplicationRequest !== undefined) employee.sickPayApplicationRequest = value.sickPayApplicationRequest;
-    if (value.sickPayApplicationRequestDate) employee.sickPayApplicationRequestDate = value.sickPayApplicationRequestDate;
-    if (value.childcareEmployerCertificateRequest !== undefined) employee.childcareEmployerCertificateRequest = value.childcareEmployerCertificateRequest;
-    if (value.childcareEmployerCertificateRequestDate) employee.childcareEmployerCertificateRequestDate = value.childcareEmployerCertificateRequestDate;
-    if (value.maternityAllowanceApplicationRequest !== undefined) employee.maternityAllowanceApplicationRequest = value.maternityAllowanceApplicationRequest;
-    if (value.maternityAllowanceApplicationRequestDate) employee.maternityAllowanceApplicationRequestDate = value.maternityAllowanceApplicationRequestDate;
+    if (value.expectedEmploymentMonths)
+      employee.expectedEmploymentMonths = value.expectedEmploymentMonths;
+    if (value.leaveOfAbsenceStart)
+      employee.leaveOfAbsenceStart = value.leaveOfAbsenceStart;
+    if (value.leaveOfAbsenceEnd)
+      employee.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd;
+    if (value.returnFromLeaveDate)
+      employee.returnFromLeaveDate = value.returnFromLeaveDate;
+    if (value.expectedDeliveryDate)
+      employee.expectedDeliveryDate = value.expectedDeliveryDate;
+    if (value.maternityLeaveStart)
+      employee.maternityLeaveStart = value.maternityLeaveStart;
+    if (value.maternityLeaveEndExpected)
+      employee.maternityLeaveEndExpected = value.maternityLeaveEndExpected;
+    if (value.actualDeliveryDate)
+      employee.actualDeliveryDate = value.actualDeliveryDate;
+    if (value.maternityLeaveEnd)
+      employee.maternityLeaveEnd = value.maternityLeaveEnd;
+    if (value.childcareChildName)
+      employee.childcareChildName = value.childcareChildName;
+    if (value.childcareChildBirthDate)
+      employee.childcareChildBirthDate = value.childcareChildBirthDate;
+    if (value.childcareLeaveStart)
+      employee.childcareLeaveStart = value.childcareLeaveStart;
+    if (value.childcareLeaveEndExpected)
+      employee.childcareLeaveEndExpected = value.childcareLeaveEndExpected;
+    if (value.childcareLeaveEnd)
+      employee.childcareLeaveEnd = value.childcareLeaveEnd;
+    if (value.sickPayApplicationRequest !== undefined)
+      employee.sickPayApplicationRequest = value.sickPayApplicationRequest;
+    if (value.sickPayApplicationRequestDate)
+      employee.sickPayApplicationRequestDate =
+        value.sickPayApplicationRequestDate;
+    if (value.childcareEmployerCertificateRequest !== undefined)
+      employee.childcareEmployerCertificateRequest =
+        value.childcareEmployerCertificateRequest;
+    if (value.childcareEmployerCertificateRequestDate)
+      employee.childcareEmployerCertificateRequestDate =
+        value.childcareEmployerCertificateRequestDate;
+    if (value.maternityAllowanceApplicationRequest !== undefined)
+      employee.maternityAllowanceApplicationRequest =
+        value.maternityAllowanceApplicationRequest;
+    if (value.maternityAllowanceApplicationRequestDate)
+      employee.maternityAllowanceApplicationRequestDate =
+        value.maternityAllowanceApplicationRequestDate;
 
     // 従業員を登録
     const newEmployeeId = await this.employeeService.addEmployee(employee);
-    
+
     // 家族情報を保存（登録済みの家族情報がある場合）
     if (this.familyMembers.length > 0 && newEmployeeId) {
       for (const member of this.familyMembers) {
         const familyMember: FamilyMember = {
           ...member,
-          employeeId: newEmployeeId
+          employeeId: newEmployeeId,
         };
         await this.familyMemberService.saveFamilyMember(familyMember);
       }
@@ -356,8 +417,13 @@ export class EmployeeCreatePageComponent implements OnInit {
   // 家族情報関連メソッド
   async loadFamilyMembers(): Promise<void> {
     if (!this.employeeId) return;
-    this.familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(this.employeeId);
-    this.supportReviewAlerts = this.familyMemberService.getSupportReviewAlerts(this.familyMembers);
+    this.familyMembers =
+      await this.familyMemberService.getFamilyMembersByEmployeeId(
+        this.employeeId
+      );
+    this.supportReviewAlerts = this.familyMemberService.getSupportReviewAlerts(
+      this.familyMembers
+    );
   }
 
   showAddFamilyForm(event?: Event): void {
@@ -371,7 +437,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     this.editingFamilyMember = null;
     this.familyForm.reset({
       livingTogether: true,
-      isThirdCategory: false
+      isThirdCategory: false,
     });
     this.showFamilyForm = true;
   }
@@ -394,7 +460,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       isThirdCategory: member.isThirdCategory,
       supportStartDate: member.supportStartDate || '',
       supportEndDate: member.supportEndDate || '',
-      changeDate: member.changeDate || ''
+      changeDate: member.changeDate || '',
     });
     this.showFamilyForm = true;
   }
@@ -428,13 +494,15 @@ export class EmployeeCreatePageComponent implements OnInit {
         isThirdCategory: value.isThirdCategory,
         supportStartDate: value.supportStartDate || undefined,
         supportEndDate: value.supportEndDate || undefined,
-        changeDate: value.changeDate || undefined
+        changeDate: value.changeDate || undefined,
       };
 
       // 従業員がまだ登録されていない場合は、一時的に配列に保存
       if (!this.employeeId) {
         if (this.editingFamilyMember) {
-          const index = this.familyMembers.findIndex(m => m.id === this.editingFamilyMember?.id);
+          const index = this.familyMembers.findIndex(
+            (m) => m.id === this.editingFamilyMember?.id
+          );
           if (index >= 0) {
             this.familyMembers[index] = familyMember;
           }
@@ -450,9 +518,11 @@ export class EmployeeCreatePageComponent implements OnInit {
 
       // 従業員が登録済みの場合は、Firestoreに保存
       familyMember.employeeId = this.employeeId;
-      const savedId = await this.familyMemberService.saveFamilyMember(familyMember);
+      const savedId = await this.familyMemberService.saveFamilyMember(
+        familyMember
+      );
       familyMember.id = savedId;
-      
+
       // 履歴を保存
       if (value.changeDate) {
         await this.familyMemberService.saveFamilyMemberHistory({
@@ -461,7 +531,7 @@ export class EmployeeCreatePageComponent implements OnInit {
           changeDate: value.changeDate,
           changeType: this.editingFamilyMember ? 'update' : 'start',
           newValue: familyMember,
-          createdAt: new Date()
+          createdAt: new Date(),
         });
       }
 
@@ -483,7 +553,7 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     // 従業員がまだ登録されていない場合は、配列から削除
     if (!this.employeeId) {
-      this.familyMembers = this.familyMembers.filter(m => m.id !== memberId);
+      this.familyMembers = this.familyMembers.filter((m) => m.id !== memberId);
       return;
     }
 

@@ -1,35 +1,43 @@
-<div class="card" style="margin-top: 2rem;">
+<div class="card" style="margin-top: 2rem">
   <h3>資格変更アラート</h3>
-  <p class="info-text" style="margin-bottom: 1rem;">
+  <p class="info-text" style="margin-bottom: 1rem">
     従業員基本情報の変更（氏名、住所、生年月日、性別、所属事業所、適用区分）があった場合に、変更があった日から5日以内に届出が必要な変更についてアラートを表示します。
   </p>
-  
+
   <div *ngIf="qualificationChangeAlerts.length === 0" class="info-label">
     資格変更アラートはありません。
   </div>
-  
-  <div *ngIf="qualificationChangeAlerts.length > 0" style="margin-bottom: 1rem;">
-    <button 
+
+  <div *ngIf="qualificationChangeAlerts.length > 0" style="margin-bottom: 1rem">
+    <button
       *ngIf="selectedQualificationChangeAlertIds.size > 0"
       (click)="deleteSelectedQualificationChangeAlerts()"
       class="btn-danger"
-      style="margin-right: 0.5rem;">
-      選択した{{ selectedQualificationChangeAlertIds.size }}件を削除（非表示にする）
+      style="margin-right: 0.5rem"
+    >
+      選択した{{
+        selectedQualificationChangeAlertIds.size
+      }}件を削除（非表示にする）
     </button>
-    <label style="margin-left: 1rem;">
-      <input 
-        type="checkbox" 
-        [checked]="selectedQualificationChangeAlertIds.size === qualificationChangeAlerts.length && qualificationChangeAlerts.length > 0"
+    <label style="margin-left: 1rem">
+      <input
+        type="checkbox"
+        [checked]="
+          selectedQualificationChangeAlertIds.size ===
+            qualificationChangeAlerts.length &&
+          qualificationChangeAlerts.length > 0
+        "
         (change)="toggleAllQualificationChangeAlertsChange($event)"
-        style="margin-right: 0.5rem;">
+        style="margin-right: 0.5rem"
+      />
       すべてのアラートを削除対象に選択
     </label>
   </div>
-  
+
   <table class="alert-table" *ngIf="qualificationChangeAlerts.length > 0">
     <thead>
       <tr>
-        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th style="width: 80px; text-align: center">削除対象</th>
         <th>届出名前</th>
         <th>従業員</th>
         <th>変更種別</th>
@@ -37,21 +45,24 @@
         <th>変更日</th>
         <th>届出提出期日</th>
         <th>提出期限まで</th>
-        <th style="width: 100px; text-align: center;">CSV出力</th>
+        <th style="width: 100px; text-align: center">CSV出力</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let alert of qualificationChangeAlerts"
-          [ngClass]="{
-            'alert-row': alert.daysUntilDeadline <= 7,
-            'selected-row': isQualificationChangeAlertSelected(alert.id)
-          }">
-        <td style="width: 80px; text-align: center;">
-          <input 
-            type="checkbox" 
+      <tr
+        *ngFor="let alert of qualificationChangeAlerts"
+        [ngClass]="{
+          'alert-row': alert.daysUntilDeadline <= 7,
+          'selected-row': isQualificationChangeAlertSelected(alert.id)
+        }"
+      >
+        <td style="width: 80px; text-align: center">
+          <input
+            type="checkbox"
             [checked]="isQualificationChangeAlertSelected(alert.id)"
             (change)="toggleQualificationChangeAlertSelection(alert.id)"
-            title="削除対象に選択">
+            title="削除対象に選択"
+          />
         </td>
         <td>
           <div *ngFor="let notificationName of alert.notificationNames">
@@ -68,19 +79,26 @@
           <strong>{{ formatDate(alert.submitDeadline) }}</strong>
         </td>
         <td>
-          <span *ngIf="alert.daysUntilDeadline > 0" [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'">
+          <span
+            *ngIf="alert.daysUntilDeadline > 0"
+            [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'"
+          >
             {{ alert.daysUntilDeadline }}日
           </span>
-          <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
+          <span
+            *ngIf="alert.daysUntilDeadline <= 0"
+            style="color: #d32f2f; font-weight: bold"
+          >
             期限切れ
           </span>
         </td>
-        <td style="width: 100px; text-align: center;">
-          <button 
+        <td style="width: 100px; text-align: center">
+          <button
             (click)="exportToCsv(alert)"
             class="btn-primary"
-            style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"
-            title="CSV出力">
+            style="padding: 0.25rem 0.5rem; font-size: 0.875rem"
+            title="CSV出力"
+          >
             CSV出力
           </button>
         </td>
@@ -88,6 +106,3 @@
     </tbody>
   </table>
 </div>
-
-
-

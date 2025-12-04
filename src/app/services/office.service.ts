@@ -1,5 +1,13 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc } from '@angular/fire/firestore';
+import {
+  Firestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+} from '@angular/fire/firestore';
 import { Office } from '../models/office.model';
 
 @Injectable({ providedIn: 'root' })
@@ -20,7 +28,7 @@ export class OfficeService {
 
     const dataToSave: any = {
       updatedAt: new Date(),
-      createdAt: office.createdAt || new Date()
+      createdAt: office.createdAt || new Date(),
     };
 
     if (office.officeCode !== null && office.officeCode !== undefined) {
@@ -29,7 +37,10 @@ export class OfficeService {
     if (office.officeNumber !== null && office.officeNumber !== undefined) {
       dataToSave.officeNumber = office.officeNumber;
     }
-    if (office.corporateNumber !== null && office.corporateNumber !== undefined) {
+    if (
+      office.corporateNumber !== null &&
+      office.corporateNumber !== undefined
+    ) {
       dataToSave.corporateNumber = office.corporateNumber;
     }
     if (office.prefecture !== null && office.prefecture !== undefined) {
@@ -82,7 +93,7 @@ export class OfficeService {
         id: snapshot.id,
         ...data,
         createdAt,
-        updatedAt
+        updatedAt,
       } as Office;
     }
     return null;
@@ -94,7 +105,7 @@ export class OfficeService {
   async getAllOffices(): Promise<Office[]> {
     const ref = collection(this.firestore, 'offices');
     const snapshot = await getDocs(ref);
-    const offices = snapshot.docs.map(doc => {
+    const offices = snapshot.docs.map((doc) => {
       const data = doc.data();
       let createdAt: Date | undefined;
       let updatedAt: Date | undefined;
@@ -117,7 +128,7 @@ export class OfficeService {
         id: doc.id,
         ...data,
         createdAt,
-        updatedAt
+        updatedAt,
       } as Office;
     });
     // クライアント側でソート（officeCode, officeNumberでソート）
@@ -136,4 +147,3 @@ export class OfficeService {
     await deleteDoc(ref);
   }
 }
-

@@ -1,82 +1,96 @@
 import { Injectable } from '@angular/core';
 import { SuijiKouhoResultWithDiff } from '../features/alerts-dashboard/tabs/alert-suiji-tab/alert-suiji-tab.component';
 import { TeijiKetteiResultData } from '../features/alerts-dashboard/tabs/alert-teiji-tab/alert-teiji-tab.component';
-import { AgeAlert, QualificationChangeAlert } from '../features/alerts-dashboard/tabs/alert-age-tab/alert-age-tab.component';
+import {
+  AgeAlert,
+  QualificationChangeAlert,
+} from '../features/alerts-dashboard/tabs/alert-age-tab/alert-age-tab.component';
 import { MaternityChildcareAlert } from '../features/alerts-dashboard/tabs/alert-leave-tab/alert-leave-tab.component';
 import { SupportAlert } from '../features/alerts-dashboard/tabs/alert-family-tab/alert-family-tab.component';
 import { BonusReportAlert } from '../features/alerts-dashboard/tabs/alert-bonus-tab/alert-bonus-tab.component';
 import { AlertItem } from './alert-generation.service';
 import { AlertAggregationService } from './alert-aggregation.service';
+import { UncollectedPremium } from '../models/uncollected-premium.model';
 import { getJSTDate } from '../utils/alerts-helper';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AlertsDashboardStateService {
-  activeTab: 'schedule' | 'bonus' | 'suiji' | 'teiji' | 'age' | 'leave' | 'family' | 'uncollected' = 'schedule';
-  
+  activeTab:
+    | 'schedule'
+    | 'bonus'
+    | 'suiji'
+    | 'teiji'
+    | 'age'
+    | 'leave'
+    | 'family'
+    | 'uncollected' = 'schedule';
+
   // 届出スケジュール（カレンダー）関連
   scheduleYear: number = getJSTDate().getFullYear();
   scheduleMonth: number = getJSTDate().getMonth() + 1; // 1-12
   scheduleData: {
-    [dateKey: string]: { // YYYY-MM-DD形式
+    [dateKey: string]: {
+      // YYYY-MM-DD形式
       [tabName: string]: number; // タブ名: 件数
-    }
+    };
   } = {};
-  
+
   // 賞与支払届アラート関連
   bonusReportAlerts: BonusReportAlert[] = [];
   selectedBonusReportAlertIds: Set<string> = new Set();
-  
+
   // 年度選択関連（算定決定タブ用）
   teijiYear: number = getJSTDate().getFullYear();
   availableYears: number[] = [];
-  
+
   // 随時改定アラート関連
   suijiAlerts: SuijiKouhoResultWithDiff[] = [];
   selectedSuijiAlertIds: Set<string> = new Set();
-  
+
   // 届出アラート関連
   notificationAlerts: AlertItem[] = [];
   selectedNotificationAlertIds: Set<string> = new Set();
-  
+
   // 算定決定タブ関連
   teijiKetteiResults: TeijiKetteiResultData[] = [];
   selectedTeijiAlertIds: Set<string> = new Set();
-  
+
   // 年齢到達アラート関連
   ageAlerts: AgeAlert[] = [];
   selectedAgeAlertIds: Set<string> = new Set();
-  
+
   // 資格変更アラート関連
   qualificationChangeAlerts: QualificationChangeAlert[] = [];
   selectedQualificationChangeAlertIds: Set<string> = new Set();
-  
+
   // 産休育休アラート関連
   maternityChildcareAlerts: MaternityChildcareAlert[] = [];
   selectedMaternityChildcareAlertIds: Set<string> = new Set();
-  
+
   // 扶養アラート関連
   supportAlerts: SupportAlert[] = [];
   selectedSupportAlertIds: Set<string> = new Set();
 
-  constructor(
-    private alertAggregationService: AlertAggregationService
-  ) {}
+  // 徴収不能アラート関連
+  uncollectedPremiums: UncollectedPremium[] = [];
+
+  constructor(private alertAggregationService: AlertAggregationService) {}
 
   /**
    * タブの色を取得
    */
   getTabColor(tabId: string): string {
     const colorMap: { [key: string]: string } = {
-      'schedule': '#6c757d',
-      'bonus': '#007bff',
-      'suiji': '#28a745',
-      'teiji': '#ffc107',
-      'age': '#dc3545',
-      'leave': '#17a2b8',
-      'family': '#6f42c1',
-      'uncollected': '#e91e63'
+      schedule: '#6c757d',
+      bonus: '#007bff',
+      suiji: '#28a745',
+      teiji: '#ffc107',
+      age: '#dc3545',
+      leave: '#17a2b8',
+      family: '#6f42c1',
+      uncollected: '#e91e63',
     };
     return colorMap[tabId] || '#6c757d';
   }
@@ -93,12 +107,16 @@ export class AlertsDashboardStateService {
       this.qualificationChangeAlerts,
       this.maternityChildcareAlerts,
       this.supportAlerts,
-      this.teijiKetteiResults
+      this.teijiKetteiResults,
+      this.uncollectedPremiums
     );
   }
 
   // 賞与支払届アラートのイベントハンドラ
-  onBonusAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onBonusAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedBonusReportAlertIds.add(event.alertId);
     } else {
@@ -108,7 +126,7 @@ export class AlertsDashboardStateService {
 
   onBonusSelectAllChange(checked: boolean): void {
     if (checked) {
-      this.bonusReportAlerts.forEach(alert => {
+      this.bonusReportAlerts.forEach((alert) => {
         this.selectedBonusReportAlertIds.add(alert.id);
       });
     } else {
@@ -128,14 +146,17 @@ export class AlertsDashboardStateService {
     }
 
     this.bonusReportAlerts = this.bonusReportAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
+      (alert) => !selectedIds.includes(alert.id)
     );
     this.selectedBonusReportAlertIds.clear();
     this.updateScheduleData();
   }
 
   // 随時改定アラートのイベントハンドラ
-  onSuijiAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onSuijiAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedSuijiAlertIds.add(event.alertId);
     } else {
@@ -143,9 +164,12 @@ export class AlertsDashboardStateService {
     }
   }
 
-  onSuijiSelectAllChange(checked: boolean, getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string): void {
+  onSuijiSelectAllChange(
+    checked: boolean,
+    getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string
+  ): void {
     if (checked) {
-      this.suijiAlerts.forEach(alert => {
+      this.suijiAlerts.forEach((alert) => {
         const alertId = getSuijiAlertId(alert);
         this.selectedSuijiAlertIds.add(alertId);
       });
@@ -154,7 +178,9 @@ export class AlertsDashboardStateService {
     }
   }
 
-  deleteSelectedSuijiAlerts(getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string): void {
+  deleteSelectedSuijiAlerts(
+    getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string
+  ): void {
     const selectedIds = Array.from(this.selectedSuijiAlertIds);
     if (selectedIds.length === 0) {
       return;
@@ -166,14 +192,17 @@ export class AlertsDashboardStateService {
     }
 
     this.suijiAlerts = this.suijiAlerts.filter(
-      alert => !selectedIds.includes(getSuijiAlertId(alert))
+      (alert) => !selectedIds.includes(getSuijiAlertId(alert))
     );
     this.selectedSuijiAlertIds.clear();
     this.updateScheduleData();
   }
 
   // 算定基礎届アラートのイベントハンドラ
-  onTeijiAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onTeijiAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedTeijiAlertIds.add(event.alertId);
     } else {
@@ -181,9 +210,12 @@ export class AlertsDashboardStateService {
     }
   }
 
-  onTeijiSelectAllChange(checked: boolean, getTeijiAlertId: (result: TeijiKetteiResultData) => string): void {
+  onTeijiSelectAllChange(
+    checked: boolean,
+    getTeijiAlertId: (result: TeijiKetteiResultData) => string
+  ): void {
     if (checked) {
-      this.teijiKetteiResults.forEach(result => {
+      this.teijiKetteiResults.forEach((result) => {
         const alertId = getTeijiAlertId(result);
         this.selectedTeijiAlertIds.add(alertId);
       });
@@ -204,14 +236,17 @@ export class AlertsDashboardStateService {
     }
 
     this.teijiKetteiResults = this.teijiKetteiResults.filter(
-      result => !selectedIds.includes(result.employeeId)
+      (result) => !selectedIds.includes(result.employeeId)
     );
     this.selectedTeijiAlertIds.clear();
     this.updateScheduleData();
   }
 
   // 年齢到達アラートのイベントハンドラ
-  onAgeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onAgeAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedAgeAlertIds.add(event.alertId);
     } else {
@@ -221,7 +256,7 @@ export class AlertsDashboardStateService {
 
   onAgeSelectAllChange(checked: boolean): void {
     if (checked) {
-      this.ageAlerts.forEach(alert => {
+      this.ageAlerts.forEach((alert) => {
         this.selectedAgeAlertIds.add(alert.id);
       });
     } else {
@@ -241,14 +276,17 @@ export class AlertsDashboardStateService {
     }
 
     this.ageAlerts = this.ageAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
+      (alert) => !selectedIds.includes(alert.id)
     );
     this.selectedAgeAlertIds.clear();
     this.updateScheduleData();
   }
 
   // 資格変更アラートのイベントハンドラ
-  onQualificationChangeAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onQualificationChangeAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedQualificationChangeAlertIds.add(event.alertId);
     } else {
@@ -258,7 +296,7 @@ export class AlertsDashboardStateService {
 
   onQualificationChangeSelectAllChange(checked: boolean): void {
     if (checked) {
-      this.qualificationChangeAlerts.forEach(alert => {
+      this.qualificationChangeAlerts.forEach((alert) => {
         this.selectedQualificationChangeAlertIds.add(alert.id);
       });
     } else {
@@ -278,14 +316,17 @@ export class AlertsDashboardStateService {
     }
 
     this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
+      (alert) => !selectedIds.includes(alert.id)
     );
     this.selectedQualificationChangeAlertIds.clear();
     this.updateScheduleData();
   }
 
   // 産休育休アラートのイベントハンドラ
-  onMaternityChildcareAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onMaternityChildcareAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedMaternityChildcareAlertIds.add(event.alertId);
     } else {
@@ -295,7 +336,7 @@ export class AlertsDashboardStateService {
 
   onMaternityChildcareSelectAllChange(checked: boolean): void {
     if (checked) {
-      this.maternityChildcareAlerts.forEach(alert => {
+      this.maternityChildcareAlerts.forEach((alert) => {
         this.selectedMaternityChildcareAlertIds.add(alert.id);
       });
     } else {
@@ -315,14 +356,17 @@ export class AlertsDashboardStateService {
     }
 
     this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
+      (alert) => !selectedIds.includes(alert.id)
     );
     this.selectedMaternityChildcareAlertIds.clear();
     this.updateScheduleData();
   }
 
   // 扶養アラートのイベントハンドラ
-  onSupportAlertSelectionChange(event: { alertId: string; selected: boolean }): void {
+  onSupportAlertSelectionChange(event: {
+    alertId: string;
+    selected: boolean;
+  }): void {
     if (event.selected) {
       this.selectedSupportAlertIds.add(event.alertId);
     } else {
@@ -332,7 +376,7 @@ export class AlertsDashboardStateService {
 
   onSupportSelectAllChange(checked: boolean): void {
     if (checked) {
-      this.supportAlerts.forEach(alert => {
+      this.supportAlerts.forEach((alert) => {
         this.selectedSupportAlertIds.add(alert.id);
       });
     } else {
@@ -352,7 +396,7 @@ export class AlertsDashboardStateService {
     }
 
     this.supportAlerts = this.supportAlerts.filter(
-      alert => !selectedIds.includes(alert.id)
+      (alert) => !selectedIds.includes(alert.id)
     );
     this.selectedSupportAlertIds.clear();
     this.updateScheduleData();
@@ -367,4 +411,3 @@ export class AlertsDashboardStateService {
     this.scheduleYear = year;
   }
 }
-

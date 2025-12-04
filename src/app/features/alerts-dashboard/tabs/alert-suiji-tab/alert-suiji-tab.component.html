@@ -2,29 +2,34 @@
   <div *ngIf="suijiAlerts.length === 0" class="info-label">
     随時改定候補はありません。
   </div>
-  
-  <div *ngIf="suijiAlerts.length > 0" style="margin-bottom: 1rem;">
-    <button 
+
+  <div *ngIf="suijiAlerts.length > 0" style="margin-bottom: 1rem">
+    <button
       *ngIf="selectedSuijiAlertIds.size > 0"
       (click)="deleteSelectedSuijiAlerts()"
       class="btn-danger"
-      style="margin-right: 0.5rem;">
+      style="margin-right: 0.5rem"
+    >
       選択した{{ selectedSuijiAlertIds.size }}件を削除（非表示にする）
     </button>
-    <label style="margin-left: 1rem;">
-      <input 
-        type="checkbox" 
-        [checked]="selectedSuijiAlertIds.size === suijiAlerts.length && suijiAlerts.length > 0"
+    <label style="margin-left: 1rem">
+      <input
+        type="checkbox"
+        [checked]="
+          selectedSuijiAlertIds.size === suijiAlerts.length &&
+          suijiAlerts.length > 0
+        "
         (change)="toggleAllSuijiAlertsChange($event)"
-        style="margin-right: 0.5rem;">
+        style="margin-right: 0.5rem"
+      />
       すべてのアラートを削除対象に選択
     </label>
   </div>
-  
+
   <table class="alert-table" *ngIf="suijiAlerts.length > 0">
     <thead>
       <tr>
-        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th style="width: 80px; text-align: center">削除対象</th>
         <th>従業員</th>
         <th>年度</th>
         <th>変動月</th>
@@ -35,35 +40,38 @@
         <th>等級差</th>
         <th>適用開始月</th>
         <th>届出提出期日</th>
-        <th style="width: 100px; text-align: center;">CSV出力</th>
+        <th style="width: 100px; text-align: center">CSV出力</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let alert of suijiAlerts; let i = index"
-          [ngClass]="{
-            'alert-row': alert.isEligible,
-            'large-change-row': isLargeChange(alert.diff),
-            'selected-row': isSuijiAlertSelected(getSuijiAlertId(alert))
-          }">
-        <td style="width: 80px; text-align: center;">
-          <input 
-            type="checkbox" 
+      <tr
+        *ngFor="let alert of suijiAlerts; let i = index"
+        [ngClass]="{
+          'alert-row': alert.isEligible,
+          'large-change-row': isLargeChange(alert.diff),
+          'selected-row': isSuijiAlertSelected(getSuijiAlertId(alert))
+        }"
+      >
+        <td style="width: 80px; text-align: center">
+          <input
+            type="checkbox"
             [checked]="isSuijiAlertSelected(getSuijiAlertId(alert))"
             (change)="toggleSuijiAlertSelection(getSuijiAlertId(alert))"
-            title="削除対象に選択">
+            title="削除対象に選択"
+          />
         </td>
         <td>
           {{ getEmployeeName(alert.employeeId) }}
         </td>
-        <td>{{ alert.year || '-' }}年</td>
+        <td>{{ alert.year || "-" }}年</td>
         <td>{{ alert.changeMonth }}月</td>
         <td>
           <span *ngIf="alert.diffPrev != null">
-            {{ alert.diffPrev | number:'1.0-0' }}円
+            {{ alert.diffPrev | number : "1.0-0" }}円
           </span>
           <span *ngIf="alert.diffPrev == null">-</span>
         </td>
-        <td>{{ alert.averageSalary | number:'1.0-0' }}円</td>
+        <td>{{ alert.averageSalary | number : "1.0-0" }}円</td>
         <td>{{ alert.currentGrade }}</td>
         <td>{{ alert.newGrade }}</td>
         <td>{{ alert.diff }}</td>
@@ -71,12 +79,13 @@
         <td>
           <strong>{{ getSuijiReportDeadline(alert) }}</strong>
         </td>
-        <td style="width: 100px; text-align: center;">
-          <button 
+        <td style="width: 100px; text-align: center">
+          <button
             (click)="exportToCsv(alert)"
             class="btn-primary"
-            style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"
-            title="CSV出力">
+            style="padding: 0.25rem 0.5rem; font-size: 0.875rem"
+            title="CSV出力"
+          >
             CSV出力
           </button>
         </td>
@@ -84,8 +93,3 @@
     </tbody>
   </table>
 </div>
-
-
-
-
-

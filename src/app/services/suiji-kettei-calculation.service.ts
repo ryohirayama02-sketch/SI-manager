@@ -12,7 +12,7 @@ import { SuijiCalculationCoreService } from './suiji-calculation-core.service';
 
 /**
  * SuijiKetteiCalculationService
- * 
+ *
  * 随時改定のメイン処理を担当するサービス
  * 資格取得後3ヶ月以内の除外判定、固定給取得、除外月判定、平均計算、等級比較を統合
  */
@@ -42,7 +42,12 @@ export class SuijiKetteiCalculationService {
     // 追加：資格取得時決定 資格取得直後なら除外
     // ⑥ 資格取得月〜その後3ヶ月間は随時改定判定の対象外
     if (
-      this.suijiDetectionService.isWithin3MonthsAfterJoin(employeeId, changedMonth, employees, year)
+      this.suijiDetectionService.isWithin3MonthsAfterJoin(
+        employeeId,
+        changedMonth,
+        employees,
+        year
+      )
     ) {
       const emp = employees.find((e) => e.id === employeeId);
       const name = emp?.name || '';
@@ -74,11 +79,12 @@ export class SuijiKetteiCalculationService {
     }
 
     // ③ 除外月判定
-    const excludedMonths = this.suijiCalculationCoreService.getExcludedMonthsForSuiji(
-      employeeId,
-      months,
-      salaries
-    );
+    const excludedMonths =
+      this.suijiCalculationCoreService.getExcludedMonthsForSuiji(
+        employeeId,
+        months,
+        salaries
+      );
 
     // ④ 平均計算（特例対応）
     const avgFixed = this.suijiCalculationCoreService.calculateAverageForSuiji(
@@ -94,7 +100,10 @@ export class SuijiKetteiCalculationService {
     const currentResult = currentResults[employeeId];
     const currentGrade = currentResult?.grade || 0;
 
-    const newGradeResult = this.gradeDeterminationService.findGrade(gradeTable, avgFixed);
+    const newGradeResult = this.gradeDeterminationService.findGrade(
+      gradeTable,
+      avgFixed
+    );
     if (!newGradeResult) {
       return { candidate: null, excludedReason: null };
     }
@@ -133,6 +142,3 @@ export class SuijiKetteiCalculationService {
     return { candidate: null, excludedReason: null };
   }
 }
-
-
-

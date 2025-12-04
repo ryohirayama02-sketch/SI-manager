@@ -60,7 +60,7 @@ export class PremiumCalculationService {
         fixedSalary,
         variableSalary,
         standardMonthlyRemuneration: employee.standardMonthlyRemuneration,
-        acquisitionStandard: employee.acquisitionStandard
+        acquisitionStandard: employee.acquisitionStandard,
       }
     );
     const reasons: string[] = [];
@@ -84,20 +84,29 @@ export class PremiumCalculationService {
 
     // ② 産休・育休免除判定（月単位：1日でも含まれれば免除）
     // フルタイムのみ産休を取得可能
-    const isMaternityLeavePeriod = this.employeeLifecycleService.isMaternityLeave(employee, year, month);
-    const isChildcareLeavePeriod = this.employeeLifecycleService.isChildcareLeave(employee, year, month);
-    const canTakeMaternityLeave = this.employeeWorkCategoryService.canTakeMaternityLeave(employee);
-    const isExemptFromPremiums = this.employeeWorkCategoryService.isExemptFromPremiumsDuringMaternityLeave(employee);
-    
+    const isMaternityLeavePeriod =
+      this.employeeLifecycleService.isMaternityLeave(employee, year, month);
+    const isChildcareLeavePeriod =
+      this.employeeLifecycleService.isChildcareLeave(employee, year, month);
+    const canTakeMaternityLeave =
+      this.employeeWorkCategoryService.canTakeMaternityLeave(employee);
+    const isExemptFromPremiums =
+      this.employeeWorkCategoryService.isExemptFromPremiumsDuringMaternityLeave(
+        employee
+      );
+
     // 産休期間中で、かつフルタイムの場合のみ免除
-    const isMaternityLeave = isMaternityLeavePeriod && canTakeMaternityLeave && isExemptFromPremiums;
+    const isMaternityLeave =
+      isMaternityLeavePeriod && canTakeMaternityLeave && isExemptFromPremiums;
     // 育休期間中で、かつ保険加入者の場合のみ免除
     const isChildcareLeave = isChildcareLeavePeriod && isExemptFromPremiums;
     const isExempt = isMaternityLeave || isChildcareLeave;
 
     if (isExempt) {
       // 産休・育休中は本人分・事業主負担ともに0円
-      const reason = isMaternityLeave ? '産前産後休業中（健康保険・厚生年金本人分免除）' : '育児休業中（健康保険・厚生年金本人分免除）';
+      const reason = isMaternityLeave
+        ? '産前産後休業中（健康保険・厚生年金本人分免除）'
+        : '育児休業中（健康保険・厚生年金本人分免除）';
       reasons.push(reason);
       return {
         health_employee: 0,
@@ -109,9 +118,12 @@ export class PremiumCalculationService {
         reasons,
       };
     }
-    
+
     // 保険未加入者の場合、産休・育休期間中でも保険料は0円（免除の概念がない）
-    if ((isMaternityLeavePeriod || isChildcareLeavePeriod) && this.employeeWorkCategoryService.isNonInsured(employee)) {
+    if (
+      (isMaternityLeavePeriod || isChildcareLeavePeriod) &&
+      this.employeeWorkCategoryService.isNonInsured(employee)
+    ) {
       reasons.push('保険未加入者のため、産休・育休期間中でも社会保険料は0円');
       return {
         health_employee: 0,
@@ -130,21 +142,22 @@ export class PremiumCalculationService {
     // 2. 従業員データの標準報酬月額（定時決定で確定したもの）
     // 3. 資格取得時決定の標準報酬月額
     // 4. その月の給与額から等級を判定（標準報酬月額が確定していない場合のみ）
-    // 
+    //
     // 重要：標準報酬月額が確定している場合（1-3のいずれかで確定）は、
     // その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要がある。
     // 給与が0円でも保険料は発生する（標準報酬月額に基づく）。
 
     const totalSalary = fixedSalary + variableSalary;
-    
+
     console.log(
       `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額取得開始`,
       {
         totalSalary,
         fixedSalary,
         variableSalary,
-        employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration,
-        employeeAcquisitionStandard: employee.acquisitionStandard
+        employeeStandardMonthlyRemuneration:
+          employee.standardMonthlyRemuneration,
+        employeeAcquisitionStandard: employee.acquisitionStandard,
       }
     );
 
@@ -153,12 +166,12 @@ export class PremiumCalculationService {
     if (suijiAlerts && suijiAlerts.length > 0) {
       // 該当従業員の随時改定を検索
       const employeeSuiji = suijiAlerts.filter(
-        alert => alert.employeeId === employee.id && alert.isEligible
+        (alert) => alert.employeeId === employee.id && alert.isEligible
       );
-      
+
       // 適用開始月が現在の月以降のものを検索（最も早い適用開始月）
       const applicableSuiji = employeeSuiji
-        .filter(alert => {
+        .filter((alert) => {
           // 適用開始月の判定（変動月+3ヶ月後、変動月が1か月目として4か月目が適用開始）
           const applyStartMonth = alert.applyStartMonth;
           // 適用開始月が現在の月以降の場合に適用
@@ -168,7 +181,7 @@ export class PremiumCalculationService {
           // 適用開始月が早い順にソート
           return a.applyStartMonth - b.applyStartMonth;
         });
-      
+
       if (applicableSuiji.length > 0) {
         appliedSuiji = applicableSuiji[0];
       }
@@ -180,22 +193,32 @@ export class PremiumCalculationService {
 
     // 1. 随時改定が適用されている場合は新しい等級を使用
     if (appliedSuiji) {
-      const newGradeRow = gradeTable.find((r: any) => r.rank === appliedSuiji!.newGrade);
+      const newGradeRow = gradeTable.find(
+        (r: any) => r.rank === appliedSuiji!.newGrade
+      );
       if (newGradeRow && newGradeRow.standard) {
         const suijiStandard = newGradeRow.standard;
         gradeResult = {
           grade: appliedSuiji.newGrade,
-          remuneration: suijiStandard
+          remuneration: suijiStandard,
         };
         standardMonthlyRemuneration = suijiStandard;
         reasons.push(
-          `随時改定適用（変動月: ${appliedSuiji.changeMonth}月、適用開始: ${appliedSuiji.applyStartMonth}月）により等級${appliedSuiji.newGrade}（標準報酬月額${suijiStandard.toLocaleString()}円）を使用`
+          `随時改定適用（変動月: ${appliedSuiji.changeMonth}月、適用開始: ${
+            appliedSuiji.applyStartMonth
+          }月）により等級${
+            appliedSuiji.newGrade
+          }（標準報酬月額${suijiStandard.toLocaleString()}円）を使用`
         );
       }
     }
 
     // 2. 随時改定が適用されていない場合、従業員データの標準報酬月額を確認
-    if (!standardMonthlyRemuneration && employee.standardMonthlyRemuneration && employee.standardMonthlyRemuneration > 0) {
+    if (
+      !standardMonthlyRemuneration &&
+      employee.standardMonthlyRemuneration &&
+      employee.standardMonthlyRemuneration > 0
+    ) {
       // 定時決定で確定した標準報酬月額を使用
       const teijiStandard = employee.standardMonthlyRemuneration;
       standardMonthlyRemuneration = teijiStandard;
@@ -204,14 +227,19 @@ export class PremiumCalculationService {
         {
           totalSalary,
           fixedSalary,
-          variableSalary
+          variableSalary,
         }
       );
       // 標準報酬月額から等級を逆引き
-      gradeResult = this.gradeDeterminationService.findGrade(gradeTable, teijiStandard);
+      gradeResult = this.gradeDeterminationService.findGrade(
+        gradeTable,
+        teijiStandard
+      );
       if (gradeResult) {
         reasons.push(
-          `定時決定で確定した標準報酬月額（等級${gradeResult.grade}、${teijiStandard.toLocaleString()}円）を使用`
+          `定時決定で確定した標準報酬月額（等級${
+            gradeResult.grade
+          }、${teijiStandard.toLocaleString()}円）を使用`
         );
       } else {
         // 等級が見つからない場合は標準報酬月額のみを使用
@@ -224,21 +252,31 @@ export class PremiumCalculationService {
         `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定の標準報酬月額チェック`,
         {
           standardMonthlyRemuneration,
-          employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration,
-          totalSalary
+          employeeStandardMonthlyRemuneration:
+            employee.standardMonthlyRemuneration,
+          totalSalary,
         }
       );
     }
 
     // 3. 資格取得時決定の標準報酬月額を確認
-    if (!standardMonthlyRemuneration && employee.acquisitionStandard && employee.acquisitionStandard > 0) {
+    if (
+      !standardMonthlyRemuneration &&
+      employee.acquisitionStandard &&
+      employee.acquisitionStandard > 0
+    ) {
       const acquisitionStandard = employee.acquisitionStandard;
       standardMonthlyRemuneration = acquisitionStandard;
       // 標準報酬月額から等級を逆引き
-      gradeResult = this.gradeDeterminationService.findGrade(gradeTable, acquisitionStandard);
+      gradeResult = this.gradeDeterminationService.findGrade(
+        gradeTable,
+        acquisitionStandard
+      );
       if (gradeResult) {
         reasons.push(
-          `資格取得時決定の標準報酬月額（等級${gradeResult.grade}、${acquisitionStandard.toLocaleString()}円）を使用`
+          `資格取得時決定の標準報酬月額（等級${
+            gradeResult.grade
+          }、${acquisitionStandard.toLocaleString()}円）を使用`
         );
       } else {
         reasons.push(
@@ -259,7 +297,9 @@ export class PremiumCalculationService {
       // 年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
       // しかし、その月の給与が0円の場合、monthly-premium-calculation.service.ts で標準報酬月額を取得できていない可能性があります。
       // そのため、ここでは標準報酬月額が取得できない場合は保険料を0円とします。
-      reasons.push('標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）');
+      reasons.push(
+        '標準報酬月額が確定していません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
+      );
     }
 
     // standardMonthlyRemunerationが確定していることを確認
@@ -275,13 +315,16 @@ export class PremiumCalculationService {
       console.warn(
         `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 標準報酬月額が取得できませんでした`,
         {
-          employeeStandardMonthlyRemuneration: employee.standardMonthlyRemuneration,
+          employeeStandardMonthlyRemuneration:
+            employee.standardMonthlyRemuneration,
           employeeAcquisitionStandard: employee.acquisitionStandard,
           totalSalary,
-          standardMonthlyRemuneration
+          standardMonthlyRemuneration,
         }
       );
-      reasons.push('標準報酬月額が取得できません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）');
+      reasons.push(
+        '標準報酬月額が取得できません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
+      );
       // 早期リターンしない（monthly-premium-calculation.service.ts で標準報酬月額を取得しているはず）
       // ただし、標準報酬月額が取得できない場合は保険料を0円とする
       return {
@@ -409,7 +452,11 @@ export class PremiumCalculationService {
       }
     }
     // 介護保険区分の判定（Service統一ロジックを使用）
-    const careType = this.exemptionDeterminationService.getCareInsuranceType(employee.birthDate, year, month);
+    const careType = this.exemptionDeterminationService.getCareInsuranceType(
+      employee.birthDate,
+      year,
+      month
+    );
     if (careType === 'type1') {
       if (isAge65Month && month === birthMonth) {
         reasons.push(
@@ -599,7 +646,8 @@ export class PremiumCalculationService {
       pensionBase = ageFlags.isNoPension ? 0 : standardMonthlyRemuneration;
     }
     // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
-    const pensionTotal = pensionBase * (r.pension_employee + r.pension_employer);
+    const pensionTotal =
+      pensionBase * (r.pension_employee + r.pension_employer);
     const pensionHalf = pensionTotal / 2;
     const pension_employee = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
     const pension_employer = pensionTotal - pension_employee; // 会社分 = 総額 - 個人分
@@ -644,7 +692,11 @@ export class PremiumCalculationService {
     const health_employer = r.health_employer;
 
     // 介護保険判定（Service統一ロジックを使用）
-    const careType = this.exemptionDeterminationService.getCareInsuranceType(birthDate, year, month);
+    const careType = this.exemptionDeterminationService.getCareInsuranceType(
+      birthDate,
+      year,
+      month
+    );
     const isCareApplicable = careType === 'type2';
     const care_employee = isCareApplicable ? r.care_employee : 0;
     const care_employer = isCareApplicable ? r.care_employer : 0;
@@ -657,13 +709,13 @@ export class PremiumCalculationService {
     const healthHalf = healthTotal / 2;
     const health_employee_result = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
     const health_employer_result = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
-    
+
     // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
     const careTotal = standard * (care_employee + care_employer);
     const careHalf = careTotal / 2;
     const care_employee_result = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
     const care_employer_result = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
-    
+
     // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
     const pensionTotal = standard * (pension_employee + pension_employer);
     const pensionHalf = pensionTotal / 2;
@@ -680,5 +732,3 @@ export class PremiumCalculationService {
     };
   }
 }
-
-

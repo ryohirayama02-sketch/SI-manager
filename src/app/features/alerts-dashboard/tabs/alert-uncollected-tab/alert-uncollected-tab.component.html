@@ -37,7 +37,7 @@
         <th style="width: 80px; text-align: center;">削除対象</th>
         <th>従業員名</th>
         <th>合計不足額</th>
-        <th>月数</th>
+        <th>対象月</th>
       </tr>
     </thead>
     <tbody>
@@ -59,7 +59,7 @@
             {{ summary.employeeName }}
           </td>
           <td class="amount-cell">{{ formatAmount(summary.totalAmount) }}</td>
-          <td>{{ summary.monthlyDetails.length }}ヶ月</td>
+          <td>{{ formatTargetMonths(summary) }}</td>
         </tr>
         <!-- 月別詳細行 -->
         <ng-container *ngIf="isExpanded(summary.employeeId)">

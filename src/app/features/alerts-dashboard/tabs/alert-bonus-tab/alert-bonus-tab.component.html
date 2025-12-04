@@ -1,44 +1,53 @@
 <div class="card">
   <h3>賞与支払届（健保・厚生年金）</h3>
-  <p class="info-text" style="margin-bottom: 1rem;">
-    賞与を支給した従業員について必ず提出する届出です。<br>
-    <strong>提出期限：賞与支給日から5日以内</strong>（法律上の期限）<br>
+  <p class="info-text" style="margin-bottom: 1rem">
+    賞与を支給した従業員について必ず提出する届出です。<br />
+    <strong>提出期限：賞与支給日から5日以内</strong>（法律上の期限）<br />
     （※土日祝にかかる場合も原則5日以内）
   </p>
-  
+
   <div *ngIf="bonusReportAlerts.length === 0" class="info-label">
     賞与支払届のアラートはありません。
   </div>
-  
-  <div *ngIf="bonusReportAlerts.length > 0" style="margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center;">
+
+  <div
+    *ngIf="bonusReportAlerts.length > 0"
+    style="
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    "
+  >
     <div>
-      <button 
+      <button
         *ngIf="selectedBonusReportAlertIds.size > 0"
         (click)="deleteSelectedBonusReportAlerts()"
         class="btn-danger"
-        style="margin-right: 0.5rem;">
+        style="margin-right: 0.5rem"
+      >
         選択した{{ selectedBonusReportAlertIds.size }}件を削除（非表示にする）
       </button>
-      <label style="margin-left: 1rem;">
-        <input 
-          type="checkbox" 
-          [checked]="selectedBonusReportAlertIds.size === bonusReportAlerts.length && bonusReportAlerts.length > 0"
+      <label style="margin-left: 1rem">
+        <input
+          type="checkbox"
+          [checked]="
+            selectedBonusReportAlertIds.size === bonusReportAlerts.length &&
+            bonusReportAlerts.length > 0
+          "
           (change)="toggleAllBonusReportAlertsChange($event)"
-          style="margin-right: 0.5rem;">
+          style="margin-right: 0.5rem"
+        />
         すべてのアラートを削除対象に選択
       </label>
     </div>
-    <button 
-      (click)="exportToCsv()"
-      class="btn-success">
-      CSV出力
-    </button>
+    <button (click)="exportToCsv()" class="btn-success">CSV出力</button>
   </div>
-  
+
   <table class="alert-table" *ngIf="bonusReportAlerts.length > 0">
     <thead>
       <tr>
-        <th style="width: 80px; text-align: center;">削除対象</th>
+        <th style="width: 80px; text-align: center">削除対象</th>
         <th>従業員</th>
         <th>賞与額</th>
         <th>支給日</th>
@@ -47,31 +56,40 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let alert of bonusReportAlerts"
-          [ngClass]="{
-            'alert-row': alert.daysUntilDeadline <= 7,
-            'selected-row': isBonusReportAlertSelected(alert.id)
-          }">
-        <td style="width: 80px; text-align: center;">
-          <input 
-            type="checkbox" 
+      <tr
+        *ngFor="let alert of bonusReportAlerts"
+        [ngClass]="{
+          'alert-row': alert.daysUntilDeadline <= 7,
+          'selected-row': isBonusReportAlertSelected(alert.id)
+        }"
+      >
+        <td style="width: 80px; text-align: center">
+          <input
+            type="checkbox"
             [checked]="isBonusReportAlertSelected(alert.id)"
             (change)="toggleBonusReportAlertSelection(alert.id)"
-            title="削除対象に選択">
+            title="削除対象に選択"
+          />
         </td>
         <td>
           {{ alert.employeeName }}
         </td>
-        <td>{{ alert.bonusAmount | number:'1.0-0' }}円</td>
+        <td>{{ alert.bonusAmount | number : "1.0-0" }}円</td>
         <td>{{ formatPayDate(alert.payDate) }}</td>
         <td>
           <strong>{{ formatDate(alert.submitDeadline) }}</strong>
         </td>
         <td>
-          <span *ngIf="alert.daysUntilDeadline > 0" [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'">
+          <span
+            *ngIf="alert.daysUntilDeadline > 0"
+            [style.color]="alert.daysUntilDeadline <= 7 ? '#d32f2f' : '#666'"
+          >
             {{ alert.daysUntilDeadline }}日
           </span>
-          <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
+          <span
+            *ngIf="alert.daysUntilDeadline <= 0"
+            style="color: #d32f2f; font-weight: bold"
+          >
             期限切れ
           </span>
         </td>
@@ -79,8 +97,3 @@
     </tbody>
   </table>
 </div>
-
-
-
-
-

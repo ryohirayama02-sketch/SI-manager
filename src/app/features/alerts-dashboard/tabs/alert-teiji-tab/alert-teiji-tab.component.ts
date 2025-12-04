@@ -31,7 +31,7 @@ export interface TeijiKetteiResultData {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './alert-teiji-tab.component.html',
-  styleUrl: './alert-teiji-tab.component.css'
+  styleUrl: './alert-teiji-tab.component.css',
 })
 export class AlertTeijiTabComponent {
   @Input() teijiKetteiResults: TeijiKetteiResultData[] = [];
@@ -41,7 +41,10 @@ export class AlertTeijiTabComponent {
   @Input() employees: Employee[] = [];
   @Input() selectedTeijiAlertIds: Set<string> = new Set();
   @Output() yearChange = new EventEmitter<number>();
-  @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
+  @Output() alertSelectionChange = new EventEmitter<{
+    alertId: string;
+    selected: boolean;
+  }>();
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
@@ -105,39 +108,53 @@ export class AlertTeijiTabComponent {
     try {
       // 全従業員分のCSVを生成
       const csvRows: string[] = [];
-      
+
       // 「算定基礎届」は最初だけ
       csvRows.push('算定基礎届');
       csvRows.push('');
-      
+
       for (let i = 0; i < this.teijiKetteiResults.length; i++) {
         const teijiResult = this.teijiKetteiResults[i];
-        const employee = this.employees.find((e) => e.id === teijiResult.employeeId) as Employee | undefined;
+        const employee = this.employees.find(
+          (e) => e.id === teijiResult.employeeId
+        ) as Employee | undefined;
         if (!employee) continue;
 
         // 事業所情報を取得
         let office: Office | null = null;
         if (employee.officeNumber) {
           const offices = await this.officeService.getAllOffices();
-          office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+          office =
+            offices.find((o) => o.officeNumber === employee.officeNumber) ||
+            null;
         }
 
         // 給与データを取得
-        const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, this.teijiYear);
+        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+          employee.id,
+          this.teijiYear
+        );
         if (!salaryData) continue;
 
         // 給与項目マスタを取得
-        const salaryItems = await this.settingsService.loadSalaryItems(this.teijiYear);
+        const salaryItems = await this.settingsService.loadSalaryItems(
+          this.teijiYear
+        );
 
         // 標準報酬履歴を取得（従前の標準報酬月額と従前改定月）
-        const histories = await this.standardRemunerationHistoryService.getStandardRemunerationHistories(employee.id);
+        const histories =
+          await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+            employee.id
+          );
         const applyStartYear = this.teijiYear;
         const applyStartMonth = 9; // 算定基礎届は9月適用
-        const previousHistory = histories.find(
-          (h) =>
-            h.applyStartYear < applyStartYear ||
-            (h.applyStartYear === applyStartYear && h.applyStartMonth < applyStartMonth)
-        ) || histories[0];
+        const previousHistory =
+          histories.find(
+            (h) =>
+              h.applyStartYear < applyStartYear ||
+              (h.applyStartYear === applyStartYear &&
+                h.applyStartMonth < applyStartMonth)
+          ) || histories[0];
 
         // 4-6月の給与データを取得
         const aprilData = salaryData['4'];
@@ -153,7 +170,8 @@ export class AlertTeijiTabComponent {
         const remunerationList: number[] = [];
 
         // 給与項目データを準備
-        const salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
+        const salaryItemData: { [key: string]: { [itemId: string]: number } } =
+          {};
         for (let month = 1; month <= 12; month++) {
           const monthKey = month.toString();
           const monthData = salaryData[monthKey];
@@ -171,30 +189,51 @@ export class AlertTeijiTabComponent {
           payMonths.push(4);
           workingDaysList.push(aprilData.workingDays || 0);
           remunerationList.push(
-            this.calculateRemuneration(aprilData, `${employee.id}_4`, salaryItemData, salaryItems)
+            this.calculateRemuneration(
+              aprilData,
+              `${employee.id}_4`,
+              salaryItemData,
+              salaryItems
+            )
           );
         }
         if (mayData) {
           payMonths.push(5);
           workingDaysList.push(mayData.workingDays || 0);
           remunerationList.push(
-            this.calculateRemuneration(mayData, `${employee.id}_5`, salaryItemData, salaryItems)
+            this.calculateRemuneration(
+              mayData,
+              `${employee.id}_5`,
+              salaryItemData,
+              salaryItems
+            )
           );
         }
         if (juneData) {
           payMonths.push(6);
           workingDaysList.push(juneData.workingDays || 0);
           remunerationList.push(
-            this.calculateRemuneration(juneData, `${employee.id}_6`, salaryItemData, salaryItems)
+            this.calculateRemuneration(
+              juneData,
+              `${employee.id}_6`,
+              salaryItemData,
+              salaryItems
+            )
           );
         }
 
         // 総計と平均額（支払基礎日数がフルタイムは17日未満、短時間労働者は11日未満は計算対象外）
-        const isShortTime = employee.isShortTime || employee.weeklyWorkHoursCategory === '20-30hours' || employee.weeklyWorkHoursCategory === 'less-than-20hours';
+        const isShortTime =
+          employee.isShortTime ||
+          employee.weeklyWorkHoursCategory === '20-30hours' ||
+          employee.weeklyWorkHoursCategory === 'less-than-20hours';
         const minWorkingDays = isShortTime ? 11 : 17;
-        const validMonths = remunerationList.filter((_, i) => workingDaysList[i] >= minWorkingDays);
+        const validMonths = remunerationList.filter(
+          (_, i) => workingDaysList[i] >= minWorkingDays
+        );
         const total = validMonths.reduce((sum, r) => sum + r, 0);
-        const average = validMonths.length > 0 ? Math.floor(total / validMonths.length) : 0;
+        const average =
+          validMonths.length > 0 ? Math.floor(total / validMonths.length) : 0;
 
         // 年齢
         const age = this.calculateAge(employee.birthDate);
@@ -209,7 +248,9 @@ export class AlertTeijiTabComponent {
         csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
         csvRows.push(`被保険者氏名,${employee.name || ''}`);
         csvRows.push(`生年月日,${this.formatBirthDate(employee.birthDate)}`);
-        csvRows.push(`適応年月,${this.formatJapaneseEra(applyStartYear, applyStartMonth)}`);
+        csvRows.push(
+          `適応年月,${this.formatJapaneseEra(applyStartYear, applyStartMonth)}`
+        );
         csvRows.push(`個人番号,${employee.myNumber || ''}`);
         csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
         csvRows.push(
@@ -220,11 +261,24 @@ export class AlertTeijiTabComponent {
           }`
         );
         csvRows.push(
-          `従前改定月,${previousHistory ? this.formatJapaneseEra(previousHistory.applyStartYear, previousHistory.applyStartMonth) : ''}`
+          `従前改定月,${
+            previousHistory
+              ? this.formatJapaneseEra(
+                  previousHistory.applyStartYear,
+                  previousHistory.applyStartMonth
+                )
+              : ''
+          }`
         );
         csvRows.push(`支給月,${payMonths.map((m) => `${m}月`).join('、')}`);
-        csvRows.push(`給与計算の基礎日数,${workingDaysList.map((d) => `${d}日`).join('、')}`);
-        csvRows.push(`報酬月額,${remunerationList.map((r) => r.toString()).join('、')}`);
+        csvRows.push(
+          `給与計算の基礎日数,${workingDaysList
+            .map((d) => `${d}日`)
+            .join('、')}`
+        );
+        csvRows.push(
+          `報酬月額,${remunerationList.map((r) => r.toString()).join('、')}`
+        );
         csvRows.push(`総計,${total.toString()}`);
         csvRows.push(`平均額,${average.toString()}`);
         csvRows.push(`年齢,${age}歳`);
@@ -328,7 +382,9 @@ export class AlertTeijiTabComponent {
         let bonusAmount = 0;
 
         // 給与項目マスタから「欠勤控除」種別の項目を探す
-        const deductionItems = salaryItems.filter((item) => item.type === 'deduction');
+        const deductionItems = salaryItems.filter(
+          (item) => item.type === 'deduction'
+        );
         for (const item of deductionItems) {
           absenceDeduction += itemData[item.id] || 0;
         }
@@ -363,12 +419,12 @@ export class AlertTeijiTabComponent {
     const today = getJSTDate();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
   }
 }
-
-
-

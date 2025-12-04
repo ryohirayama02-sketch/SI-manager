@@ -1,6 +1,18 @@
-import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  Input,
+  Output,
+  EventEmitter,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../../../services/employee.service';
 import { EmployeeLifecycleService } from '../../../../services/employee-lifecycle.service';
@@ -25,10 +37,10 @@ import { EmployeeBasicInfoLeaveComponent } from './components/employee-basic-inf
     EmployeeBasicInfoAffiliationComponent,
     EmployeeBasicInfoLifecycleComponent,
     EmployeeBasicInfoStandardRemunerationComponent,
-    EmployeeBasicInfoLeaveComponent
+    EmployeeBasicInfoLeaveComponent,
   ],
   templateUrl: './employee-basic-info-form.component.html',
-  styleUrl: './employee-basic-info-form.component.css'
+  styleUrl: './employee-basic-info-form.component.css',
 })
 export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
   @Input() employeeId: string | null = null;
@@ -115,9 +127,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         officeNumber: (data as any).officeNumber,
         prefecture: data.prefecture,
         department: (data as any).department,
-        fullData: data
+        fullData: data,
       });
-      
+
       this.originalEmployeeData = {
         name: data.name || '',
         nameKana: (data as any).nameKana || '',
@@ -152,11 +164,13 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         department: (data as any).department || '',
         joinDate: data.joinDate || data.hireDate || '',
         retireDate: data.retireDate || '',
-        healthInsuranceAcquisitionDate: (data as any).healthInsuranceAcquisitionDate || '',
+        healthInsuranceAcquisitionDate:
+          (data as any).healthInsuranceAcquisitionDate || '',
         pensionAcquisitionDate: (data as any).pensionAcquisitionDate || '',
         healthInsuranceLossDate: (data as any).healthInsuranceLossDate || '',
         pensionLossDate: (data as any).pensionLossDate || '',
-        currentStandardMonthlyRemuneration: data.standardMonthlyRemuneration || data.acquisitionStandard || null,
+        currentStandardMonthlyRemuneration:
+          data.standardMonthlyRemuneration || data.acquisitionStandard || null,
         determinationReason: (data as any).determinationReason || '',
         lastTeijiKetteiYear: (data as any).lastTeijiKetteiYear || null,
         lastTeijiKetteiMonth: (data as any).lastTeijiKetteiMonth || null,
@@ -168,30 +182,40 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         returnFromLeaveDate: data.returnFromLeaveDate || '',
         expectedDeliveryDate: (data as any).expectedDeliveryDate || '',
         maternityLeaveStart: data.maternityLeaveStart || '',
-        maternityLeaveEndExpected: (data as any).maternityLeaveEndExpected || '',
+        maternityLeaveEndExpected:
+          (data as any).maternityLeaveEndExpected || '',
         actualDeliveryDate: (data as any).actualDeliveryDate || '',
         maternityLeaveEnd: data.maternityLeaveEnd || '',
         childcareChildName: (data as any).childcareChildName || '',
         childcareChildBirthDate: (data as any).childcareChildBirthDate || '',
         childcareLeaveStart: data.childcareLeaveStart || '',
-        childcareLeaveEndExpected: (data as any).childcareLeaveEndExpected || '',
+        childcareLeaveEndExpected:
+          (data as any).childcareLeaveEndExpected || '',
         childcareLeaveEnd: data.childcareLeaveEnd || '',
-        childcareNotificationSubmitted: data.childcareNotificationSubmitted || false,
+        childcareNotificationSubmitted:
+          data.childcareNotificationSubmitted || false,
         childcareLivingTogether: data.childcareLivingTogether || false,
         sickPayApplicationRequest: data.sickPayApplicationRequest || false,
-        sickPayApplicationRequestDate: data.sickPayApplicationRequestDate || null,
-        childcareEmployerCertificateRequest: data.childcareEmployerCertificateRequest || false,
-        childcareEmployerCertificateRequestDate: data.childcareEmployerCertificateRequestDate || null,
-        maternityAllowanceApplicationRequest: data.maternityAllowanceApplicationRequest || false,
-        maternityAllowanceApplicationRequestDate: data.maternityAllowanceApplicationRequestDate || null
+        sickPayApplicationRequestDate:
+          data.sickPayApplicationRequestDate || null,
+        childcareEmployerCertificateRequest:
+          data.childcareEmployerCertificateRequest || false,
+        childcareEmployerCertificateRequestDate:
+          data.childcareEmployerCertificateRequestDate || null,
+        maternityAllowanceApplicationRequest:
+          data.maternityAllowanceApplicationRequest || false,
+        maternityAllowanceApplicationRequestDate:
+          data.maternityAllowanceApplicationRequestDate || null,
       });
     }
 
-    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
-      if (this.employeeId) {
-        this.reloadEligibility();
-      }
-    });
+    this.eligibilitySubscription = this.employeeEligibilityService
+      .observeEligibility()
+      .subscribe(() => {
+        if (this.employeeId) {
+          this.reloadEligibility();
+        }
+      });
   }
 
   ngOnDestroy(): void {
@@ -208,18 +232,19 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
   validateDates(): void {
     const value = this.form.value;
-    const validationResult = this.employeeLifecycleService.validateEmployeeDates({
-      birthDate: value.birthDate,
-      joinDate: value.joinDate,
-      retireDate: value.retireDate,
-      maternityLeaveStart: value.maternityLeaveStart,
-      maternityLeaveEnd: value.maternityLeaveEnd,
-      childcareLeaveStart: value.childcareLeaveStart,
-      childcareLeaveEnd: value.childcareLeaveEnd,
-      returnFromLeaveDate: value.returnFromLeaveDate,
-      childcareNotificationSubmitted: value.childcareNotificationSubmitted,
-      childcareLivingTogether: value.childcareLivingTogether,
-    });
+    const validationResult =
+      this.employeeLifecycleService.validateEmployeeDates({
+        birthDate: value.birthDate,
+        joinDate: value.joinDate,
+        retireDate: value.retireDate,
+        maternityLeaveStart: value.maternityLeaveStart,
+        maternityLeaveEnd: value.maternityLeaveEnd,
+        childcareLeaveStart: value.childcareLeaveStart,
+        childcareLeaveEnd: value.childcareLeaveEnd,
+        returnFromLeaveDate: value.returnFromLeaveDate,
+        childcareNotificationSubmitted: value.childcareNotificationSubmitted,
+        childcareLivingTogether: value.childcareLivingTogether,
+      });
 
     this.errorMessages = validationResult.errors;
     this.warningMessages = validationResult.warnings;
@@ -235,7 +260,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (!this.employeeId || !this.form.valid) return;
 
     const value = this.form.value;
-    
+
     // weeklyWorkHoursCategoryに基づいてisShortTimeを自動計算
     const tempEmployee: any = {
       weeklyWorkHoursCategory: value.weeklyWorkHoursCategory || '',
@@ -243,8 +268,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       expectedEmploymentMonths: value.expectedEmploymentMonths || null,
       isStudent: value.isStudent ?? false,
     };
-    const isShortTime = this.employeeWorkCategoryService.isShortTimeWorker(tempEmployee);
-    
+    const isShortTime =
+      this.employeeWorkCategoryService.isShortTimeWorker(tempEmployee);
+
     const updateData: any = {
       name: value.name,
       birthDate: value.birthDate,
@@ -258,59 +284,105 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       department: value.department || '', // 部署情報を必ず保存
       joinDate: value.joinDate,
       isShortTime: isShortTime, // weeklyWorkHoursCategoryから自動計算
-      childcareNotificationSubmitted: value.childcareNotificationSubmitted ?? false,
+      childcareNotificationSubmitted:
+        value.childcareNotificationSubmitted ?? false,
       childcareLivingTogether: value.childcareLivingTogether ?? false,
       sickPayApplicationRequest: value.sickPayApplicationRequest ?? false,
-      childcareEmployerCertificateRequest: value.childcareEmployerCertificateRequest ?? false,
-      maternityAllowanceApplicationRequest: value.maternityAllowanceApplicationRequest ?? false,
+      childcareEmployerCertificateRequest:
+        value.childcareEmployerCertificateRequest ?? false,
+      maternityAllowanceApplicationRequest:
+        value.maternityAllowanceApplicationRequest ?? false,
     };
 
     // オプショナルフィールドの保存（空文字列も含めて保存）
-    if (value.nameKana !== undefined) updateData.nameKana = value.nameKana || '';
+    if (value.nameKana !== undefined)
+      updateData.nameKana = value.nameKana || '';
     if (value.gender !== undefined) updateData.gender = value.gender || '';
     if (value.address !== undefined) updateData.address = value.address || '';
-    if (value.myNumber !== undefined) updateData.myNumber = value.myNumber || '';
-    if (value.basicPensionNumber !== undefined) updateData.basicPensionNumber = value.basicPensionNumber || '';
-    if (value.insuredNumber !== undefined) updateData.insuredNumber = value.insuredNumber || '';
+    if (value.myNumber !== undefined)
+      updateData.myNumber = value.myNumber || '';
+    if (value.basicPensionNumber !== undefined)
+      updateData.basicPensionNumber = value.basicPensionNumber || '';
+    if (value.insuredNumber !== undefined)
+      updateData.insuredNumber = value.insuredNumber || '';
     // 事業所情報は上記のupdateDataで既に設定済み（必ず保存される）
     // 日付フィールド（空の場合はnullを保存）
-    if (value.retireDate !== undefined) updateData.retireDate = value.retireDate || null;
-    if (value.healthInsuranceAcquisitionDate !== undefined) updateData.healthInsuranceAcquisitionDate = value.healthInsuranceAcquisitionDate || null;
-    if (value.pensionAcquisitionDate !== undefined) updateData.pensionAcquisitionDate = value.pensionAcquisitionDate || null;
-    if (value.healthInsuranceLossDate !== undefined) updateData.healthInsuranceLossDate = value.healthInsuranceLossDate || null;
-    if (value.pensionLossDate !== undefined) updateData.pensionLossDate = value.pensionLossDate || null;
-    if (value.determinationReason !== undefined) updateData.determinationReason = value.determinationReason || '';
-    if (value.lastTeijiKetteiYear !== undefined) updateData.lastTeijiKetteiYear = value.lastTeijiKetteiYear || null;
-    if (value.lastTeijiKetteiMonth !== undefined) updateData.lastTeijiKetteiMonth = value.lastTeijiKetteiMonth || null;
-    if (value.lastSuijiKetteiYear !== undefined) updateData.lastSuijiKetteiYear = value.lastSuijiKetteiYear || null;
-    if (value.lastSuijiKetteiMonth !== undefined) updateData.lastSuijiKetteiMonth = value.lastSuijiKetteiMonth || null;
-    if (value.leaveOfAbsenceStart !== undefined) updateData.leaveOfAbsenceStart = value.leaveOfAbsenceStart || null;
-    if (value.leaveOfAbsenceEnd !== undefined) updateData.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd || null;
-    if (value.returnFromLeaveDate !== undefined) updateData.returnFromLeaveDate = value.returnFromLeaveDate || null;
-    if (value.expectedDeliveryDate !== undefined) updateData.expectedDeliveryDate = value.expectedDeliveryDate || null;
-    if (value.maternityLeaveStart !== undefined) updateData.maternityLeaveStart = value.maternityLeaveStart || null;
-    if (value.maternityLeaveEndExpected !== undefined) updateData.maternityLeaveEndExpected = value.maternityLeaveEndExpected || null;
-    if (value.actualDeliveryDate !== undefined) updateData.actualDeliveryDate = value.actualDeliveryDate || null;
-    if (value.maternityLeaveEnd !== undefined) updateData.maternityLeaveEnd = value.maternityLeaveEnd || null;
-    if (value.childcareChildName !== undefined) updateData.childcareChildName = value.childcareChildName || null;
-    if (value.childcareChildBirthDate !== undefined) updateData.childcareChildBirthDate = value.childcareChildBirthDate || null;
-    if (value.childcareLeaveStart !== undefined) updateData.childcareLeaveStart = value.childcareLeaveStart || null;
-    if (value.childcareLeaveEndExpected !== undefined) updateData.childcareLeaveEndExpected = value.childcareLeaveEndExpected || null;
-    if (value.childcareLeaveEnd !== undefined) updateData.childcareLeaveEnd = value.childcareLeaveEnd || null;
-    if (value.sickPayApplicationRequest !== undefined) updateData.sickPayApplicationRequest = value.sickPayApplicationRequest;
-    if (value.sickPayApplicationRequestDate) updateData.sickPayApplicationRequestDate = value.sickPayApplicationRequestDate;
-    if (value.childcareEmployerCertificateRequest !== undefined) updateData.childcareEmployerCertificateRequest = value.childcareEmployerCertificateRequest;
-    if (value.childcareEmployerCertificateRequestDate) updateData.childcareEmployerCertificateRequestDate = value.childcareEmployerCertificateRequestDate;
-    if (value.maternityAllowanceApplicationRequest !== undefined) updateData.maternityAllowanceApplicationRequest = value.maternityAllowanceApplicationRequest;
-    if (value.maternityAllowanceApplicationRequestDate) updateData.maternityAllowanceApplicationRequestDate = value.maternityAllowanceApplicationRequestDate;
+    if (value.retireDate !== undefined)
+      updateData.retireDate = value.retireDate || null;
+    if (value.healthInsuranceAcquisitionDate !== undefined)
+      updateData.healthInsuranceAcquisitionDate =
+        value.healthInsuranceAcquisitionDate || null;
+    if (value.pensionAcquisitionDate !== undefined)
+      updateData.pensionAcquisitionDate = value.pensionAcquisitionDate || null;
+    if (value.healthInsuranceLossDate !== undefined)
+      updateData.healthInsuranceLossDate =
+        value.healthInsuranceLossDate || null;
+    if (value.pensionLossDate !== undefined)
+      updateData.pensionLossDate = value.pensionLossDate || null;
+    if (value.determinationReason !== undefined)
+      updateData.determinationReason = value.determinationReason || '';
+    if (value.lastTeijiKetteiYear !== undefined)
+      updateData.lastTeijiKetteiYear = value.lastTeijiKetteiYear || null;
+    if (value.lastTeijiKetteiMonth !== undefined)
+      updateData.lastTeijiKetteiMonth = value.lastTeijiKetteiMonth || null;
+    if (value.lastSuijiKetteiYear !== undefined)
+      updateData.lastSuijiKetteiYear = value.lastSuijiKetteiYear || null;
+    if (value.lastSuijiKetteiMonth !== undefined)
+      updateData.lastSuijiKetteiMonth = value.lastSuijiKetteiMonth || null;
+    if (value.leaveOfAbsenceStart !== undefined)
+      updateData.leaveOfAbsenceStart = value.leaveOfAbsenceStart || null;
+    if (value.leaveOfAbsenceEnd !== undefined)
+      updateData.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd || null;
+    if (value.returnFromLeaveDate !== undefined)
+      updateData.returnFromLeaveDate = value.returnFromLeaveDate || null;
+    if (value.expectedDeliveryDate !== undefined)
+      updateData.expectedDeliveryDate = value.expectedDeliveryDate || null;
+    if (value.maternityLeaveStart !== undefined)
+      updateData.maternityLeaveStart = value.maternityLeaveStart || null;
+    if (value.maternityLeaveEndExpected !== undefined)
+      updateData.maternityLeaveEndExpected =
+        value.maternityLeaveEndExpected || null;
+    if (value.actualDeliveryDate !== undefined)
+      updateData.actualDeliveryDate = value.actualDeliveryDate || null;
+    if (value.maternityLeaveEnd !== undefined)
+      updateData.maternityLeaveEnd = value.maternityLeaveEnd || null;
+    if (value.childcareChildName !== undefined)
+      updateData.childcareChildName = value.childcareChildName || null;
+    if (value.childcareChildBirthDate !== undefined)
+      updateData.childcareChildBirthDate =
+        value.childcareChildBirthDate || null;
+    if (value.childcareLeaveStart !== undefined)
+      updateData.childcareLeaveStart = value.childcareLeaveStart || null;
+    if (value.childcareLeaveEndExpected !== undefined)
+      updateData.childcareLeaveEndExpected =
+        value.childcareLeaveEndExpected || null;
+    if (value.childcareLeaveEnd !== undefined)
+      updateData.childcareLeaveEnd = value.childcareLeaveEnd || null;
+    if (value.sickPayApplicationRequest !== undefined)
+      updateData.sickPayApplicationRequest = value.sickPayApplicationRequest;
+    if (value.sickPayApplicationRequestDate)
+      updateData.sickPayApplicationRequestDate =
+        value.sickPayApplicationRequestDate;
+    if (value.childcareEmployerCertificateRequest !== undefined)
+      updateData.childcareEmployerCertificateRequest =
+        value.childcareEmployerCertificateRequest;
+    if (value.childcareEmployerCertificateRequestDate)
+      updateData.childcareEmployerCertificateRequestDate =
+        value.childcareEmployerCertificateRequestDate;
+    if (value.maternityAllowanceApplicationRequest !== undefined)
+      updateData.maternityAllowanceApplicationRequest =
+        value.maternityAllowanceApplicationRequest;
+    if (value.maternityAllowanceApplicationRequestDate)
+      updateData.maternityAllowanceApplicationRequestDate =
+        value.maternityAllowanceApplicationRequestDate;
 
     console.log('[employee-basic-info-form] 保存データ:', {
       officeNumber: updateData.officeNumber,
       prefecture: updateData.prefecture,
       department: updateData.department,
-      fullUpdateData: updateData
+      fullUpdateData: updateData,
     });
-    
+
     await this.employeeService.updateEmployee(this.employeeId, updateData);
     await this.detectAndSaveChanges(this.originalEmployeeData, value);
 
@@ -318,7 +390,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     this.saved.emit();
   }
 
-  private async detectAndSaveChanges(oldData: any, newData: any): Promise<void> {
+  private async detectAndSaveChanges(
+    oldData: any,
+    newData: any
+  ): Promise<void> {
     if (!this.employeeId) return;
 
     const today = new Date().toISOString().split('T')[0];
@@ -330,7 +405,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         changeDate: today,
         oldValue: oldData.name,
         newValue: newData.name,
-        notificationNames: ['被保険者氏名変更届（健保）', '厚生年金被保険者氏名変更届'],
+        notificationNames: [
+          '被保険者氏名変更届（健保）',
+          '厚生年金被保険者氏名変更届',
+        ],
       });
     }
 
@@ -343,11 +421,18 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         changeDate: today,
         oldValue: oldAddress || '(未設定)',
         newValue: newAddress || '(未設定)',
-        notificationNames: ['被保険者住所変更届（健保）', '厚生年金被保険者住所変更届'],
+        notificationNames: [
+          '被保険者住所変更届（健保）',
+          '厚生年金被保険者住所変更届',
+        ],
       });
     }
 
-    if (oldData.birthDate && newData.birthDate && oldData.birthDate !== newData.birthDate) {
+    if (
+      oldData.birthDate &&
+      newData.birthDate &&
+      oldData.birthDate !== newData.birthDate
+    ) {
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
         changeType: '生年月日訂正',
@@ -367,24 +452,37 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         changeDate: today,
         oldValue: oldGender || '(未設定)',
         newValue: newGender || '(未設定)',
-        notificationNames: ['被保険者性別変更届（健保）', '厚生年金被保険者性別変更届'],
+        notificationNames: [
+          '被保険者性別変更届（健保）',
+          '厚生年金被保険者性別変更届',
+        ],
       });
     }
 
     const oldOfficeNumber = oldData.officeNumber || '';
     const newOfficeNumber = newData.officeNumber || '';
-    if (oldOfficeNumber !== newOfficeNumber && (oldOfficeNumber || newOfficeNumber)) {
+    if (
+      oldOfficeNumber !== newOfficeNumber &&
+      (oldOfficeNumber || newOfficeNumber)
+    ) {
       const oldPrefecture = oldData.prefecture || '';
       const newPrefecture = newData.prefecture || '';
-      const oldOfficeInfo = oldOfficeNumber ? `${oldOfficeNumber}${oldPrefecture ? ` (${oldPrefecture})` : ''}` : '(未設定)';
-      const newOfficeInfo = newOfficeNumber ? `${newOfficeNumber}${newPrefecture ? ` (${newPrefecture})` : ''}` : '(未設定)';
+      const oldOfficeInfo = oldOfficeNumber
+        ? `${oldOfficeNumber}${oldPrefecture ? ` (${oldPrefecture})` : ''}`
+        : '(未設定)';
+      const newOfficeInfo = newOfficeNumber
+        ? `${newOfficeNumber}${newPrefecture ? ` (${newPrefecture})` : ''}`
+        : '(未設定)';
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
         changeType: '所属事業所変更',
         changeDate: today,
         oldValue: oldOfficeInfo,
         newValue: newOfficeInfo,
-        notificationNames: ['新しい事業所での資格取得届', '元の事業所での資格喪失届'],
+        notificationNames: [
+          '新しい事業所での資格取得届',
+          '元の事業所での資格喪失届',
+        ],
       });
     }
 
@@ -393,10 +491,18 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     const oldWeeklyHours = oldData.weeklyHours || null;
     const newWeeklyHours = newData.weeklyHours || null;
 
-    if ((oldIsShortTime !== newIsShortTime) ||
-        (oldWeeklyHours !== newWeeklyHours && oldWeeklyHours !== null && newWeeklyHours !== null)) {
-      const oldStatus = oldIsShortTime ? `短時間労働者 (週${oldWeeklyHours || '?'}時間)` : `通常加入 (週${oldWeeklyHours || '?'}時間)`;
-      const newStatus = newIsShortTime ? `短時間労働者 (週${newWeeklyHours || '?'}時間)` : `通常加入 (週${newWeeklyHours || '?'}時間)`;
+    if (
+      oldIsShortTime !== newIsShortTime ||
+      (oldWeeklyHours !== newWeeklyHours &&
+        oldWeeklyHours !== null &&
+        newWeeklyHours !== null)
+    ) {
+      const oldStatus = oldIsShortTime
+        ? `短時間労働者 (週${oldWeeklyHours || '?'}時間)`
+        : `通常加入 (週${oldWeeklyHours || '?'}時間)`;
+      const newStatus = newIsShortTime
+        ? `短時間労働者 (週${newWeeklyHours || '?'}時間)`
+        : `通常加入 (週${newWeeklyHours || '?'}時間)`;
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
         changeType: '適用区分変更',
@@ -408,5 +514,3 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     }
   }
 }
-
-

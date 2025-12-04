@@ -224,5 +224,19 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
   formatMonth(year: number, month: number): string {
     return `${year}年${month}月`;
   }
+
+  formatTargetMonths(summary: UncollectedPremiumSummary): string {
+    if (summary.monthlyDetails.length === 0) {
+      return '';
+    }
+    if (summary.monthlyDetails.length === 1) {
+      const detail = summary.monthlyDetails[0];
+      return this.formatMonth(detail.year, detail.month);
+    }
+    // 複数月の場合は最初と最後の月を表示
+    const first = summary.monthlyDetails[0];
+    const last = summary.monthlyDetails[summary.monthlyDetails.length - 1];
+    return `${this.formatMonth(first.year, first.month)}〜${this.formatMonth(last.year, last.month)}`;
+  }
 }
 

@@ -1,7 +1,14 @@
 import { Injectable } from '@angular/core';
 import { BonusService } from './bonus.service';
-import { SalaryCalculationService, TeijiKetteiResult, SuijiKouhoResult } from './salary-calculation.service';
-import { NotificationDecisionService, NotificationDecisionResult } from './notification-decision.service';
+import {
+  SalaryCalculationService,
+  TeijiKetteiResult,
+  SuijiKouhoResult,
+} from './salary-calculation.service';
+import {
+  NotificationDecisionService,
+  NotificationDecisionResult,
+} from './notification-decision.service';
 import { MonthlySalaryService } from './monthly-salary.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
@@ -39,7 +46,12 @@ export class NotificationCalculationService {
     // 1. 定時決定の届出要否判定
     if (salaryData) {
       const salaries: {
-        [key: string]: { total: number; fixed: number; variable: number; workingDays?: number };
+        [key: string]: {
+          total: number;
+          fixed: number;
+          variable: number;
+          workingDays?: number;
+        };
       } = {};
       for (let month = 1; month <= 12; month++) {
         const monthKey = this.salaryCalculationService.getSalaryKey(
@@ -62,10 +74,8 @@ export class NotificationCalculationService {
       const currentStandard = employee.standardMonthlyRemuneration || 0;
       const currentGrade =
         currentStandard > 0
-          ? this.salaryCalculationService.findGrade(
-              gradeTable,
-              currentStandard
-            )?.grade || 0
+          ? this.salaryCalculationService.findGrade(gradeTable, currentStandard)
+              ?.grade || 0
           : 0;
 
       const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
@@ -109,8 +119,9 @@ export class NotificationCalculationService {
     }
 
     // 3. 賞与支払届の届出要否判定（キャッシュから取得、なければ読み込み）
-    const bonuses = bonusesByEmployeeId?.[employee.id] || 
-      await this.bonusService.getBonusesForResult(employee.id, year);
+    const bonuses =
+      bonusesByEmployeeId?.[employee.id] ||
+      (await this.bonusService.getBonusesForResult(employee.id, year));
     for (const bonus of bonuses) {
       if (bonus.payDate && bonus.amount) {
         const payDate = new Date(bonus.payDate);
@@ -149,7 +160,12 @@ export class NotificationCalculationService {
     }
 
     const salaries: {
-      [key: string]: { total: number; fixed: number; variable: number; workingDays?: number };
+      [key: string]: {
+        total: number;
+        fixed: number;
+        variable: number;
+        workingDays?: number;
+      };
     } = {};
     for (let month = 1; month <= 12; month++) {
       const monthKey = this.salaryCalculationService.getSalaryKey(
@@ -171,10 +187,8 @@ export class NotificationCalculationService {
     const currentStandard = employee.standardMonthlyRemuneration || 0;
     const currentGrade =
       currentStandard > 0
-        ? this.salaryCalculationService.findGrade(
-            gradeTable,
-            currentStandard
-          )?.grade || 0
+        ? this.salaryCalculationService.findGrade(gradeTable, currentStandard)
+            ?.grade || 0
         : 0;
 
     const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
@@ -332,7 +346,8 @@ export class NotificationCalculationService {
         // 随時改定：適用開始月の7日（変動月+3ヶ月後が適用開始月）
         if (changeMonth) {
           const applyYear = changeMonth + 3 > 12 ? year + 1 : year;
-          const applyMonth = changeMonth + 3 > 12 ? changeMonth + 3 - 12 : changeMonth + 3;
+          const applyMonth =
+            changeMonth + 3 > 12 ? changeMonth + 3 - 12 : changeMonth + 3;
           const submitDate = new Date(applyYear, applyMonth - 1, 7); // 適用開始月の7日（月は0ベースなので-1）
           return submitDate.toISOString().split('T')[0];
         }
@@ -368,8 +383,9 @@ export class NotificationCalculationService {
     } = {};
 
     for (const emp of employees) {
-      const salaryData = salaryDataByEmployeeId?.[emp.id] || 
-        await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+      const salaryData =
+        salaryDataByEmployeeId?.[emp.id] ||
+        (await this.monthlySalaryService.getEmployeeSalary(emp.id, year));
       notificationsByEmployee[emp.id] = await this.calculateNotifications(
         emp,
         salaryData,
@@ -382,4 +398,3 @@ export class NotificationCalculationService {
     return notificationsByEmployee;
   }
 }
-

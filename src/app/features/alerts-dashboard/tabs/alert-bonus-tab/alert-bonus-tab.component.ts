@@ -23,13 +23,16 @@ export interface BonusReportAlert {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './alert-bonus-tab.component.html',
-  styleUrl: './alert-bonus-tab.component.css'
+  styleUrl: './alert-bonus-tab.component.css',
 })
 export class AlertBonusTabComponent {
   @Input() bonusReportAlerts: BonusReportAlert[] = [];
   @Input() selectedBonusReportAlertIds: Set<string> = new Set();
   @Input() employees: Employee[] = [];
-  @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
+  @Output() alertSelectionChange = new EventEmitter<{
+    alertId: string;
+    selected: boolean;
+  }>();
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
@@ -98,14 +101,16 @@ export class AlertBonusTabComponent {
       // 各従業員ごとに処理
       for (let i = 0; i < this.bonusReportAlerts.length; i++) {
         const alert = this.bonusReportAlerts[i];
-        const employee = this.employees.find(e => e.id === alert.employeeId);
+        const employee = this.employees.find((e) => e.id === alert.employeeId);
         if (!employee) continue;
 
         // 事業所情報を取得
         let office: Office | null = null;
         if (employee.officeNumber) {
           const offices = await this.officeService.getAllOffices();
-          office = offices.find(o => o.officeNumber === employee.officeNumber) || null;
+          office =
+            offices.find((o) => o.officeNumber === employee.officeNumber) ||
+            null;
         }
         if (!office) {
           const offices = await this.officeService.getAllOffices();
@@ -115,9 +120,10 @@ export class AlertBonusTabComponent {
         // 事業所整理記号のフォーマット（例：01-イ-1234567）
         const officeCodeStr = office?.officeCode || '';
         const officeNumberStr = office?.officeNumber || '';
-        const officeCodeFormatted = officeCodeStr && officeNumberStr 
-          ? `${officeCodeStr}-${officeNumberStr}` 
-          : (officeCodeStr || officeNumberStr || '');
+        const officeCodeFormatted =
+          officeCodeStr && officeNumberStr
+            ? `${officeCodeStr}-${officeNumberStr}`
+            : officeCodeStr || officeNumberStr || '';
 
         // 支給日を令和YYMMDD形式に変換
         const payDateObj = new Date(alert.payDate);
@@ -130,13 +136,18 @@ export class AlertBonusTabComponent {
         const payDateFormatted = `R${reiwaYearStr}${month}${day}`;
 
         // 賞与データを取得（1000円未満切り捨て額を取得）
-        const bonuses = await this.bonusService.getBonusesByEmployee(alert.employeeId, payDateObj);
-        const bonus = bonuses.find(b => b.payDate === alert.payDate);
-        const standardBonusAmount = bonus?.standardBonusAmount || Math.floor(alert.bonusAmount / 1000) * 1000;
+        const bonuses = await this.bonusService.getBonusesByEmployee(
+          alert.employeeId,
+          payDateObj
+        );
+        const bonus = bonuses.find((b) => b.payDate === alert.payDate);
+        const standardBonusAmount =
+          bonus?.standardBonusAmount ||
+          Math.floor(alert.bonusAmount / 1000) * 1000;
 
         // 生年月日を和暦形式に変換
         const birthDate = this.formatBirthDateToEra(employee.birthDate);
-        
+
         // 年齢を計算
         const age = this.calculateAge(employee.birthDate, alert.payDate);
 
@@ -158,7 +169,9 @@ export class AlertBonusTabComponent {
         csvLines.push(`被保険者氏名,${employee.name || ''}`);
         csvLines.push(`生年月日,${birthDate}`);
         csvLines.push(`賞与額,${String(alert.bonusAmount)}`);
-        csvLines.push(`賞与額（1000円未満切り捨て）,${String(standardBonusAmount)}`);
+        csvLines.push(
+          `賞与額（1000円未満切り捨て）,${String(standardBonusAmount)}`
+        );
         csvLines.push(`個人番号,${myNumber}`);
         csvLines.push(`基礎年金番号,${basicPensionNumber}`);
         csvLines.push(`年齢,${String(age)}`);
@@ -172,11 +185,16 @@ export class AlertBonusTabComponent {
 
       // CSVファイルをダウンロード
       const csvContent = csvLines.join('\n');
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(['\uFEFF' + csvContent], {
+        type: 'text/csv;charset=utf-8;',
+      });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `賞与支払届_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute(
+        'download',
+        `賞与支払届_${new Date().toISOString().split('T')[0]}.csv`
+      );
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -199,7 +217,7 @@ export class AlertBonusTabComponent {
 
     let era = '';
     let eraYear = 0;
-    
+
     if (year >= 2019) {
       era = '令和';
       eraYear = year - 2018;
@@ -226,12 +244,12 @@ export class AlertBonusTabComponent {
     const referenceDate = new Date(referenceDateStr);
     let age = referenceDate.getFullYear() - birthDate.getFullYear();
     const monthDiff = referenceDate.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && referenceDate.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && referenceDate.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
     return age;
   }
 }
-
-
-

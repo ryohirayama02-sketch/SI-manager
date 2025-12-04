@@ -3,18 +3,20 @@
 <div class="card">
   <!-- タブナビゲーション -->
   <div class="tabs">
-    <button 
+    <button
       type="button"
-      class="tab-button" 
+      class="tab-button"
       [class.active]="activeTab === 'basic'"
-      (click)="activeTab = 'basic'">
+      (click)="activeTab = 'basic'"
+    >
       基本情報
     </button>
-    <button 
+    <button
       type="button"
-      class="tab-button" 
+      class="tab-button"
       [class.active]="activeTab === 'family'"
-      (click)="activeTab = 'family'">
+      (click)="activeTab = 'family'"
+    >
       家族情報
     </button>
   </div>
@@ -23,388 +25,732 @@
   <!-- 基本情報タブ -->
   <div *ngIf="activeTab === 'basic'" class="tab-content">
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
-    <h3>個人情報</h3>
-    <div class="form-group">
-      <label for="name">氏名（漢字） <span class="required">*</span></label>
-      <input id="name" formControlName="name" type="text" class="form-control" required>
-    </div>
+      <h3>個人情報</h3>
+      <div class="form-group">
+        <label for="name">氏名（漢字） <span class="required">*</span></label>
+        <input
+          id="name"
+          formControlName="name"
+          type="text"
+          class="form-control"
+          required
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="nameKana">氏名（カナ）</label>
-      <input id="nameKana" formControlName="nameKana" type="text" class="form-control">
-    </div>
+      <div class="form-group">
+        <label for="nameKana">氏名（カナ）</label>
+        <input
+          id="nameKana"
+          formControlName="nameKana"
+          type="text"
+          class="form-control"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="gender">性別</label>
-      <select id="gender" formControlName="gender" class="form-control">
-        <option value="">選択してください</option>
-        <option value="male">男</option>
-        <option value="female">女</option>
-        <option value="other">その他</option>
-      </select>
-    </div>
+      <div class="form-group">
+        <label for="gender">性別</label>
+        <select id="gender" formControlName="gender" class="form-control">
+          <option value="">選択してください</option>
+          <option value="male">男</option>
+          <option value="female">女</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
 
-    <div class="form-group">
-      <label for="birthDate">生年月日 <span class="required">*</span></label>
-      <input id="birthDate" formControlName="birthDate" type="date" class="form-control" required (change)="validateDates()" max="9999-12-31">
-      <small *ngIf="ageInfo" class="form-text">現在の年齢: {{ ageInfo }}</small>
-    </div>
+      <div class="form-group">
+        <label for="birthDate">生年月日 <span class="required">*</span></label>
+        <input
+          id="birthDate"
+          formControlName="birthDate"
+          type="date"
+          class="form-control"
+          required
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+        <small *ngIf="ageInfo" class="form-text"
+          >現在の年齢: {{ ageInfo }}</small
+        >
+      </div>
 
-    <div class="form-group">
-      <label for="address">住民票住所</label>
-      <input id="address" formControlName="address" type="text" class="form-control" placeholder="都道府県市区町村番地">
-    </div>
+      <div class="form-group">
+        <label for="address">住民票住所</label>
+        <input
+          id="address"
+          formControlName="address"
+          type="text"
+          class="form-control"
+          placeholder="都道府県市区町村番地"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="myNumber">マイナンバー</label>
-      <input id="myNumber" formControlName="myNumber" type="text" class="form-control" placeholder="12桁の数字">
-    </div>
+      <div class="form-group">
+        <label for="myNumber">マイナンバー</label>
+        <input
+          id="myNumber"
+          formControlName="myNumber"
+          type="text"
+          class="form-control"
+          placeholder="12桁の数字"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="basicPensionNumber">基礎年金番号</label>
-      <input id="basicPensionNumber" formControlName="basicPensionNumber" type="text" class="form-control" placeholder="基礎年金番号">
-    </div>
+      <div class="form-group">
+        <label for="basicPensionNumber">基礎年金番号</label>
+        <input
+          id="basicPensionNumber"
+          formControlName="basicPensionNumber"
+          type="text"
+          class="form-control"
+          placeholder="基礎年金番号"
+        />
+      </div>
 
-    <h3>雇用条件</h3>
-    <div class="form-group">
-      <label for="employmentType">雇用形態</label>
-      <select id="employmentType" formControlName="employmentType" class="form-control">
-        <option value="">選択してください</option>
-        <option value="fulltime">正社員</option>
-        <option value="parttime">パート・アルバイト</option>
-        <option value="contract">契約社員</option>
-        <option value="temporary">派遣社員</option>
-        <option value="other">その他</option>
-      </select>
-    </div>
+      <h3>雇用条件</h3>
+      <div class="form-group">
+        <label for="employmentType">雇用形態</label>
+        <select
+          id="employmentType"
+          formControlName="employmentType"
+          class="form-control"
+        >
+          <option value="">選択してください</option>
+          <option value="fulltime">正社員</option>
+          <option value="parttime">パート・アルバイト</option>
+          <option value="contract">契約社員</option>
+          <option value="temporary">派遣社員</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" formControlName="isShortTime">
-        短時間労働者
-      </label>
-    </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" formControlName="isShortTime" />
+          短時間労働者
+        </label>
+      </div>
 
-    <div class="form-group">
-      <label for="weeklyHours">週所定労働時間</label>
-      <input id="weeklyHours" type="number" formControlName="weeklyHours" class="form-control" min="0" step="0.5">
-    </div>
+      <div class="form-group">
+        <label for="weeklyHours">週所定労働時間</label>
+        <input
+          id="weeklyHours"
+          type="number"
+          formControlName="weeklyHours"
+          class="form-control"
+          min="0"
+          step="0.5"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="monthlyWage">月額賃金見込</label>
-      <input id="monthlyWage" type="number" formControlName="monthlyWage" class="form-control" min="0" step="1">
-    </div>
+      <div class="form-group">
+        <label for="monthlyWage">月額賃金見込</label>
+        <input
+          id="monthlyWage"
+          type="number"
+          formControlName="monthlyWage"
+          class="form-control"
+          min="0"
+          step="1"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="expectedEmploymentMonths">雇用見込期間（月）</label>
-      <input id="expectedEmploymentMonths" type="number" formControlName="expectedEmploymentMonths" class="form-control" min="0" step="1">
-      <small class="form-text">短時間労働者の場合、2ヶ月超が必要</small>
-    </div>
+      <div class="form-group">
+        <label for="expectedEmploymentMonths">雇用見込期間（月）</label>
+        <input
+          id="expectedEmploymentMonths"
+          type="number"
+          formControlName="expectedEmploymentMonths"
+          class="form-control"
+          min="0"
+          step="1"
+        />
+        <small class="form-text">短時間労働者の場合、2ヶ月超が必要</small>
+      </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" formControlName="isStudent">
-        学生
-      </label>
-    </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" formControlName="isStudent" />
+          学生
+        </label>
+      </div>
 
-    <h3>所属</h3>
-    <!-- 都道府県は非表示フィールドとして保持（事業所選択により自動設定） -->
-    <input type="hidden" formControlName="prefecture">
-    <div class="form-group">
-      <label for="officeNumber">事業所</label>
-      <select id="officeNumber" formControlName="officeNumber" class="form-control">
-        <option value="">選択してください</option>
-        <option *ngFor="let office of offices" [value]="office.officeNumber">
-          {{ office.officeCode || '' }}-{{ office.officeNumber || '' }} {{ office.ownerName || '' }}
-        </option>
-      </select>
-      <small class="form-text text-muted">事業所を選択すると、都道府県が自動的に設定されます。</small>
-    </div>
+      <h3>所属</h3>
+      <!-- 都道府県は非表示フィールドとして保持（事業所選択により自動設定） -->
+      <input type="hidden" formControlName="prefecture" />
+      <div class="form-group">
+        <label for="officeNumber">事業所</label>
+        <select
+          id="officeNumber"
+          formControlName="officeNumber"
+          class="form-control"
+        >
+          <option value="">選択してください</option>
+          <option *ngFor="let office of offices" [value]="office.officeNumber">
+            {{ office.officeCode || "" }}-{{ office.officeNumber || "" }}
+            {{ office.ownerName || "" }}
+          </option>
+        </select>
+        <small class="form-text text-muted"
+          >事業所を選択すると、都道府県が自動的に設定されます。</small
+        >
+      </div>
 
-    <div class="form-group">
-      <label for="department">部署</label>
-      <input id="department" formControlName="department" type="text" class="form-control" placeholder="部署名">
-    </div>
+      <div class="form-group">
+        <label for="department">部署</label>
+        <input
+          id="department"
+          formControlName="department"
+          type="text"
+          class="form-control"
+          placeholder="部署名"
+        />
+      </div>
 
-    <h3>入退社</h3>
-    <div class="form-group">
-      <label for="joinDate">入社日 <span class="required">*</span></label>
-      <input id="joinDate" formControlName="joinDate" type="date" class="form-control" required (change)="validateDates()" max="9999-12-31">
-    </div>
+      <h3>入退社</h3>
+      <div class="form-group">
+        <label for="joinDate">入社日 <span class="required">*</span></label>
+        <input
+          id="joinDate"
+          formControlName="joinDate"
+          type="date"
+          class="form-control"
+          required
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="retireDate">退職日</label>
-      <input id="retireDate" formControlName="retireDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="retireDate">退職日</label>
+        <input
+          id="retireDate"
+          formControlName="retireDate"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="healthInsuranceAcquisitionDate">資格取得日（健康保険）</label>
-      <input id="healthInsuranceAcquisitionDate" formControlName="healthInsuranceAcquisitionDate" type="date" class="form-control" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="healthInsuranceAcquisitionDate"
+          >資格取得日（健康保険）</label
+        >
+        <input
+          id="healthInsuranceAcquisitionDate"
+          formControlName="healthInsuranceAcquisitionDate"
+          type="date"
+          class="form-control"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="pensionAcquisitionDate">資格取得日（厚生年金）</label>
-      <input id="pensionAcquisitionDate" formControlName="pensionAcquisitionDate" type="date" class="form-control" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="pensionAcquisitionDate">資格取得日（厚生年金）</label>
+        <input
+          id="pensionAcquisitionDate"
+          formControlName="pensionAcquisitionDate"
+          type="date"
+          class="form-control"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="healthInsuranceLossDate">資格喪失日（健康保険）</label>
-      <input id="healthInsuranceLossDate" formControlName="healthInsuranceLossDate" type="date" class="form-control" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="healthInsuranceLossDate">資格喪失日（健康保険）</label>
+        <input
+          id="healthInsuranceLossDate"
+          formControlName="healthInsuranceLossDate"
+          type="date"
+          class="form-control"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="pensionLossDate">資格喪失日（厚生年金）</label>
-      <input id="pensionLossDate" formControlName="pensionLossDate" type="date" class="form-control" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="pensionLossDate">資格喪失日（厚生年金）</label>
+        <input
+          id="pensionLossDate"
+          formControlName="pensionLossDate"
+          type="date"
+          class="form-control"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <small class="form-text" style="color: #666;">
-        ※ 同月得喪・月末在籍の判定は、入退社日と資格取得日・喪失日から自動判定されます。<br>
-        健保（健康保険）は月末在籍で判定、厚年（厚生年金）は1日でも在籍で加入と判定されます。
-      </small>
-    </div>
+      <div class="form-group">
+        <small class="form-text" style="color: #666">
+          ※
+          同月得喪・月末在籍の判定は、入退社日と資格取得日・喪失日から自動判定されます。<br />
+          健保（健康保険）は月末在籍で判定、厚年（厚生年金）は1日でも在籍で加入と判定されます。
+        </small>
+      </div>
 
-    <h3>休職・産休・育休</h3>
-    
-    <h4 style="margin-top: 1rem; margin-bottom: 1rem;">休職</h4>
-    
-    <div class="form-group">
-      <label for="leaveOfAbsenceStart">休職開始日</label>
-      <input id="leaveOfAbsenceStart" formControlName="leaveOfAbsenceStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <h3>休職・産休・育休</h3>
 
-    <div class="form-group">
-      <label for="leaveOfAbsenceEnd">休職終了日</label>
-      <input id="leaveOfAbsenceEnd" formControlName="leaveOfAbsenceEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <h4 style="margin-top: 1rem; margin-bottom: 1rem">休職</h4>
 
-    <div class="form-group">
-      <label for="returnFromLeaveDate">復職日</label>
-      <input id="returnFromLeaveDate" formControlName="returnFromLeaveDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="leaveOfAbsenceStart">休職開始日</label>
+        <input
+          id="leaveOfAbsenceStart"
+          formControlName="leaveOfAbsenceStart"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">産前産後休業</h4>
-    
-    <div class="form-group">
-      <label for="expectedDeliveryDate">出産予定日</label>
-      <input id="expectedDeliveryDate" formControlName="expectedDeliveryDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="leaveOfAbsenceEnd">休職終了日</label>
+        <input
+          id="leaveOfAbsenceEnd"
+          formControlName="leaveOfAbsenceEnd"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="maternityLeaveStart">産前産後休業開始日</label>
-      <input id="maternityLeaveStart" formControlName="maternityLeaveStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="returnFromLeaveDate">復職日</label>
+        <input
+          id="returnFromLeaveDate"
+          formControlName="returnFromLeaveDate"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="maternityLeaveEndExpected">産前産後休業終了予定日</label>
-      <input id="maternityLeaveEndExpected" formControlName="maternityLeaveEndExpected" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">産前産後休業</h4>
 
-    <div class="form-group">
-      <label for="actualDeliveryDate">出産日</label>
-      <input id="actualDeliveryDate" formControlName="actualDeliveryDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="expectedDeliveryDate">出産予定日</label>
+        <input
+          id="expectedDeliveryDate"
+          formControlName="expectedDeliveryDate"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="maternityLeaveEnd">産前産後休業終了日</label>
-      <input id="maternityLeaveEnd" formControlName="maternityLeaveEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="maternityLeaveStart">産前産後休業開始日</label>
+        <input
+          id="maternityLeaveStart"
+          formControlName="maternityLeaveStart"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">育児休業</h4>
-    
-    <div class="form-group">
-      <label for="childcareChildName">養育する子の氏名</label>
-      <input id="childcareChildName" formControlName="childcareChildName" type="text" class="form-control">
-    </div>
+      <div class="form-group">
+        <label for="maternityLeaveEndExpected">産前産後休業終了予定日</label>
+        <input
+          id="maternityLeaveEndExpected"
+          formControlName="maternityLeaveEndExpected"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="childcareChildBirthDate">養育する子の生年月日</label>
-      <input id="childcareChildBirthDate" formControlName="childcareChildBirthDate" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="actualDeliveryDate">出産日</label>
+        <input
+          id="actualDeliveryDate"
+          formControlName="actualDeliveryDate"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="childcareLeaveStart">育児休業等開始日</label>
-      <input id="childcareLeaveStart" formControlName="childcareLeaveStart" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="maternityLeaveEnd">産前産後休業終了日</label>
+        <input
+          id="maternityLeaveEnd"
+          formControlName="maternityLeaveEnd"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label for="childcareLeaveEndExpected">育児休業等終了予定日</label>
-      <input id="childcareLeaveEndExpected" formControlName="childcareLeaveEndExpected" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">育児休業</h4>
 
-    <div class="form-group">
-      <label for="childcareLeaveEnd">育児休業等終了日</label>
-      <input id="childcareLeaveEnd" formControlName="childcareLeaveEnd" type="date" class="form-control" (change)="validateDates()" max="9999-12-31">
-    </div>
+      <div class="form-group">
+        <label for="childcareChildName">養育する子の氏名</label>
+        <input
+          id="childcareChildName"
+          formControlName="childcareChildName"
+          type="text"
+          class="form-control"
+        />
+      </div>
 
-    <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">申請書記入依頼</h4>
+      <div class="form-group">
+        <label for="childcareChildBirthDate">養育する子の生年月日</label>
+        <input
+          id="childcareChildBirthDate"
+          formControlName="childcareChildBirthDate"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" formControlName="sickPayApplicationRequest" (change)="onCheckboxChange('sickPayApplicationRequest', $event)"> 傷病手当金支給申請書の記入依頼あり
-      </label>
-    </div>
+      <div class="form-group">
+        <label for="childcareLeaveStart">育児休業等開始日</label>
+        <input
+          id="childcareLeaveStart"
+          formControlName="childcareLeaveStart"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" formControlName="childcareEmployerCertificateRequest" (change)="onCheckboxChange('childcareEmployerCertificateRequest', $event)"> 育児休業関係の事業主証明書の記入依頼あり
-      </label>
-    </div>
+      <div class="form-group">
+        <label for="childcareLeaveEndExpected">育児休業等終了予定日</label>
+        <input
+          id="childcareLeaveEndExpected"
+          formControlName="childcareLeaveEndExpected"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" formControlName="maternityAllowanceApplicationRequest" (change)="onCheckboxChange('maternityAllowanceApplicationRequest', $event)"> 出産手当金支給申請書の記入依頼あり
-      </label>
-    </div>
+      <div class="form-group">
+        <label for="childcareLeaveEnd">育児休業等終了日</label>
+        <input
+          id="childcareLeaveEnd"
+          formControlName="childcareLeaveEnd"
+          type="date"
+          class="form-control"
+          (change)="validateDates()"
+          max="9999-12-31"
+        />
+      </div>
 
-    <div class="form-group">
-      <label>
-        <input type="checkbox" formControlName="childcareLivingTogether"> 育児休業中も同一世帯で生活している
-      </label>
-    </div>
+      <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">申請書記入依頼</h4>
 
-      <button type="submit" [disabled]="form.invalid" class="btn-primary" style="margin-top: 1rem;">登録</button>
+      <div class="form-group">
+        <label>
+          <input
+            type="checkbox"
+            formControlName="sickPayApplicationRequest"
+            (change)="onCheckboxChange('sickPayApplicationRequest', $event)"
+          />
+          傷病手当金支給申請書の記入依頼あり
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input
+            type="checkbox"
+            formControlName="childcareEmployerCertificateRequest"
+            (change)="
+              onCheckboxChange('childcareEmployerCertificateRequest', $event)
+            "
+          />
+          育児休業関係の事業主証明書の記入依頼あり
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input
+            type="checkbox"
+            formControlName="maternityAllowanceApplicationRequest"
+            (change)="
+              onCheckboxChange('maternityAllowanceApplicationRequest', $event)
+            "
+          />
+          出産手当金支給申請書の記入依頼あり
+        </label>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" formControlName="childcareLivingTogether" />
+          育児休業中も同一世帯で生活している
+        </label>
+      </div>
+
+      <button
+        type="submit"
+        [disabled]="form.invalid"
+        class="btn-primary"
+        style="margin-top: 1rem"
+      >
+        登録
+      </button>
     </form>
   </div>
 
   <!-- 家族情報タブ -->
   <div *ngIf="activeTab === 'family'" class="tab-content">
-      <h3>家族情報</h3>
+    <h3>家族情報</h3>
 
-      <!-- 扶養見直しアラート -->
-      <div *ngIf="supportReviewAlerts.length > 0" class="alert-box" style="margin-bottom: 1rem; padding: 1rem; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">
-        <h4>⚠️ 扶養見直しアラート</h4>
-        <ul>
-          <li *ngFor="let alert of supportReviewAlerts">
-            {{ alert.name }}（{{ alert.relationship }}）: {{ getFamilyMemberAge(alert.birthDate) }}歳 - 扶養見直しが必要です
-          </li>
-        </ul>
-      </div>
-
-      <!-- 家族情報一覧 -->
-      <div style="margin-bottom: 1rem;">
-        <button type="button" (click)="showAddFamilyForm($event)" class="btn-primary">家族情報を追加</button>
-      </div>
-
-      <table class="table" *ngIf="familyMembers.length > 0" style="margin-bottom: 1rem;">
-        <thead>
-          <tr>
-            <th>氏名</th>
-            <th>生年月日</th>
-            <th>年齢</th>
-            <th>続柄</th>
-            <th>同居区分</th>
-            <th>収入見込</th>
-            <th>第3号区分</th>
-            <th>高校卒業日（満18歳年度末）</th>
-            <th>大学卒業日（満22歳年度末）</th>
-            <th>扶養開始日</th>
-            <th>扶養終了日</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let member of familyMembers">
-            <td>{{ member.name }}</td>
-            <td>{{ member.birthDate }}</td>
-            <td>{{ getFamilyMemberAge(member.birthDate) }}歳</td>
-            <td>{{ member.relationship }}</td>
-            <td>{{ member.livingTogether ? '同居' : '別居' }}</td>
-            <td>{{ member.expectedIncome ? (member.expectedIncome | number:'1.0-0') + '円' : '-' }}</td>
-            <td>{{ getPensionCategory(member) }}</td>
-            <td>{{ getAge18Date(member.birthDate) }}</td>
-            <td>{{ getAge22Date(member.birthDate) }}</td>
-            <td>{{ member.supportStartDate || '-' }}</td>
-            <td>{{ member.supportEndDate || '-' }}</td>
-            <td>
-              <button type="button" (click)="showEditFamilyForm(member, $event)" class="btn-secondary" style="margin-right: 0.5rem;">編集</button>
-              <button type="button" (click)="deleteFamilyMember(member.id!, $event)" class="btn-danger">削除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p *ngIf="familyMembers.length === 0" class="info-text">家族情報が登録されていません。</p>
-
-      <!-- 家族情報入力フォーム -->
-      <div *ngIf="showFamilyForm" class="card" style="margin-top: 1rem;">
-        <h4>{{ editingFamilyMember ? '家族情報の編集' : '家族情報の追加' }}</h4>
-        <form [formGroup]="familyForm" (ngSubmit)="$event.preventDefault(); $event.stopPropagation();">
-          <div class="form-group">
-            <label for="familyName">氏名 <span class="required">*</span></label>
-            <input id="familyName" formControlName="name" type="text" class="form-control" required>
-          </div>
-
-          <div class="form-group">
-            <label for="familyBirthDate">生年月日 <span class="required">*</span></label>
-            <input id="familyBirthDate" formControlName="birthDate" type="date" class="form-control" required max="9999-12-31">
-          </div>
-
-          <div class="form-group">
-            <label for="familyRelationship">続柄 <span class="required">*</span></label>
-            <select id="familyRelationship" formControlName="relationship" class="form-control" required>
-              <option value="">選択してください</option>
-              <option value="配偶者">配偶者</option>
-              <option value="子">子</option>
-              <option value="父母">父母</option>
-              <option value="祖父母">祖父母</option>
-              <option value="兄弟姉妹">兄弟姉妹</option>
-              <option value="その他">その他</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" formControlName="livingTogether">
-              同居
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label for="familyExpectedIncome">収入見込（円）</label>
-            <input id="familyExpectedIncome" formControlName="expectedIncome" type="number" class="form-control" min="0" step="1">
-          </div>
-
-          <div class="form-group">
-            <label>
-              <input type="checkbox" formControlName="isThirdCategory">
-              第3号被保険者
-            </label>
-          </div>
-
-          <div class="form-group">
-            <label for="familySupportStartDate">扶養開始日</label>
-            <input id="familySupportStartDate" formControlName="supportStartDate" type="date" class="form-control" max="9999-12-31">
-          </div>
-
-          <div class="form-group">
-            <label for="familySupportEndDate">扶養終了日</label>
-            <input id="familySupportEndDate" formControlName="supportEndDate" type="date" class="form-control" max="9999-12-31">
-          </div>
-
-          <div class="form-group">
-            <label for="familyChangeDate">異動日</label>
-            <input id="familyChangeDate" formControlName="changeDate" type="date" class="form-control" max="9999-12-31">
-          </div>
-
-          <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-            <button type="button" (click)="saveFamilyMember($event)" [disabled]="familyForm.invalid" class="btn-primary">保存</button>
-            <button type="button" (click)="cancelFamilyForm()" class="btn-secondary">キャンセル</button>
-          </div>
-        </form>
-      </div>
+    <!-- 扶養見直しアラート -->
+    <div
+      *ngIf="supportReviewAlerts.length > 0"
+      class="alert-box"
+      style="
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+      "
+    >
+      <h4>⚠️ 扶養見直しアラート</h4>
+      <ul>
+        <li *ngFor="let alert of supportReviewAlerts">
+          {{ alert.name }}（{{ alert.relationship }}）:
+          {{ getFamilyMemberAge(alert.birthDate) }}歳 - 扶養見直しが必要です
+        </li>
+      </ul>
     </div>
 
+    <!-- 家族情報一覧 -->
+    <div style="margin-bottom: 1rem">
+      <button
+        type="button"
+        (click)="showAddFamilyForm($event)"
+        class="btn-primary"
+      >
+        家族情報を追加
+      </button>
+    </div>
+
+    <table
+      class="table"
+      *ngIf="familyMembers.length > 0"
+      style="margin-bottom: 1rem"
+    >
+      <thead>
+        <tr>
+          <th>氏名</th>
+          <th>生年月日</th>
+          <th>年齢</th>
+          <th>続柄</th>
+          <th>同居区分</th>
+          <th>収入見込</th>
+          <th>第3号区分</th>
+          <th>高校卒業日（満18歳年度末）</th>
+          <th>大学卒業日（満22歳年度末）</th>
+          <th>扶養開始日</th>
+          <th>扶養終了日</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let member of familyMembers">
+          <td>{{ member.name }}</td>
+          <td>{{ member.birthDate }}</td>
+          <td>{{ getFamilyMemberAge(member.birthDate) }}歳</td>
+          <td>{{ member.relationship }}</td>
+          <td>{{ member.livingTogether ? "同居" : "別居" }}</td>
+          <td>
+            {{
+              member.expectedIncome
+                ? (member.expectedIncome | number : "1.0-0") + "円"
+                : "-"
+            }}
+          </td>
+          <td>{{ getPensionCategory(member) }}</td>
+          <td>{{ getAge18Date(member.birthDate) }}</td>
+          <td>{{ getAge22Date(member.birthDate) }}</td>
+          <td>{{ member.supportStartDate || "-" }}</td>
+          <td>{{ member.supportEndDate || "-" }}</td>
+          <td>
+            <button
+              type="button"
+              (click)="showEditFamilyForm(member, $event)"
+              class="btn-secondary"
+              style="margin-right: 0.5rem"
+            >
+              編集
+            </button>
+            <button
+              type="button"
+              (click)="deleteFamilyMember(member.id!, $event)"
+              class="btn-danger"
+            >
+              削除
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p *ngIf="familyMembers.length === 0" class="info-text">
+      家族情報が登録されていません。
+    </p>
+
+    <!-- 家族情報入力フォーム -->
+    <div *ngIf="showFamilyForm" class="card" style="margin-top: 1rem">
+      <h4>{{ editingFamilyMember ? "家族情報の編集" : "家族情報の追加" }}</h4>
+      <form
+        [formGroup]="familyForm"
+        (ngSubmit)="$event.preventDefault(); $event.stopPropagation()"
+      >
+        <div class="form-group">
+          <label for="familyName">氏名 <span class="required">*</span></label>
+          <input
+            id="familyName"
+            formControlName="name"
+            type="text"
+            class="form-control"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="familyBirthDate"
+            >生年月日 <span class="required">*</span></label
+          >
+          <input
+            id="familyBirthDate"
+            formControlName="birthDate"
+            type="date"
+            class="form-control"
+            required
+            max="9999-12-31"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="familyRelationship"
+            >続柄 <span class="required">*</span></label
+          >
+          <select
+            id="familyRelationship"
+            formControlName="relationship"
+            class="form-control"
+            required
+          >
+            <option value="">選択してください</option>
+            <option value="配偶者">配偶者</option>
+            <option value="子">子</option>
+            <option value="父母">父母</option>
+            <option value="祖父母">祖父母</option>
+            <option value="兄弟姉妹">兄弟姉妹</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" formControlName="livingTogether" />
+            同居
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="familyExpectedIncome">収入見込（円）</label>
+          <input
+            id="familyExpectedIncome"
+            formControlName="expectedIncome"
+            type="number"
+            class="form-control"
+            min="0"
+            step="1"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" formControlName="isThirdCategory" />
+            第3号被保険者
+          </label>
+        </div>
+
+        <div class="form-group">
+          <label for="familySupportStartDate">扶養開始日</label>
+          <input
+            id="familySupportStartDate"
+            formControlName="supportStartDate"
+            type="date"
+            class="form-control"
+            max="9999-12-31"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="familySupportEndDate">扶養終了日</label>
+          <input
+            id="familySupportEndDate"
+            formControlName="supportEndDate"
+            type="date"
+            class="form-control"
+            max="9999-12-31"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="familyChangeDate">異動日</label>
+          <input
+            id="familyChangeDate"
+            formControlName="changeDate"
+            type="date"
+            class="form-control"
+            max="9999-12-31"
+          />
+        </div>
+
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem">
+          <button
+            type="button"
+            (click)="saveFamilyMember($event)"
+            [disabled]="familyForm.invalid"
+            class="btn-primary"
+          >
+            保存
+          </button>
+          <button
+            type="button"
+            (click)="cancelFamilyForm()"
+            class="btn-secondary"
+          >
+            キャンセル
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- エラー・警告メッセージ -->
-  <div *ngIf="errorMessages?.length" class="error-box" style="margin-top: 1rem;">
+  <div *ngIf="errorMessages?.length" class="error-box" style="margin-top: 1rem">
     <h4>エラー</h4>
     <ul>
       <li *ngFor="let err of errorMessages">{{ err }}</li>
     </ul>
   </div>
 
-  <div *ngIf="warningMessages?.length" class="warning-box" style="margin-top: 1rem;">
+  <div
+    *ngIf="warningMessages?.length"
+    class="warning-box"
+    style="margin-top: 1rem"
+  >
     <h4>警告</h4>
     <ul>
       <li *ngFor="let w of warningMessages">{{ w }}</li>

@@ -1,7 +1,10 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { QualificationChangeAlert } from '../alert-age-tab.component';
-import { formatDate as formatDateHelper, getJSTDate } from '../../../../../utils/alerts-helper';
+import {
+  formatDate as formatDateHelper,
+  getJSTDate,
+} from '../../../../../utils/alerts-helper';
 import { OfficeService } from '../../../../../services/office.service';
 import { MonthlySalaryService } from '../../../../../services/monthly-salary.service';
 import { SettingsService } from '../../../../../services/settings.service';
@@ -15,13 +18,16 @@ import { SalaryItem } from '../../../../../models/salary-item.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './qualification-change-alert-list.component.html',
-  styleUrl: './qualification-change-alert-list.component.css'
+  styleUrl: './qualification-change-alert-list.component.css',
 })
 export class QualificationChangeAlertListComponent {
   @Input() qualificationChangeAlerts: QualificationChangeAlert[] = [];
   @Input() selectedQualificationChangeAlertIds: Set<string> = new Set();
   @Input() employees: Employee[] = [];
-  @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
+  @Output() alertSelectionChange = new EventEmitter<{
+    alertId: string;
+    selected: boolean;
+  }>();
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
@@ -59,7 +65,9 @@ export class QualificationChangeAlertListComponent {
    */
   async exportToCsv(alert: QualificationChangeAlert): Promise<void> {
     try {
-      const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
+      const employee = this.employees.find((e) => e.id === alert.employeeId) as
+        | Employee
+        | undefined;
       if (!employee) {
         window.alert('従業員情報が見つかりません');
         return;
@@ -69,7 +77,8 @@ export class QualificationChangeAlertListComponent {
       let office: Office | null = null;
       if (employee.officeNumber) {
         const offices = await this.officeService.getAllOffices();
-        office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+        office =
+          offices.find((o) => o.officeNumber === employee.officeNumber) || null;
       }
       if (!office) {
         const offices = await this.officeService.getAllOffices();
@@ -88,7 +97,10 @@ export class QualificationChangeAlertListComponent {
       const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
 
       // 給与データを取得
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, prevYear);
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+        employee.id,
+        prevYear
+      );
       const prevMonthData = salaryData?.[actualPrevMonth.toString()];
 
       // 給与項目マスタを取得
@@ -98,7 +110,8 @@ export class QualificationChangeAlertListComponent {
       let remunerationAmount = 0;
       if (prevMonthData) {
         // 給与項目データを準備
-        const salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
+        const salaryItemData: { [key: string]: { [itemId: string]: number } } =
+          {};
         if (prevMonthData.salaryItems) {
           const key = `${employee.id}_${actualPrevMonth}`;
           salaryItemData[key] = {};
@@ -116,7 +129,10 @@ export class QualificationChangeAlertListComponent {
       }
 
       // 被扶養者の有無を確認
-      const familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(employee.id);
+      const familyMembers =
+        await this.familyMemberService.getFamilyMembersByEmployeeId(
+          employee.id
+        );
       const hasDependents = familyMembers.length > 0;
 
       // 性別を取得（変更詳細から取得、または従業員の現在の性別を取得）
@@ -134,8 +150,12 @@ export class QualificationChangeAlertListComponent {
       csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
       csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
       csvRows.push(`事業所所在地,${office?.address || ''}`);
-      csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
-      csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+      csvRows.push(
+        `事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`
+      );
+      csvRows.push(
+        `事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`
+      );
       csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
       csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
       csvRows.push(`被保険者氏名,${employee.name || ''}`);
@@ -145,7 +165,9 @@ export class QualificationChangeAlertListComponent {
       csvRows.push(`個人番号,${employee.myNumber || ''}`);
       csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
       csvRows.push(`被保険者番号,${employee.insuredNumber || ''}`);
-      csvRows.push(`適応日,${this.formatJapaneseEra(changeYear, changeMonth, changeDay)}`);
+      csvRows.push(
+        `適応日,${this.formatJapaneseEra(changeYear, changeMonth, changeDay)}`
+      );
       csvRows.push(`被扶養者,${hasDependents ? '有' : '無'}`);
       csvRows.push(`報酬月額,${remunerationAmount.toString()}`);
       csvRows.push(`週の所定労働時間,${weeklyWorkHours}`);
@@ -244,7 +266,9 @@ export class QualificationChangeAlertListComponent {
         let bonusAmount = 0;
 
         // 給与項目マスタから「欠勤控除」種別の項目を探す
-        const deductionItems = salaryItems.filter((item) => item.type === 'deduction');
+        const deductionItems = salaryItems.filter(
+          (item) => item.type === 'deduction'
+        );
         for (const item of deductionItems) {
           absenceDeduction += itemData[item.id] || 0;
         }
@@ -273,7 +297,10 @@ export class QualificationChangeAlertListComponent {
   /**
    * 性別を取得（変更詳細から取得、または従業員の現在の性別を取得）
    */
-  private getGender(employee: Employee, alert: QualificationChangeAlert): string {
+  private getGender(
+    employee: Employee,
+    alert: QualificationChangeAlert
+  ): string {
     // 変更種別が「性別変更」の場合は変更詳細から新しい値を取得
     if (alert.changeType === '性別変更') {
       // 変更詳細は「男性 → 女性」のような形式
@@ -296,12 +323,12 @@ export class QualificationChangeAlertListComponent {
   private formatGenderValue(value: string | null | undefined): string {
     if (!value) return '';
     const genderMap: { [key: string]: string } = {
-      'female': '女性',
-      'male': '男性',
-      '女性': '女性',
-      '男性': '男性',
-      'F': '女性',
-      'M': '男性',
+      female: '女性',
+      male: '男性',
+      女性: '女性',
+      男性: '男性',
+      F: '女性',
+      M: '男性',
     };
     return genderMap[value.toLowerCase()] || value;
   }
@@ -328,4 +355,3 @@ export class QualificationChangeAlertListComponent {
     return '';
   }
 }
-
