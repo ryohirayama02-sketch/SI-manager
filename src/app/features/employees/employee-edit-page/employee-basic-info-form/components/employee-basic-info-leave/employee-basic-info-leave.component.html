@@ -48,12 +48,27 @@
   <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">育児休業</h4>
   
   <div class="form-group">
-    <label for="childcareLeaveStart">育児休業開始日</label>
+    <label for="childcareChildName">養育する子の氏名</label>
+    <input id="childcareChildName" type="text" formControlName="childcareChildName" class="form-control">
+  </div>
+
+  <div class="form-group">
+    <label for="childcareChildBirthDate">養育する子の生年月日</label>
+    <input id="childcareChildBirthDate" type="date" formControlName="childcareChildBirthDate" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="childcareLeaveStart">育児休業等開始日</label>
     <input id="childcareLeaveStart" type="date" formControlName="childcareLeaveStart" class="form-control" (change)="onDateChange()">
   </div>
 
   <div class="form-group">
-    <label for="childcareLeaveEnd">育児休業終了日</label>
+    <label for="childcareLeaveEndExpected">育児休業等終了予定日</label>
+    <input id="childcareLeaveEndExpected" type="date" formControlName="childcareLeaveEndExpected" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="childcareLeaveEnd">育児休業等終了日</label>
     <input id="childcareLeaveEnd" type="date" formControlName="childcareLeaveEnd" class="form-control" (change)="onDateChange()">
   </div>
 

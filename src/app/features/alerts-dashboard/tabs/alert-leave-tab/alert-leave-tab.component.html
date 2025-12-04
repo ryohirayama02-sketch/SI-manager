@@ -74,7 +74,7 @@
         </td>
         <td style="width: 100px; text-align: center;">
           <button 
-            *ngIf="alert.alertType === '産前産後休業取得者申出書' || alert.alertType === '産前産後休業取得者変更（終了）届'"
+            *ngIf="alert.alertType === '産前産後休業取得者申出書' || alert.alertType === '産前産後休業取得者変更（終了）届' || alert.alertType === '育児休業等取得者申出書' || alert.alertType === '育児休業等取得者終了届'"
             (click)="exportToCsv(alert)"
             class="btn-primary"
             style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"

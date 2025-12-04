@@ -90,7 +90,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       maternityLeaveEndExpected: [''],
       actualDeliveryDate: [''],
       maternityLeaveEnd: [''],
+      childcareChildName: [''],
+      childcareChildBirthDate: [''],
       childcareLeaveStart: [''],
+      childcareLeaveEndExpected: [''],
       childcareLeaveEnd: [''],
       childcareNotificationSubmitted: [false],
       childcareLivingTogether: [false],
@@ -170,7 +173,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         maternityLeaveEndExpected: (data as any).maternityLeaveEndExpected || '',
         actualDeliveryDate: (data as any).actualDeliveryDate || '',
         maternityLeaveEnd: data.maternityLeaveEnd || '',
+        childcareChildName: (data as any).childcareChildName || '',
+        childcareChildBirthDate: (data as any).childcareChildBirthDate || '',
         childcareLeaveStart: data.childcareLeaveStart || '',
+        childcareLeaveEndExpected: (data as any).childcareLeaveEndExpected || '',
         childcareLeaveEnd: data.childcareLeaveEnd || '',
         childcareNotificationSubmitted: data.childcareNotificationSubmitted || false,
         childcareLivingTogether: data.childcareLivingTogether || false,
@@ -291,7 +297,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.maternityLeaveEndExpected !== undefined) updateData.maternityLeaveEndExpected = value.maternityLeaveEndExpected || null;
     if (value.actualDeliveryDate !== undefined) updateData.actualDeliveryDate = value.actualDeliveryDate || null;
     if (value.maternityLeaveEnd !== undefined) updateData.maternityLeaveEnd = value.maternityLeaveEnd || null;
+    if (value.childcareChildName !== undefined) updateData.childcareChildName = value.childcareChildName || null;
+    if (value.childcareChildBirthDate !== undefined) updateData.childcareChildBirthDate = value.childcareChildBirthDate || null;
     if (value.childcareLeaveStart !== undefined) updateData.childcareLeaveStart = value.childcareLeaveStart || null;
+    if (value.childcareLeaveEndExpected !== undefined) updateData.childcareLeaveEndExpected = value.childcareLeaveEndExpected || null;
     if (value.childcareLeaveEnd !== undefined) updateData.childcareLeaveEnd = value.childcareLeaveEnd || null;
     if (value.sickPayApplicationRequest !== undefined) updateData.sickPayApplicationRequest = value.sickPayApplicationRequest;
     if (value.sickPayApplicationRequestDate) updateData.sickPayApplicationRequestDate = value.sickPayApplicationRequestDate;

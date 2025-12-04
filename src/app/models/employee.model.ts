@@ -14,7 +14,10 @@ export interface Employee {
   actualDeliveryDate?: string; // 出産日（YYYY-MM-DD）
   maternityLeaveEnd?: string; // 産前産後休業終了日（YYYY-MM-DD）
   childcareLeaveStart?: string; // 育休開始日（YYYY-MM-DD）
+  childcareLeaveEndExpected?: string; // 育児休業等終了予定日（YYYY-MM-DD）
   childcareLeaveEnd?: string; // 育休終了日（YYYY-MM-DD）
+  childcareChildName?: string; // 養育する子の氏名
+  childcareChildBirthDate?: string; // 養育する子の生年月日（YYYY-MM-DD）
   childcareNotificationSubmitted?: boolean; // 育児休業取得届の提出済フラグ
   childcareLivingTogether?: boolean; // 子と同居しているか（養育しているか）
   // 申請書記入依頼チェックボックス
