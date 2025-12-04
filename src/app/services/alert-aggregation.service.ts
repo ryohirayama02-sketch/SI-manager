@@ -148,23 +148,32 @@ export class AlertAggregationService {
 
   /**
    * 随時改定の届出提出期日をDateオブジェクトで取得
+   * 変動月+4ヶ月後が適用開始月なので、変動月が9月の場合、適用開始月は翌年1月になる
    */
   private getSuijiReportDeadlineDate(alert: SuijiKouhoResultWithDiff): Date | null {
     if (!alert.applyStartMonth) {
       return null;
     }
     
-    const year = alert.year || getJSTDate().getFullYear();
+    const changeYear = alert.year || getJSTDate().getFullYear();
+    const changeMonth = alert.changeMonth;
     const applyStartMonth = alert.applyStartMonth;
+    
+    // 適用開始月の年度を計算
+    // 変動月+4が適用開始月なので、変動月が9月以上の場合、適用開始月は翌年になる
+    let applyStartYear = changeYear;
+    if (changeMonth + 4 > 12) {
+      applyStartYear = changeYear + 1;
+    }
     
     // 適用開始月の前月を計算
     let deadlineMonth = applyStartMonth - 1;
-    let deadlineYear = year;
+    let deadlineYear = applyStartYear;
     
     // 1月の場合は前年の12月
     if (deadlineMonth < 1) {
       deadlineMonth = 12;
-      deadlineYear = year - 1;
+      deadlineYear = applyStartYear - 1;
     }
     
     // 前月の月末日を取得
