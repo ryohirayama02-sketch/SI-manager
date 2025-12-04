@@ -39,4 +39,8 @@ export interface Employee {
   acquisitionStandard?: number; // 資格取得時決定の標準報酬月額
   acquisitionYear?: number; // 資格取得年
   acquisitionMonth?: number; // 資格取得月（1-12）
+  // 個人情報
+  myNumber?: string; // マイナンバー（個人番号）
+  basicPensionNumber?: string; // 基礎年金番号
+  insuredNumber?: string; // 被保険者整理番号
 }

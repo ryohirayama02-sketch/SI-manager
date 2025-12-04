@@ -12,6 +12,12 @@
   
   <div *ngIf="bonusReportAlerts.length > 0" style="margin-bottom: 1rem;">
     <button 
+      (click)="exportToCsv()"
+      class="btn-success"
+      style="margin-right: 0.5rem;">
+      CSV出力
+    </button>
+    <button 
       *ngIf="selectedBonusReportAlertIds.size > 0"
       (click)="deleteSelectedBonusReportAlerts()"
       class="btn-danger"

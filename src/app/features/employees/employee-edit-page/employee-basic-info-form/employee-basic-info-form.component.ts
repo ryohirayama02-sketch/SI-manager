@@ -60,6 +60,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       address: [''],
       myNumber: [''],
       basicPensionNumber: [''],
+      insuredNumber: [''],
       employmentType: [''], // 後方互換性のため残す
       weeklyWorkHoursCategory: [''],
       monthlyWage: [null],
@@ -136,6 +137,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         address: (data as any).address || '',
         myNumber: (data as any).myNumber || '',
         basicPensionNumber: (data as any).basicPensionNumber || '',
+        insuredNumber: (data as any).insuredNumber || '',
         employmentType: (data as any).employmentType || '',
         weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
         monthlyWage: data.monthlyWage || null,
@@ -262,6 +264,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.address !== undefined) updateData.address = value.address || '';
     if (value.myNumber !== undefined) updateData.myNumber = value.myNumber || '';
     if (value.basicPensionNumber !== undefined) updateData.basicPensionNumber = value.basicPensionNumber || '';
+    if (value.insuredNumber !== undefined) updateData.insuredNumber = value.insuredNumber || '';
     // 事業所情報は上記のupdateDataで既に設定済み（必ず保存される）
     // 日付フィールド（空の場合はnullを保存）
     if (value.retireDate !== undefined) updateData.retireDate = value.retireDate || null;

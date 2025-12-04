@@ -85,6 +85,7 @@
       *ngIf="state.activeTab === 'bonus'"
       [bonusReportAlerts]="state.bonusReportAlerts"
       [selectedBonusReportAlertIds]="state.selectedBonusReportAlertIds"
+      [employees]="employees"
       (alertSelectionChange)="onBonusAlertSelectionChange($event)"
       (selectAllChange)="onBonusSelectAllChange($event)"
       (deleteSelected)="deleteSelectedBonusReportAlerts()">
