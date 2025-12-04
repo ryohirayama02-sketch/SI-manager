@@ -48,7 +48,7 @@
       [style.border-bottom-color]="state.activeTab === 'leave' ? state.getTabColor('leave') : 'transparent'"
       [style.color]="state.getTabColor('leave')"
       (click)="setActiveTab('leave')">
-      産休・育休
+      産休・育休・休職
     </button>
     <button 
       class="tab-button" 
@@ -133,11 +133,12 @@
       (qualificationChangeDeleteSelected)="deleteSelectedQualificationChangeAlerts()">
     </app-alert-age-tab>
 
-    <!-- 産休・育休アラートタブ -->
+    <!-- 産休・育休・休職アラートタブ -->
     <app-alert-leave-tab
       *ngIf="state.activeTab === 'leave'"
       [maternityChildcareAlerts]="state.maternityChildcareAlerts"
       [selectedMaternityChildcareAlertIds]="state.selectedMaternityChildcareAlertIds"
+      [employees]="employees"
       (alertSelectionChange)="onMaternityChildcareAlertSelectionChange($event)"
       (selectAllChange)="onMaternityChildcareSelectAllChange($event)"
       (deleteSelected)="deleteSelectedMaternityChildcareAlerts()">

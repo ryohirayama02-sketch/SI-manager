@@ -21,8 +21,23 @@
   <h4 style="margin-top: 1.5rem; margin-bottom: 1rem;">産前産後休業</h4>
   
   <div class="form-group">
+    <label for="expectedDeliveryDate">出産予定日</label>
+    <input id="expectedDeliveryDate" type="date" formControlName="expectedDeliveryDate" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
     <label for="maternityLeaveStart">産前産後休業開始日</label>
     <input id="maternityLeaveStart" type="date" formControlName="maternityLeaveStart" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="maternityLeaveEndExpected">産前産後休業終了予定日</label>
+    <input id="maternityLeaveEndExpected" type="date" formControlName="maternityLeaveEndExpected" class="form-control" (change)="onDateChange()">
+  </div>
+
+  <div class="form-group">
+    <label for="actualDeliveryDate">出産日</label>
+    <input id="actualDeliveryDate" type="date" formControlName="actualDeliveryDate" class="form-control" (change)="onDateChange()">
   </div>
 
   <div class="form-group">

@@ -11,9 +11,11 @@ import { Employee } from '../../../../../../models/employee.model';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './employee-basic-info-auto-detection.component.html',
-  styleUrl: './employee-basic-info-auto-detection.component.css'
+  styleUrl: './employee-basic-info-auto-detection.component.css',
 })
-export class EmployeeBasicInfoAutoDetectionComponent implements OnInit, OnDestroy {
+export class EmployeeBasicInfoAutoDetectionComponent
+  implements OnInit, OnDestroy
+{
   @Input() form!: FormGroup;
   @Input() employeeId: string | null = null;
 
@@ -31,16 +33,18 @@ export class EmployeeBasicInfoAutoDetectionComponent implements OnInit, OnDestro
 
   ngOnInit(): void {
     this.updateStatus();
-    
+
     // フォームの値変更を監視
     this.form.valueChanges.subscribe(() => {
       this.updateStatus();
     });
 
     // 加入区分の変更を監視
-    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
-      this.updateStatus();
-    });
+    this.eligibilitySubscription = this.employeeEligibilityService
+      .observeEligibility()
+      .subscribe(() => {
+        this.updateStatus();
+      });
   }
 
   ngOnDestroy(): void {
@@ -58,7 +62,10 @@ export class EmployeeBasicInfoAutoDetectionComponent implements OnInit, OnDestro
       birthDate: value.birthDate || '',
       joinDate: value.joinDate || '',
       retireDate: value.retireDate || '',
+      expectedDeliveryDate: value.expectedDeliveryDate || '',
       maternityLeaveStart: value.maternityLeaveStart || '',
+      maternityLeaveEndExpected: value.maternityLeaveEndExpected || '',
+      actualDeliveryDate: value.actualDeliveryDate || '',
       maternityLeaveEnd: value.maternityLeaveEnd || '',
       childcareLeaveStart: value.childcareLeaveStart || '',
       childcareLeaveEnd: value.childcareLeaveEnd || '',

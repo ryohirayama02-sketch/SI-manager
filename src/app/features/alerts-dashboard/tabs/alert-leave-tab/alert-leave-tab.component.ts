@@ -1,12 +1,16 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LeaveAlertUiService } from '../../../../services/leave-alert-ui.service';
+import { OfficeService } from '../../../../services/office.service';
+import { EmployeeService } from '../../../../services/employee.service';
+import { Employee } from '../../../../models/employee.model';
+import { Office } from '../../../../models/office.model';
 
 export interface MaternityChildcareAlert {
   id: string;
   employeeId: string;
   employeeName: string;
-  alertType: '産前産後休業取得者申出書' | '産前産後休業終了届' | '育児休業等取得者申出書（保険料免除開始）' | '育児休業等終了届（免除終了）' | '育児休業等取得者申出書（賞与用）' | '傷病手当金支給申請書の記入依頼' | '育児休業関係の事業主証明書の記入依頼' | '出産手当金支給申請書の記入依頼' | '出産育児一時金支給申請書の記入依頼';
+  alertType: '産前産後休業取得者申出書' | '産前産後休業取得者変更（終了）届' | '育児休業等取得者申出書（保険料免除開始）' | '育児休業等終了届（免除終了）' | '育児休業等取得者申出書（賞与用）' | '傷病手当金支給申請書の記入依頼' | '育児休業関係の事業主証明書の記入依頼' | '出産手当金支給申請書の記入依頼' | '出産育児一時金支給申請書の記入依頼';
   notificationName: string;
   startDate: Date; // 開始日（産休開始日、育休開始日、産休終了日の翌日、育休終了日の翌日、賞与支給日、申請書記入依頼日）
   submitDeadline: Date; // 提出期限（開始日から5日後、または申請書記入依頼日から1週間後）
@@ -24,12 +28,15 @@ export interface MaternityChildcareAlert {
 export class AlertLeaveTabComponent {
   @Input() maternityChildcareAlerts: MaternityChildcareAlert[] = [];
   @Input() selectedMaternityChildcareAlertIds: Set<string> = new Set();
+  @Input() employees: Employee[] = [];
   @Output() alertSelectionChange = new EventEmitter<{ alertId: string; selected: boolean }>();
   @Output() selectAllChange = new EventEmitter<boolean>();
   @Output() deleteSelected = new EventEmitter<void>();
 
   constructor(
-    private leaveAlertUiService: LeaveAlertUiService
+    private leaveAlertUiService: LeaveAlertUiService,
+    private officeService: OfficeService,
+    private employeeService: EmployeeService
   ) {}
 
   /**
@@ -57,6 +64,147 @@ export class AlertLeaveTabComponent {
   // 産休育休アラートの削除
   deleteSelectedMaternityChildcareAlerts(): void {
     this.deleteSelected.emit();
+  }
+
+  /**
+   * CSV出力（産前産後休業取得者申出書 / 産前産後休業取得者変更（終了）届）
+   */
+  async exportToCsv(alert: MaternityChildcareAlert): Promise<void> {
+    if (alert.alertType !== '産前産後休業取得者申出書' && alert.alertType !== '産前産後休業取得者変更（終了）届') {
+      return;
+    }
+
+    try {
+      const employee = this.employees.find((e) => e.id === alert.employeeId) as Employee | undefined;
+      if (!employee) {
+        // employeesにない場合は、EmployeeServiceから取得
+        const emp = await this.employeeService.getEmployeeById(alert.employeeId);
+        if (!emp) {
+          window.alert('従業員情報が見つかりません');
+          return;
+        }
+        await this.generateCsvForMaternityLeave(alert, emp as Employee);
+        return;
+      }
+
+      await this.generateCsvForMaternityLeave(alert, employee);
+    } catch (error) {
+      console.error('CSV出力エラー:', error);
+      window.alert('CSV出力中にエラーが発生しました');
+    }
+  }
+
+  /**
+   * 産前産後休業のCSVを生成
+   */
+  private async generateCsvForMaternityLeave(alert: MaternityChildcareAlert, employee: Employee): Promise<void> {
+    // 事業所情報を取得
+    let office: Office | null = null;
+    if (employee.officeNumber) {
+      const offices = await this.officeService.getAllOffices();
+      office = offices.find((o) => o.officeNumber === employee.officeNumber) || null;
+    }
+    if (!office) {
+      const offices = await this.officeService.getAllOffices();
+      office = offices[0] || null;
+    }
+
+    // CSVデータを生成
+    const csvRows: string[] = [];
+
+    csvRows.push('産前産後休業取得者申出書');
+    csvRows.push('');
+    csvRows.push('産前産後休業取得者変更（終了）届');
+    csvRows.push('');
+    csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
+    csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
+    csvRows.push(`事業所所在地,${office?.address || ''}`);
+    csvRows.push(`事業所名称,${office?.officeName || '株式会社　伊藤忠商事'}`);
+    csvRows.push(`事業主氏名,${office?.ownerName || '代表取締役社長　田中太郎'}`);
+    csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
+    csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
+    csvRows.push(`個人番号,${employee.myNumber || ''}`);
+    csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+    
+    // 出産予定日
+    const expectedDeliveryDate = (employee as any).expectedDeliveryDate;
+    csvRows.push(`出産予定日,${expectedDeliveryDate ? this.formatJapaneseEraFromString(expectedDeliveryDate) : ''}`);
+    
+    // 産前産後休業開始日
+    const maternityLeaveStart = employee.maternityLeaveStart;
+    csvRows.push(`産前産後休業開始日,${maternityLeaveStart ? this.formatJapaneseEraFromString(maternityLeaveStart) : ''}`);
+    
+    // 産前産後休業終了予定日
+    const maternityLeaveEndExpected = (employee as any).maternityLeaveEndExpected;
+    csvRows.push(`産前産後休業終了予定日,${maternityLeaveEndExpected ? this.formatJapaneseEraFromString(maternityLeaveEndExpected) : ''}`);
+    
+    // 出産日
+    const actualDeliveryDate = (employee as any).actualDeliveryDate;
+    csvRows.push(`出産日,${actualDeliveryDate ? this.formatJapaneseEraFromString(actualDeliveryDate) : ''}`);
+    
+    // 産前産後休業終了日
+    const maternityLeaveEnd = employee.maternityLeaveEnd;
+    csvRows.push(`産前産後休業終了日,${maternityLeaveEnd ? this.formatJapaneseEraFromString(maternityLeaveEnd) : ''}`);
+
+    // CSVファイルをダウンロード
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    link.setAttribute(
+      'download',
+      `${alert.alertType}_${employee.name}_${year}年${month}月.csv`
+    );
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  /**
+   * 生年月日を和暦形式に変換（昭和30年1月2日形式）
+   */
+  private formatBirthDateToEra(birthDateStr: string): string {
+    const date = new Date(birthDateStr);
+    return this.formatJapaneseEra(date.getFullYear(), date.getMonth() + 1, date.getDate());
+  }
+
+  /**
+   * 日付文字列（YYYY-MM-DD）を和暦形式に変換
+   */
+  private formatJapaneseEraFromString(dateStr: string): string {
+    const date = new Date(dateStr);
+    return this.formatJapaneseEra(date.getFullYear(), date.getMonth() + 1, date.getDate());
+  }
+
+  /**
+   * 年月日を元号形式でフォーマット（令和7年1月1日形式）
+   */
+  private formatJapaneseEra(year: number, month: number, day: number): string {
+    let era: string;
+    let eraYear: number;
+    if (year >= 2019) {
+      era = '令和';
+      eraYear = year - 2018;
+    } else if (year >= 1989) {
+      era = '平成';
+      eraYear = year - 1988;
+    } else if (year >= 1926) {
+      era = '昭和';
+      eraYear = year - 1925;
+    } else {
+      era = '大正';
+      eraYear = year - 1911;
+    }
+
+    return `${era}${eraYear}年${month}月${day}日`;
   }
 }
 

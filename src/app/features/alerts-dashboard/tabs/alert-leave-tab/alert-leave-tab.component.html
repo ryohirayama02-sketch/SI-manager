@@ -1,12 +1,12 @@
 <div class="card">
-  <h3>産休・育休アラート</h3>
+  <h3>産休・育休・休職アラート</h3>
   <p class="info-text" style="margin-bottom: 1rem;">
-    産前産後休業および育児休業に関する届出の提出期限をアラートで表示します。<br>
+    産前産後休業、育児休業、および休職に関する届出の提出期限をアラートで表示します。<br>
     各届出の提出期限は、開始日または終了日の翌日から5日以内です。
   </p>
   
   <div *ngIf="maternityChildcareAlerts.length === 0" class="info-label">
-    産休・育休アラートはありません。
+    産休・育休・休職アラートはありません。
   </div>
   
   <div *ngIf="maternityChildcareAlerts.length > 0" style="margin-bottom: 1rem;">
@@ -38,6 +38,7 @@
         <th>開始日</th>
         <th>届出提出期日</th>
         <th>提出期限まで</th>
+        <th style="width: 100px; text-align: center;">CSV出力</th>
       </tr>
     </thead>
     <tbody>
@@ -70,6 +71,16 @@
           <span *ngIf="alert.daysUntilDeadline <= 0" style="color: #d32f2f; font-weight: bold;">
             期限切れ
           </span>
+        </td>
+        <td style="width: 100px; text-align: center;">
+          <button 
+            *ngIf="alert.alertType === '産前産後休業取得者申出書' || alert.alertType === '産前産後休業取得者変更（終了）届'"
+            (click)="exportToCsv(alert)"
+            class="btn-primary"
+            style="padding: 0.25rem 0.5rem; font-size: 0.875rem;"
+            title="CSV出力">
+            CSV出力
+          </button>
         </td>
       </tr>
     </tbody>

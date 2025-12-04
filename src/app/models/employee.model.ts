@@ -8,8 +8,11 @@ export interface Employee {
   standardMonthlyRemuneration?: number; // 標準報酬月額（算定後）
   returnFromLeaveDate?: string; // 復職日（YYYY-MM-DD）
   retireDate?: string; // 退職日（YYYY-MM-DD）
+  expectedDeliveryDate?: string; // 出産予定日（YYYY-MM-DD）
   maternityLeaveStart?: string; // 産休開始日（YYYY-MM-DD）
-  maternityLeaveEnd?: string; // 産休終了日（YYYY-MM-DD）
+  maternityLeaveEndExpected?: string; // 産前産後休業終了予定日（YYYY-MM-DD）
+  actualDeliveryDate?: string; // 出産日（YYYY-MM-DD）
+  maternityLeaveEnd?: string; // 産前産後休業終了日（YYYY-MM-DD）
   childcareLeaveStart?: string; // 育休開始日（YYYY-MM-DD）
   childcareLeaveEnd?: string; // 育休終了日（YYYY-MM-DD）
   childcareNotificationSubmitted?: boolean; // 育児休業取得届の提出済フラグ

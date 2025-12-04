@@ -85,7 +85,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       leaveOfAbsenceStart: [''],
       leaveOfAbsenceEnd: [''],
       returnFromLeaveDate: [''],
+      expectedDeliveryDate: [''],
       maternityLeaveStart: [''],
+      maternityLeaveEndExpected: [''],
+      actualDeliveryDate: [''],
       maternityLeaveEnd: [''],
       childcareLeaveStart: [''],
       childcareLeaveEnd: [''],
@@ -162,7 +165,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         leaveOfAbsenceStart: data.leaveOfAbsenceStart || '',
         leaveOfAbsenceEnd: data.leaveOfAbsenceEnd || '',
         returnFromLeaveDate: data.returnFromLeaveDate || '',
+        expectedDeliveryDate: (data as any).expectedDeliveryDate || '',
         maternityLeaveStart: data.maternityLeaveStart || '',
+        maternityLeaveEndExpected: (data as any).maternityLeaveEndExpected || '',
+        actualDeliveryDate: (data as any).actualDeliveryDate || '',
         maternityLeaveEnd: data.maternityLeaveEnd || '',
         childcareLeaveStart: data.childcareLeaveStart || '',
         childcareLeaveEnd: data.childcareLeaveEnd || '',
@@ -280,7 +286,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.leaveOfAbsenceStart !== undefined) updateData.leaveOfAbsenceStart = value.leaveOfAbsenceStart || null;
     if (value.leaveOfAbsenceEnd !== undefined) updateData.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd || null;
     if (value.returnFromLeaveDate !== undefined) updateData.returnFromLeaveDate = value.returnFromLeaveDate || null;
+    if (value.expectedDeliveryDate !== undefined) updateData.expectedDeliveryDate = value.expectedDeliveryDate || null;
     if (value.maternityLeaveStart !== undefined) updateData.maternityLeaveStart = value.maternityLeaveStart || null;
+    if (value.maternityLeaveEndExpected !== undefined) updateData.maternityLeaveEndExpected = value.maternityLeaveEndExpected || null;
+    if (value.actualDeliveryDate !== undefined) updateData.actualDeliveryDate = value.actualDeliveryDate || null;
     if (value.maternityLeaveEnd !== undefined) updateData.maternityLeaveEnd = value.maternityLeaveEnd || null;
     if (value.childcareLeaveStart !== undefined) updateData.childcareLeaveStart = value.childcareLeaveStart || null;
     if (value.childcareLeaveEnd !== undefined) updateData.childcareLeaveEnd = value.childcareLeaveEnd || null;
