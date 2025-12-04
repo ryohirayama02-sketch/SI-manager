@@ -5,6 +5,7 @@ import { formatDate as formatDateHelper, getJSTDate } from '../../../../../utils
 import { OfficeService } from '../../../../../services/office.service';
 import { MonthlySalaryService } from '../../../../../services/monthly-salary.service';
 import { SettingsService } from '../../../../../services/settings.service';
+import { FamilyMemberService } from '../../../../../services/family-member.service';
 import { Employee } from '../../../../../models/employee.model';
 import { Office } from '../../../../../models/office.model';
 import { SalaryItem } from '../../../../../models/salary-item.model';
@@ -27,7 +28,8 @@ export class AgeAlertListComponent {
   constructor(
     private officeService: OfficeService,
     private monthlySalaryService: MonthlySalaryService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private familyMemberService: FamilyMemberService
   ) {}
 
   formatDate(date: Date): string {
@@ -130,7 +132,23 @@ export class AgeAlertListComponent {
           );
         }
 
+        // 性別を取得
+        const gender = this.getGender(employee);
+
+        // 扶養の有無を確認
+        const familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(employee.id);
+        const hasDependents = familyMembers.length > 0;
+        const dependentStatus = hasDependents ? '有' : '無';
+
+        // 70歳到達の誕生日の翌日を計算（reachDateは前日なので、そこから2日後）
+        const birthDate = new Date(employee.birthDate);
+        const age70Birthday = new Date(birthDate.getFullYear() + 70, birthDate.getMonth(), birthDate.getDate());
+        const nextDay = new Date(age70Birthday);
+        nextDay.setDate(nextDay.getDate() + 1);
+
         csvRows.push('70歳到達厚生年金喪失届');
+        csvRows.push('');
+        csvRows.push('70歳以上被用者該当届');
         csvRows.push('');
         csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
         csvRows.push(`事業所番号,${office?.officeNumber || ''}`);
@@ -141,11 +159,14 @@ export class AgeAlertListComponent {
         csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
         csvRows.push(`被保険者氏名,${employee.name || ''}`);
         csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
+        csvRows.push(`性別,${gender}`);
         csvRows.push(`個人番号,${employee.myNumber || ''}`);
         csvRows.push(`基礎年金番号,${employee.basicPensionNumber || ''}`);
         csvRows.push(`喪失年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
         csvRows.push(`該当年月日,${this.formatJapaneseEra(lossDate.getFullYear(), lossDate.getMonth() + 1, lossDate.getDate())}`);
         csvRows.push(`報酬月額,${remunerationAmount.toString()}`);
+        csvRows.push(`扶養,${dependentStatus}`);
+        csvRows.push(`70歳以上被用者該当届,${this.formatJapaneseEra(nextDay.getFullYear(), nextDay.getMonth() + 1, nextDay.getDate())}`);
 
         // CSVファイルをダウンロード
         const csvContent = csvRows.join('\n');
@@ -259,6 +280,29 @@ export class AgeAlertListComponent {
     }
 
     return `${era}${eraYear}年${month}月${day}日`;
+  }
+
+  /**
+   * 性別を取得
+   */
+  private getGender(employee: Employee): string {
+    return this.formatGenderValue(employee.gender) || '';
+  }
+
+  /**
+   * 性別のコード値を表示用の文字に変換
+   */
+  private formatGenderValue(value: string | null | undefined): string {
+    if (!value) return '';
+    const genderMap: { [key: string]: string } = {
+      'female': '女性',
+      'male': '男性',
+      '女性': '女性',
+      '男性': '男性',
+      'F': '女性',
+      'M': '男性',
+    };
+    return genderMap[value.toLowerCase()] || value;
   }
 
   /**

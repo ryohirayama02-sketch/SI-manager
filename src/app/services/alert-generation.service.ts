@@ -148,7 +148,7 @@ export class AlertGenerationService {
           employeeId: emp.id,
           employeeName: emp.name,
           alertType: '70歳到達',
-          notificationName: '厚生年金 資格喪失届',
+          notificationName: '厚生年金 資格喪失届、70歳以上被用者該当届',
           birthDate: emp.birthDate,
           reachDate: age70Date,
           submitDeadline: submitDeadline,
