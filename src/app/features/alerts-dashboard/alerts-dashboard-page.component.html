@@ -146,7 +146,7 @@
 
     <!-- 扶養・氏名・住所変更アラートタブ -->
     <app-alert-family-tab
-      *ngIf="state.activeTab === 'family'"
+      [hidden]="state.activeTab !== 'family'"
       [supportAlerts]="state.supportAlerts"
       [selectedSupportAlertIds]="state.selectedSupportAlertIds"
       (alertSelectionChange)="onSupportAlertSelectionChange($event)"
