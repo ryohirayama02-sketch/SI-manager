@@ -38,6 +38,12 @@ export class OfficeService {
     if (office.address !== null && office.address !== undefined) {
       dataToSave.address = office.address;
     }
+    if (office.officeName !== null && office.officeName !== undefined) {
+      dataToSave.officeName = office.officeName;
+    }
+    if (office.phoneNumber !== null && office.phoneNumber !== undefined) {
+      dataToSave.phoneNumber = office.phoneNumber;
+    }
     if (office.ownerName !== null && office.ownerName !== undefined) {
       dataToSave.ownerName = office.ownerName;
     }

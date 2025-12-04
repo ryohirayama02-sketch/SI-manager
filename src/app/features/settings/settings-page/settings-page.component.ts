@@ -1,6 +1,13 @@
 import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormsModule, FormBuilder, Validators, FormArray, FormGroup } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormsModule,
+  FormBuilder,
+  Validators,
+  FormArray,
+  FormGroup,
+} from '@angular/forms';
 import { SettingsService } from '../../../services/settings.service';
 import { OfficeService } from '../../../services/office.service';
 import { AuthService } from '../../../services/auth.service';
@@ -18,13 +25,13 @@ import { User } from '@angular/fire/auth';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './settings-page.component.html',
-  styleUrl: './settings-page.component.css'
+  styleUrl: './settings-page.component.css',
 })
 export class SettingsPageComponent implements OnInit {
   year = '2025';
   availableYears: number[] = [];
   standardTableYear: number = new Date().getFullYear();
-  gradeYear: string = (new Date().getFullYear()).toString();
+  gradeYear: string = new Date().getFullYear().toString();
   availableGradeYears: number[] = [];
   salaryItemsYear: number = new Date().getFullYear();
   prefecture = 'tokyo';
@@ -38,46 +45,64 @@ export class SettingsPageComponent implements OnInit {
   errorMessages: string[] = [];
   warningMessages: string[] = [];
   // タブ管理
-  activeTab: 'basic' | 'rate' | 'standard' | 'salaryItems' | 'office' | 'editLog' | 'userRoom' = 'basic';
-  
+  activeTab:
+    | 'basic'
+    | 'rate'
+    | 'standard'
+    | 'salaryItems'
+    | 'office'
+    | 'editLog'
+    | 'userRoom' = 'basic';
+
   // 事業所マスタ関連
   offices: Office[] = [];
   selectedOffice: Office | null = null;
   officeForm: FormGroup;
-  
+
   // CSVインポート関連（保険料率用）
   showImportDialog: boolean = false;
   csvImportText: string = '';
   importResult: { type: 'success' | 'error'; message: string } | null = null;
-  
+
   // CSVインポート関連（標準報酬月額テーブル用）
   showStandardTableImportDialog: boolean = false;
   standardTableCsvImportText: string = '';
-  standardTableImportResult: { type: 'success' | 'error'; message: string } | null = null;
-  
+  standardTableImportResult: {
+    type: 'success' | 'error';
+    message: string;
+  } | null = null;
+
   // ユーザー・ルーム情報関連
   currentUser: User | null = null;
   roomInfo: { id: string; name: string; password: string } | null = null;
-  
+
   // 編集ログ関連
   editLogs: EditLog[] = [];
   isLoadingLogs = false;
-  
+
   // 47都道府県の料率データ（パーセント形式で保持）
-  prefectureRates: { [prefecture: string]: { health_employee: number; health_employer: number } } = {};
-  careRates: { care_employee: number; care_employer: number } = { care_employee: 0, care_employer: 0 };
-  pensionRates: { pension_employee: number; pension_employer: number } = { pension_employee: 0, pension_employer: 0 };
-  
+  prefectureRates: {
+    [prefecture: string]: { health_employee: number; health_employer: number };
+  } = {};
+  careRates: { care_employee: number; care_employer: number } = {
+    care_employee: 0,
+    care_employer: 0,
+  };
+  pensionRates: { pension_employee: number; pension_employer: number } = {
+    pension_employee: 0,
+    pension_employer: 0,
+  };
+
   // パーセント→小数変換ヘルパー
   private percentToDecimal(percent: number): number {
     return percent / 100;
   }
-  
+
   // 小数→パーセント変換ヘルパー
   private decimalToPercent(decimal: number): number {
     return decimal * 100;
   }
-  
+
   prefectureList = [
     { code: 'hokkaido', name: '北海道' },
     { code: 'aomori', name: '青森県' },
@@ -125,11 +150,14 @@ export class SettingsPageComponent implements OnInit {
     { code: 'oita', name: '大分県' },
     { code: 'miyazaki', name: '宮崎県' },
     { code: 'kagoshima', name: '鹿児島県' },
-    { code: 'okinawa', name: '沖縄県' }
+    { code: 'okinawa', name: '沖縄県' },
   ];
 
   getPrefectureListColumn1(): any[] {
-    return this.prefectureList.slice(0, Math.ceil(this.prefectureList.length / 2));
+    return this.prefectureList.slice(
+      0,
+      Math.ceil(this.prefectureList.length / 2)
+    );
   }
 
   getPrefectureListColumn2(): any[] {
@@ -147,10 +175,22 @@ export class SettingsPageComponent implements OnInit {
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
     const currentYear = new Date().getFullYear();
-    this.availableYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+    this.availableYears = [
+      currentYear - 2,
+      currentYear - 1,
+      currentYear,
+      currentYear + 1,
+      currentYear + 2,
+    ];
     this.year = currentYear.toString();
     // 標準報酬等級表の年度選択用リストを初期化（現在年度±2年）
-    this.availableGradeYears = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
+    this.availableGradeYears = [
+      currentYear - 2,
+      currentYear - 1,
+      currentYear,
+      currentYear + 1,
+      currentYear + 2,
+    ];
     this.form = this.fb.group({
       prefecture: [this.prefecture, Validators.required],
       effectiveFrom: [`${this.year}-04`, Validators.required],
@@ -162,18 +202,21 @@ export class SettingsPageComponent implements OnInit {
       pension_employer: [0, Validators.required],
     });
     this.settingsForm = this.fb.group({
-      salaryMonthRule: ['payDate', Validators.required]
+      salaryMonthRule: ['payDate', Validators.required],
     });
     this.rateVersionForm = this.fb.group({
-      applyFromMonth: [4, [Validators.required, Validators.min(1), Validators.max(12)]]
+      applyFromMonth: [
+        4,
+        [Validators.required, Validators.min(1), Validators.max(12)],
+      ],
     });
     this.standardTable = this.fb.array([]);
     this.standardTableForm = this.fb.group({
-      standardTable: this.standardTable
+      standardTable: this.standardTable,
     });
     this.salaryItems = this.fb.array([]);
     this.salaryItemsForm = this.fb.group({
-      salaryItems: this.salaryItems
+      salaryItems: this.salaryItems,
     });
     this.officeForm = this.fb.group({
       officeCode: [''],
@@ -181,7 +224,9 @@ export class SettingsPageComponent implements OnInit {
       corporateNumber: [''],
       prefecture: ['tokyo'], // デフォルトは東京都
       address: [''],
-      ownerName: ['']
+      officeName: [''],
+      phoneNumber: [''],
+      ownerName: [''],
     });
   }
 
@@ -205,10 +250,10 @@ export class SettingsPageComponent implements OnInit {
     const numValue = this.parseAmount(value);
     const row = this.standardTable.at(index);
     row.get(field)?.setValue(numValue, { emitEvent: false });
-    
+
     // カンマ付きで表示を更新
     input.value = this.formatAmount(numValue);
-    
+
     // バリデーション実行
     this.validateStandardTable();
   }
@@ -242,8 +287,10 @@ export class SettingsPageComponent implements OnInit {
     while (this.standardTable.length !== 0) {
       this.standardTable.removeAt(0);
     }
-    const rows = await this.settingsService.getStandardTable(this.standardTableYear);
-    rows.forEach(r => this.standardTable.push(this.createRow(r)));
+    const rows = await this.settingsService.getStandardTable(
+      this.standardTableYear
+    );
+    rows.forEach((r) => this.standardTable.push(this.createRow(r)));
   }
 
   async onStandardTableYearChange(): Promise<void> {
@@ -268,11 +315,15 @@ export class SettingsPageComponent implements OnInit {
       const rank = row.get('rank')?.value;
 
       if (lower !== null && upper !== null && lower >= upper) {
-        this.errorMessages.push(`等級${rank}: 下限は上限より小さくする必要があります`);
+        this.errorMessages.push(
+          `等級${rank}: 下限は上限より小さくする必要があります`
+        );
       }
 
       if (standard !== null && (standard < lower || standard >= upper)) {
-        this.warningMessages.push(`等級${rank}: 標準報酬月額が範囲外です（下限: ${lower}, 上限: ${upper}）`);
+        this.warningMessages.push(
+          `等級${rank}: 標準報酬月額が範囲外です（下限: ${lower}, 上限: ${upper}）`
+        );
       }
 
       // テーブルが昇順になっているかのチェック（前の等級の上限 = 次の等級の下限）
@@ -280,7 +331,11 @@ export class SettingsPageComponent implements OnInit {
         const prevRow = this.standardTable.at(i - 1);
         const prevUpper = prevRow.get('upper')?.value;
         if (prevUpper !== null && lower !== null && prevUpper !== lower) {
-          this.errorMessages.push(`等級${prevRow.get('rank')?.value}と等級${rank}の範囲に不整合があります（前等級の上限: ${prevUpper}, 当等級の下限: ${lower}）`);
+          this.errorMessages.push(
+            `等級${
+              prevRow.get('rank')?.value
+            }と等級${rank}の範囲に不整合があります（前等級の上限: ${prevUpper}, 当等級の下限: ${lower}）`
+          );
         }
       }
     }
@@ -292,12 +347,19 @@ export class SettingsPageComponent implements OnInit {
       alert('エラーがあります。修正してください。');
       return;
     }
-    await this.settingsService.saveStandardTable(this.standardTableYear, this.standardTable.value);
+    await this.settingsService.saveStandardTable(
+      this.standardTableYear,
+      this.standardTable.value
+    );
     alert('標準報酬月額テーブルを保存しました');
   }
 
   clearStandardTable(): void {
-    if (!confirm('標準報酬月額テーブルをすべてクリアしますか？\nこの操作は取り消せません。')) {
+    if (
+      !confirm(
+        '標準報酬月額テーブルをすべてクリアしますか？\nこの操作は取り消せません。'
+      )
+    ) {
       return;
     }
     while (this.standardTable.length !== 0) {
@@ -310,38 +372,46 @@ export class SettingsPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.loadAllRates();
-    
+
     // 給与月の判定方法をロード
     const salaryMonthRule = await this.settingsService.getSalaryMonthRule();
     this.settingsForm.patchValue({ salaryMonthRule });
-    
+
     // 標準報酬等級表の年度を初期化
     this.standardTableYear = parseInt(this.gradeYear, 10);
-    
+
     // 変更時に自動保存
-    this.settingsForm.get('salaryMonthRule')?.valueChanges.subscribe(async (value) => {
-      if (value) {
-        await this.settingsService.saveSalaryMonthRule(value);
-      }
-    });
-    
+    this.settingsForm
+      .get('salaryMonthRule')
+      ?.valueChanges.subscribe(async (value) => {
+        if (value) {
+          await this.settingsService.saveSalaryMonthRule(value);
+        }
+      });
+
     // 適用開始月（改定月）をロード
-    const versionInfo = await this.settingsService.getRateVersionInfo(this.year);
-    this.rateVersionForm.patchValue({ applyFromMonth: versionInfo.applyFromMonth });
-    
-    // 変更時に自動保存
-    this.rateVersionForm.get('applyFromMonth')?.valueChanges.subscribe(async (value) => {
-      if (value && value >= 1 && value <= 12) {
-        await this.settingsService.saveRateVersionInfo(this.year, value);
-      }
+    const versionInfo = await this.settingsService.getRateVersionInfo(
+      this.year
+    );
+    this.rateVersionForm.patchValue({
+      applyFromMonth: versionInfo.applyFromMonth,
     });
-    
+
+    // 変更時に自動保存
+    this.rateVersionForm
+      .get('applyFromMonth')
+      ?.valueChanges.subscribe(async (value) => {
+        if (value && value >= 1 && value <= 12) {
+          await this.settingsService.saveRateVersionInfo(this.year, value);
+        }
+      });
+
     await this.loadStandardTable();
     await this.loadSalaryItems();
     await this.loadOffices();
     await this.loadUserRoomInfo();
   }
-  
+
   // 編集ログを読み込む
   async loadEditLogs(): Promise<void> {
     this.isLoadingLogs = true;
@@ -353,7 +423,7 @@ export class SettingsPageComponent implements OnInit {
       this.isLoadingLogs = false;
     }
   }
-  
+
   // アクション名を日本語に変換
   getActionLabel(action: string): string {
     switch (action) {
@@ -367,20 +437,20 @@ export class SettingsPageComponent implements OnInit {
         return action;
     }
   }
-  
+
   // エンティティタイプ名を日本語に変換
   getEntityTypeLabel(entityType: string): string {
     const labels: { [key: string]: string } = {
-      'employee': '従業員',
-      'office': '事業所',
-      'settings': '設定',
-      'salary': '給与',
-      'bonus': '賞与',
-      'insurance': '保険料',
+      employee: '従業員',
+      office: '事業所',
+      settings: '設定',
+      salary: '給与',
+      bonus: '賞与',
+      insurance: '保険料',
     };
     return labels[entityType] || entityType;
   }
-  
+
   // 日時をフォーマット
   formatDateTime(date: Date): string {
     if (!date) return '';
@@ -393,12 +463,12 @@ export class SettingsPageComponent implements OnInit {
       minute: '2-digit',
     });
   }
-  
+
   // ユーザー・ルーム情報を読み込む
   async loadUserRoomInfo(): Promise<void> {
     // 現在のユーザー情報を取得
     this.currentUser = this.authService.getCurrentUser();
-    
+
     // ルーム情報を取得
     const roomId = sessionStorage.getItem('roomId');
     if (roomId) {
@@ -416,12 +486,12 @@ export class SettingsPageComponent implements OnInit {
       }
     }
   }
-  
+
   // 事業所マスタ関連メソッド
   async loadOffices(): Promise<void> {
     this.offices = await this.officeService.getAllOffices();
   }
-  
+
   selectOffice(office: Office | null): void {
     this.selectedOffice = office;
     if (office) {
@@ -431,15 +501,17 @@ export class SettingsPageComponent implements OnInit {
         corporateNumber: office.corporateNumber || '',
         prefecture: office.prefecture || 'tokyo',
         address: office.address || '',
-        ownerName: office.ownerName || ''
+        officeName: office.officeName || '',
+        phoneNumber: office.phoneNumber || '',
+        ownerName: office.ownerName || '',
       });
     } else {
       this.officeForm.reset({
-        prefecture: 'tokyo' // リセット時もデフォルト値を設定
+        prefecture: 'tokyo', // リセット時もデフォルト値を設定
       });
     }
   }
-  
+
   async saveOffice(): Promise<void> {
     const value = this.officeForm.value;
     const office: Office = {
@@ -449,16 +521,32 @@ export class SettingsPageComponent implements OnInit {
       corporateNumber: value.corporateNumber || undefined,
       prefecture: value.prefecture || undefined,
       address: value.address || undefined,
+      officeName: value.officeName || undefined,
+      phoneNumber: value.phoneNumber || undefined,
       ownerName: value.ownerName || undefined,
-      createdAt: this.selectedOffice?.createdAt || new Date()
+      createdAt: this.selectedOffice?.createdAt || new Date(),
     };
-    
-    await this.officeService.saveOffice(office);
+
+    const savedId = await this.officeService.saveOffice(office);
+    // 新規作成の場合は、保存されたIDを設定
+    if (!this.selectedOffice?.id) {
+      office.id = savedId;
+    }
     alert('事業所マスタを保存しました');
     await this.loadOffices();
-    this.selectOffice(null);
+    // 保存した事業所を選択状態に保つ
+    if (office.id) {
+      const savedOffice = this.offices.find((o) => o.id === office.id);
+      if (savedOffice) {
+        this.selectOffice(savedOffice);
+      } else {
+        this.selectOffice(null);
+      }
+    } else {
+      this.selectOffice(null);
+    }
   }
-  
+
   async deleteOffice(officeId: string): Promise<void> {
     if (!confirm('この事業所マスタを削除しますか？')) {
       return;
@@ -470,7 +558,7 @@ export class SettingsPageComponent implements OnInit {
       this.selectOffice(null);
     }
   }
-  
+
   addNewOffice(): void {
     this.selectOffice(null);
   }
@@ -483,23 +571,26 @@ export class SettingsPageComponent implements OnInit {
       if (data) {
         this.prefectureRates[pref.code] = {
           health_employee: this.decimalToPercent(data.health_employee || 0),
-          health_employer: this.decimalToPercent(data.health_employer || 0)
+          health_employer: this.decimalToPercent(data.health_employer || 0),
         };
       } else {
-        this.prefectureRates[pref.code] = { health_employee: 0, health_employer: 0 };
+        this.prefectureRates[pref.code] = {
+          health_employee: 0,
+          health_employer: 0,
+        };
       }
     }
-    
+
     // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため、小数→パーセント変換）
     const careData = await this.settingsService.getRates(this.year, 'tokyo');
     if (careData) {
       this.careRates = {
         care_employee: this.decimalToPercent(careData.care_employee || 0),
-        care_employer: this.decimalToPercent(careData.care_employer || 0)
+        care_employer: this.decimalToPercent(careData.care_employer || 0),
       };
       this.pensionRates = {
         pension_employee: this.decimalToPercent(careData.pension_employee || 0),
-        pension_employer: this.decimalToPercent(careData.pension_employer || 0)
+        pension_employer: this.decimalToPercent(careData.pension_employer || 0),
       };
     }
   }
@@ -511,7 +602,10 @@ export class SettingsPageComponent implements OnInit {
   onHealthEmployeeInput(prefecture: string, event: Event): void {
     const value = parseFloat((event.target as HTMLInputElement).value) || 0;
     if (!this.prefectureRates[prefecture]) {
-      this.prefectureRates[prefecture] = { health_employee: 0, health_employer: 0 };
+      this.prefectureRates[prefecture] = {
+        health_employee: 0,
+        health_employer: 0,
+      };
     }
     // パーセント形式で保持
     this.prefectureRates[prefecture].health_employee = value;
@@ -520,23 +614,33 @@ export class SettingsPageComponent implements OnInit {
   onHealthEmployerInput(prefecture: string, event: Event): void {
     const value = parseFloat((event.target as HTMLInputElement).value) || 0;
     if (!this.prefectureRates[prefecture]) {
-      this.prefectureRates[prefecture] = { health_employee: 0, health_employer: 0 };
+      this.prefectureRates[prefecture] = {
+        health_employee: 0,
+        health_employer: 0,
+      };
     }
     // パーセント形式で保持
     this.prefectureRates[prefecture].health_employer = value;
   }
 
   async savePrefectureRate(prefecture: string): Promise<void> {
-    const rate = this.prefectureRates[prefecture] || { health_employee: 0, health_employer: 0 };
+    const rate = this.prefectureRates[prefecture] || {
+      health_employee: 0,
+      health_employer: 0,
+    };
     // パーセント→小数変換して保存
     await this.settingsService.saveRates(this.year, prefecture, {
       health_employee: this.percentToDecimal(rate.health_employee || 0),
       health_employer: this.percentToDecimal(rate.health_employer || 0),
       care_employee: this.percentToDecimal(this.careRates.care_employee || 0),
       care_employer: this.percentToDecimal(this.careRates.care_employer || 0),
-      pension_employee: this.percentToDecimal(this.pensionRates.pension_employee || 0),
-      pension_employer: this.percentToDecimal(this.pensionRates.pension_employer || 0),
-      effectiveFrom: `${this.year}-04`
+      pension_employee: this.percentToDecimal(
+        this.pensionRates.pension_employee || 0
+      ),
+      pension_employer: this.percentToDecimal(
+        this.pensionRates.pension_employer || 0
+      ),
+      effectiveFrom: `${this.year}-04`,
     } as Rate);
   }
 
@@ -563,7 +667,10 @@ export class SettingsPageComponent implements OnInit {
 
   importFromText(): void {
     if (!this.csvImportText.trim()) {
-      this.importResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      this.importResult = {
+        type: 'error',
+        message: 'CSVデータが入力されていません',
+      };
       return;
     }
     this.importFromCsvText(this.csvImportText);
@@ -571,9 +678,12 @@ export class SettingsPageComponent implements OnInit {
 
   importFromCsvText(csvText: string): void {
     try {
-      const lines = csvText.split('\n').filter(line => line.trim());
+      const lines = csvText.split('\n').filter((line) => line.trim());
       if (lines.length < 2) {
-        this.importResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        this.importResult = {
+          type: 'error',
+          message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）',
+        };
         return;
       }
 
@@ -585,15 +695,18 @@ export class SettingsPageComponent implements OnInit {
 
       // 都道府県名→コードのマッピングを作成
       const prefectureMap = new Map<string, string>();
-      this.prefectureList.forEach(pref => {
+      this.prefectureList.forEach((pref) => {
         prefectureMap.set(pref.name, pref.code);
       });
 
       // 都道府県コードをキーとして重複を防ぐ（同じ都道府県が複数回出現した場合は上書き）
-      const ratesToAdd: Map<string, { health_employee: number; health_employer: number }> = new Map();
+      const ratesToAdd: Map<
+        string,
+        { health_employee: number; health_employer: number }
+      > = new Map();
 
       for (const line of dataLines) {
-        const parts = line.split(',').map(p => p.trim());
+        const parts = line.split(',').map((p) => p.trim());
         if (parts.length < 3) {
           errorCount++;
           errors.push(`行「${line}」: 列数が不足しています（3列必要）`);
@@ -608,7 +721,9 @@ export class SettingsPageComponent implements OnInit {
         const prefectureCode = prefectureMap.get(prefectureName);
         if (!prefectureCode) {
           errorCount++;
-          errors.push(`行「${line}」: 都道府県名「${prefectureName}」が見つかりません`);
+          errors.push(
+            `行「${line}」: 都道府県名「${prefectureName}」が見つかりません`
+          );
           continue;
         }
 
@@ -622,7 +737,12 @@ export class SettingsPageComponent implements OnInit {
           continue;
         }
 
-        if (employeeRate < 0 || employeeRate > 100 || employerRate < 0 || employerRate > 100) {
+        if (
+          employeeRate < 0 ||
+          employeeRate > 100 ||
+          employerRate < 0 ||
+          employerRate > 100
+        ) {
           errorCount++;
           errors.push(`行「${line}」: 料率は0〜100%の範囲で入力してください`);
           continue;
@@ -631,7 +751,7 @@ export class SettingsPageComponent implements OnInit {
         // 同じ都道府県が既に存在する場合は上書き（Mapを使用して自動的に上書き）
         ratesToAdd.set(prefectureCode, {
           health_employee: employeeRate,
-          health_employer: employerRate
+          health_employer: employerRate,
         });
         successCount++;
       }
@@ -639,27 +759,39 @@ export class SettingsPageComponent implements OnInit {
       // パース済みの料率を設定（パーセント形式で保持）
       ratesToAdd.forEach((rates, prefectureCode) => {
         if (!this.prefectureRates[prefectureCode]) {
-          this.prefectureRates[prefectureCode] = { health_employee: 0, health_employer: 0 };
+          this.prefectureRates[prefectureCode] = {
+            health_employee: 0,
+            health_employer: 0,
+          };
         }
-        this.prefectureRates[prefectureCode].health_employee = rates.health_employee;
-        this.prefectureRates[prefectureCode].health_employer = rates.health_employer;
+        this.prefectureRates[prefectureCode].health_employee =
+          rates.health_employee;
+        this.prefectureRates[prefectureCode].health_employer =
+          rates.health_employer;
       });
 
       // 結果メッセージ
       if (errorCount === 0) {
-        this.importResult = { type: 'success', message: `${successCount}件の料率をインポートしました` };
+        this.importResult = {
+          type: 'success',
+          message: `${successCount}件の料率をインポートしました`,
+        };
         this.showImportDialog = false;
         this.csvImportText = '';
       } else {
         const errorMsg = errors.slice(0, 5).join('\n');
-        const moreErrors = errors.length > 5 ? `\n...他${errors.length - 5}件のエラー` : '';
-        this.importResult = { 
-          type: 'error', 
-          message: `成功: ${successCount}件、エラー: ${errorCount}件\n${errorMsg}${moreErrors}` 
+        const moreErrors =
+          errors.length > 5 ? `\n...他${errors.length - 5}件のエラー` : '';
+        this.importResult = {
+          type: 'error',
+          message: `成功: ${successCount}件、エラー: ${errorCount}件\n${errorMsg}${moreErrors}`,
         };
       }
     } catch (error) {
-      this.importResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
+      this.importResult = {
+        type: 'error',
+        message: `インポート中にエラーが発生しました: ${error}`,
+      };
     }
   }
 
@@ -669,7 +801,10 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async reloadRates(): Promise<void> {
-    const data = await this.settingsService.getRates(this.year, this.prefecture);
+    const data = await this.settingsService.getRates(
+      this.year,
+      this.prefecture
+    );
     if (data) {
       this.form.patchValue(data);
     }
@@ -680,12 +815,21 @@ export class SettingsPageComponent implements OnInit {
     this.warningMessages = [];
 
     const values = this.form.value;
-    const rateFields = ['health_employee', 'health_employer', 'care_employee', 'care_employer', 'pension_employee', 'pension_employer'];
+    const rateFields = [
+      'health_employee',
+      'health_employer',
+      'care_employee',
+      'care_employer',
+      'pension_employee',
+      'pension_employer',
+    ];
 
     for (const field of rateFields) {
       const value = values[field];
       if (value < 0 || value > 1) {
-        this.errorMessages.push(`${field}: 料率は0以上1以下である必要があります`);
+        this.errorMessages.push(
+          `${field}: 料率は0以上1以下である必要があります`
+        );
       }
     }
   }
@@ -695,10 +839,11 @@ export class SettingsPageComponent implements OnInit {
     if (this.errorMessages.length > 0) {
       return;
     }
-    const prefectureValue = this.form.get('prefecture')?.value || this.prefecture;
+    const prefectureValue =
+      this.form.get('prefecture')?.value || this.prefecture;
     const formData = { ...this.form.value };
     delete formData.prefecture; // prefectureはformDataから除外
-    
+
     const rateData: Rate = {
       effectiveFrom: formData.effectiveFrom || `${this.year}-04`,
       health_employee: formData.health_employee,
@@ -708,7 +853,7 @@ export class SettingsPageComponent implements OnInit {
       pension_employee: formData.pension_employee,
       pension_employer: formData.pension_employer,
     };
-    
+
     await this.settingsService.saveRates(this.year, prefectureValue, rateData);
     alert('設定を保存しました');
   }
@@ -726,7 +871,8 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async saveSettings(): Promise<void> {
-    const salaryMonthRule = this.settingsForm.get('salaryMonthRule')?.value || 'payDate';
+    const salaryMonthRule =
+      this.settingsForm.get('salaryMonthRule')?.value || 'payDate';
     await this.settingsService.saveSalaryMonthRule(salaryMonthRule);
     alert('設定を保存しました');
   }
@@ -745,7 +891,7 @@ export class SettingsPageComponent implements OnInit {
     return this.fb.group({
       id: [item?.id || this.generateId()],
       name: [item?.name || '', Validators.required],
-      type: [item?.type || 'fixed', Validators.required]
+      type: [item?.type || 'fixed', Validators.required],
     });
   }
 
@@ -757,8 +903,12 @@ export class SettingsPageComponent implements OnInit {
     while (this.salaryItems.length !== 0) {
       this.salaryItems.removeAt(0);
     }
-    const items = await this.settingsService.loadSalaryItems(this.salaryItemsYear);
-    items.forEach(item => this.salaryItems.push(this.createSalaryItemRow(item)));
+    const items = await this.settingsService.loadSalaryItems(
+      this.salaryItemsYear
+    );
+    items.forEach((item) =>
+      this.salaryItems.push(this.createSalaryItemRow(item))
+    );
   }
 
   async onSalaryItemsYearChange(): Promise<void> {
@@ -780,13 +930,19 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async seedStandardTable(): Promise<void> {
-    if (!confirm(`${this.standardTableYear}年度の標準報酬等級表（50等級）を一括登録しますか？\n既存のデータは上書きされます。`)) {
+    if (
+      !confirm(
+        `${this.standardTableYear}年度の標準報酬等級表（50等級）を一括登録しますか？\n既存のデータは上書きされます。`
+      )
+    ) {
       return;
     }
-    
+
     try {
       await this.settingsService.seedStandardTable(this.standardTableYear);
-      alert(`${this.standardTableYear}年度の標準報酬等級表（50等級）を登録しました`);
+      alert(
+        `${this.standardTableYear}年度の標準報酬等級表（50等級）を登録しました`
+      );
       // テーブルを再読み込み
       await this.loadStandardTable();
     } catch (error) {
@@ -812,7 +968,10 @@ export class SettingsPageComponent implements OnInit {
 
   importStandardTableFromText(): void {
     if (!this.standardTableCsvImportText.trim()) {
-      this.standardTableImportResult = { type: 'error', message: 'CSVデータが入力されていません' };
+      this.standardTableImportResult = {
+        type: 'error',
+        message: 'CSVデータが入力されていません',
+      };
       return;
     }
     this.importStandardTableFromCsvText(this.standardTableCsvImportText);
@@ -820,9 +979,12 @@ export class SettingsPageComponent implements OnInit {
 
   importStandardTableFromCsvText(csvText: string): void {
     try {
-      const lines = csvText.split('\n').filter(line => line.trim());
+      const lines = csvText.split('\n').filter((line) => line.trim());
       if (lines.length < 2) {
-        this.standardTableImportResult = { type: 'error', message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）' };
+        this.standardTableImportResult = {
+          type: 'error',
+          message: 'CSVデータが不正です（最低2行必要：ヘッダー＋データ行）',
+        };
         return;
       }
 
@@ -835,10 +997,12 @@ export class SettingsPageComponent implements OnInit {
 
       // CSVデータをパースして一時配列に格納
       for (const line of dataLines) {
-        const parts = line.split(',').map(p => p.trim());
+        const parts = line.split(',').map((p) => p.trim());
         if (parts.length < 4) {
           errorCount++;
-          errors.push(`行「${line}」: 列数が不足しています（4列必要：等級,標準報酬月額,下限,上限）`);
+          errors.push(
+            `行「${line}」: 列数が不足しています（4列必要：等級,標準報酬月額,下限,上限）`
+          );
           continue;
         }
 
@@ -883,13 +1047,15 @@ export class SettingsPageComponent implements OnInit {
           rank: rank,
           standard: standard,
           lower: lower,
-          upper: upper
+          upper: upper,
         });
         successCount++;
       }
 
       // 等級順にソート
-      const sortedRows = Array.from(rowsToAdd.values()).sort((a, b) => a.rank - b.rank);
+      const sortedRows = Array.from(rowsToAdd.values()).sort(
+        (a, b) => a.rank - b.rank
+      );
 
       // 既存のテーブルをクリア
       while (this.standardTable.length !== 0) {
@@ -897,7 +1063,7 @@ export class SettingsPageComponent implements OnInit {
       }
 
       // ソート済みデータをFormArrayに追加
-      sortedRows.forEach(rowData => {
+      sortedRows.forEach((rowData) => {
         const row = this.createRow(rowData);
         this.standardTable.push(row);
       });
@@ -912,20 +1078,24 @@ export class SettingsPageComponent implements OnInit {
       if (errorCount > 0) {
         this.standardTableImportResult = {
           type: 'error',
-          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors.slice(0, 5).join(' / ')}${errors.length > 5 ? ' ...' : ''}`
+          message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。${errors
+            .slice(0, 5)
+            .join(' / ')}${errors.length > 5 ? ' ...' : ''}`,
         };
       } else {
         this.standardTableImportResult = {
           type: 'success',
-          message: `${successCount}件のデータをインポートしました`
+          message: `${successCount}件のデータをインポートしました`,
         };
         this.showStandardTableImportDialog = false;
         this.standardTableCsvImportText = '';
       }
     } catch (error) {
       console.error('CSVインポートエラー:', error);
-      this.standardTableImportResult = { type: 'error', message: `インポート中にエラーが発生しました: ${error}` };
+      this.standardTableImportResult = {
+        type: 'error',
+        message: `インポート中にエラーが発生しました: ${error}`,
+      };
     }
   }
 }
-

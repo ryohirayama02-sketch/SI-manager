@@ -2,53 +2,60 @@
 
 <!-- タブナビゲーション -->
 <div class="tabs">
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'basic'"
-    (click)="activeTab = 'basic'">
+    (click)="activeTab = 'basic'"
+  >
     給与月判定の設定
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'rate'"
-    (click)="activeTab = 'rate'">
+    (click)="activeTab = 'rate'"
+  >
     保険料率の設定
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'standard'"
-    (click)="activeTab = 'standard'">
+    (click)="activeTab = 'standard'"
+  >
     標準報酬月額テーブル
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'salaryItems'"
-    (click)="activeTab = 'salaryItems'">
+    (click)="activeTab = 'salaryItems'"
+  >
     給与項目マスタ
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'office'"
-    (click)="activeTab = 'office'">
+    (click)="activeTab = 'office'"
+  >
     事業所マスタ編集
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'editLog'"
-    (click)="activeTab = 'editLog'; loadEditLogs()">
+    (click)="activeTab = 'editLog'; loadEditLogs()"
+  >
     編集ログ
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'userRoom'"
-    (click)="activeTab = 'userRoom'">
+    (click)="activeTab = 'userRoom'"
+  >
     ユーザー・ルーム情報
   </button>
 </div>
@@ -58,21 +65,27 @@
   <!-- 給与月判定の設定タブ -->
   <div *ngIf="activeTab === 'basic'" class="tab-pane">
     <div class="card">
-      <div class="info-label">
-        給与月の判定方式を選択してください。
-      </div>
+      <div class="info-label">給与月の判定方式を選択してください。</div>
       <form [formGroup]="settingsForm">
         <div class="form-group">
           <label>給与月の判定方式：</label>
           <div>
             <label>
-              <input type="radio" formControlName="salaryMonthRule" value="payDate">
+              <input
+                type="radio"
+                formControlName="salaryMonthRule"
+                value="payDate"
+              />
               支給日基準（給与が支給された月を給与月とする）
             </label>
           </div>
           <div>
             <label>
-              <input type="radio" formControlName="salaryMonthRule" value="closingDate">
+              <input
+                type="radio"
+                formControlName="salaryMonthRule"
+                value="closingDate"
+              />
               締日基準（給与の締めた月を給与月とする）
             </label>
           </div>
@@ -87,53 +100,86 @@
       <div class="info-label">
         年度ごとに使用する社会保険料率（健保・介護・厚年）を登録してください。
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <div class="form-group" style="margin-bottom: 0;">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        "
+      >
+        <div class="form-group" style="margin-bottom: 0">
           <label>年度：</label>
-          <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-            <option *ngFor="let y of availableYears" [value]="y.toString()">{{ y }}年</option>
+          <select
+            [(ngModel)]="year"
+            (change)="onYearChange()"
+            class="form-control"
+            [ngModelOptions]="{ standalone: true }"
+          >
+            <option *ngFor="let y of availableYears" [value]="y.toString()">
+              {{ y }}年
+            </option>
           </select>
         </div>
       </div>
 
       <!-- 健康保険（47都道府県） -->
       <h3>健康保険（協会けんぽ）</h3>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+      <div
+        style="
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        "
+      >
         <!-- 左列 -->
-        <div style="overflow-x: auto;">
+        <div style="overflow-x: auto">
           <table class="rate-table">
             <thead>
               <tr>
-                <th style="min-width: 100px;">都道府県</th>
-                <th style="min-width: 80px;">健保_本人</th>
-                <th style="min-width: 80px;">健保_会社</th>
+                <th style="min-width: 100px">都道府県</th>
+                <th style="min-width: 80px">健保_本人</th>
+                <th style="min-width: 80px">健保_会社</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let pref of getPrefectureListColumn1()">
                 <td>{{ pref.name }}</td>
                 <td>
-                  <div style="display: flex; align-items: center;">
-                    <input 
-                      type="number" 
+                  <div style="display: flex; align-items: center">
+                    <input
+                      type="number"
                       [value]="prefectureRates[pref.code].health_employee || 0"
                       (input)="onHealthEmployeeInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
-                      min="0" max="100" step="0.0001">
-                    <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+                      min="0"
+                      max="100"
+                      step="0.0001"
+                    />
+                    <span
+                      style="font-size: 0.85rem; color: #666; margin-left: 4px"
+                      >%</span
+                    >
                   </div>
                 </td>
                 <td>
-                  <div style="display: flex; align-items: center;">
-                    <input 
-                      type="number" 
+                  <div style="display: flex; align-items: center">
+                    <input
+                      type="number"
                       [value]="prefectureRates[pref.code].health_employer || 0"
                       (input)="onHealthEmployerInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
-                      min="0" max="100" step="0.0001">
-                    <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+                      min="0"
+                      max="100"
+                      step="0.0001"
+                    />
+                    <span
+                      style="font-size: 0.85rem; color: #666; margin-left: 4px"
+                      >%</span
+                    >
                   </div>
                 </td>
               </tr>
@@ -141,40 +187,52 @@
           </table>
         </div>
         <!-- 右列 -->
-        <div style="overflow-x: auto;">
+        <div style="overflow-x: auto">
           <table class="rate-table">
             <thead>
               <tr>
-                <th style="min-width: 100px;">都道府県</th>
-                <th style="min-width: 80px;">健保_本人</th>
-                <th style="min-width: 80px;">健保_会社</th>
+                <th style="min-width: 100px">都道府県</th>
+                <th style="min-width: 80px">健保_本人</th>
+                <th style="min-width: 80px">健保_会社</th>
               </tr>
             </thead>
             <tbody>
               <tr *ngFor="let pref of getPrefectureListColumn2()">
                 <td>{{ pref.name }}</td>
                 <td>
-                  <div style="display: flex; align-items: center;">
-                    <input 
-                      type="number" 
+                  <div style="display: flex; align-items: center">
+                    <input
+                      type="number"
                       [value]="prefectureRates[pref.code].health_employee || 0"
                       (input)="onHealthEmployeeInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
-                      min="0" max="100" step="0.0001">
-                    <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+                      min="0"
+                      max="100"
+                      step="0.0001"
+                    />
+                    <span
+                      style="font-size: 0.85rem; color: #666; margin-left: 4px"
+                      >%</span
+                    >
                   </div>
                 </td>
                 <td>
-                  <div style="display: flex; align-items: center;">
-                    <input 
-                      type="number" 
+                  <div style="display: flex; align-items: center">
+                    <input
+                      type="number"
                       [value]="prefectureRates[pref.code].health_employer || 0"
                       (input)="onHealthEmployerInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
-                      min="0" max="100" step="0.0001">
-                    <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+                      min="0"
+                      max="100"
+                      step="0.0001"
+                    />
+                    <span
+                      style="font-size: 0.85rem; color: #666; margin-left: 4px"
+                      >%</span
+                    >
                   </div>
                 </td>
               </tr>
@@ -185,101 +243,163 @@
 
       <!-- 介護保険（全国一律） -->
       <h3>介護保険（全国一律）</h3>
-      <div class="card" style="max-width: 500px; margin-bottom: 1.5rem;">
+      <div class="card" style="max-width: 500px; margin-bottom: 1.5rem">
         <div class="form-group">
           <label>本人料率：</label>
-          <div style="display: flex; align-items: center;">
-            <input 
-              type="number" 
+          <div style="display: flex; align-items: center">
+            <input
+              type="number"
               [(ngModel)]="careRates.care_employee"
-              class="form-control" 
-              min="0" max="100" step="0.0001"
-              [ngModelOptions]="{standalone: true}">
-            <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              class="form-control"
+              min="0"
+              max="100"
+              step="0.0001"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            <span style="font-size: 0.85rem; color: #666; margin-left: 4px"
+              >%</span
+            >
           </div>
         </div>
         <div class="form-group">
           <label>事業主料率：</label>
-          <div style="display: flex; align-items: center;">
-            <input 
-              type="number" 
+          <div style="display: flex; align-items: center">
+            <input
+              type="number"
               [(ngModel)]="careRates.care_employer"
-              class="form-control" 
-              min="0" max="100" step="0.0001"
-              [ngModelOptions]="{standalone: true}">
-            <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              class="form-control"
+              min="0"
+              max="100"
+              step="0.0001"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            <span style="font-size: 0.85rem; color: #666; margin-left: 4px"
+              >%</span
+            >
           </div>
         </div>
       </div>
 
       <!-- 厚生年金（全国一律） -->
       <h3>厚生年金（全国一律）</h3>
-      <div class="card" style="max-width: 500px; margin-bottom: 1.5rem;">
+      <div class="card" style="max-width: 500px; margin-bottom: 1.5rem">
         <div class="form-group">
           <label>本人料率：</label>
-          <div style="display: flex; align-items: center;">
-            <input 
-              type="number" 
+          <div style="display: flex; align-items: center">
+            <input
+              type="number"
               [(ngModel)]="pensionRates.pension_employee"
-              class="form-control" 
-              min="0" max="100" step="0.0001"
-              [ngModelOptions]="{standalone: true}">
-            <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              class="form-control"
+              min="0"
+              max="100"
+              step="0.0001"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            <span style="font-size: 0.85rem; color: #666; margin-left: 4px"
+              >%</span
+            >
           </div>
         </div>
         <div class="form-group">
           <label>事業主料率：</label>
-          <div style="display: flex; align-items: center;">
-            <input 
-              type="number" 
+          <div style="display: flex; align-items: center">
+            <input
+              type="number"
               [(ngModel)]="pensionRates.pension_employer"
-              class="form-control" 
-              min="0" max="100" step="0.0001"
-              [ngModelOptions]="{standalone: true}">
-            <span style="font-size: 0.85rem; color: #666; margin-left: 4px;">%</span>
+              class="form-control"
+              min="0"
+              max="100"
+              step="0.0001"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            <span style="font-size: 0.85rem; color: #666; margin-left: 4px"
+              >%</span
+            >
           </div>
         </div>
       </div>
 
-      <div class="button-group" style="margin-bottom: 1rem;">
-        <button (click)="saveAllRates()" class="btn-primary">すべての料率を保存する</button>
+      <div class="button-group" style="margin-bottom: 1rem">
+        <button (click)="saveAllRates()" class="btn-primary">
+          すべての料率を保存する
+        </button>
       </div>
 
       <!-- CSVインポート機能 -->
-      <div class="card" style="margin-top: 1rem; padding: 1rem;">
+      <div class="card" style="margin-top: 1rem; padding: 1rem">
         <h4>CSVインポート</h4>
-        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-          CSV形式で都道府県別の料率を一括インポートできます。<br>
-          形式: 都道府県,従業員負担,会社負担（例: 北海道,5.155,5.155）※パーセント形式で入力してください
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem">
+          CSV形式で都道府県別の料率を一括インポートできます。<br />
+          形式: 都道府県,従業員負担,会社負担（例:
+          北海道,5.155,5.155）※パーセント形式で入力してください
         </p>
-        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-          <input type="file" #fileInput accept=".csv" (change)="onFileSelected($event)" style="display: none;">
-          <button (click)="fileInput.click()" class="btn-secondary">CSVファイルを選択</button>
-          <button (click)="showImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem">
+          <input
+            type="file"
+            #fileInput
+            accept=".csv"
+            (change)="onFileSelected($event)"
+            style="display: none"
+          />
+          <button (click)="fileInput.click()" class="btn-secondary">
+            CSVファイルを選択
+          </button>
+          <button (click)="showImportDialog = true" class="btn-secondary">
+            テキストから貼り付け
+          </button>
         </div>
-        
+
         <!-- テキストエリアダイアログ -->
-        <div *ngIf="showImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
+        <div
+          *ngIf="showImportDialog"
+          style="
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+          "
+        >
           <label for="csvText">CSVデータを貼り付けてください:</label>
-          <textarea 
-            id="csvText" 
-            [(ngModel)]="csvImportText" 
-            rows="10" 
-            class="form-control" 
-            style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
+          <textarea
+            id="csvText"
+            [(ngModel)]="csvImportText"
+            rows="10"
+            class="form-control"
+            style="
+              font-family: monospace;
+              font-size: 0.9rem;
+              margin-top: 0.5rem;
+            "
             placeholder="都道府県,従業員負担,会社負担&#10;北海道,5.155,5.155&#10;青森県,5.155,5.155"
-            [ngModelOptions]="{standalone: true}">
+            [ngModelOptions]="{ standalone: true }"
+          >
           </textarea>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-            <button (click)="importFromText()" class="btn-primary">インポート</button>
-            <button (click)="showImportDialog = false; csvImportText = ''" class="btn-secondary">キャンセル</button>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
+            <button (click)="importFromText()" class="btn-primary">
+              インポート
+            </button>
+            <button
+              (click)="showImportDialog = false; csvImportText = ''"
+              class="btn-secondary"
+            >
+              キャンセル
+            </button>
           </div>
         </div>
 
         <!-- インポート結果メッセージ -->
-        <div *ngIf="importResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
-             [ngClass]="{'error-box': importResult.type === 'error', 'info-label': importResult.type === 'success'}">
-          <strong>{{ importResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ importResult.message }}
+        <div
+          *ngIf="importResult"
+          style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px"
+          [ngClass]="{
+            'error-box': importResult.type === 'error',
+            'info-label': importResult.type === 'success'
+          }"
+        >
+          <strong
+            >{{ importResult.type === "error" ? "エラー" : "成功" }}:</strong
+          >
+          {{ importResult.message }}
         </div>
       </div>
     </div>
@@ -288,17 +408,32 @@
   <!-- 標準報酬月額テーブルタブ -->
   <div *ngIf="activeTab === 'standard'" class="tab-pane">
     <div class="card">
-      <div class="info-label">
-        標準報酬月額の等級表を設定してください。
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <div class="form-group" style="margin-bottom: 0;">
+      <div class="info-label">標準報酬月額の等級表を設定してください。</div>
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        "
+      >
+        <div class="form-group" style="margin-bottom: 0">
           <label>年度：</label>
-          <select [(ngModel)]="gradeYear" (change)="onGradeYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-            <option *ngFor="let y of availableGradeYears" [value]="y.toString()">{{ y }}年</option>
+          <select
+            [(ngModel)]="gradeYear"
+            (change)="onGradeYearChange()"
+            class="form-control"
+            [ngModelOptions]="{ standalone: true }"
+          >
+            <option
+              *ngFor="let y of availableGradeYears"
+              [value]="y.toString()"
+            >
+              {{ y }}年
+            </option>
           </select>
         </div>
-        <span style="font-size: 0.85rem; color: #666;">単位：円</span>
+        <span style="font-size: 0.85rem; color: #666">単位：円</span>
       </div>
       <form [formGroup]="standardTableForm">
         <div formArrayName="standardTable">
@@ -312,31 +447,37 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of standardTable.controls; let i = index" [formGroupName]="i">
-                <td>{{ row.get('rank')?.value }}</td>
+              <tr
+                *ngFor="let row of standardTable.controls; let i = index"
+                [formGroupName]="i"
+              >
+                <td>{{ row.get("rank")?.value }}</td>
                 <td>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     [value]="getAmountDisplayValue(i, 'standard')"
                     (input)="onAmountInput(i, 'standard', $event)"
                     (blur)="onAmountBlur(i, 'standard', $event)"
-                    class="form-control">
+                    class="form-control"
+                  />
                 </td>
                 <td>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     [value]="getAmountDisplayValue(i, 'lower')"
                     (input)="onAmountInput(i, 'lower', $event)"
                     (blur)="onAmountBlur(i, 'lower', $event)"
-                    class="form-control">
+                    class="form-control"
+                  />
                 </td>
                 <td>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     [value]="getAmountDisplayValue(i, 'upper')"
                     (input)="onAmountInput(i, 'upper', $event)"
                     (blur)="onAmountBlur(i, 'upper', $event)"
-                    class="form-control">
+                    class="form-control"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -359,46 +500,107 @@
         </ul>
       </div>
 
-      <div style="margin-top: 1rem; display: flex; gap: 1rem;">
-        <button (click)="saveStandardTable()" class="btn-success">標準報酬月額テーブルを保存する</button>
-        <button (click)="clearStandardTable()" class="btn-secondary" style="background-color: #dc3545; color: white;">テーブルをクリア</button>
+      <div style="margin-top: 1rem; display: flex; gap: 1rem">
+        <button (click)="saveStandardTable()" class="btn-success">
+          標準報酬月額テーブルを保存する
+        </button>
+        <button
+          (click)="clearStandardTable()"
+          class="btn-secondary"
+          style="background-color: #dc3545; color: white"
+        >
+          テーブルをクリア
+        </button>
       </div>
 
       <!-- CSVインポート機能 -->
-      <div class="card" style="margin-top: 1rem; padding: 1rem;">
+      <div class="card" style="margin-top: 1rem; padding: 1rem">
         <h4>CSVインポート</h4>
-        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-          CSV形式で標準報酬月額テーブルを一括インポートできます。<br>
-          形式: 等級,標準報酬月額(円),報酬月額下限(円),報酬月額上限(円未満)（例: 1,58000,0,63000）
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem">
+          CSV形式で標準報酬月額テーブルを一括インポートできます。<br />
+          形式: 等級,標準報酬月額(円),報酬月額下限(円),報酬月額上限(円未満)（例:
+          1,58000,0,63000）
         </p>
-        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
-          <input type="file" #standardTableFileInput accept=".csv" (change)="onStandardTableFileSelected($event)" style="display: none;">
-          <button (click)="standardTableFileInput.click()" class="btn-secondary">CSVファイルを選択</button>
-          <button (click)="showStandardTableImportDialog = true" class="btn-secondary">テキストから貼り付け</button>
+        <div style="display: flex; gap: 1rem; margin-bottom: 1rem">
+          <input
+            type="file"
+            #standardTableFileInput
+            accept=".csv"
+            (change)="onStandardTableFileSelected($event)"
+            style="display: none"
+          />
+          <button
+            (click)="standardTableFileInput.click()"
+            class="btn-secondary"
+          >
+            CSVファイルを選択
+          </button>
+          <button
+            (click)="showStandardTableImportDialog = true"
+            class="btn-secondary"
+          >
+            テキストから貼り付け
+          </button>
         </div>
-        
+
         <!-- テキストエリアダイアログ -->
-        <div *ngIf="showStandardTableImportDialog" style="margin-top: 1rem; padding: 1rem; background-color: #f8f9fa; border-radius: 4px;">
-          <label for="standardTableCsvText">CSVデータを貼り付けてください:</label>
-          <textarea 
-            id="standardTableCsvText" 
-            [(ngModel)]="standardTableCsvImportText" 
-            rows="10" 
-            class="form-control" 
-            style="font-family: monospace; font-size: 0.9rem; margin-top: 0.5rem;"
+        <div
+          *ngIf="showStandardTableImportDialog"
+          style="
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+          "
+        >
+          <label for="standardTableCsvText"
+            >CSVデータを貼り付けてください:</label
+          >
+          <textarea
+            id="standardTableCsvText"
+            [(ngModel)]="standardTableCsvImportText"
+            rows="10"
+            class="form-control"
+            style="
+              font-family: monospace;
+              font-size: 0.9rem;
+              margin-top: 0.5rem;
+            "
             placeholder="等級,標準報酬月額(円),報酬月額下限(円),報酬月額上限(円未満)&#10;1,58000,0,63000&#10;2,68000,63000,73000"
-            [ngModelOptions]="{standalone: true}">
+            [ngModelOptions]="{ standalone: true }"
+          >
           </textarea>
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-            <button (click)="importStandardTableFromText()" class="btn-primary">インポート</button>
-            <button (click)="showStandardTableImportDialog = false; standardTableCsvImportText = ''" class="btn-secondary">キャンセル</button>
+          <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
+            <button (click)="importStandardTableFromText()" class="btn-primary">
+              インポート
+            </button>
+            <button
+              (click)="
+                showStandardTableImportDialog = false;
+                standardTableCsvImportText = ''
+              "
+              class="btn-secondary"
+            >
+              キャンセル
+            </button>
           </div>
         </div>
 
         <!-- インポート結果メッセージ -->
-        <div *ngIf="standardTableImportResult" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px;" 
-             [ngClass]="{'error-box': standardTableImportResult.type === 'error', 'info-label': standardTableImportResult.type === 'success'}">
-          <strong>{{ standardTableImportResult.type === 'error' ? 'エラー' : '成功' }}:</strong> {{ standardTableImportResult.message }}
+        <div
+          *ngIf="standardTableImportResult"
+          style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px"
+          [ngClass]="{
+            'error-box': standardTableImportResult.type === 'error',
+            'info-label': standardTableImportResult.type === 'success'
+          }"
+        >
+          <strong
+            >{{
+              standardTableImportResult.type === "error" ? "エラー" : "成功"
+            }}:</strong
+          >
+          {{ standardTableImportResult.message }}
         </div>
       </div>
     </div>
@@ -410,46 +612,131 @@
       <div class="info-label">
         給与項目を「固定（fixed）」「非固定（variable）」「欠勤控除（deduction）」で分類して管理します。
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-        <div class="form-group" style="margin-bottom: 0;">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        "
+      >
+        <div class="form-group" style="margin-bottom: 0">
           <label>年度：</label>
-          <select [(ngModel)]="salaryItemsYear" (change)="onSalaryItemsYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
-            <option *ngFor="let y of getAvailableYears()" [value]="y">{{ y }}年</option>
+          <select
+            [(ngModel)]="salaryItemsYear"
+            (change)="onSalaryItemsYearChange()"
+            class="form-control"
+            [ngModelOptions]="{ standalone: true }"
+          >
+            <option *ngFor="let y of getAvailableYears()" [value]="y">
+              {{ y }}年
+            </option>
           </select>
         </div>
       </div>
       <form [formGroup]="salaryItemsForm">
         <div formArrayName="salaryItems">
-          <table class="salary-items-table" style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+          <table
+            class="salary-items-table"
+            style="width: 100%; border-collapse: collapse; margin-top: 1rem"
+          >
             <thead>
               <tr>
-                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd; background-color: #f5f5f5;">項目名</th>
-                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd; background-color: #f5f5f5;">種別</th>
-                <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd; background-color: #f5f5f5;">削除</th>
+                <th
+                  style="
+                    padding: 8px;
+                    text-align: left;
+                    border-bottom: 2px solid #ddd;
+                    background-color: #f5f5f5;
+                  "
+                >
+                  項目名
+                </th>
+                <th
+                  style="
+                    padding: 8px;
+                    text-align: left;
+                    border-bottom: 2px solid #ddd;
+                    background-color: #f5f5f5;
+                  "
+                >
+                  種別
+                </th>
+                <th
+                  style="
+                    padding: 8px;
+                    text-align: center;
+                    border-bottom: 2px solid #ddd;
+                    background-color: #f5f5f5;
+                  "
+                >
+                  削除
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let item of salaryItems.controls; let i = index" [formGroupName]="i">
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">
-                  <input type="text" formControlName="name" class="form-control" placeholder="例：基本給" required style="width: 100%;">
+              <tr
+                *ngFor="let item of salaryItems.controls; let i = index"
+                [formGroupName]="i"
+              >
+                <td style="padding: 8px; border-bottom: 1px solid #eee">
+                  <input
+                    type="text"
+                    formControlName="name"
+                    class="form-control"
+                    placeholder="例：基本給"
+                    required
+                    style="width: 100%"
+                  />
                 </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">
-                  <select formControlName="type" class="form-control" required style="width: 100%;">
+                <td style="padding: 8px; border-bottom: 1px solid #eee">
+                  <select
+                    formControlName="type"
+                    class="form-control"
+                    required
+                    style="width: 100%"
+                  >
                     <option value="fixed">固定</option>
                     <option value="variable">非固定</option>
                     <option value="deduction">欠勤控除</option>
                   </select>
                 </td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">
-                  <button type="button" (click)="removeSalaryItem(i)" class="btn-secondary">削除</button>
+                <td
+                  style="
+                    padding: 8px;
+                    border-bottom: 1px solid #eee;
+                    text-align: center;
+                  "
+                >
+                  <button
+                    type="button"
+                    (click)="removeSalaryItem(i)"
+                    class="btn-secondary"
+                  >
+                    削除
+                  </button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
       </form>
-      <button type="button" (click)="addSalaryItem()" class="btn-primary" style="margin-top: 1rem;">項目を追加</button>
-      <button type="button" (click)="saveSalaryItems()" class="btn-success" style="margin-top: 1rem; margin-left: 0.5rem;">給与項目マスタを保存する</button>
+      <button
+        type="button"
+        (click)="addSalaryItem()"
+        class="btn-primary"
+        style="margin-top: 1rem"
+      >
+        項目を追加
+      </button>
+      <button
+        type="button"
+        (click)="saveSalaryItems()"
+        class="btn-success"
+        style="margin-top: 1rem; margin-left: 0.5rem"
+      >
+        給与項目マスタを保存する
+      </button>
     </div>
   </div>
 
@@ -459,64 +746,163 @@
       <div class="info-label">
         事業所整理記号・事業所番号・法人番号・事業所所在地・事業主氏名など、届出ヘッダーに必要な情報を管理します。
       </div>
-      
+
       <!-- 事業所一覧 -->
       <div class="office-master-grid">
         <div class="card office-list-card">
-          <h3 style="margin-top: 0;">事業所一覧</h3>
-          <div *ngIf="offices.length === 0" style="padding: 1rem; text-align: center; color: #666;">
+          <h3 style="margin-top: 0">事業所一覧</h3>
+          <div
+            *ngIf="offices.length === 0"
+            style="padding: 1rem; text-align: center; color: #666"
+          >
             事業所が登録されていません
           </div>
-          <div *ngFor="let office of offices" 
-               (click)="selectOffice(office)"
-               [class]="selectedOffice?.id === office.id ? 'office-item selected' : 'office-item'"
-               style="padding: 0.75rem; margin-bottom: 0.5rem; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; background: #fff; transition: background-color 0.2s;">
-            <div style="font-weight: bold;">{{ office.officeCode || '-' }}-{{ office.officeNumber || '-' }}</div>
-            <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">{{ office.address || '住所未設定' }}</div>
-            <div style="font-size: 0.85rem; color: #999; margin-top: 0.25rem;">{{ office.ownerName || '事業主名未設定' }}</div>
+          <div
+            *ngFor="let office of offices"
+            (click)="selectOffice(office)"
+            [class]="
+              selectedOffice?.id === office.id
+                ? 'office-item selected'
+                : 'office-item'
+            "
+            style="
+              padding: 0.75rem;
+              margin-bottom: 0.5rem;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+              cursor: pointer;
+              background: #fff;
+              transition: background-color 0.2s;
+            "
+          >
+            <div style="font-weight: bold">
+              {{ office.officeCode || "-" }}-{{ office.officeNumber || "-" }}
+            </div>
+            <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem">
+              {{ office.address || "住所未設定" }}
+            </div>
+            <div style="font-size: 0.85rem; color: #999; margin-top: 0.25rem">
+              {{ office.ownerName || "事業主名未設定" }}
+            </div>
           </div>
         </div>
-        
+
         <!-- 事業所編集フォーム -->
         <div class="card office-form-card">
-          <h3 style="margin-top: 0;">{{ selectedOffice ? '事業所情報の編集' : '事業所情報の新規登録' }}</h3>
+          <h3 style="margin-top: 0">
+            {{ selectedOffice ? "事業所情報の編集" : "事業所情報の新規登録" }}
+          </h3>
           <form [formGroup]="officeForm">
             <div class="form-group">
               <label for="officeCode">事業所整理記号</label>
-              <input id="officeCode" formControlName="officeCode" type="text" class="form-control" placeholder="例：01">
+              <input
+                id="officeCode"
+                formControlName="officeCode"
+                type="text"
+                class="form-control"
+                placeholder="例：01"
+              />
             </div>
-            
+
             <div class="form-group">
               <label for="officeNumber">事業所番号</label>
-              <input id="officeNumber" formControlName="officeNumber" type="text" class="form-control" placeholder="例：12345678">
+              <input
+                id="officeNumber"
+                formControlName="officeNumber"
+                type="text"
+                class="form-control"
+                placeholder="例：12345678"
+              />
             </div>
-            
+
             <div class="form-group">
               <label for="corporateNumber">法人番号</label>
-              <input id="corporateNumber" formControlName="corporateNumber" type="text" class="form-control" placeholder="例：1234567890123">
+              <input
+                id="corporateNumber"
+                formControlName="corporateNumber"
+                type="text"
+                class="form-control"
+                placeholder="例：1234567890123"
+              />
             </div>
-            
+
             <div class="form-group">
               <label for="prefecture">事業所　所在都道府県</label>
-              <select id="prefecture" formControlName="prefecture" class="form-control">
-                <option *ngFor="let pref of prefectureList" [value]="pref.code">{{ pref.name }}</option>
+              <select
+                id="prefecture"
+                formControlName="prefecture"
+                class="form-control"
+              >
+                <option *ngFor="let pref of prefectureList" [value]="pref.code">
+                  {{ pref.name }}
+                </option>
               </select>
             </div>
-            
+
             <div class="form-group">
-              <label for="address">事業所　住所</label>
-              <textarea id="address" formControlName="address" class="form-control" rows="3" placeholder="例：東京都千代田区丸の内1-1-1"></textarea>
+              <label for="address">事業所　所在地</label>
+              <textarea
+                id="address"
+                formControlName="address"
+                class="form-control"
+                rows="3"
+                placeholder="例：東京都千代田区丸の内1-1-1"
+              ></textarea>
             </div>
-            
+
             <div class="form-group">
-              <label for="ownerName">事業主氏名</label>
-              <input id="ownerName" formControlName="ownerName" type="text" class="form-control" placeholder="例：株式会社○○">
+              <label for="officeName">事業所　名称</label>
+              <input
+                id="officeName"
+                formControlName="officeName"
+                type="text"
+                class="form-control"
+                placeholder="例：株式会社〇〇"
+              />
             </div>
-            
-            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-              <button type="button" (click)="saveOffice()" class="btn-primary">保存</button>
-              <button *ngIf="selectedOffice" type="button" (click)="deleteOffice(selectedOffice.id!)" class="btn-secondary" style="background-color: #dc3545; color: white;">削除</button>
-              <button type="button" (click)="selectOffice(null)" class="btn-secondary">キャンセル</button>
+
+            <div class="form-group">
+              <label for="ownerName">事業主　氏名</label>
+              <input
+                id="ownerName"
+                formControlName="ownerName"
+                type="text"
+                class="form-control"
+                placeholder="代表取締役社長　〇〇〇〇"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="phoneNumber">電話番号</label>
+              <input
+                id="phoneNumber"
+                formControlName="phoneNumber"
+                type="text"
+                class="form-control"
+                placeholder="例：03-5643-6789"
+              />
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem">
+              <button type="button" (click)="saveOffice()" class="btn-primary">
+                保存
+              </button>
+              <button
+                *ngIf="selectedOffice"
+                type="button"
+                (click)="deleteOffice(selectedOffice.id!)"
+                class="btn-secondary"
+                style="background-color: #dc3545; color: white"
+              >
+                削除
+              </button>
+              <button
+                type="button"
+                (click)="selectOffice(null)"
+                class="btn-secondary"
+              >
+                キャンセル
+              </button>
             </div>
           </form>
         </div>
@@ -531,52 +917,140 @@
         アプリ内の情報を追加、編集、削除した時のログを表示します。
       </div>
 
-      <div style="margin-top: 1rem; margin-bottom: 1rem;">
-        <button (click)="loadEditLogs()" class="btn-primary" [disabled]="isLoadingLogs">
-          {{ isLoadingLogs ? '読み込み中...' : '更新' }}
+      <div style="margin-top: 1rem; margin-bottom: 1rem">
+        <button
+          (click)="loadEditLogs()"
+          class="btn-primary"
+          [disabled]="isLoadingLogs"
+        >
+          {{ isLoadingLogs ? "読み込み中..." : "更新" }}
         </button>
       </div>
 
-      <div *ngIf="isLoadingLogs" style="padding: 2rem; text-align: center; color: #666;">
+      <div
+        *ngIf="isLoadingLogs"
+        style="padding: 2rem; text-align: center; color: #666"
+      >
         読み込み中...
       </div>
 
-      <div *ngIf="!isLoadingLogs && editLogs.length === 0" style="padding: 2rem; text-align: center; color: #666;">
+      <div
+        *ngIf="!isLoadingLogs && editLogs.length === 0"
+        style="padding: 2rem; text-align: center; color: #666"
+      >
         編集ログがありません
       </div>
 
-      <div *ngIf="!isLoadingLogs && editLogs.length > 0" style="overflow-x: auto;">
-        <table class="edit-log-table" style="width: 100%; border-collapse: collapse;">
+      <div
+        *ngIf="!isLoadingLogs && editLogs.length > 0"
+        style="overflow-x: auto"
+      >
+        <table
+          class="edit-log-table"
+          style="width: 100%; border-collapse: collapse"
+        >
           <thead>
-            <tr style="background-color: #f5f5f5;">
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 150px;">日時</th>
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 100px;">ユーザー名</th>
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 80px;">操作</th>
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 100px;">種類</th>
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd; min-width: 150px;">対象</th>
-              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #ddd;">内容</th>
+            <tr style="background-color: #f5f5f5">
+              <th
+                style="
+                  padding: 12px;
+                  text-align: left;
+                  border-bottom: 2px solid #ddd;
+                  min-width: 150px;
+                "
+              >
+                日時
+              </th>
+              <th
+                style="
+                  padding: 12px;
+                  text-align: left;
+                  border-bottom: 2px solid #ddd;
+                  min-width: 100px;
+                "
+              >
+                ユーザー名
+              </th>
+              <th
+                style="
+                  padding: 12px;
+                  text-align: left;
+                  border-bottom: 2px solid #ddd;
+                  min-width: 80px;
+                "
+              >
+                操作
+              </th>
+              <th
+                style="
+                  padding: 12px;
+                  text-align: left;
+                  border-bottom: 2px solid #ddd;
+                  min-width: 100px;
+                "
+              >
+                種類
+              </th>
+              <th
+                style="
+                  padding: 12px;
+                  text-align: left;
+                  border-bottom: 2px solid #ddd;
+                  min-width: 150px;
+                "
+              >
+                対象
+              </th>
+              <th
+                style="
+                  padding: 12px;
+                  text-align: left;
+                  border-bottom: 2px solid #ddd;
+                "
+              >
+                内容
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let log of editLogs" style="border-bottom: 1px solid #eee;">
-              <td style="padding: 12px;">{{ formatDateTime(log.timestamp) }}</td>
-              <td style="padding: 12px;">{{ log.userName }}</td>
-              <td style="padding: 12px;">
-                <span [ngSwitch]="log.action" style="padding: 4px 8px; border-radius: 4px; font-size: 0.9rem; font-weight: bold;"
-                      [ngClass]="{
-                        'create-badge': log.action === 'create',
-                        'update-badge': log.action === 'update',
-                        'delete-badge': log.action === 'delete'
-                      }">
-                  <span *ngSwitchCase="'create'" style="color: #28a745;">{{ getActionLabel(log.action) }}</span>
-                  <span *ngSwitchCase="'update'" style="color: #007bff;">{{ getActionLabel(log.action) }}</span>
-                  <span *ngSwitchCase="'delete'" style="color: #dc3545;">{{ getActionLabel(log.action) }}</span>
+            <tr
+              *ngFor="let log of editLogs"
+              style="border-bottom: 1px solid #eee"
+            >
+              <td style="padding: 12px">{{ formatDateTime(log.timestamp) }}</td>
+              <td style="padding: 12px">{{ log.userName }}</td>
+              <td style="padding: 12px">
+                <span
+                  [ngSwitch]="log.action"
+                  style="
+                    padding: 4px 8px;
+                    border-radius: 4px;
+                    font-size: 0.9rem;
+                    font-weight: bold;
+                  "
+                  [ngClass]="{
+                    'create-badge': log.action === 'create',
+                    'update-badge': log.action === 'update',
+                    'delete-badge': log.action === 'delete'
+                  }"
+                >
+                  <span *ngSwitchCase="'create'" style="color: #28a745">{{
+                    getActionLabel(log.action)
+                  }}</span>
+                  <span *ngSwitchCase="'update'" style="color: #007bff">{{
+                    getActionLabel(log.action)
+                  }}</span>
+                  <span *ngSwitchCase="'delete'" style="color: #dc3545">{{
+                    getActionLabel(log.action)
+                  }}</span>
                   <span *ngSwitchDefault>{{ getActionLabel(log.action) }}</span>
                 </span>
               </td>
-              <td style="padding: 12px;">{{ getEntityTypeLabel(log.entityType) }}</td>
-              <td style="padding: 12px;">{{ log.entityName || '-' }}</td>
-              <td style="padding: 12px;">{{ log.description }}</td>
+              <td style="padding: 12px">
+                {{ getEntityTypeLabel(log.entityType) }}
+              </td>
+              <td style="padding: 12px">{{ log.entityName || "-" }}</td>
+              <td style="padding: 12px">{{ log.description }}</td>
             </tr>
           </tbody>
         </table>
@@ -592,47 +1066,92 @@
       </div>
 
       <!-- ユーザー情報セクション -->
-      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">ユーザー情報</h3>
-      <div class="card" style="max-width: 600px; margin-bottom: 1.5rem;">
+      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem">ユーザー情報</h3>
+      <div class="card" style="max-width: 600px; margin-bottom: 1.5rem">
         <div class="form-group">
           <label>ユーザー名：</label>
-          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
-            {{ currentUser?.displayName || '未設定' }}
+          <div
+            style="
+              padding: 0.5rem;
+              background-color: #f8f9fa;
+              border-radius: 4px;
+              min-height: 2rem;
+            "
+          >
+            {{ currentUser?.displayName || "未設定" }}
           </div>
         </div>
         <div class="form-group">
           <label>メールアドレス：</label>
-          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
-            {{ currentUser?.email || '未設定' }}
+          <div
+            style="
+              padding: 0.5rem;
+              background-color: #f8f9fa;
+              border-radius: 4px;
+              min-height: 2rem;
+            "
+          >
+            {{ currentUser?.email || "未設定" }}
           </div>
         </div>
         <div class="form-group">
           <label>パスワード：</label>
-          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem; font-family: monospace;">
+          <div
+            style="
+              padding: 0.5rem;
+              background-color: #f8f9fa;
+              border-radius: 4px;
+              min-height: 2rem;
+              font-family: monospace;
+            "
+          >
             ********（セキュリティ上の理由により表示されません）
           </div>
         </div>
       </div>
 
       <!-- ルーム情報セクション -->
-      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem;">ルーム情報</h3>
-      <div class="card" style="max-width: 600px;">
+      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem">ルーム情報</h3>
+      <div class="card" style="max-width: 600px">
         <div class="form-group">
           <label>ルーム名（企業名）：</label>
-          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem;">
-            {{ roomInfo?.name || '未設定' }}
+          <div
+            style="
+              padding: 0.5rem;
+              background-color: #f8f9fa;
+              border-radius: 4px;
+              min-height: 2rem;
+            "
+          >
+            {{ roomInfo?.name || "未設定" }}
           </div>
         </div>
         <div class="form-group">
           <label>ルームID：</label>
-          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem; font-family: monospace;">
-            {{ roomInfo?.id || '未設定' }}
+          <div
+            style="
+              padding: 0.5rem;
+              background-color: #f8f9fa;
+              border-radius: 4px;
+              min-height: 2rem;
+              font-family: monospace;
+            "
+          >
+            {{ roomInfo?.id || "未設定" }}
           </div>
         </div>
         <div class="form-group">
           <label>ルームパスワード：</label>
-          <div style="padding: 0.5rem; background-color: #f8f9fa; border-radius: 4px; min-height: 2rem; font-family: monospace;">
-            {{ roomInfo?.password || '未設定' }}
+          <div
+            style="
+              padding: 0.5rem;
+              background-color: #f8f9fa;
+              border-radius: 4px;
+              min-height: 2rem;
+              font-family: monospace;
+            "
+          >
+            {{ roomInfo?.password || "未設定" }}
           </div>
         </div>
       </div>
