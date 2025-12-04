@@ -90,12 +90,24 @@ export class EmployeeCreatePageComponent implements OnInit {
       leaveOfAbsenceStart: [''],
       leaveOfAbsenceEnd: [''],
       returnFromLeaveDate: [''],
+      expectedDeliveryDate: [''],
       maternityLeaveStart: [''],
+      maternityLeaveEndExpected: [''],
+      actualDeliveryDate: [''],
       maternityLeaveEnd: [''],
+      childcareChildName: [''],
+      childcareChildBirthDate: [''],
       childcareLeaveStart: [''],
+      childcareLeaveEndExpected: [''],
       childcareLeaveEnd: [''],
       childcareNotificationSubmitted: [false],
       childcareLivingTogether: [false],
+      sickPayApplicationRequest: [false],
+      sickPayApplicationRequestDate: [null],
+      childcareEmployerCertificateRequest: [false],
+      childcareEmployerCertificateRequestDate: [null],
+      maternityAllowanceApplicationRequest: [false],
+      maternityAllowanceApplicationRequestDate: [null],
     });
 
     // フォーム値変更時に自動判定を実行
@@ -245,6 +257,26 @@ export class EmployeeCreatePageComponent implements OnInit {
     this.warningMessages = validationResult.warnings;
   }
 
+  onCheckboxChange(fieldName: string, event: Event): void {
+    const checkbox = event.target as HTMLInputElement;
+    const isChecked = checkbox.checked;
+    
+    // チェックが入った場合、今日の日付を設定
+    if (isChecked) {
+      const today = new Date().toISOString().split('T')[0];
+      const dateFieldName = `${fieldName}Date`;
+      this.form.patchValue({
+        [dateFieldName]: today
+      });
+    } else {
+      // チェックが外れた場合、日付も削除
+      const dateFieldName = `${fieldName}Date`;
+      this.form.patchValue({
+        [dateFieldName]: null
+      });
+    }
+  }
+
   async onSubmit(): Promise<void> {
     this.validateDates();
     if (this.errorMessages.length > 0) {
@@ -287,10 +319,22 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.leaveOfAbsenceStart) employee.leaveOfAbsenceStart = value.leaveOfAbsenceStart;
     if (value.leaveOfAbsenceEnd) employee.leaveOfAbsenceEnd = value.leaveOfAbsenceEnd;
     if (value.returnFromLeaveDate) employee.returnFromLeaveDate = value.returnFromLeaveDate;
+    if (value.expectedDeliveryDate) employee.expectedDeliveryDate = value.expectedDeliveryDate;
     if (value.maternityLeaveStart) employee.maternityLeaveStart = value.maternityLeaveStart;
+    if (value.maternityLeaveEndExpected) employee.maternityLeaveEndExpected = value.maternityLeaveEndExpected;
+    if (value.actualDeliveryDate) employee.actualDeliveryDate = value.actualDeliveryDate;
     if (value.maternityLeaveEnd) employee.maternityLeaveEnd = value.maternityLeaveEnd;
+    if (value.childcareChildName) employee.childcareChildName = value.childcareChildName;
+    if (value.childcareChildBirthDate) employee.childcareChildBirthDate = value.childcareChildBirthDate;
     if (value.childcareLeaveStart) employee.childcareLeaveStart = value.childcareLeaveStart;
+    if (value.childcareLeaveEndExpected) employee.childcareLeaveEndExpected = value.childcareLeaveEndExpected;
     if (value.childcareLeaveEnd) employee.childcareLeaveEnd = value.childcareLeaveEnd;
+    if (value.sickPayApplicationRequest !== undefined) employee.sickPayApplicationRequest = value.sickPayApplicationRequest;
+    if (value.sickPayApplicationRequestDate) employee.sickPayApplicationRequestDate = value.sickPayApplicationRequestDate;
+    if (value.childcareEmployerCertificateRequest !== undefined) employee.childcareEmployerCertificateRequest = value.childcareEmployerCertificateRequest;
+    if (value.childcareEmployerCertificateRequestDate) employee.childcareEmployerCertificateRequestDate = value.childcareEmployerCertificateRequestDate;
+    if (value.maternityAllowanceApplicationRequest !== undefined) employee.maternityAllowanceApplicationRequest = value.maternityAllowanceApplicationRequest;
+    if (value.maternityAllowanceApplicationRequestDate) employee.maternityAllowanceApplicationRequestDate = value.maternityAllowanceApplicationRequestDate;
 
     // 従業員を登録
     const newEmployeeId = await this.employeeService.addEmployee(employee);
