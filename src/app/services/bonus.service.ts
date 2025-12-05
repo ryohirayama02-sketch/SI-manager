@@ -19,24 +19,30 @@ import { Bonus } from '../models/bonus.model';
 export class BonusService {
   constructor(private firestore: Firestore) {}
 
-  async addBonus(bonus: Bonus): Promise<void> {
-    const col = collection(this.firestore, 'bonuses');
-    await addDoc(col, bonus);
-  }
+  // ========================================
+  // 【削除候補】以下のメソッドは古い'bonuses'コレクションを参照しており、現在未使用です
+  // 新しいデータ構造（bonus/${year}/employees/${employeeId}/items）を使用するメソッドに移行済み
+  // しばらくアプリへの影響を確認後、問題なければ削除予定
+  // ========================================
 
-  async getBonusCountByYear(employeeId: string, year: number): Promise<number> {
-    const col = collection(this.firestore, 'bonuses');
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
-    const q = query(
-      col,
-      where('employeeId', '==', employeeId),
-      where('payDate', '>=', startDate),
-      where('payDate', '<=', endDate)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.size;
-  }
+  // async addBonus(bonus: Bonus): Promise<void> {
+  //   const col = collection(this.firestore, 'bonuses');
+  //   await addDoc(col, bonus);
+  // }
+
+  // async getBonusCountByYear(employeeId: string, year: number): Promise<number> {
+  //   const col = collection(this.firestore, 'bonuses');
+  //   const startDate = `${year}-01-01`;
+  //   const endDate = `${year}-12-31`;
+  //   const q = query(
+  //     col,
+  //     where('employeeId', '==', employeeId),
+  //     where('payDate', '>=', startDate),
+  //     where('payDate', '<=', endDate)
+  //   );
+  //   const snapshot = await getDocs(q);
+  //   return snapshot.size;
+  // }
 
   async getBonusCountLast12Months(
     employeeId: string,
@@ -114,23 +120,19 @@ export class BonusService {
     return filteredBonuses;
   }
 
+  /**
+   * 過去12ヶ月（支給日ベース）の賞与を取得
+   * 新しいデータ構造（bonus/${year}/employees/${employeeId}/items）を使用
+   * @param employeeId 従業員ID
+   * @param payDate 基準日（オプショナル、指定されない場合は現在日付）
+   * @returns 過去12ヶ月の賞与リスト
+   */
   async getBonusesByEmployee(
     employeeId: string,
     payDate?: Date
   ): Promise<Bonus[]> {
-    const col = collection(this.firestore, 'bonuses');
     const baseDate = payDate || new Date();
-    const startDate = new Date(baseDate);
-    startDate.setMonth(startDate.getMonth() - 12);
-    const startDateISO = startDate.toISOString().split('T')[0];
-
-    const q = query(
-      col,
-      where('employeeId', '==', employeeId),
-      where('payDate', '>=', startDateISO)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Bonus));
+    return await this.getBonusesLast12Months(employeeId, baseDate);
   }
 
   async getBonusesForResult(
