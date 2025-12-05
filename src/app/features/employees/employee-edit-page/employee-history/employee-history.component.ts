@@ -82,10 +82,15 @@ export class EmployeeHistoryComponent implements OnInit {
     }
   }
 
-  getInsuranceStatusLabel(status: string): string {
+  getInsuranceStatusLabel(status: string, insuranceType?: 'health' | 'care' | 'pension'): string {
     switch (status) {
       case 'joined': return '加入';
-      case 'lost': return '喪失';
+      case 'lost': 
+        // 介護保険の場合のみ「喪失」→「未加入」に変更
+        if (insuranceType === 'care') {
+          return '未加入';
+        }
+        return '喪失';
       case 'exempt_maternity': return '免除（産休）';
       case 'exempt_childcare': return '免除（育休）';
       case 'type1': return '第1号被保険者';

@@ -51,9 +51,9 @@
   <tbody>
     <tr *ngFor="let history of getFilteredInsuranceHistories()">
       <td>{{ history.year }}年{{ history.month }}月</td>
-      <td>{{ getInsuranceStatusLabel(history.healthInsuranceStatus) }}</td>
-      <td>{{ getInsuranceStatusLabel(history.careInsuranceStatus) }}</td>
-      <td>{{ getInsuranceStatusLabel(history.pensionInsuranceStatus) }}</td>
+      <td>{{ getInsuranceStatusLabel(history.healthInsuranceStatus, 'health') }}</td>
+      <td>{{ getInsuranceStatusLabel(history.careInsuranceStatus, 'care') }}</td>
+      <td>{{ getInsuranceStatusLabel(history.pensionInsuranceStatus, 'pension') }}</td>
       <td>{{ history.ageMilestone ? history.ageMilestone + '歳到達' : '-' }}</td>
     </tr>
   </tbody>
