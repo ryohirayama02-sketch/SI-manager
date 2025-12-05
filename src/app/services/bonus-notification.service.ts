@@ -136,6 +136,39 @@ export class BonusNotificationService {
     // 上記以外 → true（育休・産休免除でも提出必要）
     return true;
   }
+
+  /**
+   * 保存前チェック：過去12か月の賞与件数が4回目になるかどうかを判定
+   * @param employeeId 従業員ID
+   * @param payDate 今回保存しようとしている賞与の支給日
+   * @param excludePayDate 除外する支給日（既存の賞与を更新する場合、その支給日を指定）
+   * @returns 4回目になる場合true、そうでない場合false
+   */
+  async isFourthBonusInLast12Months(
+    employeeId: string,
+    payDate: Date,
+    excludePayDate?: string
+  ): Promise<boolean> {
+    // 過去12ヶ月（支給日ベース）の賞与を取得（今回の支給日を含む）
+    const bonusesLast12Months = await this.bonusService.getBonusesLast12Months(
+      employeeId,
+      payDate
+    );
+    
+    // 既存の賞与のみをカウント（今回保存しようとしている賞与は除外）
+    const payDateStr = payDate.toISOString().split('T')[0];
+    const existingBonusCount = bonusesLast12Months.filter(bonus => {
+      if (!bonus.payDate) return false;
+      // 今回保存しようとしている賞与は除外
+      if (bonus.payDate === payDateStr) return false;
+      // 既存の賞与を更新する場合、その支給日も除外
+      if (excludePayDate && bonus.payDate === excludePayDate) return false;
+      return true;
+    }).length;
+    
+    // 既存の賞与が3回あり、今回が4回目になる場合
+    return existingBonusCount >= 3;
+  }
 }
 
 

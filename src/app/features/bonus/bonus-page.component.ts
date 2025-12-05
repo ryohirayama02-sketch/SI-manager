@@ -8,6 +8,7 @@ import { SettingsService } from '../../services/settings.service';
 import { BonusCalculationService, BonusCalculationResult } from '../../services/bonus-calculation.service';
 import { SalaryCalculationService } from '../../services/salary-calculation.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
+import { BonusNotificationService } from '../../services/bonus-notification.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { BonusCsvImportComponent } from './components/bonus-csv-import/bonus-csv-import.component';
@@ -58,7 +59,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     private settingsService: SettingsService,
     private bonusCalculationService: BonusCalculationService,
     private salaryCalculationService: SalaryCalculationService,
-    private employeeEligibilityService: EmployeeEligibilityService
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private bonusNotificationService: BonusNotificationService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
     for (let y = 2023; y <= 2026; y++) {
@@ -355,6 +357,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       for (const column of this.bonusColumns) {
         if (!column.payDate) {
           alert(`支給日付が設定されていない列があります。すべての列に支給日付を設定してください。`);
+          this.isSaving = false;
           return;
         }
       }
@@ -400,6 +403,21 @@ export class BonusPageComponent implements OnInit, OnDestroy {
             const bPayDate = new Date(b.payDate);
             return bPayDate.getTime() === payDate.getTime();
           });
+          
+          // 保存前チェック：過去12か月の賞与件数が4回目になるかどうか
+          // 新規保存の場合のみチェック（既存の賞与を更新する場合はチェックしない）
+          if (!existingBonus && (amount > 0 || this.isExemptMonth(emp.id, column.payDate))) {
+            const isFourthBonus = await this.bonusNotificationService.isFourthBonusInLast12Months(
+              emp.id,
+              payDate
+            );
+            
+            if (isFourthBonus) {
+              alert(`${emp.name}の賞与が年4回目です。4回目以降は月次給与として入力してください。`);
+              this.isSaving = false;
+              return;
+            }
+          }
           
           // 賞与額が0より大きい場合、または免除月で0として保存する場合
           if (amount > 0 || this.isExemptMonth(emp.id, column.payDate)) {

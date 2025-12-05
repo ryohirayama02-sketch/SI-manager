@@ -57,22 +57,61 @@ export class BonusService {
     employeeId: string,
     payDate: Date
   ): Promise<Bonus[]> {
-    const col = collection(this.firestore, 'bonuses');
     // 支給日から12ヶ月前の日付を計算
     const startDate = new Date(payDate);
     startDate.setMonth(startDate.getMonth() - 12);
     const startDateISO = startDate.toISOString().split('T')[0];
     // 支給日当日まで（今回の支給日を含む）
     const endDateISO = payDate.toISOString().split('T')[0];
-
-    const q = query(
-      col,
-      where('employeeId', '==', employeeId),
-      where('payDate', '>=', startDateISO),
-      where('payDate', '<=', endDateISO)
+    
+    // 過去12ヶ月に含まれる可能性のある年度を取得
+    const startYear = startDate.getFullYear();
+    const endYear = payDate.getFullYear();
+    const yearsToCheck: number[] = [];
+    for (let year = startYear; year <= endYear; year++) {
+      yearsToCheck.push(year);
+    }
+    
+    const allBonuses: Bonus[] = [];
+    
+    // 各年度の賞与データを取得
+    for (const year of yearsToCheck) {
+      try {
+        const path = `bonus/${year}/employees/${employeeId}/items`;
+        const ref = collection(this.firestore, path);
+        
+        // payDateでフィルタリング（過去12ヶ月の期間内）
+        const q = query(
+          ref,
+          where('payDate', '>=', startDateISO),
+          where('payDate', '<=', endDateISO)
+        );
+        
+        const snapshot = await getDocs(q);
+        const bonuses = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
+        );
+        
+        allBonuses.push(...bonuses);
+      } catch (error) {
+        // 年度のコレクションが存在しない場合はスキップ
+        console.log(`[bonus.service] 年度${year}の賞与データが存在しません:`, error);
+      }
+    }
+    
+    // payDateで再度フィルタリング（念のため）
+    const filteredBonuses = allBonuses.filter(bonus => {
+      if (!bonus.payDate) return false;
+      const payDateStr = bonus.payDate;
+      return payDateStr >= startDateISO && payDateStr <= endDateISO;
+    });
+    
+    console.log(
+      `[bonus.service] 過去12ヶ月で取得した賞与データ: ${filteredBonuses.length}件`,
+      filteredBonuses.map(b => ({ payDate: b.payDate, amount: b.amount }))
     );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as Bonus));
+    
+    return filteredBonuses;
   }
 
   async getBonusesByEmployee(
