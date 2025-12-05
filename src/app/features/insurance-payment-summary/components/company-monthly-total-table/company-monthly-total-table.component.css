@@ -46,7 +46,7 @@
 
 .payment-table td {
   padding: 4px 2px;
-  text-align: left;
+  text-align: right;
   white-space: nowrap;
   line-height: 1.2;
 }
@@ -57,6 +57,7 @@
   font-size: 0.9rem;
   min-width: 60px;
   max-width: 80px;
+  text-align: right;
 }
 
 .amount-cell {

@@ -23,27 +23,6 @@
       >
         <td class="month-cell">
           {{ total.month }}月
-          <div *ngIf="monthlyTotals[total.month]?.isRetired" class="stop-info">
-            <small>資格喪失月：保険料なし</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isPensionStopped"
-            class="stop-info"
-          >
-            <small>厚生年金：70歳到達のため免除</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isHealthStopped"
-            class="stop-info"
-          >
-            <small>健保・介保：75歳到達のため免除</small>
-          </div>
-          <div
-            *ngIf="monthlyTotals[total.month]?.isMaternityLeave"
-            class="stop-info"
-          >
-            <small>産休：本人負担免除</small>
-          </div>
         </td>
         <td class="amount-cell">
           {{ total.healthTotal | number : "1.0-0" }}

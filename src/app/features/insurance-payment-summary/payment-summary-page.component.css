@@ -21,7 +21,7 @@
 
 .payment-table th {
   padding: 8px;
-  text-align: left;
+  text-align: center;
   font-weight: bold;
   font-size: 1rem;
   width: 20%;
@@ -41,7 +41,7 @@
 
 .payment-table td {
   padding: 8px;
-  text-align: left;
+  text-align: right;
   width: 20%;
 }
 
@@ -49,6 +49,7 @@
   font-weight: 500;
   color: #333;
   width: 20%;
+  text-align: right;
 }
 
 .amount-cell {
