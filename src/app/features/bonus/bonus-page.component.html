@@ -1,6 +1,6 @@
 <h2>賞与入力</h2>
 
-<div class="card" style="max-width: 400px; margin-bottom: 1rem;">
+<div class="card" style="max-width: 600px; margin-bottom: 1rem;">
   <div class="form-group">
     <label>年度：</label>
     <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
@@ -77,6 +77,11 @@
   </p>
 </div>
 
-<button (click)="saveAllBonuses()" class="btn-success" style="margin-top: 1rem;">
-  保存する
+<button 
+  (click)="saveAllBonuses()" 
+  class="btn-success" 
+  [ngClass]="{'btn-saving': isSaving}"
+  [disabled]="isSaving"
+  style="margin-top: 1rem;">
+  {{ isSaving ? '保存中...' : '保存する' }}
 </button>

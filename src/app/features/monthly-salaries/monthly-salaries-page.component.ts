@@ -392,28 +392,47 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async saveAllSalaries(): Promise<void> {
-    // サービスに保存処理を委譲
-    const { suijiAlerts } = await this.monthlySalaryUIService.saveAllSalaries(
-      this.employees,
-      this.months,
-      this.year,
-      this.salaryItemData,
-      this.workingDaysData,
-      this.salaries,
-      this.exemptMonths,
-      this.salaryItems,
-      this.gradeTable
-    );
+    // 保存中フラグを設定
+    this.isSaving = true;
+    this.saveMessage = '保存中...';
 
-    this.suijiAlerts = suijiAlerts;
-    alert('給与データを保存しました');
+    try {
+      // サービスに保存処理を委譲
+      const { suijiAlerts } = await this.monthlySalaryUIService.saveAllSalaries(
+        this.employees,
+        this.months,
+        this.year,
+        this.salaryItemData,
+        this.workingDaysData,
+        this.salaries,
+        this.exemptMonths,
+        this.salaryItems,
+        this.gradeTable
+      );
 
-    // 保存後に画面の状態を再読み込み（データベースから最新データを取得）
-    await this.reloadData();
+      this.suijiAlerts = suijiAlerts;
+      this.saveMessage = '保存しました';
 
-    // 随時改定候補が存在する場合、ダイアログを表示
-    if (this.suijiAlerts.length > 0) {
-      this.showSuijiDialog = true;
+      // 保存後に画面の状態を再読み込み（データベースから最新データを取得）
+      await this.reloadData();
+
+      // 保存完了メッセージを表示
+      alert('給与データを保存しました');
+
+      // 随時改定候補が存在する場合、ダイアログを表示
+      if (this.suijiAlerts.length > 0) {
+        this.showSuijiDialog = true;
+      }
+    } catch (error) {
+      this.saveMessage = '保存に失敗しました';
+      alert('保存に失敗しました。もう一度お試しください。');
+      console.error('保存エラー:', error);
+    } finally {
+      // 保存処理完了後、少し遅延させてメッセージをクリア
+      setTimeout(() => {
+        this.isSaving = false;
+        this.saveMessage = '';
+      }, 2000);
     }
   }
 
@@ -494,4 +513,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   get csvImportResult(): { type: 'success' | 'error'; message: string } | null {
     return this.csvImportUiService.csvImportResult;
   }
+
+  // 保存中フラグ
+  isSaving: boolean = false;
+  saveMessage: string = '';
 }

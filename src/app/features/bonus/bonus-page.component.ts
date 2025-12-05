@@ -49,6 +49,9 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   // 免除理由情報（従業員ID_月をキーとする）
   exemptReasons: { [key: string]: string } = {};
 
+  // 保存中フラグ
+  isSaving: boolean = false;
+
   constructor(
     private employeeService: EmployeeService,
     private bonusService: BonusService,
@@ -344,129 +347,143 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与データを保存
    */
   async saveAllBonuses(): Promise<void> {
-    // 支給日付が設定されていない列があるかチェック
-    for (const column of this.bonusColumns) {
-      if (!column.payDate) {
-        alert(`支給日付が設定されていない列があります。すべての列に支給日付を設定してください。`);
-        return;
-      }
-    }
-    
-    // 現在の列の支給日付のセットを作成
-    const currentPayDates = new Set(this.bonusColumns.map(col => col.payDate).filter(d => d));
-    
-    // 各従業員について処理
-    for (const emp of this.employees) {
-      // 既存の賞与データを取得
-      const existingBonuses = await this.bonusService.getBonusesByYear(emp.id, this.year);
-      
-      // 現在の列に存在しない支給日付のデータを削除
-      for (const existingBonus of existingBonuses) {
-        if (!existingBonus.payDate) continue;
-        if (!currentPayDates.has(existingBonus.payDate)) {
-          // 現在の列に存在しない支給日付のデータを削除
-          if (existingBonus.id) {
-            await this.bonusService.deleteBonus(this.year, emp.id, existingBonus.id);
-          }
-        }
-      }
-      
-      // 現在の列のデータを保存
+    // 保存中フラグを設定
+    this.isSaving = true;
+
+    try {
+      // 支給日付が設定されていない列があるかチェック
       for (const column of this.bonusColumns) {
-        if (!column.payDate) continue;
-        
-        const payDate = new Date(column.payDate);
-        const year = payDate.getFullYear();
-        const month = payDate.getMonth() + 1;
-        
-        const key = this.getBonusKey(column.id, emp.id);
-        let amount = this.bonusData[key] || 0;
-        
-        // 免除月の場合は0として明示的に保存
-        if (this.isExemptMonth(emp.id, column.payDate)) {
-          amount = 0;
+        if (!column.payDate) {
+          alert(`支給日付が設定されていない列があります。すべての列に支給日付を設定してください。`);
+          return;
         }
+      }
+      
+      // 現在の列の支給日付のセットを作成
+      const currentPayDates = new Set(this.bonusColumns.map(col => col.payDate).filter(d => d));
+      
+      // 各従業員について処理
+      for (const emp of this.employees) {
+        // 既存の賞与データを取得
+        const existingBonuses = await this.bonusService.getBonusesByYear(emp.id, this.year);
         
-        // 既存の賞与データを取得（createdAtを保持するため）
-        const existingBonus = existingBonuses.find(b => {
-          if (!b.payDate) return false;
-          const bPayDate = new Date(b.payDate);
-          return bPayDate.getTime() === payDate.getTime();
-        });
-        
-        // 賞与額が0より大きい場合、または免除月で0として保存する場合
-        if (amount > 0 || this.isExemptMonth(emp.id, column.payDate)) {
-          const employee = this.employees.find(e => e.id === emp.id);
-          if (!employee) continue;
-          
-          // 賞与を計算
-          const calculationResult = await this.bonusCalculationService.calculateBonus(
-            employee,
-            emp.id,
-            amount,
-            column.payDate,
-            year
-          );
-          
-          if (!calculationResult) {
-            console.error(`賞与計算に失敗: 従業員ID=${emp.id}, 支給日=${column.payDate}, 賞与額=${amount}`);
-            continue;
-          }
-          
-          // createdAtの処理
-          let createdAtValue: any = undefined;
-          if (existingBonus?.createdAt) {
-            try {
-              if (existingBonus.createdAt && typeof existingBonus.createdAt === 'object' && 'toDate' in existingBonus.createdAt && typeof (existingBonus.createdAt as any).toDate === 'function') {
-                createdAtValue = (existingBonus.createdAt as any).toDate();
-              } else if (existingBonus.createdAt instanceof Date) {
-                createdAtValue = existingBonus.createdAt;
-              }
-            } catch (error) {
-              console.warn(`[bonus-page] createdAtの変換エラー:`, error);
+        // 現在の列に存在しない支給日付のデータを削除
+        for (const existingBonus of existingBonuses) {
+          if (!existingBonus.payDate) continue;
+          if (!currentPayDates.has(existingBonus.payDate)) {
+            // 現在の列に存在しない支給日付のデータを削除
+            if (existingBonus.id) {
+              await this.bonusService.deleteBonus(this.year, emp.id, existingBonus.id);
             }
           }
+        }
+        
+        // 現在の列のデータを保存
+        for (const column of this.bonusColumns) {
+          if (!column.payDate) continue;
           
-          const bonus: Bonus = {
-            employeeId: emp.id,
-            year: year,
-            month: month,
-            amount: amount,
-            payDate: column.payDate,
-            createdAt: createdAtValue,
-            isExempt: calculationResult.isExempted || false,
-            cappedHealth: calculationResult.cappedBonusHealth || 0,
-            cappedPension: calculationResult.cappedBonusPension || 0,
-            healthEmployee: calculationResult.healthEmployee,
-            healthEmployer: calculationResult.healthEmployer,
-            careEmployee: calculationResult.careEmployee,
-            careEmployer: calculationResult.careEmployer,
-            pensionEmployee: calculationResult.pensionEmployee,
-            pensionEmployer: calculationResult.pensionEmployer,
-            standardBonusAmount: calculationResult.standardBonus,
-            cappedBonusHealth: calculationResult.cappedBonusHealth,
-            cappedBonusPension: calculationResult.cappedBonusPension,
-            isExempted: calculationResult.isExempted,
-            isRetiredNoLastDay: calculationResult.isRetiredNoLastDay,
-            isOverAge70: calculationResult.isOverAge70,
-            isOverAge75: calculationResult.isOverAge75,
-            requireReport: calculationResult.requireReport,
-            reportDeadline: calculationResult.reportDeadline || undefined,
-            isSalaryInsteadOfBonus: calculationResult.isSalaryInsteadOfBonus,
-            exemptReason: calculationResult.exemptReason || undefined
-          };
+          const payDate = new Date(column.payDate);
+          const year = payDate.getFullYear();
+          const month = payDate.getMonth() + 1;
           
-          await this.bonusService.saveBonus(year, bonus);
-        } else {
-          // 賞与額が0で、免除月でない場合は、既存データがあれば削除
-          if (existingBonus && existingBonus.id) {
-            await this.bonusService.deleteBonus(year, emp.id, existingBonus.id);
+          const key = this.getBonusKey(column.id, emp.id);
+          let amount = this.bonusData[key] || 0;
+          
+          // 免除月の場合は0として明示的に保存
+          if (this.isExemptMonth(emp.id, column.payDate)) {
+            amount = 0;
+          }
+          
+          // 既存の賞与データを取得（createdAtを保持するため）
+          const existingBonus = existingBonuses.find(b => {
+            if (!b.payDate) return false;
+            const bPayDate = new Date(b.payDate);
+            return bPayDate.getTime() === payDate.getTime();
+          });
+          
+          // 賞与額が0より大きい場合、または免除月で0として保存する場合
+          if (amount > 0 || this.isExemptMonth(emp.id, column.payDate)) {
+            const employee = this.employees.find(e => e.id === emp.id);
+            if (!employee) continue;
+            
+            // 賞与を計算
+            const calculationResult = await this.bonusCalculationService.calculateBonus(
+              employee,
+              emp.id,
+              amount,
+              column.payDate,
+              year
+            );
+            
+            if (!calculationResult) {
+              console.error(`賞与計算に失敗: 従業員ID=${emp.id}, 支給日=${column.payDate}, 賞与額=${amount}`);
+              continue;
+            }
+            
+            // createdAtの処理
+            let createdAtValue: any = undefined;
+            if (existingBonus?.createdAt) {
+              try {
+                if (existingBonus.createdAt && typeof existingBonus.createdAt === 'object' && 'toDate' in existingBonus.createdAt && typeof (existingBonus.createdAt as any).toDate === 'function') {
+                  createdAtValue = (existingBonus.createdAt as any).toDate();
+                } else if (existingBonus.createdAt instanceof Date) {
+                  createdAtValue = existingBonus.createdAt;
+                }
+              } catch (error) {
+                console.warn(`[bonus-page] createdAtの変換エラー:`, error);
+              }
+            }
+            
+            const bonus: Bonus = {
+              employeeId: emp.id,
+              year: year,
+              month: month,
+              amount: amount,
+              payDate: column.payDate,
+              createdAt: createdAtValue,
+              isExempt: calculationResult.isExempted || false,
+              cappedHealth: calculationResult.cappedBonusHealth || 0,
+              cappedPension: calculationResult.cappedBonusPension || 0,
+              healthEmployee: calculationResult.healthEmployee,
+              healthEmployer: calculationResult.healthEmployer,
+              careEmployee: calculationResult.careEmployee,
+              careEmployer: calculationResult.careEmployer,
+              pensionEmployee: calculationResult.pensionEmployee,
+              pensionEmployer: calculationResult.pensionEmployer,
+              standardBonusAmount: calculationResult.standardBonus,
+              cappedBonusHealth: calculationResult.cappedBonusHealth,
+              cappedBonusPension: calculationResult.cappedBonusPension,
+              isExempted: calculationResult.isExempted,
+              isRetiredNoLastDay: calculationResult.isRetiredNoLastDay,
+              isOverAge70: calculationResult.isOverAge70,
+              isOverAge75: calculationResult.isOverAge75,
+              requireReport: calculationResult.requireReport,
+              reportDeadline: calculationResult.reportDeadline || undefined,
+              isSalaryInsteadOfBonus: calculationResult.isSalaryInsteadOfBonus,
+              exemptReason: calculationResult.exemptReason || undefined
+            };
+            
+            await this.bonusService.saveBonus(year, bonus);
+          } else {
+            // 賞与額が0で、免除月でない場合は、既存データがあれば削除
+            if (existingBonus && existingBonus.id) {
+              await this.bonusService.deleteBonus(year, emp.id, existingBonus.id);
+            }
           }
         }
       }
+      
+      // 保存完了メッセージを表示
+      alert('賞与データを保存しました');
+    } catch (error) {
+      alert('保存に失敗しました。もう一度お試しください。');
+      console.error('保存エラー:', error);
+    } finally {
+      // 保存処理完了後、少し遅延させてフラグをクリア
+      setTimeout(() => {
+        this.isSaving = false;
+      }, 500);
     }
-    
-    alert('賞与データを保存しました');
   }
 
   // CSVインポート処理
