@@ -624,28 +624,45 @@ export class SettingsPageComponent implements OnInit {
     await this.loadAllRates();
   }
 
+  /**
+   * 小数点以下5位に丸める（6位以下を切り捨て）
+   */
+  private roundTo5Decimals(value: number): number {
+    return Math.floor(value * 100000) / 100000;
+  }
+
   onHealthEmployeeInput(prefecture: string, event: Event): void {
-    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
+    const input = event.target as HTMLInputElement;
+    const value = parseFloat(input.value) || 0;
     if (!this.prefectureRates[prefecture]) {
       this.prefectureRates[prefecture] = {
         health_employee: 0,
         health_employer: 0,
       };
     }
+    // 小数点以下5位に丸める
+    const roundedValue = this.roundTo5Decimals(value);
     // パーセント形式で保持
-    this.prefectureRates[prefecture].health_employee = value;
+    this.prefectureRates[prefecture].health_employee = roundedValue;
+    // 入力欄の表示も更新
+    input.value = roundedValue.toString();
   }
 
   onHealthEmployerInput(prefecture: string, event: Event): void {
-    const value = parseFloat((event.target as HTMLInputElement).value) || 0;
+    const input = event.target as HTMLInputElement;
+    const value = parseFloat(input.value) || 0;
     if (!this.prefectureRates[prefecture]) {
       this.prefectureRates[prefecture] = {
         health_employee: 0,
         health_employer: 0,
       };
     }
+    // 小数点以下5位に丸める
+    const roundedValue = this.roundTo5Decimals(value);
     // パーセント形式で保持
-    this.prefectureRates[prefecture].health_employer = value;
+    this.prefectureRates[prefecture].health_employer = roundedValue;
+    // 入力欄の表示も更新
+    input.value = roundedValue.toString();
   }
 
   async savePrefectureRate(prefecture: string): Promise<void> {
@@ -653,18 +670,34 @@ export class SettingsPageComponent implements OnInit {
       health_employee: 0,
       health_employer: 0,
     };
+    // 小数点以下5位に丸める
+    const roundedHealthEmployee = this.roundTo5Decimals(
+      rate.health_employee || 0
+    );
+    const roundedHealthEmployer = this.roundTo5Decimals(
+      rate.health_employer || 0
+    );
+    const roundedCareEmployee = this.roundTo5Decimals(
+      this.careRates.care_employee || 0
+    );
+    const roundedCareEmployer = this.roundTo5Decimals(
+      this.careRates.care_employer || 0
+    );
+    const roundedPensionEmployee = this.roundTo5Decimals(
+      this.pensionRates.pension_employee || 0
+    );
+    const roundedPensionEmployer = this.roundTo5Decimals(
+      this.pensionRates.pension_employer || 0
+    );
+
     // パーセント→小数変換して保存
     await this.settingsService.saveRates(this.year, prefecture, {
-      health_employee: this.percentToDecimal(rate.health_employee || 0),
-      health_employer: this.percentToDecimal(rate.health_employer || 0),
-      care_employee: this.percentToDecimal(this.careRates.care_employee || 0),
-      care_employer: this.percentToDecimal(this.careRates.care_employer || 0),
-      pension_employee: this.percentToDecimal(
-        this.pensionRates.pension_employee || 0
-      ),
-      pension_employer: this.percentToDecimal(
-        this.pensionRates.pension_employer || 0
-      ),
+      health_employee: this.percentToDecimal(roundedHealthEmployee),
+      health_employer: this.percentToDecimal(roundedHealthEmployer),
+      care_employee: this.percentToDecimal(roundedCareEmployee),
+      care_employer: this.percentToDecimal(roundedCareEmployer),
+      pension_employee: this.percentToDecimal(roundedPensionEmployee),
+      pension_employer: this.percentToDecimal(roundedPensionEmployer),
       effectiveFrom: `${this.year}-04`,
     } as Rate);
   }
