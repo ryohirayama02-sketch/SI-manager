@@ -90,14 +90,14 @@ table.card {
   transition: background-color 0.2s;
 }
 
-/* 作成・追加・編集ボタン：緑色 */
+/* 保存系ボタン：青色 */
 .btn-primary {
-  background: #28a745;
+  background: #007bff;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #218838;
+  background: #0056b3;
 }
 
 .btn-primary:disabled {
@@ -114,14 +114,14 @@ table.card {
   background: #5a6268;
 }
 
-/* 保存系ボタン：青色 */
+/* 作成・追加・編集ボタン：緑色 */
 .btn-success {
-  background: #007bff;
+  background: #28a745;
   color: white;
 }
 
 .btn-success:hover:not(:disabled) {
-  background: #0056b3;
+  background: #218838;
 }
 
 .btn-success:disabled {

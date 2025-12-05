@@ -279,12 +279,6 @@
         </div>
       </div>
 
-      <div class="button-group" style="margin-bottom: 1rem">
-        <button (click)="saveAllRates()" class="btn-primary">
-          すべての料率を保存する
-        </button>
-      </div>
-
       <!-- CSVインポート機能 -->
       <div class="card" style="margin-top: 1rem; padding: 1rem">
         <h4>CSVインポート</h4>
@@ -335,7 +329,7 @@
           >
           </textarea>
           <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
-            <button (click)="importFromText()" class="btn-primary">
+            <button (click)="importFromText()" class="btn-success">
               インポート
             </button>
             <button
@@ -361,6 +355,12 @@
           >
           {{ importResult.message }}
         </div>
+      </div>
+
+      <div class="button-group" style="margin-top: 1rem; margin-bottom: 1rem">
+        <button (click)="saveAllRates()" class="btn-primary">
+          すべての料率を保存する
+        </button>
       </div>
     </div>
   </div>
@@ -445,34 +445,6 @@
         </div>
       </form>
 
-      <!-- エラー・警告メッセージ -->
-      <div *ngIf="errorMessages?.length" class="error-box">
-        <h4>エラー</h4>
-        <ul>
-          <li *ngFor="let err of errorMessages">{{ err }}</li>
-        </ul>
-      </div>
-
-      <div *ngIf="warningMessages?.length" class="warning-box">
-        <h4>警告</h4>
-        <ul>
-          <li *ngFor="let w of warningMessages">{{ w }}</li>
-        </ul>
-      </div>
-
-      <div style="margin-top: 1rem; display: flex; gap: 1rem">
-        <button (click)="saveStandardTable()" class="btn-success">
-          標準報酬月額テーブルを保存する
-        </button>
-        <button
-          (click)="clearStandardTable()"
-          class="btn-secondary"
-          style="background-color: #dc3545; color: white"
-        >
-          テーブルをクリア
-        </button>
-      </div>
-
       <!-- CSVインポート機能 -->
       <div class="card" style="margin-top: 1rem; padding: 1rem">
         <h4>CSVインポート</h4>
@@ -531,7 +503,7 @@
           >
           </textarea>
           <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
-            <button (click)="importStandardTableFromText()" class="btn-primary">
+            <button (click)="importStandardTableFromText()" class="btn-success">
               インポート
             </button>
             <button
@@ -562,6 +534,30 @@
           >
           {{ standardTableImportResult.message }}
         </div>
+      </div>
+
+      <!-- エラー・警告メッセージ -->
+      <div *ngIf="errorMessages?.length" class="error-box">
+        <h4>エラー</h4>
+        <ul>
+          <li *ngFor="let err of errorMessages">{{ err }}</li>
+        </ul>
+      </div>
+
+      <div *ngIf="warningMessages?.length" class="warning-box">
+        <h4>警告</h4>
+        <ul>
+          <li *ngFor="let w of warningMessages">{{ w }}</li>
+        </ul>
+      </div>
+
+      <div style="margin-top: 1rem; display: flex; gap: 1rem">
+        <button (click)="saveStandardTable()" class="btn-primary">
+          標準報酬月額テーブルを保存する
+        </button>
+        <button (click)="clearStandardTable()" class="btn-danger">
+          テーブルをクリア
+        </button>
       </div>
     </div>
   </div>
@@ -671,7 +667,7 @@
                   <button
                     type="button"
                     (click)="removeSalaryItem(i)"
-                    class="btn-secondary"
+                    class="btn-danger"
                   >
                     削除
                   </button>
@@ -684,7 +680,7 @@
       <button
         type="button"
         (click)="addSalaryItem()"
-        class="btn-primary"
+        class="btn-success"
         style="margin-top: 1rem"
       >
         項目を追加
@@ -692,7 +688,7 @@
       <button
         type="button"
         (click)="saveSalaryItems()"
-        class="btn-success"
+        class="btn-primary"
         style="margin-top: 1rem; margin-left: 0.5rem"
       >
         給与項目マスタを保存する
@@ -851,8 +847,7 @@
                 *ngIf="selectedOffice"
                 type="button"
                 (click)="deleteOffice(selectedOffice.id!)"
-                class="btn-secondary"
-                style="background-color: #dc3545; color: white"
+                class="btn-danger"
               >
                 削除
               </button>
