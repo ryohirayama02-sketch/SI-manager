@@ -233,9 +233,16 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         notes.push('40歳到達により介護保険第2号被保険者');
       }
       
-      // 産休・育休中
-      if (emp.maternityLeaveStart || emp.maternityLeaveEnd || emp.childcareLeaveStart || emp.childcareLeaveEnd) {
-        notes.push('産休・育休中');
+      // 産休・育休中（現時点で期間中かどうかを判定）
+      const now = new Date();
+      const nowYear = now.getFullYear();
+      const nowMonth = now.getMonth() + 1;
+      const currentLeaveStatus = this.getLeaveStatusForMonth(emp, nowYear, nowMonth);
+      
+      if (currentLeaveStatus.status === 'maternity') {
+        notes.push('産休中');
+      } else if (currentLeaveStatus.status === 'childcare') {
+        notes.push('育休中');
       }
       
       // 退職済み
