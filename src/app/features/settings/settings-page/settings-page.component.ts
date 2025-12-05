@@ -592,6 +592,21 @@ export class SettingsPageComponent implements OnInit {
         pension_employee: this.decimalToPercent(careData.pension_employee || 0),
         pension_employer: this.decimalToPercent(careData.pension_employer || 0),
       };
+    } else {
+      // データが存在しない場合は、既存の値を保持（初期化しない）
+      // これにより、ユーザーが入力した値が消えない
+      if (!this.careRates || Object.keys(this.careRates).length === 0) {
+        this.careRates = {
+          care_employee: 0,
+          care_employer: 0,
+        };
+      }
+      if (!this.pensionRates || Object.keys(this.pensionRates).length === 0) {
+        this.pensionRates = {
+          pension_employee: 0,
+          pension_employer: 0,
+        };
+      }
     }
   }
 
