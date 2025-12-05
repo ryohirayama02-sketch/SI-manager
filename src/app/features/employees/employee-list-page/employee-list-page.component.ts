@@ -585,6 +585,13 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   goCreate(): void {
     this.router.navigate(['/employees/new']);
   }
+
+  /**
+   * 従業員の年齢を取得
+   */
+  getAge(employee: Employee): number {
+    return this.salaryCalculationService.calculateAge(employee.birthDate);
+  }
 }
 
 

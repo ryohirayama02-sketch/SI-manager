@@ -50,6 +50,7 @@
     <thead>
       <tr>
         <th>名前</th>
+        <th>年齢</th>
         <th>加入判定</th>
         <th>健康保険<br>加入状況</th>
         <th>介護保険<br>加入状況</th>
@@ -71,6 +72,7 @@
           <span *ngIf="isCandidate(info)" style="color: #ff6b00; font-weight: bold;">⚠️ </span>
           {{ info.employee.name }}
         </td>
+        <td>{{ getAge(info.employee) }}歳</td>
         <td [title]="eligibilityDescriptions[getEligibilityCategory(info)]">
           <span [ngClass]="{ 'candidate-badge': isCandidate(info) }">
             {{ getEligibilityStatusLabel(info) }}
