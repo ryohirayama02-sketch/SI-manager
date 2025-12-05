@@ -1,3 +1,9 @@
+/* カードの幅を従業員一覧画面と同じにする */
+:host ::ng-deep .card {
+  max-width: 1400px;
+  overflow-x: auto;
+}
+
 /* タブスタイル */
 .tabs {
   display: flex;
@@ -72,4 +78,3 @@
   margin-top: 0;
   margin-bottom: 0.5rem;
 }
-
