@@ -675,11 +675,11 @@ export class PremiumCalculationService {
         standardMonthlyRemuneration,
       }
     );
-    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const healthTotal = healthBase * (r.health_employee + r.health_employer);
     const healthHalf = healthTotal / 2;
-    const health_employee = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
-    const health_employer = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    const health_employee = this.roundWith50SenRule(healthHalf);
+    const health_employer = this.roundWith50SenRule(healthHalf);
 
     // 介護保険（Service統一ロジックを使用）
     // careTypeは既に1330行目で宣言済み
@@ -707,14 +707,15 @@ export class PremiumCalculationService {
         careBase = standardMonthlyRemuneration;
       }
     }
-    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const careTotal = careBase * (r.care_employee + r.care_employer);
     const careHalf = careTotal / 2;
-    const care_employee = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
-    const care_employer = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
+    const care_employee = this.roundWith50SenRule(careHalf);
+    const care_employer = this.roundWith50SenRule(careHalf);
 
     // 厚生年金（70歳以上は0円、資格取得月の翌月から発生）
     // 資格取得月の場合は0円、資格取得月の翌月以降は標準報酬月額を使用
+    // 厚生年金では標準報酬月額の下限・上限を補正する
     let pensionBase = 0;
     // yearを数値に変換（文字列の場合があるため）
     const yearNumForPension =
@@ -733,7 +734,12 @@ export class PremiumCalculationService {
         joinYear < yearNumForPension ||
         (joinYear === yearNumForPension && joinMonth < month)
       ) {
-        pensionBase = ageFlags.isNoPension ? 0 : standardMonthlyRemuneration;
+        if (ageFlags.isNoPension) {
+          pensionBase = 0;
+        } else {
+          // 厚生年金用の標準報酬月額を補正
+          pensionBase = this.adjustPensionStandardMonthlyRemuneration(standardMonthlyRemuneration);
+        }
       }
       // 資格取得月より前の場合は0円
       else {
@@ -741,13 +747,18 @@ export class PremiumCalculationService {
       }
     } else {
       // 入社日が未設定の場合は通常通り計算
-      pensionBase = ageFlags.isNoPension ? 0 : standardMonthlyRemuneration;
+      if (ageFlags.isNoPension) {
+        pensionBase = 0;
+      } else {
+        // 厚生年金用の標準報酬月額を補正
+        pensionBase = this.adjustPensionStandardMonthlyRemuneration(standardMonthlyRemuneration);
+      }
     }
-    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
+    // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
     const pensionTotal =
       pensionBase * (r.pension_employee + r.pension_employer);
     const pensionHalf = pensionTotal / 2;
-    const pension_employee = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
+    const pension_employee = this.roundWith50SenRule(pensionHalf); // 個人分：50銭ルールで丸める
     const pension_employer = pensionTotal - pension_employee; // 会社分 = 総額 - 個人分
 
     const result = {
@@ -827,22 +838,24 @@ export class PremiumCalculationService {
     const pension_employee = r.pension_employee;
     const pension_employer = r.pension_employer;
 
-    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const healthTotal = standard * (health_employee + health_employer);
     const healthHalf = healthTotal / 2;
-    const health_employee_result = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
-    const health_employer_result = Math.floor(healthHalf / 10) * 10; // 10円未満切り捨て
+    const health_employee_result = this.roundWith50SenRule(healthHalf);
+    const health_employer_result = this.roundWith50SenRule(healthHalf);
 
-    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const careTotal = standard * (care_employee + care_employer);
     const careHalf = careTotal / 2;
-    const care_employee_result = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
-    const care_employer_result = Math.floor(careHalf / 10) * 10; // 10円未満切り捨て
+    const care_employee_result = this.roundWith50SenRule(careHalf);
+    const care_employer_result = this.roundWith50SenRule(careHalf);
 
-    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
-    const pensionTotal = standard * (pension_employee + pension_employer);
+    // 厚生年金：標準報酬月額を補正してから計算
+    const adjustedStandard = this.adjustPensionStandardMonthlyRemuneration(standard);
+    // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
+    const pensionTotal = adjustedStandard * (pension_employee + pension_employer);
     const pensionHalf = pensionTotal / 2;
-    const pension_employee_result = Math.floor(pensionHalf / 10) * 10; // 個人分：10円未満切り捨て
+    const pension_employee_result = this.roundWith50SenRule(pensionHalf); // 個人分：50銭ルールで丸める
     const pension_employer_result = pensionTotal - pension_employee_result; // 会社分 = 総額 - 個人分
 
     return {
@@ -853,5 +866,40 @@ export class PremiumCalculationService {
       pension_employee: pension_employee_result,
       pension_employer: pension_employer_result,
     };
+  }
+
+  /**
+   * 厚生年金用の標準報酬月額を補正
+   * - 93,000円未満の場合 → 88,000円
+   * - 635,000円以上の場合 → 650,000円
+   * - それ以外はそのまま
+   * @param standardMonthlyRemuneration 標準報酬月額（健康保険・介護保険用）
+   * @returns 補正後の標準報酬月額（厚生年金用）
+   */
+  private adjustPensionStandardMonthlyRemuneration(standardMonthlyRemuneration: number): number {
+    if (standardMonthlyRemuneration < 93000) {
+      return 88000;
+    }
+    if (standardMonthlyRemuneration >= 635000) {
+      return 650000;
+    }
+    return standardMonthlyRemuneration;
+  }
+
+  /**
+   * 1円未満を50銭ルールで丸める
+   * - 0.50以下 → 切り捨て
+   * - 0.50より大きい → 切り上げ
+   * @param amount 丸める金額
+   * @returns 丸め後の金額
+   */
+  private roundWith50SenRule(amount: number): number {
+    const floor = Math.floor(amount);
+    const diff = amount - floor;
+
+    if (diff > 0.5 + 1e-9) {
+      return floor + 1;
+    }
+    return floor;
   }
 }
