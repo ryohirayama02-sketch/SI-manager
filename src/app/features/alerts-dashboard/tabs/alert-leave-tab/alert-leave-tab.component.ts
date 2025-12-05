@@ -1,12 +1,20 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { LeaveAlertUiService } from '../../../../services/leave-alert-ui.service';
 import { OfficeService } from '../../../../services/office.service';
 import { EmployeeService } from '../../../../services/employee.service';
 import { FamilyMemberService } from '../../../../services/family-member.service';
+import { AlertsDashboardStateService } from '../../../../services/alerts-dashboard-state.service';
 import { Employee } from '../../../../models/employee.model';
 import { Office } from '../../../../models/office.model';
 import { FamilyMember } from '../../../../models/family-member.model';
+import {
+  getJSTDate,
+  normalizeDate,
+  calculateSubmitDeadline,
+  calculateDaysUntilDeadline,
+  formatDate,
+} from '../../../../utils/alerts-helper';
 
 export interface MaternityChildcareAlert {
   id: string;
@@ -35,8 +43,15 @@ export interface MaternityChildcareAlert {
   templateUrl: './alert-leave-tab.component.html',
   styleUrl: './alert-leave-tab.component.css',
 })
-export class AlertLeaveTabComponent {
-  @Input() maternityChildcareAlerts: MaternityChildcareAlert[] = [];
+export class AlertLeaveTabComponent implements OnInit {
+  @Input() set maternityChildcareAlerts(value: MaternityChildcareAlert[]) {
+    this._maternityChildcareAlerts = value || [];
+  }
+  get maternityChildcareAlerts(): MaternityChildcareAlert[] {
+    return this._maternityChildcareAlerts;
+  }
+  private _maternityChildcareAlerts: MaternityChildcareAlert[] = [];
+
   @Input() selectedMaternityChildcareAlertIds: Set<string> = new Set();
   @Input() employees: Employee[] = [];
   @Output() alertSelectionChange = new EventEmitter<{
@@ -50,14 +65,237 @@ export class AlertLeaveTabComponent {
     private leaveAlertUiService: LeaveAlertUiService,
     private officeService: OfficeService,
     private employeeService: EmployeeService,
-    private familyMemberService: FamilyMemberService
+    private familyMemberService: FamilyMemberService,
+    private state: AlertsDashboardStateService
   ) {}
+
+  async ngOnInit(): Promise<void> {
+    // @Input()でmaternityChildcareAlertsが渡されていない場合、自分でロードする
+    // ただし、state.maternityChildcareAlertsが既に設定されている場合はそれを使用
+    if (
+      this.state.maternityChildcareAlerts &&
+      this.state.maternityChildcareAlerts.length > 0
+    ) {
+      this._maternityChildcareAlerts = this.state.maternityChildcareAlerts;
+    } else if (
+      !this._maternityChildcareAlerts ||
+      this._maternityChildcareAlerts.length === 0
+    ) {
+      this.employees = await this.employeeService.getAllEmployees();
+      await this.loadMaternityChildcareAlerts();
+    }
+  }
 
   /**
    * 日付をフォーマット
    */
   formatDate(date: Date): string {
     return this.leaveAlertUiService.formatDate(date);
+  }
+
+  /**
+   * 産休・育休・休職アラートを読み込む
+   */
+  async loadMaternityChildcareAlerts(): Promise<void> {
+    const alerts: MaternityChildcareAlert[] = [];
+    const today = normalizeDate(getJSTDate());
+
+    try {
+      for (const emp of this.employees) {
+        // 傷病手当金支給申請書の記入依頼アラート
+        if (
+          emp.sickPayApplicationRequest &&
+          emp.sickPayApplicationRequestDate
+        ) {
+          const requestDate = normalizeDate(
+            new Date(emp.sickPayApplicationRequestDate)
+          );
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+
+          alerts.push({
+            id: `sick_pay_application_${emp.id}_${emp.sickPayApplicationRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '傷病手当金支給申請書の記入依頼',
+            notificationName: '傷病手当金支給申請書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '',
+          });
+        }
+
+        // 育児休業関係の事業主証明書の記入依頼アラート
+        if (
+          emp.childcareEmployerCertificateRequest &&
+          emp.childcareEmployerCertificateRequestDate
+        ) {
+          const requestDate = normalizeDate(
+            new Date(emp.childcareEmployerCertificateRequestDate)
+          );
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+
+          alerts.push({
+            id: `childcare_employer_certificate_${emp.id}_${emp.childcareEmployerCertificateRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '育児休業関係の事業主証明書の記入依頼',
+            notificationName: '育児休業関係の事業主証明書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '',
+          });
+        }
+
+        // 出産手当金支給申請書の記入依頼アラート
+        if (
+          emp.maternityAllowanceApplicationRequest &&
+          emp.maternityAllowanceApplicationRequestDate
+        ) {
+          const requestDate = normalizeDate(
+            new Date(emp.maternityAllowanceApplicationRequestDate)
+          );
+          const submitDeadline = new Date(requestDate);
+          submitDeadline.setDate(submitDeadline.getDate() + 7); // 1週間後
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+
+          alerts.push({
+            id: `maternity_allowance_application_${emp.id}_${emp.maternityAllowanceApplicationRequestDate}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '出産手当金支給申請書の記入依頼',
+            notificationName: '出産手当金支給申請書の記入依頼',
+            startDate: requestDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: '',
+          });
+        }
+
+        // 産前産後休業取得者申出書
+        if (emp.maternityLeaveStart) {
+          const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
+          const submitDeadline = calculateSubmitDeadline(startDate);
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+          alerts.push({
+            id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '産前産後休業取得者申出書',
+            notificationName: '産前産後休業取得者申出書',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `産休開始日: ${formatDate(startDate)}`,
+          });
+        }
+
+        // 産前産後休業取得者変更（終了）届
+        if (emp.maternityLeaveEnd) {
+          const endDate = normalizeDate(new Date(emp.maternityLeaveEnd));
+          const startDate = new Date(endDate);
+          startDate.setDate(startDate.getDate() + 1);
+          const submitDeadline = calculateSubmitDeadline(startDate);
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+          alerts.push({
+            id: `maternity_end_${emp.id}_${emp.maternityLeaveEnd}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '産前産後休業取得者変更（終了）届',
+            notificationName: '産前産後休業取得者変更（終了）届',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `産休終了日: ${formatDate(endDate)}`,
+          });
+        }
+
+        // 育児休業等取得者申出書
+        if (emp.childcareLeaveStart) {
+          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+          const submitDeadline = calculateSubmitDeadline(startDate);
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+          alerts.push({
+            id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '育児休業等取得者申出書',
+            notificationName: '育児休業等取得者申出書',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `育休開始日: ${formatDate(startDate)}`,
+          });
+        }
+
+        // 育児休業等取得者終了届
+        if (emp.childcareLeaveEnd) {
+          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
+          const startDate = new Date(endDate);
+          startDate.setDate(startDate.getDate() + 1);
+          const submitDeadline = calculateSubmitDeadline(startDate);
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+          alerts.push({
+            id: `childcare_end_${emp.id}_${emp.childcareLeaveEnd}`,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            alertType: '育児休業等取得者終了届',
+            notificationName: '育児休業等取得者終了届',
+            startDate: startDate,
+            submitDeadline: submitDeadline,
+            daysUntilDeadline: daysUntilDeadline,
+            details: `育休終了日: ${formatDate(endDate)}`,
+          });
+        }
+      }
+
+      alerts.sort((a, b) => {
+        return b.startDate.getTime() - a.startDate.getTime();
+      });
+
+      // @Input()で渡されていない場合、自分で設定
+      if (
+        !this._maternityChildcareAlerts ||
+        this._maternityChildcareAlerts.length === 0
+      ) {
+        this._maternityChildcareAlerts = alerts;
+      }
+
+      // state.maternityChildcareAlertsも更新（届出スケジュールで使用されるため）
+      this.state.maternityChildcareAlerts = alerts;
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error(
+        '[alert-leave-tab] loadMaternityChildcareAlertsエラー:',
+        error
+      );
+    }
   }
 
   // 産休育休アラートの選択管理
@@ -77,7 +315,32 @@ export class AlertLeaveTabComponent {
 
   // 産休育休アラートの削除
   deleteSelectedMaternityChildcareAlerts(): void {
-    this.deleteSelected.emit();
+    // @Input()でmaternityChildcareAlertsが渡されている場合は親に委譲
+    // そうでない場合は自分で削除処理を行う
+    if (
+      this._maternityChildcareAlerts &&
+      this._maternityChildcareAlerts.length > 0 &&
+      this._maternityChildcareAlerts === this.state.maternityChildcareAlerts
+    ) {
+      // 親経由で削除（state経由）
+      this.deleteSelected.emit();
+    } else {
+      // 自分でロードしたアラートを削除
+      const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
+      if (selectedIds.length === 0) return;
+
+      const confirmMessage = `選択した${selectedIds.length}件の産休・育休・休職アラートを削除しますか？`;
+      if (!confirm(confirmMessage)) return;
+
+      this._maternityChildcareAlerts = this._maternityChildcareAlerts.filter(
+        (alert) => !selectedIds.includes(alert.id)
+      );
+      this.selectedMaternityChildcareAlertIds.clear();
+
+      // stateも更新
+      this.state.maternityChildcareAlerts = this._maternityChildcareAlerts;
+      this.state.updateScheduleData();
+    }
   }
 
   /**

@@ -114,16 +114,16 @@ export class AlertAggregationService {
       scheduleData[dateKey]['年齢到達・資格変更']++;
     }
 
-    // 産休・育休アラート
+    // 産休・育休・休職アラート
     for (const alert of maternityChildcareAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
-      if (!scheduleData[dateKey]['産休・育休']) {
-        scheduleData[dateKey]['産休・育休'] = 0;
+      if (!scheduleData[dateKey]['産休・育休・休職']) {
+        scheduleData[dateKey]['産休・育休・休職'] = 0;
       }
-      scheduleData[dateKey]['産休・育休']++;
+      scheduleData[dateKey]['産休・育休・休職']++;
     }
 
     // 扶養アラート
