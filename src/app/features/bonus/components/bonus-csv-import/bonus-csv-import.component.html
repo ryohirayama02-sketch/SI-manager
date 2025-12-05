@@ -1,8 +1,10 @@
 <div class="card" style="max-width: 600px; margin-bottom: 1rem;">
   <h4>CSVインポート</h4>
   <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-    CSV形式で賞与データを一括インポートできます。<br>
-    形式: 支給日,従業員,賞与額（例: 2025-02-01,若林,500000）
+    CSV形式で賞与データを一括インポートできます。<br><br>
+    例：<br>
+    支給日,従業員,賞与額<br>
+    2025-02-01,若林,500000
   </p>
   <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
     <input type="file" #csvFileInput accept=".csv" (change)="onCsvFileSelected($event)" style="display: none;">

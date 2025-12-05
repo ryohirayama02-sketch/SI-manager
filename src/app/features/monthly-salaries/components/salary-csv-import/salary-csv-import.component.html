@@ -1,14 +1,10 @@
 <div class="card" style="max-width: 600px; margin-bottom: 1rem;">
   <h4>CSVインポート</h4>
   <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">
-    CSV形式で月次給与データを一括インポートできます。<br>
-    形式: 月,従業員,支払基礎日数,<span *ngFor="let item of salaryItems; let i = index">{{ item.name }}<span *ngIf="i < salaryItems.length - 1">,</span></span><br>
-    <span *ngIf="salaryItems.length > 0">
-      例: 1,若林,20,<span *ngFor="let item of salaryItems; let i = index">300000<span *ngIf="i < salaryItems.length - 1">,</span></span>
-    </span>
-    <span *ngIf="salaryItems.length === 0" style="color: #dc3545;">
-      先に給与項目マスタを設定してください。
-    </span>
+    CSV形式で月次給与データを一括インポートできます。<br><br>
+    例：<br>
+    月,従業員,支払基礎日数,基本給,欠勤控除,残業手当,手当<br>
+    1,若林,20,300000,300000,300000,300000
   </p>
   <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
     <input type="file" #csvFileInput accept=".csv" (change)="onCsvFileSelected($event)" style="display: none;">
