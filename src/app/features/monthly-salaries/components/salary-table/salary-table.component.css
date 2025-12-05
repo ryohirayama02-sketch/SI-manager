@@ -1,14 +1,19 @@
 /* 親コンポーネントのCSSを継承するため、必要に応じて追加 */
 
+.salary-table-wrapper {
+  margin-left: 1rem;
+  margin-right: 1rem;
+}
+
 .exempt-month {
-  background-color: #f3f4f6;
-  color: #777;
-  text-align: center;
+  background-color: #fff3cd;
 }
 
 .exempt-label {
+  color: #856404;
   font-weight: bold;
-  color: #444;
+  text-align: center;
+  padding: 0.5rem;
 }
 
 /* テーブルセルの改行防止と列幅調整 */
@@ -16,24 +21,24 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 2px 4px;
+  padding: 2px 3px;
   line-height: 1.2;
-  min-width: 80px;
-  max-width: 100px;
+  min-width: 50px;
+  max-width: 60px;
 }
 
 .salary-table th {
   white-space: nowrap;
-  padding: 4px 6px;
+  padding: 4px 4px;
   line-height: 1.2;
-  min-width: 80px;
-  max-width: 100px;
+  min-width: 50px;
+  max-width: 60px;
 }
 
 .salary-table input[type="text"] {
   width: 100%;
-  padding: 2px 4px;
-  font-size: 0.85rem;
+  padding: 2px 3px;
+  font-size: 0.8rem;
   line-height: 1.2;
   box-sizing: border-box;
   border: 1px solid #ccc;
@@ -46,19 +51,34 @@
 }
 
 .salary-table .sticky-col:first-child {
-  min-width: 120px;
-  max-width: 150px;
+  min-width: 100px;
+  max-width: 120px;
 }
 
 .salary-table .sticky-col:nth-child(2) {
-  min-width: 150px;
-  max-width: 180px;
+  min-width: 120px;
+  max-width: 150px;
 }
 
 .salary-table .sticky-col:nth-child(2) div {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 従業員の切り替わりを示す太い罫線 */
+.salary-table tbody tr {
+  border-top: 1px solid #ccc;
+}
+
+/* 従業員の最初の行（rowspanを持つtdがある行）の上側を太く */
+.salary-table tbody tr:has(td[rowspan]) {
+  border-top: 2px solid #666;
+}
+
+/* has()が使えない場合のフォールバック: 最初の行は常に太く */
+.salary-table tbody tr:first-child {
+  border-top: 2px solid #666;
 }
 
 
