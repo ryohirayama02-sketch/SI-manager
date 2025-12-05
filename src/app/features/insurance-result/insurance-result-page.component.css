@@ -160,19 +160,91 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 1rem;
+  table-layout: fixed;
 }
 
 .premium-table th,
 .premium-table td {
-  padding: 0.5rem;
+  padding: 0.4rem 0.3rem;
   border: 1px solid #ddd;
   text-align: center;
+  font-size: 0.85rem;
+  word-wrap: break-word;
 }
 
 .premium-table th {
   background-color: #f5f5f5;
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+}
+
+/* 月次報酬保険料テーブルの列幅 */
+.monthly-premium-table th:nth-child(1),
+.monthly-premium-table td:nth-child(1) {
+  width: 8%;
+}
+
+.monthly-premium-table th:nth-child(2),
+.monthly-premium-table td:nth-child(2),
+.monthly-premium-table th:nth-child(3),
+.monthly-premium-table td:nth-child(3),
+.monthly-premium-table th:nth-child(4),
+.monthly-premium-table td:nth-child(4) {
+  width: 23%;
+}
+
+.monthly-premium-table th:nth-child(5),
+.monthly-premium-table td:nth-child(5) {
+  width: 23%;
+}
+
+/* 賞与保険料テーブルの列幅 */
+.bonus-premium-table th:nth-child(1),
+.bonus-premium-table td:nth-child(1) {
+  width: 8%;
+}
+
+.bonus-premium-table th:nth-child(2),
+.bonus-premium-table td:nth-child(2) {
+  width: 12%;
+}
+
+.bonus-premium-table th:nth-child(3),
+.bonus-premium-table td:nth-child(3),
+.bonus-premium-table th:nth-child(4),
+.bonus-premium-table td:nth-child(4),
+.bonus-premium-table th:nth-child(5),
+.bonus-premium-table td:nth-child(5) {
+  width: 20%;
+}
+
+.bonus-premium-table th:nth-child(6),
+.bonus-premium-table td:nth-child(6) {
+  width: 20%;
+}
+
+/* 月選択時のテーブルの列幅 */
+.monthly-selection-table th:nth-child(1),
+.monthly-selection-table td:nth-child(1) {
+  width: 12%;
+}
+
+.monthly-selection-table th:nth-child(2),
+.monthly-selection-table td:nth-child(2),
+.monthly-selection-table th:nth-child(3),
+.monthly-selection-table td:nth-child(3),
+.monthly-selection-table th:nth-child(4),
+.monthly-selection-table td:nth-child(4) {
+  width: 22%;
+}
+
+.monthly-selection-table th:nth-child(5),
+.monthly-selection-table td:nth-child(5),
+.monthly-selection-table th:nth-child(6),
+.monthly-selection-table td:nth-child(6),
+.monthly-selection-table th:nth-child(7),
+.monthly-selection-table td:nth-child(7) {
+  width: 22%;
 }
 
 .premium-table tbody tr:hover {
