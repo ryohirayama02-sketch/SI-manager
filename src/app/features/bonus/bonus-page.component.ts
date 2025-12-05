@@ -110,6 +110,15 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     const column = this.bonusColumns.find(col => col.id === columnId);
     if (!column) return;
     
+    // 確認ダイアログを表示
+    const confirmMessage = column.payDate 
+      ? `支給日「${column.payDate}」の賞与入力列を削除しますか？\nこの列のすべての賞与データが削除されます。`
+      : 'この賞与入力列を削除しますか？';
+    
+    if (!confirm(confirmMessage)) {
+      return; // ユーザーがキャンセルした場合は処理を中断
+    }
+    
     // 支給日付が設定されている場合は、Firestoreからも削除
     if (column.payDate) {
       const payDate = new Date(column.payDate);
