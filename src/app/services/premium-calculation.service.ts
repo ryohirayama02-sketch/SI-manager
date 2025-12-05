@@ -738,7 +738,9 @@ export class PremiumCalculationService {
           pensionBase = 0;
         } else {
           // 厚生年金用の標準報酬月額を補正
-          pensionBase = this.adjustPensionStandardMonthlyRemuneration(standardMonthlyRemuneration);
+          pensionBase = this.adjustPensionStandardMonthlyRemuneration(
+            standardMonthlyRemuneration
+          );
         }
       }
       // 資格取得月より前の場合は0円
@@ -751,7 +753,9 @@ export class PremiumCalculationService {
         pensionBase = 0;
       } else {
         // 厚生年金用の標準報酬月額を補正
-        pensionBase = this.adjustPensionStandardMonthlyRemuneration(standardMonthlyRemuneration);
+        pensionBase = this.adjustPensionStandardMonthlyRemuneration(
+          standardMonthlyRemuneration
+        );
       }
     }
     // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
@@ -851,9 +855,11 @@ export class PremiumCalculationService {
     const care_employer_result = this.roundWith50SenRule(careHalf);
 
     // 厚生年金：標準報酬月額を補正してから計算
-    const adjustedStandard = this.adjustPensionStandardMonthlyRemuneration(standard);
+    const adjustedStandard =
+      this.adjustPensionStandardMonthlyRemuneration(standard);
     // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
-    const pensionTotal = adjustedStandard * (pension_employee + pension_employer);
+    const pensionTotal =
+      adjustedStandard * (pension_employee + pension_employer);
     const pensionHalf = pensionTotal / 2;
     const pension_employee_result = this.roundWith50SenRule(pensionHalf); // 個人分：50銭ルールで丸める
     const pension_employer_result = pensionTotal - pension_employee_result; // 会社分 = 総額 - 個人分
@@ -876,7 +882,9 @@ export class PremiumCalculationService {
    * @param standardMonthlyRemuneration 標準報酬月額（健康保険・介護保険用）
    * @returns 補正後の標準報酬月額（厚生年金用）
    */
-  private adjustPensionStandardMonthlyRemuneration(standardMonthlyRemuneration: number): number {
+  private adjustPensionStandardMonthlyRemuneration(
+    standardMonthlyRemuneration: number
+  ): number {
     if (standardMonthlyRemuneration < 93000) {
       return 88000;
     }

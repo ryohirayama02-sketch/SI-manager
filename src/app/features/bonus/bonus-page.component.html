@@ -1,9 +1,14 @@
 <h2>賞与入力</h2>
 
-<div class="card" style="max-width: 600px; margin-bottom: 1rem;">
+<div class="card" style="max-width: 600px; margin-bottom: 1rem">
   <div class="form-group">
     <label>年度：</label>
-    <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+    <select
+      [(ngModel)]="year"
+      (change)="onYearChange()"
+      class="form-control"
+      [ngModelOptions]="{ standalone: true }"
+    >
       <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
     </select>
   </div>
@@ -12,15 +17,20 @@
 <app-bonus-csv-import
   [csvImportResult]="csvImportResult"
   (csvTextImport)="onCsvTextImport($event)"
-  (closeDialog)="onCsvImportClose()">
+  (closeDialog)="onCsvImportClose()"
+>
 </app-bonus-csv-import>
 
 <div class="info-label" *ngIf="bonusColumns.length > 0">
   賞与支給額を入力してください。
 </div>
 
-<div class="card" style="margin-bottom: 1rem;">
-  <button (click)="addBonusColumn()" class="btn-success" style="margin-bottom: 1rem;">
+<div class="card" style="margin-bottom: 1rem">
+  <button
+    (click)="addBonusColumn()"
+    class="btn-success"
+    style="margin-bottom: 1rem"
+  >
     ＋ 賞与入力列を追加
   </button>
 
@@ -33,18 +43,32 @@
             <div class="column-header-content">
               <div class="pay-date-input">
                 <label>支給日：</label>
-                <input 
-                  type="date" 
+                <input
+                  type="date"
                   [value]="column.payDate"
-                  (change)="onPayDateChange(column.id, $any($event.target).value)"
+                  (change)="
+                    onPayDateChange(column.id, $any($event.target).value)
+                  "
                   class="form-control"
-                  style="width: auto; display: inline-block; margin-left: 0.5rem;">
+                  style="
+                    width: auto;
+                    display: inline-block;
+                    margin-left: 0.5rem;
+                  "
+                />
               </div>
-              <button 
-                (click)="removeBonusColumn(column.id)" 
+              <button
+                (click)="removeBonusColumn(column.id)"
                 class="btn-danger btn-small"
-                style="margin-left: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.9rem; width: auto; align-self: flex-start;"
-                [disabled]="!column.payDate">
+                style="
+                  margin-left: 0.5rem;
+                  padding: 0.4rem 0.8rem;
+                  font-size: 0.9rem;
+                  width: auto;
+                  align-self: flex-start;
+                "
+                [disabled]="!column.payDate"
+              >
                 削除
               </button>
             </div>
@@ -54,9 +78,17 @@
       <tbody>
         <tr *ngFor="let emp of employees">
           <td class="sticky-col">{{ emp.name }}</td>
-          <td *ngFor="let column of bonusColumns" [ngClass]="{ 'exempt-month': isExemptMonth(emp.id, column.payDate) }">
+          <td
+            *ngFor="let column of bonusColumns"
+            [ngClass]="{
+              'exempt-month': isExemptMonth(emp.id, column.payDate)
+            }"
+          >
             <!-- 免除月の場合 -->
-            <div *ngIf="isExemptMonth(emp.id, column.payDate)" class="exempt-label">
+            <div
+              *ngIf="isExemptMonth(emp.id, column.payDate)"
+              class="exempt-label"
+            >
               {{ getExemptReason(emp.id, column.payDate) }}
             </div>
             <!-- 通常月の場合 -->
@@ -81,11 +113,12 @@
   </p>
 </div>
 
-<button 
-  (click)="saveAllBonuses()" 
-  class="btn-primary" 
-  [ngClass]="{'btn-saving': isSaving}"
+<button
+  (click)="saveAllBonuses()"
+  class="btn-primary"
+  [ngClass]="{ 'btn-saving': isSaving }"
   [disabled]="isSaving"
-  style="margin-top: 1rem;">
-  {{ isSaving ? '保存中...' : '保存する' }}
+  style="margin-top: 1rem"
+>
+  {{ isSaving ? "保存中..." : "保存する" }}
 </button>

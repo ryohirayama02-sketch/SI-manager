@@ -52,10 +52,11 @@ export class BonusPremiumCalculationCoreService {
 
     // 健保・介保：保険年度（4/1〜翌3/31）累計573万円上限
     // 今回の支給日が属する保険年度内の賞与合計を取得
-    const existingBonuses = await this.bonusService.getBonusesForHealthAnnualLimit(
-      employeeId,
-      payDate
-    );
+    const existingBonuses =
+      await this.bonusService.getBonusesForHealthAnnualLimit(
+        employeeId,
+        payDate
+      );
     const existingTotal = existingBonuses.reduce((sum, bonus) => {
       const bonusAmount = bonus.amount || 0;
       const existingStandard = Math.floor(bonusAmount / 1000) * 1000;

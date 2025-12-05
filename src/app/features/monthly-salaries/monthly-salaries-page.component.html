@@ -1,9 +1,14 @@
 <h2>月次給与</h2>
 
-<div class="card" style="max-width: 600px; margin-bottom: 1rem;">
+<div class="card" style="max-width: 600px; margin-bottom: 1rem">
   <div class="form-group">
     <label>年度：</label>
-    <select [(ngModel)]="year" (change)="onYearChange()" class="form-control" [ngModelOptions]="{standalone: true}">
+    <select
+      [(ngModel)]="year"
+      (change)="onYearChange()"
+      class="form-control"
+      [ngModelOptions]="{ standalone: true }"
+    >
       <option *ngFor="let y of availableYears" [value]="y">{{ y }}年</option>
     </select>
   </div>
@@ -19,7 +24,8 @@
   (salaryItemChange)="onSalaryItemChange($event)"
   (salaryItemBatchChange)="onSalaryItemBatchChange($event)"
   (workingDaysChange)="onWorkingDaysChange($event)"
-  (importResult)="onCsvImportResult($event)">
+  (importResult)="onCsvImportResult($event)"
+>
 </app-salary-csv-import>
 
 <app-error-warning-section
@@ -39,15 +45,17 @@
   [exemptReasons]="exemptReasons"
   [year]="year"
   (salaryItemChange)="onSalaryItemChange($event)"
-  (workingDaysChange)="onWorkingDaysChange($event)">
+  (workingDaysChange)="onWorkingDaysChange($event)"
+>
 </app-salary-table>
 
-<div style="margin-top: 1rem;">
-  <button 
-    (click)="saveAllSalaries()" 
-    class="btn-primary" 
-    [ngClass]="{'btn-saving': isSaving}"
-    [disabled]="isSaving">
-    {{ isSaving ? '保存中...' : '保存する' }}
+<div style="margin-top: 1rem">
+  <button
+    (click)="saveAllSalaries()"
+    class="btn-primary"
+    [ngClass]="{ 'btn-saving': isSaving }"
+    [disabled]="isSaving"
+  >
+    {{ isSaving ? "保存中..." : "保存する" }}
   </button>
 </div>

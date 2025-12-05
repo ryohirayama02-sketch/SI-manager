@@ -4,13 +4,18 @@ import { Employee } from '../models/employee.model';
 import { EmployeeService } from './employee.service';
 import { EmployeeWorkCategoryService } from './employee-work-category.service';
 
-export type AgeCategory = 'normal' | 'care-2nd' | 'care-1st' | 'no-pension' | 'no-health';
+export type AgeCategory =
+  | 'normal'
+  | 'care-2nd'
+  | 'care-1st'
+  | 'no-pension'
+  | 'no-health';
 
 export interface AgeFlags {
-  isCare2: boolean;     // 40〜64歳（介護保険第2号被保険者）
-  isCare1: boolean;     // 65歳以上（介護保険第1号被保険者）
+  isCare2: boolean; // 40〜64歳（介護保険第2号被保険者）
+  isCare1: boolean; // 65歳以上（介護保険第1号被保険者）
   isNoPension: boolean; // 70歳以上（厚生年金停止）
-  isNoHealth: boolean;  // 75歳以上（健康保険・介護保険停止）
+  isNoHealth: boolean; // 75歳以上（健康保険・介護保険停止）
 }
 
 export interface EmployeeEligibilityResult {
@@ -33,7 +38,9 @@ export interface EmployeeWorkInfo {
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeEligibilityService {
-  private eligibilitySubject = new BehaviorSubject<{ [employeeId: string]: EmployeeEligibilityResult }>({});
+  private eligibilitySubject = new BehaviorSubject<{
+    [employeeId: string]: EmployeeEligibilityResult;
+  }>({});
 
   constructor(
     private employeeService: EmployeeService,
@@ -50,8 +57,9 @@ export class EmployeeEligibilityService {
    */
   private async recalculateAllEligibility(): Promise<void> {
     const employees = await this.employeeService.getAllEmployees();
-    const eligibilityMap: { [employeeId: string]: EmployeeEligibilityResult } = {};
-    
+    const eligibilityMap: { [employeeId: string]: EmployeeEligibilityResult } =
+      {};
+
     for (const emp of employees) {
       const workInfo = {
         weeklyHours: emp.weeklyHours,
@@ -62,7 +70,7 @@ export class EmployeeEligibilityService {
       };
       eligibilityMap[emp.id] = this.checkEligibility(emp, workInfo);
     }
-    
+
     this.eligibilitySubject.next(eligibilityMap);
   }
 
@@ -70,7 +78,9 @@ export class EmployeeEligibilityService {
    * 加入区分の変更を監視する
    * @returns Observable<{ [employeeId: string]: EmployeeEligibilityResult }>
    */
-  observeEligibility(): Observable<{ [employeeId: string]: EmployeeEligibilityResult }> {
+  observeEligibility(): Observable<{
+    [employeeId: string]: EmployeeEligibilityResult;
+  }> {
     // 初回読み込み時に計算を実行
     this.recalculateAllEligibility();
     return this.eligibilitySubject.asObservable();
@@ -108,7 +118,7 @@ export class EmployeeEligibilityService {
           candidateFlag: false,
           reasons,
           ageCategory,
-          ageFlags
+          ageFlags,
         };
       }
     }
@@ -121,33 +131,42 @@ export class EmployeeEligibilityService {
     const isCareInsuranceStopped = this.isCareInsuranceStopped(age);
     const isPensionStopped = this.isPensionStopped(age);
     const isHealthAndCareStopped = this.isHealthAndCareStopped(age);
-    
+
     const isPensionEligibleByAge = !isPensionStopped;
     const isHealthInsuranceEligibleByAge = !isHealthAndCareStopped;
 
     // 新しい週の所定労働時間カテゴリに基づく判定
-    const workCategory = this.employeeWorkCategoryService.getWorkCategory(employee);
-    
+    const workCategory =
+      this.employeeWorkCategoryService.getWorkCategory(employee);
+
     // 保険未加入者の場合
     if (workCategory === 'non-insured') {
       reasons.push('週20時間未満のため加入対象外');
-      if (workInfo?.consecutiveMonthsOver20Hours && workInfo.consecutiveMonthsOver20Hours >= 3) {
+      if (
+        workInfo?.consecutiveMonthsOver20Hours &&
+        workInfo.consecutiveMonthsOver20Hours >= 3
+      ) {
         candidateFlag = true;
         reasons.push('過去3ヶ月連続で20時間以上働いているため加入候補者');
       }
     }
     // フルタイムまたは短時間労働者の場合（保険加入必須）
-    else if (workCategory === 'full-time' || workCategory === 'short-time-worker') {
+    else if (
+      workCategory === 'full-time' ||
+      workCategory === 'short-time-worker'
+    ) {
       if (workCategory === 'full-time') {
         reasons.push('週30時間以上のため加入対象');
       } else {
-        reasons.push('短時間労働者（週20-30時間、月額賃金8.8万円以上、雇用見込2ヶ月超、学生でない）のため加入対象');
+        reasons.push(
+          '短時間労働者（週20-30時間、月額賃金8.8万円以上、雇用見込2ヶ月超、学生でない）のため加入対象'
+        );
       }
-      
+
       healthInsuranceEligible = isHealthInsuranceEligibleByAge;
       pensionEligible = isPensionEligibleByAge;
       careInsuranceEligible = isCareInsuranceEligible;
-      
+
       if (!isHealthInsuranceEligibleByAge) {
         reasons.push('75歳以上のため健康保険・介護保険は加入不可');
       }
@@ -172,8 +191,11 @@ export class EmployeeEligibilityService {
       }
       // 2. 特定適用事業所の短時間労働者（週20〜30時間未満）判定
       else if (workInfo.weeklyHours >= 20 && workInfo.weeklyHours < 30) {
-        const shortTimeConditions = this.checkShortTimeWorkerConditions(workInfo, employee);
-        
+        const shortTimeConditions = this.checkShortTimeWorkerConditions(
+          workInfo,
+          employee
+        );
+
         if (shortTimeConditions.allMet) {
           healthInsuranceEligible = isHealthInsuranceEligibleByAge;
           pensionEligible = isPensionEligibleByAge;
@@ -187,14 +209,21 @@ export class EmployeeEligibilityService {
           }
         } else {
           reasons.push(...shortTimeConditions.reasons);
-          reasons.push('特定適用事業所の短時間労働者条件を満たしていないため加入不可');
+          reasons.push(
+            '特定適用事業所の短時間労働者条件を満たしていないため加入不可'
+          );
         }
       }
       // 3. 週20時間未満だが「3ヶ月連続で実働20時間以上」の場合 → 加入候補者アラート
       else if (workInfo.weeklyHours < 20) {
-        if (workInfo.consecutiveMonthsOver20Hours && workInfo.consecutiveMonthsOver20Hours >= 3) {
+        if (
+          workInfo.consecutiveMonthsOver20Hours &&
+          workInfo.consecutiveMonthsOver20Hours >= 3
+        ) {
           candidateFlag = true;
-          reasons.push(`週${workInfo.weeklyHours}時間だが、過去3ヶ月連続で20時間以上働いているため加入候補者`);
+          reasons.push(
+            `週${workInfo.weeklyHours}時間だが、過去3ヶ月連続で20時間以上働いているため加入候補者`
+          );
         } else {
           reasons.push(`週${workInfo.weeklyHours}時間のため加入対象外`);
         }
@@ -203,7 +232,9 @@ export class EmployeeEligibilityService {
     // 労働時間情報がない場合
     else {
       if (employee.isShortTime) {
-        reasons.push('短時間労働者として登録されているが、労働時間情報がないため判定不可');
+        reasons.push(
+          '短時間労働者として登録されているが、労働時間情報がないため判定不可'
+        );
       } else {
         reasons.push('労働時間情報がないため判定不可');
       }
@@ -216,7 +247,7 @@ export class EmployeeEligibilityService {
       candidateFlag,
       reasons,
       ageCategory,
-      ageFlags
+      ageFlags,
     };
   }
 
@@ -244,31 +275,44 @@ export class EmployeeEligibilityService {
 
     // 月額賃金 8.8万円以上
     if (workInfo.monthlyWage && workInfo.monthlyWage >= 88000) {
-      reasons.push(`月額賃金${workInfo.monthlyWage.toLocaleString()}円（条件: 8.8万円以上）`);
+      reasons.push(
+        `月額賃金${workInfo.monthlyWage.toLocaleString()}円（条件: 8.8万円以上）`
+      );
     } else {
       allMet = false;
       if (workInfo.monthlyWage) {
-        reasons.push(`月額賃金${workInfo.monthlyWage.toLocaleString()}円（条件: 8.8万円以上を満たしていない）`);
+        reasons.push(
+          `月額賃金${workInfo.monthlyWage.toLocaleString()}円（条件: 8.8万円以上を満たしていない）`
+        );
       } else {
         reasons.push('月額賃金情報がない（条件: 8.8万円以上）');
       }
     }
 
     // 2ヶ月超の雇用見込
-    const isOver2Months = this.isExpectedEmploymentOver2Months(workInfo.expectedEmploymentMonths);
+    const isOver2Months = this.isExpectedEmploymentOver2Months(
+      workInfo.expectedEmploymentMonths
+    );
     if (isOver2Months) {
       if (typeof workInfo.expectedEmploymentMonths === 'string') {
         reasons.push('2か月を超える見込み（条件: 2ヶ月超）');
       } else {
-        reasons.push(`雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超）`);
+        reasons.push(
+          `雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超）`
+        );
       }
     } else {
       allMet = false;
-      if (workInfo.expectedEmploymentMonths !== undefined && workInfo.expectedEmploymentMonths !== null) {
+      if (
+        workInfo.expectedEmploymentMonths !== undefined &&
+        workInfo.expectedEmploymentMonths !== null
+      ) {
         if (typeof workInfo.expectedEmploymentMonths === 'string') {
           reasons.push('2か月以内（条件: 2ヶ月超を満たしていない）');
         } else {
-          reasons.push(`雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超を満たしていない）`);
+          reasons.push(
+            `雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超を満たしていない）`
+          );
         }
       } else {
         reasons.push('雇用見込期間情報がない（条件: 2ヶ月超）');
@@ -291,8 +335,13 @@ export class EmployeeEligibilityService {
    * @param expectedEmploymentMonths 雇用見込期間（数値または選択値）
    * @returns 2ヶ月超の場合true
    */
-  private isExpectedEmploymentOver2Months(expectedEmploymentMonths?: number | string | null): boolean {
-    if (expectedEmploymentMonths === undefined || expectedEmploymentMonths === null) {
+  private isExpectedEmploymentOver2Months(
+    expectedEmploymentMonths?: number | string | null
+  ): boolean {
+    if (
+      expectedEmploymentMonths === undefined ||
+      expectedEmploymentMonths === null
+    ) {
       return false;
     }
     // 文字列の場合（選択式）
@@ -310,7 +359,10 @@ export class EmployeeEligibilityService {
     const birth = new Date(birthDate);
     let age = currentDate.getFullYear() - birth.getFullYear();
     const monthDiff = currentDate.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && currentDate.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && currentDate.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
@@ -321,10 +373,10 @@ export class EmployeeEligibilityService {
    */
   private getAgeFlags(age: number): AgeFlags {
     return {
-      isCare2: age >= 40 && age < 65,      // 40〜64歳（介護保険第2号被保険者）
-      isCare1: age >= 65,                  // 65歳以上（介護保険第1号被保険者）
-      isNoPension: age >= 70,              // 70歳以上（厚生年金停止）
-      isNoHealth: age >= 75                // 75歳以上（健康保険・介護保険停止）
+      isCare2: age >= 40 && age < 65, // 40〜64歳（介護保険第2号被保険者）
+      isCare1: age >= 65, // 65歳以上（介護保険第1号被保険者）
+      isNoPension: age >= 70, // 70歳以上（厚生年金停止）
+      isNoHealth: age >= 75, // 75歳以上（健康保険・介護保険停止）
     };
   }
 
@@ -333,15 +385,15 @@ export class EmployeeEligibilityService {
    */
   private getAgeCategory(age: number): AgeCategory {
     if (age >= 75) {
-      return 'no-health';      // 75歳以上：健康保険・介護保険停止
+      return 'no-health'; // 75歳以上：健康保険・介護保険停止
     } else if (age >= 70) {
-      return 'no-pension';     // 70歳以上：厚生年金停止
+      return 'no-pension'; // 70歳以上：厚生年金停止
     } else if (age >= 65) {
-      return 'care-1st';       // 65歳以上：介護保険第1号被保険者
+      return 'care-1st'; // 65歳以上：介護保険第1号被保険者
     } else if (age >= 40) {
-      return 'care-2nd';       // 40〜64歳：介護保険第2号被保険者
+      return 'care-2nd'; // 40〜64歳：介護保険第2号被保険者
     } else {
-      return 'normal';        // 40歳未満：通常
+      return 'normal'; // 40歳未満：通常
     }
   }
 
@@ -377,4 +429,3 @@ export class EmployeeEligibilityService {
     return age >= 75;
   }
 }
-

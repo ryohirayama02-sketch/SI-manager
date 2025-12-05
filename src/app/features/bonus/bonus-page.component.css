@@ -380,7 +380,7 @@
 }
 
 .btn-success.btn-saving::after {
-  content: '';
+  content: "";
   display: inline-block;
   width: 12px;
   height: 12px;
@@ -393,7 +393,8 @@
 }
 
 @keyframes pulse-button {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.8;
   }
   50% {
@@ -409,4 +410,3 @@
     transform: rotate(360deg);
   }
 }
-

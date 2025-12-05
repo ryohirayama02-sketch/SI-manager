@@ -48,7 +48,7 @@ export interface BonusCalculationResult {
 
 /**
  * BonusCalculationService
- * 
+ *
  * 賞与計算を担当するサービス（オーケストレーション）
  * 賞与保険料計算、免除判定、届出要否判定、エラーチェックの各サービスを統合して提供
  */
@@ -71,7 +71,14 @@ export class BonusCalculationService {
     year: number
   ): Promise<BonusCalculationResult | null> {
     // バリデーション
-    if (!this.preparationService.validateInput(employeeId, bonusAmount, paymentDate, year)) {
+    if (
+      !this.preparationService.validateInput(
+        employeeId,
+        bonusAmount,
+        paymentDate,
+        year
+      )
+    ) {
       return null;
     }
 
@@ -86,10 +93,15 @@ export class BonusCalculationService {
     }
 
     // 標準賞与額を計算
-    const standardBonus = this.preparationService.calculateStandardBonus(bonusAmount);
+    const standardBonus =
+      this.preparationService.calculateStandardBonus(bonusAmount);
 
     // 上限適用（保険年度ベースで集計するため、payDateを渡す）
-    const caps = await this.preparationService.applyBonusCaps(standardBonus, employeeId, payDate);
+    const caps = await this.preparationService.applyBonusCaps(
+      standardBonus,
+      employeeId,
+      payDate
+    );
     const {
       cappedBonusHealth,
       cappedBonusPension,
@@ -107,7 +119,11 @@ export class BonusCalculationService {
     const reason_not_lastday_retired = isRetiredNoLastDay;
 
     // 産休・育休チェック
-    const maternityChildcareResult = this.exemptionCheckService.checkMaternityAndChildcareExemptions(employee, payDate);
+    const maternityChildcareResult =
+      this.exemptionCheckService.checkMaternityAndChildcareExemptions(
+        employee,
+        payDate
+      );
     const {
       reason_exempt_maternity,
       reason_exempt_childcare,
@@ -135,10 +151,11 @@ export class BonusCalculationService {
     } = ageResult;
 
     // 賞与→給与扱いチェック
-    const salaryResult = await this.notificationService.checkSalaryInsteadOfBonus(
-      employeeId,
-      payDate
-    );
+    const salaryResult =
+      await this.notificationService.checkSalaryInsteadOfBonus(
+        employeeId,
+        payDate
+      );
     const {
       isSalaryInsteadOfBonus,
       reason_bonus_to_salary_text,
@@ -159,13 +176,14 @@ export class BonusCalculationService {
     }
 
     // 保険料計算のベース額を決定
-    const { healthBase, pensionBase } = this.premiumOrchestrationService.determinePremiumBases(
-      isRetiredNoLastDay,
-      isExempted,
-      isSalaryInsteadOfBonus,
-      cappedBonusHealth,
-      cappedBonusPension
-    );
+    const { healthBase, pensionBase } =
+      this.premiumOrchestrationService.determinePremiumBases(
+        isRetiredNoLastDay,
+        isExempted,
+        isSalaryInsteadOfBonus,
+        cappedBonusHealth,
+        cappedBonusPension
+      );
 
     // 保険料を計算
     const premiums = this.premiumOrchestrationService.calculatePremiums(
@@ -215,20 +233,21 @@ export class BonusCalculationService {
     const deadlineStr = this.resultBuilderService.calculateDeadline(payDate);
 
     // エラーチェック
-    const { errorMessages, warningMessages } = this.resultBuilderService.checkErrors(
-      employee,
-      payDate,
-      age,
-      isExempted,
-      reason_exempt_childcare,
-      isOverAge70,
-      isOverAge75,
-      pensionEmployee,
-      healthEmployee,
-      careEmployee,
-      bonusCount,
-      bonusCountLast12Months
-    );
+    const { errorMessages, warningMessages } =
+      this.resultBuilderService.checkErrors(
+        employee,
+        payDate,
+        age,
+        isExempted,
+        reason_exempt_childcare,
+        isOverAge70,
+        isOverAge75,
+        pensionEmployee,
+        healthEmployee,
+        careEmployee,
+        bonusCount,
+        bonusCountLast12Months
+      );
 
     // 賞与支払届の要否判定（簡易版）
     const reportRequired = this.resultBuilderService.checkReportRequired(

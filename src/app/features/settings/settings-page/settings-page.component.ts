@@ -345,13 +345,13 @@ export class SettingsPageComponent implements OnInit {
 
   async saveStandardTable(): Promise<void> {
     if (this.isSavingStandardTable) return;
-    
+
     this.validateStandardTable();
     if (this.errorMessages.length > 0) {
       alert('エラーがあります。修正してください。');
       return;
     }
-    
+
     this.isSavingStandardTable = true;
     try {
       await this.settingsService.saveStandardTable(
@@ -661,7 +661,7 @@ export class SettingsPageComponent implements OnInit {
 
   async saveAllRates(): Promise<void> {
     if (this.isSavingRates) return;
-    
+
     this.isSavingRates = true;
     try {
       for (const pref of this.prefectureList) {
@@ -674,6 +674,32 @@ export class SettingsPageComponent implements OnInit {
     } finally {
       this.isSavingRates = false;
     }
+  }
+
+  clearAllRates(): void {
+    if (
+      !confirm('すべての料率をクリアしますか？\nこの操作は取り消せません。')
+    ) {
+      return;
+    }
+    // 47都道府県の料率をクリア
+    for (const pref of this.prefectureList) {
+      this.prefectureRates[pref.code] = {
+        health_employee: 0,
+        health_employer: 0,
+      };
+    }
+    // 介護保険料率をクリア
+    this.careRates = {
+      care_employee: 0,
+      care_employer: 0,
+    };
+    // 厚生年金料率をクリア
+    this.pensionRates = {
+      pension_employee: 0,
+      pension_employer: 0,
+    };
+    this.cdr.detectChanges();
   }
 
   // CSVインポート機能

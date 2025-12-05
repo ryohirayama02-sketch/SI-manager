@@ -5,7 +5,7 @@ import { Employee } from '../models/employee.model';
 
 /**
  * BonusCalculationPreparationService
- * 
+ *
  * 賞与計算の準備処理を担当するサービス
  * バリデーション、料率取得、標準賞与額計算、上限適用を提供
  */
@@ -69,7 +69,3 @@ export class BonusCalculationPreparationService {
     );
   }
 }
-
-
-
-

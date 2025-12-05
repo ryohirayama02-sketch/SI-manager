@@ -2,37 +2,51 @@
 
 <!-- タブナビゲーション -->
 <div class="tabs">
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'all'"
-    (click)="activeTab = 'all'">
+    (click)="activeTab = 'all'"
+  >
     全従業員
   </button>
-  <button 
+  <button
     type="button"
-    class="tab-button" 
+    class="tab-button"
     [class.active]="activeTab === 'onLeave'"
-    (click)="activeTab = 'onLeave'">
+    (click)="activeTab = 'onLeave'"
+  >
     産休・育休取得者一覧
   </button>
 </div>
 
-<div class="card" style="margin-bottom: 1rem;">
-  <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
+<div class="card" style="margin-bottom: 1rem">
+  <div
+    style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem"
+  >
     <button (click)="goCreate()" class="btn-primary btn-create">
       ＋ 新規登録
     </button>
-    
-    <div style="display: flex; gap: 1rem; align-items: center;">
+
+    <div style="display: flex; gap: 1rem; align-items: center">
       <label>
         名前検索：
-        <input type="text" [(ngModel)]="filterName" placeholder="名前で検索" class="form-control" style="width: 200px;">
+        <input
+          type="text"
+          [(ngModel)]="filterName"
+          placeholder="名前で検索"
+          class="form-control"
+          style="width: 200px"
+        />
       </label>
-      
+
       <label *ngIf="activeTab === 'all'">
         対象区分：
-        <select [(ngModel)]="filterEligibilityStatus" class="form-control" style="width: 150px;">
+        <select
+          [(ngModel)]="filterEligibilityStatus"
+          class="form-control"
+          style="width: 150px"
+        >
           <option value="all">すべて</option>
           <option value="eligible">加入対象</option>
           <option value="short-time">短時間対象</option>
@@ -46,15 +60,19 @@
 
 <div class="card">
   <!-- 全従業員タブのテーブル -->
-  <table *ngIf="activeTab === 'all'" class="employee-table" style="width: 100%; border-collapse: collapse;">
+  <table
+    *ngIf="activeTab === 'all'"
+    class="employee-table"
+    style="width: 100%; border-collapse: collapse"
+  >
     <thead>
       <tr>
         <th>名前</th>
         <th>年齢</th>
         <th>加入判定</th>
-        <th>健康保険<br>加入状況</th>
-        <th>介護保険<br>加入状況</th>
-        <th>厚生年金<br>加入状況</th>
+        <th>健康保険<br />加入状況</th>
+        <th>介護保険<br />加入状況</th>
+        <th>厚生年金<br />加入状況</th>
         <th>標準報酬</th>
         <th>健康保険 本人/会社</th>
         <th>介護保険 本人/会社</th>
@@ -64,12 +82,18 @@
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let info of getFilteredEmployees()" 
-          (click)="goDetail(info.employee.id)" 
-          style="cursor: pointer;"
-          [ngClass]="{ 'candidate-row': isCandidate(info) }">
+      <tr
+        *ngFor="let info of getFilteredEmployees()"
+        (click)="goDetail(info.employee.id)"
+        style="cursor: pointer"
+        [ngClass]="{ 'candidate-row': isCandidate(info) }"
+      >
         <td>
-          <span *ngIf="isCandidate(info)" style="color: #ff6b00; font-weight: bold;">⚠️ </span>
+          <span
+            *ngIf="isCandidate(info)"
+            style="color: #ff6b00; font-weight: bold"
+            >⚠️
+          </span>
           {{ info.employee.name }}
         </td>
         <td>{{ getAge(info.employee) }}歳</td>
@@ -84,25 +108,51 @@
         <td>{{ getStandardMonthlyRemunerationDisplay(info) }}</td>
         <td>
           <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{ monthlyPremiumSummary[info.employee.id].healthEmployee | number:'1.0-0' }} / {{ monthlyPremiumSummary[info.employee.id].healthEmployer | number:'1.0-0' }}
+            {{
+              monthlyPremiumSummary[info.employee.id].healthEmployee
+                | number : "1.0-0"
+            }}
+            /
+            {{
+              monthlyPremiumSummary[info.employee.id].healthEmployer
+                | number : "1.0-0"
+            }}
           </span>
           <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
         </td>
         <td>
           <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{ monthlyPremiumSummary[info.employee.id].careEmployee | number:'1.0-0' }} / {{ monthlyPremiumSummary[info.employee.id].careEmployer | number:'1.0-0' }}
+            {{
+              monthlyPremiumSummary[info.employee.id].careEmployee
+                | number : "1.0-0"
+            }}
+            /
+            {{
+              monthlyPremiumSummary[info.employee.id].careEmployer
+                | number : "1.0-0"
+            }}
           </span>
           <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
         </td>
         <td>
           <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{ monthlyPremiumSummary[info.employee.id].pensionEmployee | number:'1.0-0' }} / {{ monthlyPremiumSummary[info.employee.id].pensionEmployer | number:'1.0-0' }}
+            {{
+              monthlyPremiumSummary[info.employee.id].pensionEmployee
+                | number : "1.0-0"
+            }}
+            /
+            {{
+              monthlyPremiumSummary[info.employee.id].pensionEmployer
+                | number : "1.0-0"
+            }}
           </span>
           <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
         </td>
         <td>
           <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{ monthlyPremiumSummary[info.employee.id].total | number:'1.0-0' }}
+            {{
+              monthlyPremiumSummary[info.employee.id].total | number : "1.0-0"
+            }}
           </span>
           <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
         </td>
@@ -117,21 +167,27 @@
   </table>
 
   <!-- 休業者一覧タブのテーブル -->
-  <table *ngIf="activeTab === 'onLeave'" class="employee-table" style="width: 100%; border-collapse: collapse;">
+  <table
+    *ngIf="activeTab === 'onLeave'"
+    class="employee-table"
+    style="width: 100%; border-collapse: collapse"
+  >
     <thead>
       <tr>
         <th>名前</th>
         <th>休業ステータス</th>
-        <th>産前産後休業<br>開始日</th>
-        <th>産前産後休業<br>終了予定日</th>
-        <th>育児休業<br>開始日</th>
-        <th>育児休業<br>終了予定日</th>
+        <th>産前産後休業<br />開始日</th>
+        <th>産前産後休業<br />終了予定日</th>
+        <th>育児休業<br />開始日</th>
+        <th>育児休業<br />終了予定日</th>
       </tr>
     </thead>
     <tbody>
-      <tr *ngFor="let info of getFilteredEmployees()" 
-          (click)="goDetail(info.employee.id)" 
-          style="cursor: pointer;">
+      <tr
+        *ngFor="let info of getFilteredEmployees()"
+        (click)="goDetail(info.employee.id)"
+        style="cursor: pointer"
+      >
         <td>{{ info.employee.name }}</td>
         <td>
           <span *ngIf="info.leaveStatus">
@@ -139,17 +195,18 @@
           </span>
           <span *ngIf="!info.leaveStatus">-</span>
         </td>
-        <td>{{ info.employee.maternityLeaveStart || '-' }}</td>
-        <td>{{ info.employee.maternityLeaveEndExpected || '-' }}</td>
-        <td>{{ info.employee.childcareLeaveStart || '-' }}</td>
-        <td>{{ info.employee.childcareLeaveEndExpected || '-' }}</td>
+        <td>{{ info.employee.maternityLeaveStart || "-" }}</td>
+        <td>{{ info.employee.maternityLeaveEndExpected || "-" }}</td>
+        <td>{{ info.employee.childcareLeaveStart || "-" }}</td>
+        <td>{{ info.employee.childcareLeaveEndExpected || "-" }}</td>
       </tr>
     </tbody>
   </table>
-  
-  <div *ngIf="getFilteredEmployees().length === 0" style="padding: 2rem; text-align: center;">
+
+  <div
+    *ngIf="getFilteredEmployees().length === 0"
+    style="padding: 2rem; text-align: center"
+  >
     該当する従業員がありません
   </div>
 </div>
-
-

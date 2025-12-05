@@ -13,7 +13,9 @@
       <tr>
         <th class="sticky-col">従業員</th>
         <th class="sticky-col">項目</th>
-        <th *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': false }">{{ m }}月</th>
+        <th *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': false }">
+          {{ m }}月
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -24,9 +26,12 @@
             {{ emp.name }}
           </td>
           <td class="sticky-col">
-            <div style="white-space: nowrap;">支払基礎日数</div>
+            <div style="white-space: nowrap">支払基礎日数</div>
           </td>
-          <td *ngFor="let m of months" [ngClass]="{ 'exempt-month': isExemptMonth(emp.id, m) }">
+          <td
+            *ngFor="let m of months"
+            [ngClass]="{ 'exempt-month': isExemptMonth(emp.id, m) }"
+          >
             <!-- 免除月の場合 -->
             <div *ngIf="isExemptMonth(emp.id, m)" class="exempt-label">
               {{ getExemptLabel(emp.id, m) }}
@@ -47,11 +52,28 @@
           </td>
         </tr>
         <!-- 給与項目行 -->
-        <tr *ngFor="let item of salaryItems; let itemIndex = index" [ngClass]="{ 'rehab-highlight-row': getRehabHighlightMonths(emp).length > 0 && itemIndex === 0 }">
+        <tr
+          *ngFor="let item of salaryItems; let itemIndex = index"
+          [ngClass]="{
+            'rehab-highlight-row':
+              getRehabHighlightMonths(emp).length > 0 && itemIndex === 0
+          }"
+        >
           <td class="sticky-col">
-            <div style="white-space: nowrap;">{{ item.name }} <small style="color: #666;" *ngIf="item.type !== 'deduction'">({{ item.type === 'fixed' ? '固定' : '非固定' }})</small></div>
+            <div style="white-space: nowrap">
+              {{ item.name }}
+              <small style="color: #666" *ngIf="item.type !== 'deduction'"
+                >({{ item.type === "fixed" ? "固定" : "非固定" }})</small
+              >
+            </div>
           </td>
-          <td *ngFor="let m of months" [ngClass]="{ 'rehab-highlight': getRehabHighlightMonths(emp).includes(m), 'exempt-month': isExemptMonth(emp.id, m) }">
+          <td
+            *ngFor="let m of months"
+            [ngClass]="{
+              'rehab-highlight': getRehabHighlightMonths(emp).includes(m),
+              'exempt-month': isExemptMonth(emp.id, m)
+            }"
+          >
             <!-- 免除月の場合 -->
             <div *ngIf="isExemptMonth(emp.id, m)" class="exempt-label">
               {{ getExemptLabel(emp.id, m) }}
@@ -73,7 +95,3 @@
     </tbody>
   </table>
 </div>
-
-
-
-

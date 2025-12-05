@@ -7,9 +7,11 @@ import { ReactiveFormsModule, FormGroup } from '@angular/forms';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './employee-basic-info-employment.component.html',
-  styleUrl: './employee-basic-info-employment.component.css'
+  styleUrl: './employee-basic-info-employment.component.css',
 })
-export class EmployeeBasicInfoEmploymentComponent implements OnInit, AfterViewInit {
+export class EmployeeBasicInfoEmploymentComponent
+  implements OnInit, AfterViewInit
+{
   @Input() form!: FormGroup;
   @Input() employeeId: string | null = null;
 
@@ -31,13 +33,13 @@ export class EmployeeBasicInfoEmploymentComponent implements OnInit, AfterViewIn
   onMonthlyWageInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const value = input.value.replace(/,/g, ''); // カンマを削除
-    
+
     // 数値のみ許可
     if (value === '' || /^\d+$/.test(value)) {
       // フォームコントロールに数値を保存
       const numValue = value === '' ? null : parseInt(value, 10);
       this.form.patchValue({ monthlyWage: numValue }, { emitEvent: false });
-      
+
       // 表示用にカンマ区切りでフォーマット
       if (value !== '') {
         input.value = this.formatNumberWithCommas(value);
@@ -70,7 +72,9 @@ export class EmployeeBasicInfoEmploymentComponent implements OnInit, AfterViewIn
     if (monthlyWageControl) {
       const value = monthlyWageControl.value;
       if (value !== null && value !== undefined && value !== '') {
-        const input = document.getElementById('monthlyWage') as HTMLInputElement;
+        const input = document.getElementById(
+          'monthlyWage'
+        ) as HTMLInputElement;
         if (input) {
           input.value = this.formatNumberWithCommas(value.toString());
         }

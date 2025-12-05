@@ -4,7 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../../services/employee.service';
-import { EmployeeEligibilityService, EmployeeEligibilityResult } from '../../../services/employee-eligibility.service';
+import {
+  EmployeeEligibilityService,
+  EmployeeEligibilityResult,
+} from '../../../services/employee-eligibility.service';
 import { MonthlySalaryService } from '../../../services/monthly-salary.service';
 import { SettingsService } from '../../../services/settings.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
@@ -39,15 +42,15 @@ interface EmployeeDisplayInfo {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './employee-list-page.component.html',
-  styleUrl: './employee-list-page.component.css'
+  styleUrl: './employee-list-page.component.css',
 })
 export class EmployeeListPageComponent implements OnInit, OnDestroy {
   employees: Employee[] = [];
   employeeDisplayInfos: EmployeeDisplayInfo[] = [];
-  
+
   // タブ管理
   activeTab: 'all' | 'onLeave' = 'all';
-  
+
   // フィルター用
   filterName: string = '';
   filterEligibilityStatus: string = ''; // 'all' | 'eligible' | 'short-time' | 'non-eligible' | 'candidate'
@@ -98,9 +101,11 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     await this.reloadEmployees();
-    this.employeesSubscription = this.employeeService.observeEmployees().subscribe(() => {
-      this.reloadEmployees();
-    });
+    this.employeesSubscription = this.employeeService
+      .observeEmployees()
+      .subscribe(() => {
+        this.reloadEmployees();
+      });
   }
 
   async reloadEmployees(): Promise<void> {
@@ -114,7 +119,9 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
   async loadEmployeeDisplayInfos(): Promise<void> {
     // 標準報酬月額テーブルを取得（料率はSalaryCalculationService内で取得される）
-    const gradeTable = await this.settingsService.getStandardTable(this.currentYear);
+    const gradeTable = await this.settingsService.getStandardTable(
+      this.currentYear
+    );
 
     this.employeeDisplayInfos = [];
 
@@ -139,28 +146,39 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       let currentMonthPremium = null;
       let standardMonthlyRemuneration: number | null = null;
       let grade: number | null = null;
-      
+
       try {
         const salaryData = await this.monthlySalaryService.getEmployeeSalary(
           emp.id,
           this.currentYear
         );
-        
+
         let fixedSalary = 0;
         let variableSalary = 0;
-        
+
         if (salaryData) {
           const monthKey = this.currentMonth.toString();
           const monthData = salaryData[monthKey];
-          
+
           if (monthData) {
-            fixedSalary = monthData.fixedTotal ?? monthData.fixed ?? monthData.fixedSalary ?? 0;
-            variableSalary = monthData.variableTotal ?? monthData.variable ?? monthData.variableSalary ?? 0;
+            fixedSalary =
+              monthData.fixedTotal ??
+              monthData.fixed ??
+              monthData.fixedSalary ??
+              0;
+            variableSalary =
+              monthData.variableTotal ??
+              monthData.variable ??
+              monthData.variableSalary ??
+              0;
             const totalSalary = fixedSalary + variableSalary;
-            
+
             // 標準報酬月額と等級を計算（給与がある場合のみ）
             if (totalSalary > 0 && gradeTable.length > 0) {
-              const gradeResult = this.salaryCalculationService.findGrade(gradeTable, totalSalary);
+              const gradeResult = this.salaryCalculationService.findGrade(
+                gradeTable,
+                totalSalary
+              );
               if (gradeResult) {
                 standardMonthlyRemuneration = gradeResult.remuneration;
                 grade = gradeResult.grade;
@@ -168,18 +186,19 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
             }
           }
         }
-        
+
         // 標準報酬月額が確定している場合は、給与が0円でも保険料を計算
         // 標準報酬月額は、従業員データのstandardMonthlyRemunerationまたはacquisitionStandardから取得される
-        const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
-          emp,
-          this.currentYear,
-          this.currentMonth,
-          fixedSalary,
-          variableSalary,
-          gradeTable
-        );
-        
+        const premiums =
+          await this.salaryCalculationService.calculateMonthlyPremiums(
+            emp,
+            this.currentYear,
+            this.currentMonth,
+            fixedSalary,
+            variableSalary,
+            gradeTable
+          );
+
         currentMonthPremium = {
           healthEmployee: premiums.health_employee,
           healthEmployer: premiums.health_employer,
@@ -187,11 +206,15 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
           careEmployer: premiums.care_employer,
           pensionEmployee: premiums.pension_employee,
           pensionEmployer: premiums.pension_employer,
-          total: premiums.health_employee + premiums.health_employer +
-                 premiums.care_employee + premiums.care_employer +
-                 premiums.pension_employee + premiums.pension_employer,
+          total:
+            premiums.health_employee +
+            premiums.health_employer +
+            premiums.care_employee +
+            premiums.care_employer +
+            premiums.pension_employee +
+            premiums.pension_employer,
         };
-        
+
         // monthlyPremiumSummaryにも格納
         this.monthlyPremiumSummary[emp.id] = {
           healthEmployee: premiums.health_employee,
@@ -200,9 +223,13 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
           careEmployer: premiums.care_employer,
           pensionEmployee: premiums.pension_employee,
           pensionEmployer: premiums.pension_employer,
-          total: premiums.health_employee + premiums.health_employer +
-                 premiums.care_employee + premiums.care_employer +
-                 premiums.pension_employee + premiums.pension_employer,
+          total:
+            premiums.health_employee +
+            premiums.health_employer +
+            premiums.care_employee +
+            premiums.care_employer +
+            premiums.pension_employee +
+            premiums.pension_employer,
         };
       } catch (error) {
         console.error(`従業員 ${emp.id} の保険料計算エラー:`, error);
@@ -210,19 +237,23 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
       // 備考欄の生成
       const notes: string[] = [];
-      
+
       // 加入候補者アラート
       if (eligibility.candidateFlag) {
         notes.push('⚠️ 加入候補者（3ヶ月連続で実働20時間以上）');
       }
-      
+
       // 年齢到達による停止・変更（Service統一ロジックを使用）
       const age = this.salaryCalculationService.calculateAge(emp.birthDate);
       const currentDate = new Date();
       const currentYear = currentDate.getFullYear();
       const currentMonth = currentDate.getMonth() + 1;
-      const careType = this.salaryCalculationService.getCareInsuranceType(emp.birthDate, currentYear, currentMonth);
-      
+      const careType = this.salaryCalculationService.getCareInsuranceType(
+        emp.birthDate,
+        currentYear,
+        currentMonth
+      );
+
       if (age >= 75) {
         notes.push('75歳到達により健康保険・介護保険停止');
       } else if (age >= 70) {
@@ -232,19 +263,23 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       } else if (careType === 'type2') {
         notes.push('40歳到達により介護保険第2号被保険者');
       }
-      
+
       // 産休・育休中（現時点で期間中かどうかを判定）
       const now = new Date();
       const nowYear = now.getFullYear();
       const nowMonth = now.getMonth() + 1;
-      const currentLeaveStatus = this.getLeaveStatusForMonth(emp, nowYear, nowMonth);
-      
+      const currentLeaveStatus = this.getLeaveStatusForMonth(
+        emp,
+        nowYear,
+        nowMonth
+      );
+
       if (currentLeaveStatus.status === 'maternity') {
         notes.push('産休中');
       } else if (currentLeaveStatus.status === 'childcare') {
         notes.push('育休中');
       }
-      
+
       // 退職済み
       if (emp.retireDate) {
         const retireDate = new Date(emp.retireDate);
@@ -252,19 +287,23 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
           notes.push('退職済み');
         }
       }
-      
+
       // 休職中の判定（先月の状態をチェック）
       if (emp.returnFromLeaveDate) {
         const returnDate = new Date(emp.returnFromLeaveDate);
-        const lastMonthDate = new Date(this.currentYear, this.currentMonth - 1, 1);
+        const lastMonthDate = new Date(
+          this.currentYear,
+          this.currentMonth - 1,
+          1
+        );
         returnDate.setHours(0, 0, 0, 0);
         lastMonthDate.setHours(0, 0, 0, 0);
-        
+
         // 復職日が先月より未来なら休職中
         if (returnDate > lastMonthDate) {
           const returnDateStart = new Date(returnDate);
           returnDateStart.setDate(1); // 復職日の月初日
-          
+
           // 復職日が先月より未来なら休職中
           if (returnDateStart > lastMonthDate) {
             notes.push('休職中');
@@ -274,7 +313,8 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
       // 休業情報を取得
       const leaveStatus = this.getCurrentLeaveStatus(emp);
-      const hasCollectionImpossibleAlert = await this.hasCollectionImpossibleAlert(emp);
+      const hasCollectionImpossibleAlert =
+        await this.hasCollectionImpossibleAlert(emp);
 
       this.employeeDisplayInfos.push({
         employee: emp,
@@ -293,8 +333,16 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     if (info.eligibility.candidateFlag) {
       return '加入候補';
     }
-    if (info.eligibility.healthInsuranceEligible || info.eligibility.pensionEligible) {
-      if (info.employee.isShortTime || (info.employee.weeklyHours && info.employee.weeklyHours >= 20 && info.employee.weeklyHours < 30)) {
+    if (
+      info.eligibility.healthInsuranceEligible ||
+      info.eligibility.pensionEligible
+    ) {
+      if (
+        info.employee.isShortTime ||
+        (info.employee.weeklyHours &&
+          info.employee.weeklyHours >= 20 &&
+          info.employee.weeklyHours < 30)
+      ) {
         return '短時間対象';
       }
       return '加入対象';
@@ -306,8 +354,16 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     if (info.eligibility.candidateFlag) {
       return 'candidate';
     }
-    if (info.eligibility.healthInsuranceEligible || info.eligibility.pensionEligible) {
-      if (info.employee.isShortTime || (info.employee.weeklyHours && info.employee.weeklyHours >= 20 && info.employee.weeklyHours < 30)) {
+    if (
+      info.eligibility.healthInsuranceEligible ||
+      info.eligibility.pensionEligible
+    ) {
+      if (
+        info.employee.isShortTime ||
+        (info.employee.weeklyHours &&
+          info.employee.weeklyHours >= 20 &&
+          info.employee.weeklyHours < 30)
+      ) {
         return 'shortTime';
       }
       return 'eligible';
@@ -321,21 +377,30 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
   getStandardMonthlyRemunerationDisplay(info: EmployeeDisplayInfo): string {
     // 月次給与データから計算した標準報酬月額を優先表示
-    if (info.standardMonthlyRemuneration && info.standardMonthlyRemuneration > 0) {
+    if (
+      info.standardMonthlyRemuneration &&
+      info.standardMonthlyRemuneration > 0
+    ) {
       const gradeText = info.grade ? `（${info.grade}等級）` : '';
-      return `${info.standardMonthlyRemuneration.toLocaleString('ja-JP')}円${gradeText}`;
+      return `${info.standardMonthlyRemuneration.toLocaleString(
+        'ja-JP'
+      )}円${gradeText}`;
     }
-    
+
     // 資格取得時決定の標準報酬月額
     if (info.employee.acquisitionStandard) {
-      return `${info.employee.acquisitionStandard.toLocaleString('ja-JP')}円（資格取得時決定）`;
+      return `${info.employee.acquisitionStandard.toLocaleString(
+        'ja-JP'
+      )}円（資格取得時決定）`;
     }
-    
+
     // 通常の標準報酬月額（従業員データに保存されている値）
     if (info.employee.standardMonthlyRemuneration) {
-      return `${info.employee.standardMonthlyRemuneration.toLocaleString('ja-JP')}円`;
+      return `${info.employee.standardMonthlyRemuneration.toLocaleString(
+        'ja-JP'
+      )}円`;
     }
-    
+
     return '-';
   }
 
@@ -354,8 +419,12 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
-    const careType = this.salaryCalculationService.getCareInsuranceType(emp.birthDate, currentYear, currentMonth);
-    
+    const careType = this.salaryCalculationService.getCareInsuranceType(
+      emp.birthDate,
+      currentYear,
+      currentMonth
+    );
+
     if (careType === 'none') {
       // 75歳以上または39歳以下
       if (info.eligibility.ageFlags.isNoHealth) {
@@ -383,7 +452,11 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   /**
    * 指定年月における休業ステータスを取得
    */
-  getLeaveStatusForMonth(employee: Employee, year: number, month: number): {
+  getLeaveStatusForMonth(
+    employee: Employee,
+    year: number,
+    month: number
+  ): {
     status: 'maternity' | 'childcare' | 'leave' | 'none';
     startDate: string | null;
     endDate: string | null;
@@ -401,7 +474,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         return {
           status: 'maternity',
           startDate: employee.maternityLeaveStart,
-          endDate: employee.maternityLeaveEnd
+          endDate: employee.maternityLeaveEnd,
         };
       }
     }
@@ -416,7 +489,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         return {
           status: 'childcare',
           startDate: employee.childcareLeaveStart,
-          endDate: employee.childcareLeaveEnd
+          endDate: employee.childcareLeaveEnd,
         };
       }
     }
@@ -431,7 +504,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         return {
           status: 'leave',
           startDate: employee.leaveOfAbsenceStart,
-          endDate: employee.leaveOfAbsenceEnd
+          endDate: employee.leaveOfAbsenceEnd,
         };
       }
     }
@@ -445,7 +518,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         return {
           status: 'leave',
           startDate: employee.leaveOfAbsenceStart || null,
-          endDate: employee.returnFromLeaveDate
+          endDate: employee.returnFromLeaveDate,
         };
       }
     }
@@ -462,13 +535,19 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     endDate: string | null;
   } {
     // 先月の状態を返す（保険料表示と一致させるため）
-    return this.getLeaveStatusForMonth(employee, this.currentYear, this.currentMonth);
+    return this.getLeaveStatusForMonth(
+      employee,
+      this.currentYear,
+      this.currentMonth
+    );
   }
 
   /**
    * 休業ステータスのラベルを取得
    */
-  getLeaveStatusLabel(status: 'maternity' | 'childcare' | 'leave' | 'none'): string {
+  getLeaveStatusLabel(
+    status: 'maternity' | 'childcare' | 'leave' | 'none'
+  ): string {
     switch (status) {
       case 'maternity':
         return '産休中';
@@ -490,14 +569,21 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthYear = lastMonth.getFullYear();
     const lastMonthMonth = lastMonth.getMonth() + 1;
-    const leaveStatus = this.getLeaveStatusForMonth(employee, lastMonthYear, lastMonthMonth);
+    const leaveStatus = this.getLeaveStatusForMonth(
+      employee,
+      lastMonthYear,
+      lastMonthMonth
+    );
     if (leaveStatus.status === 'leave') {
       return true;
     }
 
     // 給与 < 本人負担保険料の月があるかチェック（先月のデータをチェック）
     try {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(employee.id, this.currentYear);
+      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+        employee.id,
+        this.currentYear
+      );
       if (!salaryData) return false;
 
       const monthKey = this.currentMonth.toString();
@@ -508,21 +594,28 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       if (totalSalary === 0) return true; // 無給の場合は徴収不能
 
       // 保険料を計算
-      const gradeTable = await this.settingsService.getStandardTable(this.currentYear);
+      const gradeTable = await this.settingsService.getStandardTable(
+        this.currentYear
+      );
       const fixedSalary = monthData.fixedSalary ?? monthData.fixed ?? 0;
-      const variableSalary = monthData.variableSalary ?? monthData.variable ?? 0;
+      const variableSalary =
+        monthData.variableSalary ?? monthData.variable ?? 0;
 
       if (fixedSalary > 0 || variableSalary > 0) {
-        const premiums = await this.salaryCalculationService.calculateMonthlyPremiums(
-          employee,
-          this.currentYear,
-          this.currentMonth,
-          fixedSalary,
-          variableSalary,
-          gradeTable
-        );
+        const premiums =
+          await this.salaryCalculationService.calculateMonthlyPremiums(
+            employee,
+            this.currentYear,
+            this.currentMonth,
+            fixedSalary,
+            variableSalary,
+            gradeTable
+          );
 
-        const totalEmployeePremium = premiums.health_employee + premiums.care_employee + premiums.pension_employee;
+        const totalEmployeePremium =
+          premiums.health_employee +
+          premiums.care_employee +
+          premiums.pension_employee;
         if (totalSalary < totalEmployeePremium) {
           return true;
         }
@@ -541,15 +634,23 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     const now = new Date();
     const nowYear = now.getFullYear();
     const nowMonth = now.getMonth() + 1;
-    const leaveStatus = this.getLeaveStatusForMonth(employee, nowYear, nowMonth);
-    return leaveStatus.status === 'maternity' || leaveStatus.status === 'childcare';
+    const leaveStatus = this.getLeaveStatusForMonth(
+      employee,
+      nowYear,
+      nowMonth
+    );
+    return (
+      leaveStatus.status === 'maternity' || leaveStatus.status === 'childcare'
+    );
   }
 
   /**
    * 産休・育休取得者の一覧を取得（現時点で産休又は育休を取得している従業員）
    */
   getOnLeaveEmployees(): EmployeeDisplayInfo[] {
-    return this.employeeDisplayInfos.filter((info) => this.isOnMaternityOrChildcareLeave(info.employee));
+    return this.employeeDisplayInfos.filter((info) =>
+      this.isOnMaternityOrChildcareLeave(info.employee)
+    );
   }
 
   getFilteredEmployees(): EmployeeDisplayInfo[] {
@@ -568,18 +669,33 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       }
 
       // 対象区分フィルター
-      if (this.filterEligibilityStatus && this.filterEligibilityStatus !== 'all') {
+      if (
+        this.filterEligibilityStatus &&
+        this.filterEligibilityStatus !== 'all'
+      ) {
         const status = this.getEligibilityStatusLabel(info);
-        if (this.filterEligibilityStatus === 'eligible' && status !== '加入対象') {
+        if (
+          this.filterEligibilityStatus === 'eligible' &&
+          status !== '加入対象'
+        ) {
           return false;
         }
-        if (this.filterEligibilityStatus === 'short-time' && status !== '短時間対象') {
+        if (
+          this.filterEligibilityStatus === 'short-time' &&
+          status !== '短時間対象'
+        ) {
           return false;
         }
-        if (this.filterEligibilityStatus === 'non-eligible' && status !== '非対象') {
+        if (
+          this.filterEligibilityStatus === 'non-eligible' &&
+          status !== '非対象'
+        ) {
           return false;
         }
-        if (this.filterEligibilityStatus === 'candidate' && status !== '加入候補') {
+        if (
+          this.filterEligibilityStatus === 'candidate' &&
+          status !== '加入候補'
+        ) {
           return false;
         }
       }
@@ -603,5 +719,3 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     return this.salaryCalculationService.calculateAge(employee.birthDate);
   }
 }
-
-

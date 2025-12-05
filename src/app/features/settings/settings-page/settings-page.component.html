@@ -357,7 +357,10 @@
         </div>
       </div>
 
-      <div class="button-group" style="margin-top: 1rem; margin-bottom: 1rem">
+      <div
+        class="button-group"
+        style="margin-top: 1rem; margin-bottom: 1rem; display: flex; gap: 1rem"
+      >
         <button
           (click)="saveAllRates()"
           class="btn-primary"
@@ -365,6 +368,9 @@
           [disabled]="isSavingRates"
         >
           {{ isSavingRates ? "保存中..." : "すべての料率を保存する" }}
+        </button>
+        <button (click)="clearAllRates()" class="btn-danger">
+          すべての料率をクリア
         </button>
       </div>
     </div>

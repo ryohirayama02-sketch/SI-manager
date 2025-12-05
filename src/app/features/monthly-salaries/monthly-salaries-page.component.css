@@ -13,7 +13,8 @@ thead {
   background-color: #f8f8f8;
 }
 
-th, td {
+th,
+td {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
@@ -394,7 +395,7 @@ table thead th:first-child {
 }
 
 .btn-success.btn-saving::after {
-  content: '';
+  content: "";
   display: inline-block;
   width: 12px;
   height: 12px;
@@ -407,7 +408,8 @@ table thead th:first-child {
 }
 
 @keyframes pulse-button {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.8;
   }
   50% {

@@ -3,15 +3,13 @@ import { BonusService } from './bonus.service';
 
 /**
  * BonusNotificationService
- * 
+ *
  * 賞与支払届の要否判定を担当するサービス
  * 届出要否判定と提出期限の計算を提供
  */
 @Injectable({ providedIn: 'root' })
 export class BonusNotificationService {
-  constructor(
-    private bonusService: BonusService
-  ) {}
+  constructor(private bonusService: BonusService) {}
 
   /**
    * 賞与→給与扱いチェック
@@ -154,10 +152,10 @@ export class BonusNotificationService {
       employeeId,
       payDate
     );
-    
+
     // 既存の賞与のみをカウント（今回保存しようとしている賞与は除外）
     const payDateStr = payDate.toISOString().split('T')[0];
-    const existingBonusCount = bonusesLast12Months.filter(bonus => {
+    const existingBonusCount = bonusesLast12Months.filter((bonus) => {
       if (!bonus.payDate) return false;
       // 今回保存しようとしている賞与は除外
       if (bonus.payDate === payDateStr) return false;
@@ -165,12 +163,8 @@ export class BonusNotificationService {
       if (excludePayDate && bonus.payDate === excludePayDate) return false;
       return true;
     }).length;
-    
+
     // 既存の賞与が3回あり、今回が4回目になる場合
     return existingBonusCount >= 3;
   }
 }
-
-
-
-
