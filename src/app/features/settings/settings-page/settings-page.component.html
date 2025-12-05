@@ -952,16 +952,6 @@
                   padding: 12px;
                   text-align: left;
                   border-bottom: 2px solid #ddd;
-                  min-width: 100px;
-                "
-              >
-                種類
-              </th>
-              <th
-                style="
-                  padding: 12px;
-                  text-align: left;
-                  border-bottom: 2px solid #ddd;
                   min-width: 150px;
                 "
               >
@@ -1011,9 +1001,6 @@
                   }}</span>
                   <span *ngSwitchDefault>{{ getActionLabel(log.action) }}</span>
                 </span>
-              </td>
-              <td style="padding: 12px">
-                {{ getEntityTypeLabel(log.entityType) }}
               </td>
               <td style="padding: 12px">{{ log.entityName || "-" }}</td>
               <td style="padding: 12px">{{ log.description }}</td>
