@@ -535,18 +535,21 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * 休業中かどうかを判定する
+   * 産休・育休中かどうかを判定する（現時点）
    */
-  isOnLeave(employee: Employee): boolean {
-    const leaveStatus = this.getCurrentLeaveStatus(employee);
-    return leaveStatus.status !== 'none';
+  isOnMaternityOrChildcareLeave(employee: Employee): boolean {
+    const now = new Date();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
+    const leaveStatus = this.getLeaveStatusForMonth(employee, nowYear, nowMonth);
+    return leaveStatus.status === 'maternity' || leaveStatus.status === 'childcare';
   }
 
   /**
-   * 休業者の一覧を取得
+   * 産休・育休取得者の一覧を取得（現時点で産休又は育休を取得している従業員）
    */
   getOnLeaveEmployees(): EmployeeDisplayInfo[] {
-    return this.employeeDisplayInfos.filter((info) => this.isOnLeave(info.employee));
+    return this.employeeDisplayInfos.filter((info) => this.isOnMaternityOrChildcareLeave(info.employee));
   }
 
   getFilteredEmployees(): EmployeeDisplayInfo[] {
