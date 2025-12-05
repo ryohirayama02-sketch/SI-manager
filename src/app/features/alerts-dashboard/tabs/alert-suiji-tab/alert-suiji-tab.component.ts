@@ -196,6 +196,7 @@ export class AlertSuijiTabComponent {
       // 被保険者情報
       csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
       csvRows.push(`被保険者氏名,${employee.name || ''}`);
+      csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
       csvRows.push(`生年月日,${this.formatBirthDate(employee.birthDate)}`);
       csvRows.push(
         `改定年月,${this.formatJapaneseEra(applyStartYear, applyStartMonth)}`

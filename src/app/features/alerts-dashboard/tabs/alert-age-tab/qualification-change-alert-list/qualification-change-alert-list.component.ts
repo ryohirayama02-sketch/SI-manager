@@ -159,6 +159,7 @@ export class QualificationChangeAlertListComponent {
       csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
       csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
       csvRows.push(`被保険者氏名,${employee.name || ''}`);
+      csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
       csvRows.push(`性別,${gender}`);
       csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
       csvRows.push(`住所,${employee.address || ''}`);

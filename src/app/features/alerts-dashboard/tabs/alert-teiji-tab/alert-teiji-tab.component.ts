@@ -247,6 +247,7 @@ export class AlertTeijiTabComponent {
         csvRows.push(`電話番号,${office?.phoneNumber || ''}`);
         csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
         csvRows.push(`被保険者氏名,${employee.name || ''}`);
+        csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
         csvRows.push(`生年月日,${this.formatBirthDate(employee.birthDate)}`);
         csvRows.push(
           `適応年月,${this.formatJapaneseEra(applyStartYear, applyStartMonth)}`

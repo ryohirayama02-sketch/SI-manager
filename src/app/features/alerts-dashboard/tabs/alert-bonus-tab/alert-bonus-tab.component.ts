@@ -167,6 +167,7 @@ export class AlertBonusTabComponent {
         csvLines.push(`賞与支給日,${payDateFormatted}`);
         csvLines.push(`被保険者整理番号,${insuredNumber}`);
         csvLines.push(`被保険者氏名,${employee.name || ''}`);
+        csvLines.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
         csvLines.push(`生年月日,${birthDate}`);
         csvLines.push(`賞与額,${String(alert.bonusAmount)}`);
         csvLines.push(

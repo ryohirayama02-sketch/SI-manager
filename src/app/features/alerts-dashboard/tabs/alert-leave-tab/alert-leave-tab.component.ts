@@ -164,6 +164,7 @@ export class AlertLeaveTabComponent {
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`個人番号,${employee.myNumber || ''}`);
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
 
     // 出産予定日
@@ -311,6 +312,7 @@ export class AlertLeaveTabComponent {
     const csvRows: string[] = [];
 
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
     csvRows.push(`性別,${gender}`);
@@ -395,6 +397,7 @@ export class AlertLeaveTabComponent {
     csvRows.push('育児休業関係の事業主証明書');
     csvRows.push('');
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
     csvRows.push(`性別,${gender}`);
@@ -456,6 +459,7 @@ export class AlertLeaveTabComponent {
     csvRows.push('出産手当金支給申請書');
     csvRows.push('');
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
     csvRows.push(`性別,${gender}`);
@@ -548,6 +552,7 @@ export class AlertLeaveTabComponent {
     csvRows.push(`被保険者整理番号,${employee.insuredNumber || ''}`);
     csvRows.push(`個人番号,${employee.myNumber || ''}`);
     csvRows.push(`被保険者氏名,${employee.name || ''}`);
+    csvRows.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
     csvRows.push(`生年月日,${this.formatBirthDateToEra(employee.birthDate)}`);
     csvRows.push(`養育する子の氏名,${childName}`);
     csvRows.push(
