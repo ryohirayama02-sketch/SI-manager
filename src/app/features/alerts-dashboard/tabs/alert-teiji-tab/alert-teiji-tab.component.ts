@@ -156,15 +156,11 @@ export class AlertTeijiTabComponent {
                 h.applyStartMonth < applyStartMonth)
           ) || histories[0];
 
-        // 4-6月の給与データを取得
+        // 算定基礎届は常に4-6月の給与データを使用（固定）
         const aprilData = salaryData['4'];
         const mayData = salaryData['5'];
         const juneData = salaryData['6'];
 
-        // 支給月を計算（給与データのキーが支給月を表していると仮定）
-        // 4月分給与が4月支給なら4月、5月、6月
-        // 4月分給与が5月支給なら5月、6月、7月
-        // 実際の支給月は給与データのキーから取得
         const payMonths: number[] = [];
         const workingDaysList: number[] = [];
         const remunerationList: number[] = [];
@@ -184,7 +180,7 @@ export class AlertTeijiTabComponent {
           }
         }
 
-        // 4月、5月、6月のデータを処理
+        // 4月、5月、6月のデータを処理（算定基礎届は常にこの3か月を使用）
         if (aprilData) {
           payMonths.push(4);
           workingDaysList.push(aprilData.workingDays || 0);

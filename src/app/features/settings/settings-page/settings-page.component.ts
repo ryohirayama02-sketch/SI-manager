@@ -46,13 +46,12 @@ export class SettingsPageComponent implements OnInit {
   warningMessages: string[] = [];
   // タブ管理
   activeTab:
-    | 'basic'
     | 'rate'
     | 'standard'
     | 'salaryItems'
     | 'office'
     | 'editLog'
-    | 'userRoom' = 'basic';
+    | 'userRoom' = 'rate';
 
   // 事業所マスタ関連
   offices: Office[] = [];
@@ -201,9 +200,8 @@ export class SettingsPageComponent implements OnInit {
       pension_employee: [0, Validators.required],
       pension_employer: [0, Validators.required],
     });
-    this.settingsForm = this.fb.group({
-      salaryMonthRule: ['payDate', Validators.required],
-    });
+    // 給与月判定設定は削除（常に4-6月を使用）
+    this.settingsForm = this.fb.group({});
     this.rateVersionForm = this.fb.group({
       applyFromMonth: [
         4,
@@ -373,21 +371,8 @@ export class SettingsPageComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     await this.loadAllRates();
 
-    // 給与月の判定方法をロード
-    const salaryMonthRule = await this.settingsService.getSalaryMonthRule();
-    this.settingsForm.patchValue({ salaryMonthRule });
-
     // 標準報酬等級表の年度を初期化
     this.standardTableYear = parseInt(this.gradeYear, 10);
-
-    // 変更時に自動保存
-    this.settingsForm
-      .get('salaryMonthRule')
-      ?.valueChanges.subscribe(async (value) => {
-        if (value) {
-          await this.settingsService.saveSalaryMonthRule(value);
-        }
-      });
 
     // 適用開始月（改定月）をロード
     const versionInfo = await this.settingsService.getRateVersionInfo(

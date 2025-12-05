@@ -5,14 +5,6 @@
   <button
     type="button"
     class="tab-button"
-    [class.active]="activeTab === 'basic'"
-    (click)="activeTab = 'basic'"
-  >
-    給与月判定の設定
-  </button>
-  <button
-    type="button"
-    class="tab-button"
     [class.active]="activeTab === 'rate'"
     (click)="activeTab = 'rate'"
   >
@@ -62,38 +54,6 @@
 
 <!-- タブコンテンツ -->
 <div class="tab-content">
-  <!-- 給与月判定の設定タブ -->
-  <div *ngIf="activeTab === 'basic'" class="tab-pane">
-    <div class="card">
-      <div class="info-label">給与月の判定方式を選択してください。</div>
-      <form [formGroup]="settingsForm">
-        <div class="form-group">
-          <label>給与月の判定方式：</label>
-          <div>
-            <label>
-              <input
-                type="radio"
-                formControlName="salaryMonthRule"
-                value="payDate"
-              />
-              支給日基準（給与が支給された月を給与月とする）
-            </label>
-          </div>
-          <div>
-            <label>
-              <input
-                type="radio"
-                formControlName="salaryMonthRule"
-                value="closingDate"
-              />
-              締日基準（給与の締めた月を給与月とする）
-            </label>
-          </div>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- 保険料率の設定タブ -->
   <div *ngIf="activeTab === 'rate'" class="tab-pane">
     <div class="card">
