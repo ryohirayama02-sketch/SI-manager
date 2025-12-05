@@ -78,7 +78,11 @@ export class SettingsPageComponent implements OnInit {
 
   // 編集ログ関連
   editLogs: EditLog[] = [];
+  filteredEditLogs: EditLog[] = [];
   isLoadingLogs = false;
+  filterDate: string = '';
+  filterUserName: string = '';
+  availableUserNames: string[] = [];
 
   // 保存中フラグ
   isSavingRates = false;
@@ -425,11 +429,48 @@ export class SettingsPageComponent implements OnInit {
     this.isLoadingLogs = true;
     try {
       this.editLogs = await this.editLogService.getEditLogs(100);
+      // ユーザー名のリストを取得
+      this.availableUserNames = [
+        ...new Set(this.editLogs.map((log) => log.userName)),
+      ].sort();
+      // フィルターを適用
+      this.applyFilters();
     } catch (error) {
       console.error('[SettingsPage] 編集ログの読み込みエラー:', error);
     } finally {
       this.isLoadingLogs = false;
     }
+  }
+
+  // フィルターを適用
+  applyFilters(): void {
+    let filtered = [...this.editLogs];
+
+    // 日付フィルター
+    if (this.filterDate) {
+      const filterDateObj = new Date(this.filterDate);
+      filterDateObj.setHours(0, 0, 0, 0);
+      const filterDateEnd = new Date(filterDateObj);
+      filterDateEnd.setHours(23, 59, 59, 999);
+
+      filtered = filtered.filter((log) => {
+        const logDate = new Date(log.timestamp);
+        return logDate >= filterDateObj && logDate <= filterDateEnd;
+      });
+    }
+
+    // ユーザーフィルター
+    if (this.filterUserName) {
+      filtered = filtered.filter((log) => log.userName === this.filterUserName);
+    }
+
+    this.filteredEditLogs = filtered;
+  }
+
+  // 日付フィルターをクリア
+  clearDateFilter(): void {
+    this.filterDate = '';
+    this.applyFilters();
   }
 
   // アクション名を日本語に変換
