@@ -42,8 +42,6 @@
       <th>同居区分</th>
       <th>収入見込</th>
       <th>第3号区分</th>
-      <th>高校卒業日（満18歳年度末）</th>
-      <th>大学卒業日（満22歳年度末）</th>
       <th>扶養開始日</th>
       <th>扶養終了日</th>
       <th>編集</th>
@@ -64,8 +62,6 @@
         }}
       </td>
       <td>{{ getPensionCategory(member) }}</td>
-      <td>{{ getAge18Date(member.birthDate) }}</td>
-      <td>{{ getAge22Date(member.birthDate) }}</td>
       <td>{{ member.supportStartDate || "-" }}</td>
       <td>{{ member.supportEndDate || "-" }}</td>
       <td>
@@ -214,6 +210,28 @@
         type="date"
         class="form-control"
         max="9999-12-31"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>高校卒業日（満18歳年度末）</label>
+      <input
+        type="text"
+        [value]="getAge18Date(familyForm.get('birthDate')?.value || '')"
+        class="form-control"
+        readonly
+        style="background-color: #f5f5f5; cursor: not-allowed"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>大学卒業日（満22歳年度末）</label>
+      <input
+        type="text"
+        [value]="getAge22Date(familyForm.get('birthDate')?.value || '')"
+        class="form-control"
+        readonly
+        style="background-color: #f5f5f5; cursor: not-allowed"
       />
     </div>
 
