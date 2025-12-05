@@ -110,13 +110,17 @@
                   <div style="display: flex; align-items: center">
                     <input
                       type="number"
-                      [value]="prefectureRates[pref.code].health_employee || 0"
+                      [value]="
+                        formatHealthRate(
+                          prefectureRates[pref.code].health_employee || 0
+                        )
+                      "
                       (input)="onHealthEmployeeInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
                       min="0"
                       max="100"
-                      step="0.00001"
+                      step="0.001"
                     />
                     <span
                       style="font-size: 0.85rem; color: #666; margin-left: 4px"
@@ -128,13 +132,17 @@
                   <div style="display: flex; align-items: center">
                     <input
                       type="number"
-                      [value]="prefectureRates[pref.code].health_employer || 0"
+                      [value]="
+                        formatHealthRate(
+                          prefectureRates[pref.code].health_employer || 0
+                        )
+                      "
                       (input)="onHealthEmployerInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
                       min="0"
                       max="100"
-                      step="0.00001"
+                      step="0.001"
                     />
                     <span
                       style="font-size: 0.85rem; color: #666; margin-left: 4px"
@@ -163,13 +171,17 @@
                   <div style="display: flex; align-items: center">
                     <input
                       type="number"
-                      [value]="prefectureRates[pref.code].health_employee || 0"
+                      [value]="
+                        formatHealthRate(
+                          prefectureRates[pref.code].health_employee || 0
+                        )
+                      "
                       (input)="onHealthEmployeeInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
                       min="0"
                       max="100"
-                      step="0.00001"
+                      step="0.001"
                     />
                     <span
                       style="font-size: 0.85rem; color: #666; margin-left: 4px"
@@ -181,13 +193,17 @@
                   <div style="display: flex; align-items: center">
                     <input
                       type="number"
-                      [value]="prefectureRates[pref.code].health_employer || 0"
+                      [value]="
+                        formatHealthRate(
+                          prefectureRates[pref.code].health_employer || 0
+                        )
+                      "
                       (input)="onHealthEmployerInput(pref.code, $event)"
                       (blur)="savePrefectureRate(pref.code)"
                       class="form-control rate-input"
                       min="0"
                       max="100"
-                      step="0.00001"
+                      step="0.001"
                     />
                     <span
                       style="font-size: 0.85rem; color: #666; margin-left: 4px"

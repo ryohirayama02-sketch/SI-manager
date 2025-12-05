@@ -672,6 +672,20 @@ export class SettingsPageComponent implements OnInit {
     return Math.floor(value * 100000) / 100000;
   }
 
+  /**
+   * 健康保険料率を小数点以下3位に丸める（4位以下を切り捨て）
+   */
+  private roundHealthRateTo3Decimals(value: number): number {
+    return Math.floor(value * 1000) / 1000;
+  }
+
+  /**
+   * 健康保険料率の表示を小数点以下3位までフォーマット
+   */
+  formatHealthRate(value: number): number {
+    return this.roundHealthRateTo3Decimals(value);
+  }
+
   onHealthEmployeeInput(prefecture: string, event: Event): void {
     const input = event.target as HTMLInputElement;
     const value = parseFloat(input.value) || 0;
@@ -681,12 +695,12 @@ export class SettingsPageComponent implements OnInit {
         health_employer: 0,
       };
     }
-    // 小数点以下5位に丸める
-    const roundedValue = this.roundTo5Decimals(value);
+    // 小数点以下3位に丸める（4位以下を切り捨て）
+    const roundedValue = this.roundHealthRateTo3Decimals(value);
     // パーセント形式で保持
     this.prefectureRates[prefecture].health_employee = roundedValue;
-    // 入力欄の表示も更新
-    input.value = roundedValue.toString();
+    // 入力欄の表示も更新（小数点以下3位まで）
+    input.value = roundedValue.toFixed(3);
   }
 
   onHealthEmployerInput(prefecture: string, event: Event): void {
@@ -698,12 +712,12 @@ export class SettingsPageComponent implements OnInit {
         health_employer: 0,
       };
     }
-    // 小数点以下5位に丸める
-    const roundedValue = this.roundTo5Decimals(value);
+    // 小数点以下3位に丸める（4位以下を切り捨て）
+    const roundedValue = this.roundHealthRateTo3Decimals(value);
     // パーセント形式で保持
     this.prefectureRates[prefecture].health_employer = roundedValue;
-    // 入力欄の表示も更新
-    input.value = roundedValue.toString();
+    // 入力欄の表示も更新（小数点以下3位まで）
+    input.value = roundedValue.toFixed(3);
   }
 
   async savePrefectureRate(prefecture: string): Promise<void> {
@@ -711,13 +725,14 @@ export class SettingsPageComponent implements OnInit {
       health_employee: 0,
       health_employer: 0,
     };
-    // 小数点以下5位に丸める
-    const roundedHealthEmployee = this.roundTo5Decimals(
+    // 健康保険料率は小数点以下3位に丸める（4位以下を切り捨て）
+    const roundedHealthEmployee = this.roundHealthRateTo3Decimals(
       rate.health_employee || 0
     );
-    const roundedHealthEmployer = this.roundTo5Decimals(
+    const roundedHealthEmployer = this.roundHealthRateTo3Decimals(
       rate.health_employer || 0
     );
+    // 介護保険と厚生年金は小数点以下5位に丸める
     const roundedCareEmployee = this.roundTo5Decimals(
       this.careRates.care_employee || 0
     );
