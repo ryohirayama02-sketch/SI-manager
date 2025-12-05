@@ -78,7 +78,8 @@ table.card {
 /* ボタンの統一 */
 .btn-primary,
 .btn-secondary,
-.btn-success {
+.btn-success,
+.btn-danger {
   padding: 0.5rem 1rem;
   border: none;
   border-radius: 4px;
@@ -89,13 +90,14 @@ table.card {
   transition: background-color 0.2s;
 }
 
+/* 作成・追加・編集ボタン：緑色 */
 .btn-primary {
-  background: #007bff;
+  background: #28a745;
   color: white;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #0056b3;
+  background: #218838;
 }
 
 .btn-primary:disabled {
@@ -112,13 +114,34 @@ table.card {
   background: #5a6268;
 }
 
+/* 保存系ボタン：青色 */
 .btn-success {
-  background: #28a745;
+  background: #007bff;
   color: white;
 }
 
-.btn-success:hover {
-  background: #218838;
+.btn-success:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-success:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+/* 削除系ボタン：赤色 */
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #c82333;
+}
+
+.btn-danger:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
 /* テーブルの統一 */
@@ -243,7 +266,8 @@ table tbody tr:hover {
 
   .btn-primary,
   .btn-secondary,
-  .btn-success {
+  .btn-success,
+  .btn-danger {
     width: 100%;
     margin-right: 0;
     margin-bottom: 0.5rem;
