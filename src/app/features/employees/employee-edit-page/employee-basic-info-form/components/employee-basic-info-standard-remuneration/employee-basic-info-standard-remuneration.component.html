@@ -31,23 +31,21 @@
       </div>
     </div>
 
-    <!-- 随時改定の結果 -->
-    <div *ngIf="suijiResults.length > 0" style="margin-bottom: 1rem;">
-      <h5 style="margin-top: 0;">随時改定</h5>
-      <div *ngFor="let suiji of suijiResults" style="margin-bottom: 0.75rem; padding: 0.75rem; background-color: white; border-radius: 4px; border: 1px solid #ddd;">
-        <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
-          <div><strong>年度:</strong> {{ getSuijiYear(suiji) }}年度</div>
-          <div><strong>変動月:</strong> {{ suiji.changeMonth }}月</div>
-          <div><strong>新等級:</strong> {{ suiji.newGrade }}</div>
-          <div><strong>現行等級:</strong> {{ suiji.currentGrade }}</div>
-          <div><strong>等級差:</strong> {{ suiji.diff }}</div>
-          <div><strong>適用開始月:</strong> {{ suiji.applyStartMonth }}月</div>
-          <div><strong>3ヶ月平均:</strong> {{ suiji.averageSalary.toLocaleString() }}円</div>
-        </div>
+    <!-- 随時改定の結果（最新の1つだけ表示） -->
+    <div *ngIf="latestSuijiResult" style="margin-bottom: 1rem; padding: 0.75rem; background-color: white; border-radius: 4px; border: 1px solid #ddd;">
+      <h5 style="margin-top: 0;">随時改定（最新）</h5>
+      <div style="font-size: 0.9rem; margin-bottom: 0.5rem;">
+        <div><strong>年度:</strong> {{ getSuijiYear(latestSuijiResult) }}年度</div>
+        <div><strong>変動月:</strong> {{ latestSuijiResult.changeMonth }}月</div>
+        <div><strong>新等級:</strong> {{ latestSuijiResult.newGrade }}</div>
+        <div><strong>現行等級:</strong> {{ latestSuijiResult.currentGrade }}</div>
+        <div><strong>等級差:</strong> {{ latestSuijiResult.diff }}</div>
+        <div><strong>適用開始月:</strong> {{ latestSuijiResult.applyStartMonth }}月</div>
+        <div><strong>3ヶ月平均:</strong> {{ latestSuijiResult.averageSalary.toLocaleString() }}円</div>
       </div>
     </div>
 
-    <div *ngIf="!teijiResult && suijiResults.length === 0 && !isLoading" style="color: #666; font-size: 0.9rem;">
+    <div *ngIf="!teijiResult && !latestSuijiResult && !isLoading" style="color: #666; font-size: 0.9rem;">
       月次報酬入力画面で給与データを入力すると、ここに定時決定・随時改定の結果が表示されます。
     </div>
   </div>

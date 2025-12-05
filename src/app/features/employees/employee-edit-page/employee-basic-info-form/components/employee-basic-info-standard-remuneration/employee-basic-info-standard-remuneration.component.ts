@@ -24,6 +24,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit, O
 
   teijiResult: TeijiKetteiResult | null = null;
   suijiResults: any[] = [];
+  latestSuijiResult: any | null = null; // 最新の随時改定結果
   currentYear: number = new Date().getFullYear();
   isLoading: boolean = false;
   private routerSubscription: Subscription | null = null;
@@ -152,9 +153,13 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit, O
       // 随時改定アラートを取得（複数年度を考慮）
       const yearsToCheck = [currentYear - 1, currentYear, currentYear + 1]; // 前年、当年、翌年
       const allSuijiAlerts = await this.suijiService.loadAllAlerts(yearsToCheck);
-      this.suijiResults = allSuijiAlerts
+      const filteredSuijiAlerts = allSuijiAlerts
         .filter(alert => alert.employeeId === this.employeeId && alert.isEligible)
         .map(alert => ({ ...alert, year: alert.year || currentYear })); // 年度情報を保持
+      
+      // 最新の随時改定を1つだけ取得（適用開始年月が最新のもの）
+      this.latestSuijiResult = this.getLatestSuijiResult(filteredSuijiAlerts, currentYear);
+      this.suijiResults = filteredSuijiAlerts; // 後方互換性のため残す
     } catch (error) {
       console.error('[EmployeeBasicInfoStandardRemuneration] 計算結果の取得エラー:', error);
     } finally {
@@ -294,6 +299,41 @@ export class EmployeeBasicInfoStandardRemunerationComponent implements OnInit, O
         });
       }
     }
+  }
+
+  /**
+   * 最新の随時改定結果を取得（適用開始年月が最新のもの）
+   */
+  private getLatestSuijiResult(suijiAlerts: any[], currentYear: number): any | null {
+    if (suijiAlerts.length === 0) return null;
+
+    const now = new Date();
+    let latest: any | null = null;
+    let latestDate: Date | null = null;
+
+    for (const suiji of suijiAlerts) {
+      const suijiYear = suiji.year || currentYear;
+      const applyStartMonth = suiji.applyStartMonth || (suiji.changeMonth + 4 > 12 ? (suiji.changeMonth + 4 - 12) : suiji.changeMonth + 4);
+      
+      // 変動月+4が12を超える場合は翌年
+      let applyYear = suijiYear;
+      const rawApplyMonth = suiji.changeMonth + 4;
+      if (rawApplyMonth > 12) {
+        applyYear = suijiYear + 1;
+      }
+      
+      const applyDate = new Date(applyYear, applyStartMonth - 1, 1);
+      
+      // 現在の日付より過去または現在の場合は適用対象
+      if (applyDate <= now) {
+        if (!latestDate || applyDate > latestDate) {
+          latest = suiji;
+          latestDate = applyDate;
+        }
+      }
+    }
+
+    return latest;
   }
 
   /**
