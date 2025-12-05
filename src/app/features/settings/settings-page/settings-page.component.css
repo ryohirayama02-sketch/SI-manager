@@ -1,5 +1,11 @@
 /* グローバルスタイルを使用 */
 
+/* 設定ページのカードは従業員一覧と同じ幅にする */
+:host ::ng-deep .card {
+  max-width: 1400px;
+  overflow-x: auto;
+}
+
 /* 標準報酬月額テーブル */
 .grade-table {
   width: 100%;
@@ -234,4 +240,21 @@
 .delete-badge {
   background-color: #f8d7da;
   color: #721c24;
+}
+
+/* 料率入力欄のスタイル */
+.card input[type="number"] {
+  width: 120px;
+  max-width: 150px;
+}
+
+/* 数値入力欄のスピナーを非表示にする */
+.card input[type="number"]::-webkit-inner-spin-button,
+.card input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.card input[type="number"] {
+  -moz-appearance: textfield;
 }

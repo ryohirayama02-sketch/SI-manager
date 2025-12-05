@@ -38,7 +38,7 @@
     type="button"
     class="tab-button"
     [class.active]="activeTab === 'editLog'"
-    (click)="activeTab = 'editLog'; loadEditLogs()"
+    (click)="onEditLogTabClick()"
   >
     編集ログ
   </button>
@@ -202,9 +202,9 @@
       </div>
 
       <!-- 介護保険（全国一律） -->
-      <h3>介護保険（全国一律）</h3>
-      <div class="card" style="max-width: 500px; margin-bottom: 1.5rem">
-        <div class="form-group">
+      <h3 style="text-align: left">介護保険（全国一律）</h3>
+      <div class="card" style="margin-bottom: 1.5rem">
+        <div class="form-group" style="text-align: left">
           <label>本人料率：</label>
           <div style="display: flex; align-items: center">
             <input
@@ -221,7 +221,7 @@
             >
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="text-align: left">
           <label>事業主料率：</label>
           <div style="display: flex; align-items: center">
             <input
@@ -241,9 +241,9 @@
       </div>
 
       <!-- 厚生年金（全国一律） -->
-      <h3>厚生年金（全国一律）</h3>
-      <div class="card" style="max-width: 500px; margin-bottom: 1.5rem">
-        <div class="form-group">
+      <h3 style="text-align: left">厚生年金（全国一律）</h3>
+      <div class="card" style="margin-bottom: 1.5rem">
+        <div class="form-group" style="text-align: left">
           <label>本人料率：</label>
           <div style="display: flex; align-items: center">
             <input
@@ -260,7 +260,7 @@
             >
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="text-align: left">
           <label>事業主料率：</label>
           <div style="display: flex; align-items: center">
             <input
@@ -893,16 +893,6 @@
         アプリ内の情報を追加、編集、削除した時のログを表示します。
       </div>
 
-      <div style="margin-top: 1rem; margin-bottom: 1rem">
-        <button
-          (click)="loadEditLogs()"
-          class="btn-primary"
-          [disabled]="isLoadingLogs"
-        >
-          {{ isLoadingLogs ? "読み込み中..." : "更新" }}
-        </button>
-      </div>
-
       <div
         *ngIf="isLoadingLogs"
         style="padding: 2rem; text-align: center; color: #666"
@@ -1042,9 +1032,11 @@
       </div>
 
       <!-- ユーザー情報セクション -->
-      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem">ユーザー情報</h3>
-      <div class="card" style="max-width: 600px; margin-bottom: 1.5rem">
-        <div class="form-group">
+      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; text-align: left">
+        ユーザー情報
+      </h3>
+      <div class="card" style="margin-bottom: 1.5rem">
+        <div class="form-group" style="text-align: left">
           <label>ユーザー名：</label>
           <div
             style="
@@ -1057,7 +1049,7 @@
             {{ currentUser?.displayName || "未設定" }}
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="text-align: left">
           <label>メールアドレス：</label>
           <div
             style="
@@ -1070,7 +1062,7 @@
             {{ currentUser?.email || "未設定" }}
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="text-align: left">
           <label>パスワード：</label>
           <div
             style="
@@ -1087,9 +1079,11 @@
       </div>
 
       <!-- ルーム情報セクション -->
-      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem">ルーム情報</h3>
-      <div class="card" style="max-width: 600px">
-        <div class="form-group">
+      <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; text-align: left">
+        ルーム情報
+      </h3>
+      <div class="card">
+        <div class="form-group" style="text-align: left">
           <label>ルーム名（企業名）：</label>
           <div
             style="
@@ -1102,7 +1096,7 @@
             {{ roomInfo?.name || "未設定" }}
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="text-align: left">
           <label>ルームID：</label>
           <div
             style="
@@ -1116,7 +1110,7 @@
             {{ roomInfo?.id || "未設定" }}
           </div>
         </div>
-        <div class="form-group">
+        <div class="form-group" style="text-align: left">
           <label>ルームパスワード：</label>
           <div
             style="

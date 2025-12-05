@@ -414,6 +414,12 @@ export class SettingsPageComponent implements OnInit {
     await this.loadUserRoomInfo();
   }
 
+  // 編集ログタブがクリックされたときの処理
+  async onEditLogTabClick(): Promise<void> {
+    this.activeTab = 'editLog';
+    await this.loadEditLogs();
+  }
+
   // 編集ログを読み込む
   async loadEditLogs(): Promise<void> {
     this.isLoadingLogs = true;
