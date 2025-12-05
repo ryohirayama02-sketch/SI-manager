@@ -19,7 +19,26 @@ export class StandardRemunerationHistoryService {
    * 標準報酬履歴を保存
    */
   async saveStandardRemunerationHistory(history: StandardRemunerationHistory): Promise<void> {
-    const ref = doc(this.firestore, 'standardRemunerationHistories', history.id || `temp_${Date.now()}`);
+    // IDが指定されている場合は既存の履歴を更新、なければ新規作成
+    const docId = history.id || `temp_${Date.now()}`;
+    const ref = doc(this.firestore, 'standardRemunerationHistories', docId);
+    
+    // 既存のドキュメントを取得してcreatedAtを保持
+    const existingSnap = await getDoc(ref);
+    let existingCreatedAt: Date;
+    if (existingSnap.exists()) {
+      const existingData = existingSnap.data();
+      if (existingData['createdAt']?.toDate) {
+        existingCreatedAt = existingData['createdAt'].toDate();
+      } else if (existingData['createdAt'] instanceof Date) {
+        existingCreatedAt = existingData['createdAt'];
+      } else {
+        existingCreatedAt = history.createdAt || new Date();
+      }
+    } else {
+      existingCreatedAt = history.createdAt || new Date();
+    }
+    
     // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
     const data: any = {
       employeeId: history.employeeId,
@@ -29,7 +48,7 @@ export class StandardRemunerationHistoryService {
       standardMonthlyRemuneration: history.standardMonthlyRemuneration,
       determinationReason: history.determinationReason,
       updatedAt: new Date(),
-      createdAt: history.createdAt || new Date()
+      createdAt: existingCreatedAt
     };
     
     // 値がある場合のみ追加
@@ -145,19 +164,24 @@ export class StandardRemunerationHistoryService {
       if (teijiResult.standardMonthlyRemuneration > 0) {
         // 既存の履歴を確認
         const existingHistories = await this.getStandardRemunerationHistories(employeeId);
-        const exists = existingHistories.some(h => 
+        const existingHistory = existingHistories.find(h => 
           h.applyStartYear === year && h.applyStartMonth === 9 && h.determinationReason === 'teiji'
         );
 
-        if (!exists) {
+        // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
+        if (!existingHistory || 
+            existingHistory.standardMonthlyRemuneration !== teijiResult.standardMonthlyRemuneration ||
+            existingHistory.grade !== teijiResult.grade) {
           await this.saveStandardRemunerationHistory({
+            id: existingHistory?.id, // 既存のIDがあれば使用（更新）、なければ新規作成
             employeeId,
             applyStartYear: year,
             applyStartMonth: 9,
             grade: teijiResult.grade,
             standardMonthlyRemuneration: teijiResult.standardMonthlyRemuneration,
             determinationReason: 'teiji',
-            memo: `定時決定（${year}年4〜6月平均）`
+            memo: `定時決定（${year}年4〜6月平均）`,
+            createdAt: existingHistory?.createdAt // 既存の履歴がある場合は元の作成日時を保持
           });
         }
       }
