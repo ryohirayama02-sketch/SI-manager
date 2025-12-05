@@ -26,7 +26,7 @@ export interface EmployeeEligibilityResult {
 export interface EmployeeWorkInfo {
   weeklyHours?: number; // 週労働時間
   monthlyWage?: number; // 月額賃金（円）
-  expectedEmploymentMonths?: number; // 雇用見込期間（月）
+  expectedEmploymentMonths?: number | string; // 雇用見込期間（月）または選択値（'within-2months' | 'over-2months'）
   isStudent?: boolean; // 学生かどうか
   consecutiveMonthsOver20Hours?: number; // 連続で20時間以上働いた月数
 }
@@ -255,12 +255,21 @@ export class EmployeeEligibilityService {
     }
 
     // 2ヶ月超の雇用見込
-    if (workInfo.expectedEmploymentMonths && workInfo.expectedEmploymentMonths > 2) {
-      reasons.push(`雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超）`);
+    const isOver2Months = this.isExpectedEmploymentOver2Months(workInfo.expectedEmploymentMonths);
+    if (isOver2Months) {
+      if (typeof workInfo.expectedEmploymentMonths === 'string') {
+        reasons.push('2か月を超える見込み（条件: 2ヶ月超）');
+      } else {
+        reasons.push(`雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超）`);
+      }
     } else {
       allMet = false;
-      if (workInfo.expectedEmploymentMonths !== undefined) {
-        reasons.push(`雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超を満たしていない）`);
+      if (workInfo.expectedEmploymentMonths !== undefined && workInfo.expectedEmploymentMonths !== null) {
+        if (typeof workInfo.expectedEmploymentMonths === 'string') {
+          reasons.push('2か月以内（条件: 2ヶ月超を満たしていない）');
+        } else {
+          reasons.push(`雇用見込${workInfo.expectedEmploymentMonths}ヶ月（条件: 2ヶ月超を満たしていない）`);
+        }
       } else {
         reasons.push('雇用見込期間情報がない（条件: 2ヶ月超）');
       }
@@ -275,6 +284,23 @@ export class EmployeeEligibilityService {
     }
 
     return { allMet, reasons };
+  }
+
+  /**
+   * 雇用見込期間が2ヶ月超かどうかを判定
+   * @param expectedEmploymentMonths 雇用見込期間（数値または選択値）
+   * @returns 2ヶ月超の場合true
+   */
+  private isExpectedEmploymentOver2Months(expectedEmploymentMonths?: number | string | null): boolean {
+    if (expectedEmploymentMonths === undefined || expectedEmploymentMonths === null) {
+      return false;
+    }
+    // 文字列の場合（選択式）
+    if (typeof expectedEmploymentMonths === 'string') {
+      return expectedEmploymentMonths === 'over-2months';
+    }
+    // 数値の場合（後方互換性のため）
+    return expectedEmploymentMonths > 2;
   }
 
   /**

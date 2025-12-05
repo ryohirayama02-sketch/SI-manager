@@ -157,7 +157,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         employmentType: (data as any).employmentType || '',
         weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
         monthlyWage: data.monthlyWage || null,
-        expectedEmploymentMonths: data.expectedEmploymentMonths || null,
+        expectedEmploymentMonths: this.convertExpectedEmploymentMonthsToSelectValue(data.expectedEmploymentMonths),
         isStudent: data.isStudent || false,
         prefecture: prefecture,
         officeNumber: officeNumber,
@@ -512,5 +512,25 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         notificationNames: ['資格取得届'],
       });
     }
+  }
+
+  /**
+   * 既存の数値データを選択値に変換
+   * @param value 数値または選択値
+   * @returns 選択値（'within-2months' | 'over-2months' | ''）
+   */
+  private convertExpectedEmploymentMonthsToSelectValue(value?: number | string | null): string {
+    if (value === undefined || value === null || value === '') {
+      return '';
+    }
+    // 既に選択値の場合はそのまま返す
+    if (typeof value === 'string') {
+      return value === 'within-2months' || value === 'over-2months' ? value : '';
+    }
+    // 数値の場合は変換
+    if (typeof value === 'number') {
+      return value > 2 ? 'over-2months' : 'within-2months';
+    }
+    return '';
   }
 }
