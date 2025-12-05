@@ -62,6 +62,13 @@ export class AgeAlertListComponent {
   }
 
   deleteSelectedAgeAlerts(): void {
+    if (this.selectedAgeAlertIds.size === 0) {
+      return;
+    }
+    const count = this.selectedAgeAlertIds.size;
+    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
+      return;
+    }
     this.deleteSelected.emit();
   }
 

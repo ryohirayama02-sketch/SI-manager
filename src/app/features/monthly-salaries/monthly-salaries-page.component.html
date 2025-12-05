@@ -45,7 +45,7 @@
 <div style="margin-top: 1rem;">
   <button 
     (click)="saveAllSalaries()" 
-    class="btn-success" 
+    class="btn-primary" 
     [ngClass]="{'btn-saving': isSaving}"
     [disabled]="isSaving">
     {{ isSaving ? '保存中...' : '保存する' }}

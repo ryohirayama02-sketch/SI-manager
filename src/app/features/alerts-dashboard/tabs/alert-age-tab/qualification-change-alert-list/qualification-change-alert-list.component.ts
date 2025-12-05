@@ -57,6 +57,13 @@ export class QualificationChangeAlertListComponent {
   }
 
   deleteSelectedQualificationChangeAlerts(): void {
+    if (this.selectedQualificationChangeAlertIds.size === 0) {
+      return;
+    }
+    const count = this.selectedQualificationChangeAlertIds.size;
+    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
+      return;
+    }
     this.deleteSelected.emit();
   }
 

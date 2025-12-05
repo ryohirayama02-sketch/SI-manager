@@ -315,6 +315,14 @@ export class AlertLeaveTabComponent implements OnInit {
 
   // 産休育休アラートの削除
   deleteSelectedMaternityChildcareAlerts(): void {
+    if (this.selectedMaternityChildcareAlertIds.size === 0) {
+      return;
+    }
+    const count = this.selectedMaternityChildcareAlertIds.size;
+    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
+      return;
+    }
+
     // @Input()でmaternityChildcareAlertsが渡されている場合は親に委譲
     // そうでない場合は自分で削除処理を行う
     if (
@@ -327,10 +335,6 @@ export class AlertLeaveTabComponent implements OnInit {
     } else {
       // 自分でロードしたアラートを削除
       const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
-      if (selectedIds.length === 0) return;
-
-      const confirmMessage = `選択した${selectedIds.length}件の産休・育休・休職アラートを削除しますか？`;
-      if (!confirm(confirmMessage)) return;
 
       this._maternityChildcareAlerts = this._maternityChildcareAlerts.filter(
         (alert) => !selectedIds.includes(alert.id)

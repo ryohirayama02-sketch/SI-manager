@@ -107,6 +107,13 @@ export class AlertSuijiTabComponent {
 
   // 随時改定アラートの削除
   deleteSelectedSuijiAlerts(): void {
+    if (this.selectedSuijiAlertIds.size === 0) {
+      return;
+    }
+    const count = this.selectedSuijiAlertIds.size;
+    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
+      return;
+    }
     this.deleteSelected.emit();
   }
 

@@ -20,7 +20,7 @@
 </div>
 
 <div class="card" style="margin-bottom: 1rem;">
-  <button (click)="addBonusColumn()" class="btn-primary" style="margin-bottom: 1rem;">
+  <button (click)="addBonusColumn()" class="btn-success" style="margin-bottom: 1rem;">
     ＋ 賞与入力列を追加
   </button>
 
@@ -83,7 +83,7 @@
 
 <button 
   (click)="saveAllBonuses()" 
-  class="btn-success" 
+  class="btn-primary" 
   [ngClass]="{'btn-saving': isSaving}"
   [disabled]="isSaving"
   style="margin-top: 1rem;">

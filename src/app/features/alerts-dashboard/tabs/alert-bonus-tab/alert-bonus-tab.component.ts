@@ -78,6 +78,13 @@ export class AlertBonusTabComponent {
    * 選択した賞与支払届アラートを削除
    */
   deleteSelectedBonusReportAlerts(): void {
+    if (this.selectedBonusReportAlertIds.size === 0) {
+      return;
+    }
+    const count = this.selectedBonusReportAlertIds.size;
+    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
+      return;
+    }
     this.deleteSelected.emit();
   }
 
