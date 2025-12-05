@@ -358,8 +358,13 @@
       </div>
 
       <div class="button-group" style="margin-top: 1rem; margin-bottom: 1rem">
-        <button (click)="saveAllRates()" class="btn-primary">
-          すべての料率を保存する
+        <button
+          (click)="saveAllRates()"
+          class="btn-primary"
+          [ngClass]="{ 'btn-saving': isSavingRates }"
+          [disabled]="isSavingRates"
+        >
+          {{ isSavingRates ? "保存中..." : "すべての料率を保存する" }}
         </button>
       </div>
     </div>
@@ -552,8 +557,17 @@
       </div>
 
       <div style="margin-top: 1rem; display: flex; gap: 1rem">
-        <button (click)="saveStandardTable()" class="btn-primary">
-          標準報酬月額テーブルを保存する
+        <button
+          (click)="saveStandardTable()"
+          class="btn-primary"
+          [ngClass]="{ 'btn-saving': isSavingStandardTable }"
+          [disabled]="isSavingStandardTable"
+        >
+          {{
+            isSavingStandardTable
+              ? "保存中..."
+              : "標準報酬月額テーブルを保存する"
+          }}
         </button>
         <button (click)="clearStandardTable()" class="btn-danger">
           テーブルをクリア

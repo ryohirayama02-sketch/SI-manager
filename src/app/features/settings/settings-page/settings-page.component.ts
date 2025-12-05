@@ -79,6 +79,10 @@ export class SettingsPageComponent implements OnInit {
   editLogs: EditLog[] = [];
   isLoadingLogs = false;
 
+  // 保存中フラグ
+  isSavingRates = false;
+  isSavingStandardTable = false;
+
   // 47都道府県の料率データ（パーセント形式で保持）
   prefectureRates: {
     [prefecture: string]: { health_employee: number; health_employer: number };
@@ -340,16 +344,27 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async saveStandardTable(): Promise<void> {
+    if (this.isSavingStandardTable) return;
+    
     this.validateStandardTable();
     if (this.errorMessages.length > 0) {
       alert('エラーがあります。修正してください。');
       return;
     }
-    await this.settingsService.saveStandardTable(
-      this.standardTableYear,
-      this.standardTable.value
-    );
-    alert('標準報酬月額テーブルを保存しました');
+    
+    this.isSavingStandardTable = true;
+    try {
+      await this.settingsService.saveStandardTable(
+        this.standardTableYear,
+        this.standardTable.value
+      );
+      alert('標準報酬月額テーブルを保存しました');
+    } catch (error) {
+      console.error('標準報酬月額テーブルの保存エラー:', error);
+      alert('標準報酬月額テーブルの保存に失敗しました');
+    } finally {
+      this.isSavingStandardTable = false;
+    }
   }
 
   clearStandardTable(): void {
@@ -630,10 +645,20 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async saveAllRates(): Promise<void> {
-    for (const pref of this.prefectureList) {
-      await this.savePrefectureRate(pref.code);
+    if (this.isSavingRates) return;
+    
+    this.isSavingRates = true;
+    try {
+      for (const pref of this.prefectureList) {
+        await this.savePrefectureRate(pref.code);
+      }
+      alert('保険料率を保存しました');
+    } catch (error) {
+      console.error('保険料率の保存エラー:', error);
+      alert('保険料率の保存に失敗しました');
+    } finally {
+      this.isSavingRates = false;
     }
-    alert('保険料率を保存しました');
   }
 
   // CSVインポート機能
