@@ -167,6 +167,79 @@ export class BonusService {
   }
 
   /**
+   * 保険年度（4/1〜翌3/31）で賞与を取得（健保・介保の年間上限573万円の集計用）
+   * @param employeeId 従業員ID
+   * @param referenceDate 基準日（今回の賞与支給日）
+   * @returns 保険年度内の賞与データの配列
+   */
+  async getBonusesForHealthAnnualLimit(
+    employeeId: string,
+    referenceDate: Date
+  ): Promise<Bonus[]> {
+    // 基準日が属する保険年度の開始日（4/1）と終了日（翌年3/31）を計算
+    const refYear = referenceDate.getFullYear();
+    const refMonth = referenceDate.getMonth() + 1; // 1-12
+    
+    let fiscalYearStart: number;
+    let fiscalYearEnd: number;
+    
+    if (refMonth >= 4) {
+      // 4月〜12月の場合：当年度（4/1〜翌年3/31）
+      fiscalYearStart = refYear;
+      fiscalYearEnd = refYear + 1;
+    } else {
+      // 1月〜3月の場合：前年度（前年4/1〜当年3/31）
+      fiscalYearStart = refYear - 1;
+      fiscalYearEnd = refYear;
+    }
+    
+    const startDate = `${fiscalYearStart}-04-01`;
+    const endDate = `${fiscalYearEnd}-03-31`;
+    
+    console.log(
+      `[bonus.service] 保険年度で賞与取得: 従業員ID=${employeeId}, 基準日=${referenceDate.toISOString().split('T')[0]}, 保険年度=${startDate}〜${endDate}`
+    );
+    
+    // 保険年度に含まれる可能性のある暦年を取得
+    const yearsToCheck = [fiscalYearStart, fiscalYearEnd];
+    const allBonuses: Bonus[] = [];
+    
+    for (const year of yearsToCheck) {
+      const path = `bonus/${year}/employees/${employeeId}/items`;
+      const ref = collection(this.firestore, path);
+      
+      // payDateでフィルタリング（保険年度の期間内）
+      const q = query(
+        ref,
+        where('payDate', '>=', startDate),
+        where('payDate', '<=', endDate)
+      );
+      
+      const snapshot = await getDocs(q);
+      const bonuses = snapshot.docs.map(
+        (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
+      );
+      
+      allBonuses.push(...bonuses);
+    }
+    
+    // payDateで再度フィルタリング（念のため）
+    const filteredBonuses = allBonuses.filter(bonus => {
+      if (!bonus.payDate) return false;
+      const payDateObj = new Date(bonus.payDate);
+      const payDateStr = payDateObj.toISOString().split('T')[0];
+      return payDateStr >= startDate && payDateStr <= endDate;
+    });
+    
+    console.log(
+      `[bonus.service] 保険年度で取得した賞与データ: ${filteredBonuses.length}件`,
+      filteredBonuses.map(b => ({ payDate: b.payDate, amount: b.amount }))
+    );
+    
+    return filteredBonuses;
+  }
+
+  /**
    * 賞与を保存する（新しい構造）
    * @param year 年度
    * @param data 賞与データ

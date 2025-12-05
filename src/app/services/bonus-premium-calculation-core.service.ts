@@ -36,7 +36,7 @@ export class BonusPremiumCalculationCoreService {
   async applyBonusCaps(
     standardBonus: number,
     employeeId: string,
-    payYear: number
+    payDate: Date
   ): Promise<{
     cappedBonusHealth: number;
     cappedBonusPension: number;
@@ -50,10 +50,11 @@ export class BonusPremiumCalculationCoreService {
     const cappedBonusPension = Math.min(standardBonus, PENSION_SINGLE_LIMIT);
     const reason_upper_limit_pension = standardBonus > PENSION_SINGLE_LIMIT;
 
-    // 健保・介保：年度累計573万円上限（今年支給済の賞与合計を読み取る）
-    const existingBonuses = await this.bonusService.getBonusesForResult(
+    // 健保・介保：保険年度（4/1〜翌3/31）累計573万円上限
+    // 今回の支給日が属する保険年度内の賞与合計を取得
+    const existingBonuses = await this.bonusService.getBonusesForHealthAnnualLimit(
       employeeId,
-      payYear
+      payDate
     );
     const existingTotal = existingBonuses.reduce((sum, bonus) => {
       const bonusAmount = bonus.amount || 0;
@@ -101,26 +102,26 @@ export class BonusPremiumCalculationCoreService {
     const isCareEligible = ageFlags.isCare2;
 
     // 保険料計算
-    // 健康保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const healthTotal =
       actualHealthBase * (rates.health_employee + rates.health_employer);
     const healthHalf = healthTotal / 2;
-    const healthEmployee = Math.floor(healthHalf / 10) * 10;
-    const healthEmployer = Math.floor(healthHalf / 10) * 10;
+    const healthEmployee = this.roundWith50SenRule(healthHalf);
+    const healthEmployer = this.roundWith50SenRule(healthHalf);
 
-    // 介護保険：総額を計算 → 折半 → それぞれ10円未満切り捨て
+    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const careTotal = isCareEligible
       ? actualHealthBase * (rates.care_employee + rates.care_employer)
       : 0;
     const careHalf = careTotal / 2;
-    const careEmployee = isCareEligible ? Math.floor(careHalf / 10) * 10 : 0;
-    const careEmployer = isCareEligible ? Math.floor(careHalf / 10) * 10 : 0;
+    const careEmployee = isCareEligible ? this.roundWith50SenRule(careHalf) : 0;
+    const careEmployer = isCareEligible ? this.roundWith50SenRule(careHalf) : 0;
 
-    // 厚生年金：個人分を計算 → 10円未満切り捨て → 会社分 = 総額 - 個人分
+    // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
     const pensionTotal =
       actualPensionBase * (rates.pension_employee + rates.pension_employer);
     const pensionHalf = pensionTotal / 2;
-    const pensionEmployee = Math.floor(pensionHalf / 10) * 10;
+    const pensionEmployee = this.roundWith50SenRule(pensionHalf);
     const pensionEmployer = pensionTotal - pensionEmployee;
 
     return {
@@ -131,6 +132,23 @@ export class BonusPremiumCalculationCoreService {
       pensionEmployee,
       pensionEmployer,
     };
+  }
+
+  /**
+   * 1円未満を50銭ルールで丸める
+   * - 0.50以下 → 切り捨て
+   * - 0.50より大きい → 切り上げ
+   * @param amount 丸める金額
+   * @returns 丸め後の金額
+   */
+  private roundWith50SenRule(amount: number): number {
+    const floor = Math.floor(amount);
+    const diff = amount - floor;
+
+    if (diff > 0.5 + 1e-9) {
+      return floor + 1;
+    }
+    return floor;
   }
 
   /**

@@ -88,8 +88,8 @@ export class BonusCalculationService {
     // 標準賞与額を計算
     const standardBonus = this.preparationService.calculateStandardBonus(bonusAmount);
 
-    // 上限適用
-    const caps = await this.preparationService.applyBonusCaps(standardBonus, employeeId, payYear);
+    // 上限適用（保険年度ベースで集計するため、payDateを渡す）
+    const caps = await this.preparationService.applyBonusCaps(standardBonus, employeeId, payDate);
     const {
       cappedBonusHealth,
       cappedBonusPension,

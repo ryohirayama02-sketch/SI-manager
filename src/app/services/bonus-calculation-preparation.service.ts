@@ -55,7 +55,7 @@ export class BonusCalculationPreparationService {
   async applyBonusCaps(
     standardBonus: number,
     employeeId: string,
-    payYear: number
+    payDate: Date
   ): Promise<{
     cappedBonusHealth: number;
     cappedBonusPension: number;
@@ -65,7 +65,7 @@ export class BonusCalculationPreparationService {
     return await this.premiumCalculationCore.applyBonusCaps(
       standardBonus,
       employeeId,
-      payYear
+      payDate
     );
   }
 }
