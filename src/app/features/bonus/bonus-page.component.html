@@ -15,6 +15,10 @@
   (closeDialog)="onCsvImportClose()">
 </app-bonus-csv-import>
 
+<div class="info-label" *ngIf="bonusColumns.length > 0">
+  賞与支給額を入力してください。
+</div>
+
 <div class="card" style="margin-bottom: 1rem;">
   <button (click)="addBonusColumn()" class="btn-primary" style="margin-bottom: 1rem;">
     ＋ 賞与入力列を追加
@@ -39,7 +43,7 @@
               <button 
                 (click)="removeBonusColumn(column.id)" 
                 class="btn-danger btn-small"
-                style="margin-left: 0.5rem; padding: 0.25rem 0.5rem; font-size: 0.875rem;"
+                style="margin-left: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.9rem; width: auto; align-self: flex-start;"
                 [disabled]="!column.payDate">
                 削除
               </button>
