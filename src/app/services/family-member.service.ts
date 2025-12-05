@@ -1,6 +1,20 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, where, orderBy } from '@angular/fire/firestore';
-import { FamilyMember, FamilyMemberHistory } from '../models/family-member.model';
+import {
+  Firestore,
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+} from '@angular/fire/firestore';
+import {
+  FamilyMember,
+  FamilyMemberHistory,
+} from '../models/family-member.model';
 
 @Injectable({ providedIn: 'root' })
 export class FamilyMemberService {
@@ -19,7 +33,7 @@ export class FamilyMemberService {
       const newRef = doc(collection(this.firestore, 'familyMembers'));
       docId = newRef.id;
     }
-    
+
     const ref = doc(this.firestore, 'familyMembers', docId);
     // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
     const data: any = {
@@ -30,11 +44,14 @@ export class FamilyMemberService {
       livingTogether: familyMember.livingTogether,
       isThirdCategory: familyMember.isThirdCategory,
       updatedAt: new Date(),
-      createdAt: familyMember.createdAt || new Date()
+      createdAt: familyMember.createdAt || new Date(),
     };
-    
+
     // 値がある場合のみ追加
-    if (familyMember.expectedIncome !== null && familyMember.expectedIncome !== undefined) {
+    if (
+      familyMember.expectedIncome !== null &&
+      familyMember.expectedIncome !== undefined
+    ) {
       data.expectedIncome = familyMember.expectedIncome;
     }
     if (familyMember.supportStartDate) {
@@ -46,7 +63,7 @@ export class FamilyMemberService {
     if (familyMember.changeDate) {
       data.changeDate = familyMember.changeDate;
     }
-    
+
     await setDoc(ref, data, { merge: true });
     return docId;
   }
@@ -64,11 +81,13 @@ export class FamilyMemberService {
   /**
    * 従業員の家族情報一覧を取得
    */
-  async getFamilyMembersByEmployeeId(employeeId: string): Promise<FamilyMember[]> {
+  async getFamilyMembersByEmployeeId(
+    employeeId: string
+  ): Promise<FamilyMember[]> {
     const ref = collection(this.firestore, 'familyMembers');
     const q = query(ref, where('employeeId', '==', employeeId));
     const snapshot = await getDocs(q);
-    const members = snapshot.docs.map(doc => {
+    const members = snapshot.docs.map((doc) => {
       const data = doc.data();
       // FirestoreのTimestampをDateに変換
       let createdAt: Date | undefined;
@@ -87,11 +106,11 @@ export class FamilyMemberService {
           updatedAt = data['updatedAt'];
         }
       }
-      return { 
-        id: doc.id, 
+      return {
+        id: doc.id,
         ...data,
         createdAt,
-        updatedAt
+        updatedAt,
       } as FamilyMember;
     });
     // クライアント側でソート（createdAtでソート、なければnameでソート）
@@ -114,19 +133,35 @@ export class FamilyMemberService {
   }
 
   /**
+   * 従業員IDで全ての家族情報を削除
+   */
+  async deleteFamilyMembersByEmployeeId(employeeId: string): Promise<void> {
+    const ref = collection(this.firestore, 'familyMembers');
+    const q = query(ref, where('employeeId', '==', employeeId));
+    const snapshot = await getDocs(q);
+
+    const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+  }
+
+  /**
    * 扶養履歴を保存
    */
   async saveFamilyMemberHistory(history: FamilyMemberHistory): Promise<void> {
-    const ref = doc(this.firestore, 'familyMemberHistories', history.id || `temp_${Date.now()}`);
+    const ref = doc(
+      this.firestore,
+      'familyMemberHistories',
+      history.id || `temp_${Date.now()}`
+    );
     // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
     const data: any = {
       familyMemberId: history.familyMemberId,
       employeeId: history.employeeId,
       changeDate: history.changeDate,
       changeType: history.changeType,
-      createdAt: history.createdAt || new Date()
+      createdAt: history.createdAt || new Date(),
     };
-    
+
     // 値がある場合のみ追加
     if (history.previousValue !== null && history.previousValue !== undefined) {
       data.previousValue = history.previousValue;
@@ -134,18 +169,20 @@ export class FamilyMemberService {
     if (history.newValue !== null && history.newValue !== undefined) {
       data.newValue = history.newValue;
     }
-    
+
     await setDoc(ref, data, { merge: true });
   }
 
   /**
    * 家族情報の履歴を取得
    */
-  async getFamilyMemberHistories(familyMemberId: string): Promise<FamilyMemberHistory[]> {
+  async getFamilyMemberHistories(
+    familyMemberId: string
+  ): Promise<FamilyMemberHistory[]> {
     const ref = collection(this.firestore, 'familyMemberHistories');
     const q = query(ref, where('familyMemberId', '==', familyMemberId));
     const snapshot = await getDocs(q);
-    const histories = snapshot.docs.map(doc => {
+    const histories = snapshot.docs.map((doc) => {
       const data = doc.data();
       // FirestoreのTimestampをDateに変換
       let createdAt: Date;
@@ -160,10 +197,10 @@ export class FamilyMemberService {
       } else {
         createdAt = new Date();
       }
-      return { 
-        id: doc.id, 
+      return {
+        id: doc.id,
         ...data,
-        createdAt
+        createdAt,
       } as FamilyMemberHistory;
     });
     // クライアント側でソート（changeDateで降順ソート）
@@ -180,7 +217,10 @@ export class FamilyMemberService {
     const birth = new Date(birthDate);
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birth.getDate())
+    ) {
       age--;
     }
     return age;
@@ -190,7 +230,7 @@ export class FamilyMemberService {
    * 扶養見直しアラートを取得
    */
   getSupportReviewAlerts(familyMembers: FamilyMember[]): FamilyMember[] {
-    return familyMembers.filter(member => {
+    return familyMembers.filter((member) => {
       const age = this.calculateAge(member.birthDate);
       const relationship = member.relationship.toLowerCase();
       // 子の場合、18歳または22歳で扶養見直し
@@ -201,4 +241,3 @@ export class FamilyMemberService {
     });
   }
 }
-

@@ -19,6 +19,8 @@ import { EmployeeLifecycleService } from '../../../../services/employee-lifecycl
 import { EmployeeEligibilityService } from '../../../../services/employee-eligibility.service';
 import { EmployeeChangeHistoryService } from '../../../../services/employee-change-history.service';
 import { EmployeeWorkCategoryService } from '../../../../services/employee-work-category.service';
+import { FamilyMemberService } from '../../../../services/family-member.service';
+import { Router } from '@angular/router';
 import { EmployeeBasicInfoPersonalComponent } from './components/employee-basic-info-personal/employee-basic-info-personal.component';
 import { EmployeeBasicInfoEmploymentComponent } from './components/employee-basic-info-employment/employee-basic-info-employment.component';
 import { EmployeeBasicInfoAffiliationComponent } from './components/employee-basic-info-affiliation/employee-basic-info-affiliation.component';
@@ -62,7 +64,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
-    private employeeWorkCategoryService: EmployeeWorkCategoryService
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
+    private familyMemberService: FamilyMemberService,
+    private router: Router
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
@@ -157,7 +161,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         employmentType: (data as any).employmentType || '',
         weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
         monthlyWage: data.monthlyWage || null,
-        expectedEmploymentMonths: this.convertExpectedEmploymentMonthsToSelectValue(data.expectedEmploymentMonths),
+        expectedEmploymentMonths:
+          this.convertExpectedEmploymentMonthsToSelectValue(
+            data.expectedEmploymentMonths
+          ),
         isStudent: data.isStudent || false,
         prefecture: prefecture,
         officeNumber: officeNumber,
@@ -519,18 +526,62 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
    * @param value 数値または選択値
    * @returns 選択値（'within-2months' | 'over-2months' | ''）
    */
-  private convertExpectedEmploymentMonthsToSelectValue(value?: number | string | null): string {
+  private convertExpectedEmploymentMonthsToSelectValue(
+    value?: number | string | null
+  ): string {
     if (value === undefined || value === null || value === '') {
       return '';
     }
     // 既に選択値の場合はそのまま返す
     if (typeof value === 'string') {
-      return value === 'within-2months' || value === 'over-2months' ? value : '';
+      return value === 'within-2months' || value === 'over-2months'
+        ? value
+        : '';
     }
     // 数値の場合は変換
     if (typeof value === 'number') {
       return value > 2 ? 'over-2months' : 'within-2months';
     }
     return '';
+  }
+
+  /**
+   * 従業員をシステムから削除
+   */
+  async deleteEmployee(): Promise<void> {
+    if (!this.employeeId) {
+      window.alert('従業員IDが設定されていません');
+      return;
+    }
+
+    // 削除確認
+    const employee = await this.employeeService.getEmployeeById(
+      this.employeeId
+    );
+    const employeeName = employee?.name || 'この従業員';
+    const confirmMessage = `${employeeName}をシステムから削除しますか？\n\nこの操作は取り消せません。\n関連する家族情報も全て削除されます。`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // 家族情報を先に削除
+      await this.familyMemberService.deleteFamilyMembersByEmployeeId(
+        this.employeeId
+      );
+
+      // 従業員情報を削除
+      await this.employeeService.deleteEmployee(this.employeeId);
+
+      // 削除成功メッセージ
+      window.alert('従業員を削除しました');
+
+      // 従業員一覧画面にリダイレクト
+      this.router.navigate(['/employees']);
+    } catch (error) {
+      console.error('[employee-basic-info-form] 従業員削除エラー:', error);
+      window.alert('従業員の削除中にエラーが発生しました');
+    }
   }
 }
