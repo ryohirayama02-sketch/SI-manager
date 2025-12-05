@@ -1073,7 +1073,14 @@
                 </span>
               </td>
               <td style="padding: 12px">{{ log.entityName || "-" }}</td>
-              <td style="padding: 12px">{{ log.description }}</td>
+              <td style="padding: 12px">
+                <span *ngIf="log.oldValue && log.newValue">
+                  {{ formatDescription(log) }}
+                </span>
+                <span *ngIf="!log.oldValue || !log.newValue">
+                  {{ log.description }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>

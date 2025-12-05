@@ -202,6 +202,32 @@ export class SettingsService {
     const versionInfo = await this.getRateVersionInfo(year);
     const versionId = versionInfo.versionId;
 
+    // 変更前の値を取得
+    const existingData = await this.getRates(year, prefecture);
+
+    // 変更前の値を数値として取得（パーセント）
+    const oldHealthEmployeePercent = existingData?.health_employee
+      ? existingData.health_employee * 100
+      : 0;
+    const oldHealthEmployerPercent = existingData?.health_employer
+      ? existingData.health_employer * 100
+      : 0;
+
+    // 変更後の値を数値として取得（パーセント）
+    const newHealthEmployeePercent = data.health_employee
+      ? data.health_employee * 100
+      : 0;
+    const newHealthEmployerPercent = data.health_employer
+      ? data.health_employer * 100
+      : 0;
+
+    // 変更があったかどうかをチェック（0.0001未満の差は無視）
+    const healthEmployeeChanged =
+      Math.abs(oldHealthEmployeePercent - newHealthEmployeePercent) >= 0.0001;
+    const healthEmployerChanged =
+      Math.abs(oldHealthEmployerPercent - newHealthEmployerPercent) >= 0.0001;
+    const hasChanges = healthEmployeeChanged || healthEmployerChanged;
+
     // 新しい構造に保存: rates/{year}/versions/{versionId}/prefectures/{prefecture}
     const ref = doc(
       this.firestore,
@@ -224,17 +250,31 @@ export class SettingsService {
       { merge: true }
     );
 
-    // 都道府県コードを日本語名に変換
-    const prefectureName = this.getPrefectureName(prefecture);
+    // 変更があった場合のみ編集ログを記録
+    if (hasChanges) {
+      // 都道府県コードを日本語名に変換
+      const prefectureName = this.getPrefectureName(prefecture);
 
-    // 編集ログを記録
-    await this.editLogService.logEdit(
-      'update',
-      'settings',
-      `${year}_${prefecture}`,
-      `${year}年度 ${prefectureName}の料率`,
-      `${year}年度 ${prefectureName}の保険料率を更新しました`
-    );
+      // 変更前・変更後の値をフォーマット
+      const oldHealthEmployee = oldHealthEmployeePercent.toFixed(3);
+      const oldHealthEmployer = oldHealthEmployerPercent.toFixed(3);
+      const newHealthEmployee = newHealthEmployeePercent.toFixed(3);
+      const newHealthEmployer = newHealthEmployerPercent.toFixed(3);
+
+      const oldValue = `健保本人:${oldHealthEmployee}%, 健保会社:${oldHealthEmployer}%`;
+      const newValue = `健保本人:${newHealthEmployee}%, 健保会社:${newHealthEmployer}%`;
+
+      // 編集ログを記録
+      await this.editLogService.logEdit(
+        'update',
+        'settings',
+        `${year}_${prefecture}`,
+        `${year}年度 ${prefectureName}の料率`,
+        `${year}年度 ${prefectureName}の保険料率を更新しました`,
+        oldValue,
+        newValue
+      );
+    }
   }
 
   /**

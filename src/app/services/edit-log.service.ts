@@ -29,7 +29,9 @@ export class EditLogService {
     entityType: string,
     entityId: string | undefined,
     entityName: string | undefined,
-    description: string
+    description: string,
+    oldValue?: string,
+    newValue?: string
   ): Promise<void> {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
@@ -57,6 +59,8 @@ export class EditLogService {
       description,
       timestamp: new Date(),
       roomId,
+      oldValue,
+      newValue,
     };
 
     try {

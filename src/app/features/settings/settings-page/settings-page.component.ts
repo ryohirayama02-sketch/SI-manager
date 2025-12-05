@@ -513,6 +513,48 @@ export class SettingsPageComponent implements OnInit {
     });
   }
 
+  // 説明文をフォーマット（変更前・変更後の情報を含む）
+  formatDescription(log: EditLog): string {
+    if (!log.oldValue || !log.newValue) {
+      return log.description;
+    }
+
+    // 料率の更新の場合
+    if (log.entityType === 'settings' && log.entityName?.includes('の料率')) {
+      // 健保本人と健保会社の値を抽出
+      const oldMatch = log.oldValue.match(
+        /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
+      );
+      const newMatch = log.newValue.match(
+        /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
+      );
+
+      if (oldMatch && newMatch) {
+        const oldHealth = parseFloat(oldMatch[1]);
+        const oldEmployer = parseFloat(oldMatch[2]);
+        const newHealth = parseFloat(newMatch[1]);
+        const newEmployer = parseFloat(newMatch[2]);
+
+        // 変更があった項目のみ表示
+        const changes: string[] = [];
+        if (Math.abs(oldHealth - newHealth) > 0.0001) {
+          changes.push(`${oldHealth.toFixed(3)}→${newHealth.toFixed(3)}`);
+        }
+        if (Math.abs(oldEmployer - newEmployer) > 0.0001) {
+          changes.push(`${oldEmployer.toFixed(3)}→${newEmployer.toFixed(3)}`);
+        }
+
+        if (changes.length > 0) {
+          // 料率の表示形式を統一
+          return `${log.description}（${changes.join('、')}）`;
+        }
+      }
+    }
+
+    // その他の場合は変更前→変更後の形式で表示
+    return `${log.description}（${log.oldValue}→${log.newValue}）`;
+  }
+
   // ユーザー・ルーム情報を読み込む
   async loadUserRoomInfo(): Promise<void> {
     // 現在のユーザー情報を取得

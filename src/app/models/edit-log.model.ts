@@ -9,6 +9,6 @@ export interface EditLog {
   description: string;
   timestamp: Date;
   roomId: string;
+  oldValue?: string; // 変更前の値
+  newValue?: string; // 変更後の値
 }
-
-
