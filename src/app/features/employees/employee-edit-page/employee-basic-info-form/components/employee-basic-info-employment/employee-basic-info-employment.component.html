@@ -13,7 +13,14 @@
 
   <div class="form-group">
     <label for="monthlyWage">月額賃金</label>
-    <input id="monthlyWage" type="number" formControlName="monthlyWage" class="form-control" min="0" placeholder="円">
+    <input 
+      id="monthlyWage" 
+      type="text" 
+      formControlName="monthlyWage" 
+      class="form-control" 
+      placeholder="円"
+      (input)="onMonthlyWageInput($event)"
+      (blur)="onMonthlyWageBlur()">
   </div>
 
   <div class="form-group">
