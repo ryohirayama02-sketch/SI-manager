@@ -176,6 +176,42 @@ table tbody tr:hover {
   text-align: right;
 }
 
+/* 保険料テーブルの列幅統一 */
+.premium-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* ヘッダーは中央揃え */
+.premium-table th {
+  text-align: center;
+}
+
+.premium-table th:nth-child(1),
+.premium-table td:nth-child(1) {
+  width: 25%;
+}
+
+.premium-table th:nth-child(2),
+.premium-table td:nth-child(2) {
+  width: 37.5%;
+}
+
+.premium-table th:nth-child(3),
+.premium-table td:nth-child(3) {
+  width: 37.5%;
+}
+
+/* コンテンツの揃え */
+.premium-table td:nth-child(1) {
+  text-align: center; /* 保険種類は中央揃え */
+}
+
+.premium-table td:nth-child(2),
+.premium-table td:nth-child(3) {
+  text-align: right; /* 本人合計・会社合計は右揃え */
+}
+
 /* エラー・警告ボックスの統一 */
 .error-box,
 .warning-box {
