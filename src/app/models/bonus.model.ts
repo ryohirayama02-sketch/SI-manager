@@ -1,5 +1,6 @@
 export interface Bonus {
   id?: string;
+  roomId: string; // ルームID（マルチテナント対応）
   employeeId: string;
   year: number;
   month: number;
@@ -29,4 +30,3 @@ export interface Bonus {
   exemptReason?: string; // 免除理由
   notes?: string; // 備考
 }
-

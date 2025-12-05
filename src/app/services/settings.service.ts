@@ -1,12 +1,30 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, orderBy, limit } from '@angular/fire/firestore';
+import {
+  Firestore,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+} from '@angular/fire/firestore';
 import { Settings } from '../models/settings.model';
 import { Rate } from '../models/rate.model';
 import { SalaryItem } from '../models/salary-item.model';
+import { RoomIdService } from './room-id.service';
+import { EditLogService } from './edit-log.service';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private roomIdService: RoomIdService,
+    private editLogService: EditLogService
+  ) {}
 
   async loadSettings(): Promise<Settings> {
     const ref = doc(this.firestore, 'settings/general');
@@ -14,7 +32,7 @@ export class SettingsService {
     if (snap.exists()) {
       const data = snap.data();
       return {
-        payrollMonthRule: data['payrollMonthRule'] || 'payday'
+        payrollMonthRule: data['payrollMonthRule'] || 'payday',
       };
     }
     return { payrollMonthRule: 'payday' };
@@ -54,13 +72,17 @@ export class SettingsService {
    * @param year 年度（文字列）
    * @returns applyFromMonth（改定月）とversionId
    */
-  async getRateVersionInfo(year: string): Promise<{ applyFromMonth: number; versionId: string }> {
+  async getRateVersionInfo(
+    year: string
+  ): Promise<{ applyFromMonth: number; versionId: string }> {
     const ref = doc(this.firestore, `rates/${year}`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
       const applyFromMonth = data['applyFromMonth'] || 4;
-      const versionId = data['versionId'] || `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
+      const versionId =
+        data['versionId'] ||
+        `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
       return { applyFromMonth, versionId };
     }
     // データがない場合はデフォルト値（4月）を返す
@@ -72,30 +94,67 @@ export class SettingsService {
    * @param year 年度（文字列）
    * @param applyFromMonth 改定月（1〜12）
    */
-  async saveRateVersionInfo(year: string, applyFromMonth: number): Promise<void> {
+  async saveRateVersionInfo(
+    year: string,
+    applyFromMonth: number
+  ): Promise<void> {
     const versionId = `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
     const ref = doc(this.firestore, `rates/${year}`);
-    await setDoc(ref, {
-      applyFromMonth,
-      versionId,
-      createdAt: new Date()
-    }, { merge: true });
+    await setDoc(
+      ref,
+      {
+        applyFromMonth,
+        versionId,
+        createdAt: new Date(),
+      },
+      { merge: true }
+    );
   }
 
-  async getRates(year: string, prefecture: string, payMonth?: string): Promise<any | null> {
+  async getRates(
+    year: string,
+    prefecture: string,
+    payMonth?: string
+  ): Promise<any | null> {
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn(
+        '[SettingsService] roomIdが取得できないため、nullを返します'
+      );
+      return null;
+    }
+
     // バージョン情報を取得
     const versionInfo = await this.getRateVersionInfo(year);
     const versionId = versionInfo.versionId;
-    
+
     // 新しい構造から取得: rates/{year}/versions/{versionId}/prefectures/{prefecture}
-    const ref = doc(this.firestore, `rates/${year}/versions/${versionId}/prefectures/${prefecture}`);
+    const ref = doc(
+      this.firestore,
+      `rates/${year}/versions/${versionId}/prefectures/${prefecture}`
+    );
     const snap = await getDoc(ref);
     if (snap.exists()) {
-      return snap.data();
+      const data = snap.data();
+      // roomIdの検証（セキュリティチェック）
+      if (data['roomId'] !== roomId) {
+        console.warn(
+          '[SettingsService] roomIdが一致しないため、nullを返します',
+          {
+            requestedRoomId: roomId,
+            documentRoomId: data['roomId'],
+          }
+        );
+        return null;
+      }
+      return data;
     }
 
     // 既存の単一ドキュメント構造との互換性チェック（後方互換性のため）
-    const legacyRef = doc(this.firestore, `rates/${year}/prefectures/${prefecture}`);
+    const legacyRef = doc(
+      this.firestore,
+      `rates/${year}/prefectures/${prefecture}`
+    );
     const legacySnap = await getDoc(legacyRef);
     if (legacySnap.exists()) {
       const legacyData = legacySnap.data();
@@ -106,8 +165,11 @@ export class SettingsService {
     }
 
     // 新しいサブコレクション構造から取得（後方互換性のため）
-    const versionsRef = collection(this.firestore, `rates/${year}/prefectures/${prefecture}/versions`);
-    
+    const versionsRef = collection(
+      this.firestore,
+      `rates/${year}/prefectures/${prefecture}/versions`
+    );
+
     if (payMonth) {
       // 支給月に応じて適切なレコードを選択
       // effectiveFrom <= payMonth の中で最も新しいものを選択
@@ -134,24 +196,57 @@ export class SettingsService {
   }
 
   async saveRates(year: string, prefecture: string, data: Rate): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
+
     // バージョン情報を取得
     const versionInfo = await this.getRateVersionInfo(year);
     const versionId = versionInfo.versionId;
-    
+
     // 新しい構造に保存: rates/{year}/versions/{versionId}/prefectures/{prefecture}
-    const ref = doc(this.firestore, `rates/${year}/versions/${versionId}/prefectures/${prefecture}`);
-    const effectiveFrom = data.effectiveFrom || `${year}-${versionInfo.applyFromMonth.toString().padStart(2, '0')}`;
-    await setDoc(ref, { ...data, effectiveFrom }, { merge: true });
-    
+    const ref = doc(
+      this.firestore,
+      `rates/${year}/versions/${versionId}/prefectures/${prefecture}`
+    );
+    const effectiveFrom =
+      data.effectiveFrom ||
+      `${year}-${versionInfo.applyFromMonth.toString().padStart(2, '0')}`;
+    // roomIdを自動付与
+    await setDoc(ref, { ...data, effectiveFrom, roomId }, { merge: true });
+
     // 後方互換性のため、既存の構造にも保存
-    const legacyRef = doc(this.firestore, `rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`);
-    await setDoc(legacyRef, { ...data, effectiveFrom }, { merge: true });
+    const legacyRef = doc(
+      this.firestore,
+      `rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`
+    );
+    await setDoc(
+      legacyRef,
+      { ...data, effectiveFrom, roomId },
+      { merge: true }
+    );
+
+    // 編集ログを記録
+    await this.editLogService.logEdit(
+      'update',
+      'settings',
+      `${year}_${prefecture}`,
+      `${year}年度 ${prefecture}の料率`,
+      `${year}年度 ${prefecture}の保険料率を更新しました`
+    );
   }
 
   async getStandardTable(year: number): Promise<any[]> {
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn(
+        '[SettingsService] roomIdが取得できないため、空配列を返します'
+      );
+      return [];
+    }
+
     const ref = collection(this.firestore, `grades/${year}/table`);
-    const snap = await getDocs(ref);
-    const rows = snap.docs.map(d => {
+    const q = query(ref, where('roomId', '==', roomId));
+    const snap = await getDocs(q);
+    const rows = snap.docs.map((d) => {
       const data = d.data();
       // Firestoreのフィールド名（grade, remuneration）を既存コードのフィールド名（rank, standard）にマッピング
       return {
@@ -160,10 +255,10 @@ export class SettingsService {
         lower: data['lower'],
         upper: data['upper'],
         standard: data['remuneration'] || data['standard'],
-        year
+        year,
       };
     });
-    
+
     // 等級で重複を排除（同じ等級が複数ある場合は、最新のもの（idが大きいもの）を優先）
     const rankMap = new Map<number, any>();
     for (const row of rows) {
@@ -175,33 +270,47 @@ export class SettingsService {
         }
       }
     }
-    
+
     // 等級順にソートして返す
-    return Array.from(rankMap.values()).sort((a, b) => (a.rank || 0) - (b.rank || 0));
+    return Array.from(rankMap.values()).sort(
+      (a, b) => (a.rank || 0) - (b.rank || 0)
+    );
   }
 
   async saveStandardTable(year: number, rows: any[]): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     const basePath = `grades/${year}/table`;
-    
-    // 既存のデータをすべて削除（重複を防ぐため）
+
+    // 既存のデータをすべて削除（重複を防ぐため、roomIdでフィルタ）
     const existingRef = collection(this.firestore, basePath);
-    const existingSnap = await getDocs(existingRef);
-    const deletePromises = existingSnap.docs.map(d => deleteDoc(d.ref));
+    const existingQ = query(existingRef, where('roomId', '==', roomId));
+    const existingSnap = await getDocs(existingQ);
+    const deletePromises = existingSnap.docs.map((d) => deleteDoc(d.ref));
     await Promise.all(deletePromises);
-    
+
     // 新しいデータを保存
     for (const row of rows) {
       // 既存コードのフィールド名（rank, standard）をFirestoreのフィールド名（grade, remuneration）にマッピング
       const gradeId = row.id || row.rank?.toString() || `grade_${row.rank}`;
       const ref = doc(this.firestore, `${basePath}/${gradeId}`);
       await setDoc(ref, {
+        roomId, // roomIdを自動付与
         grade: row.rank,
         lower: row.lower,
         upper: row.upper,
         remuneration: row.standard,
-        year
+        year,
       });
     }
+
+    // 編集ログを記録
+    await this.editLogService.logEdit(
+      'update',
+      'settings',
+      `${year}_standardTable`,
+      `${year}年度 標準報酬等級表`,
+      `${year}年度の標準報酬等級表を更新しました（${rows.length}件）`
+    );
   }
 
   /**
@@ -273,36 +382,80 @@ export class SettingsService {
   }
 
   async loadSalaryItems(year: number): Promise<SalaryItem[]> {
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn(
+        '[SettingsService] roomIdが取得できないため、空配列を返します'
+      );
+      return [];
+    }
+
     const ref = collection(this.firestore, `settings/${year}/salaryItems`);
-    const snap = await getDocs(ref);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryItem));
+    const q = query(ref, where('roomId', '==', roomId));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SalaryItem));
   }
 
   async saveSalaryItems(year: number, items: SalaryItem[]): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     const basePath = `settings/${year}/salaryItems`;
-    
+
     // 現在保存する項目のIDリスト
-    const currentItemIds = new Set(items.map(item => item.id));
-    
+    const currentItemIds = new Set(items.map((item) => item.id));
+
     // 既存のすべての項目を取得
     const existingItems = await this.loadSalaryItems(year);
-    
+
     // 削除された項目（現在のリストにない項目）を削除
     for (const existingItem of existingItems) {
       if (!currentItemIds.has(existingItem.id)) {
         await this.deleteSalaryItem(year, existingItem.id);
       }
     }
-    
+
     // 現在の項目を保存
     for (const item of items) {
       const ref = doc(this.firestore, `${basePath}/${item.id}`);
-      await setDoc(ref, item, { merge: true });
+      // roomIdを自動付与
+      const itemWithRoomId = { ...item, roomId };
+      await setDoc(ref, itemWithRoomId, { merge: true });
     }
+
+    // 編集ログを記録
+    await this.editLogService.logEdit(
+      'update',
+      'settings',
+      `${year}_salaryItems`,
+      `${year}年度 給与項目マスタ`,
+      `${year}年度の給与項目マスタを更新しました（${items.length}件）`
+    );
   }
 
   async deleteSalaryItem(year: number, itemId: string): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
+
     const ref = doc(this.firestore, `settings/${year}/salaryItems/${itemId}`);
+
+    // 既存データのroomIdを確認（セキュリティチェック）
+    const existingDoc = await getDoc(ref);
+    if (existingDoc.exists()) {
+      const existingData = existingDoc.data();
+      if (existingData['roomId'] !== roomId) {
+        throw new Error('この給与項目データを削除する権限がありません');
+      }
+
+      // 編集ログを記録（削除前に記録）
+      await this.editLogService.logEdit(
+        'delete',
+        'settings',
+        itemId,
+        existingData['name'] || '不明',
+        `${year}年度の給与項目「${
+          existingData['name'] || '不明'
+        }」を削除しました`
+      );
+    }
+
     await deleteDoc(ref);
   }
 
@@ -310,14 +463,14 @@ export class SettingsService {
     const data = {
       // 協会けんぽ・東京都 一般保険料率（2025年度）
       // ※ 現行公式値に基づく
-      health_employee: 0.04905,    // 健康保険（本人）
-      health_employer: 0.04905,    // 健康保険（事業主）
+      health_employee: 0.04905, // 健康保険（本人）
+      health_employer: 0.04905, // 健康保険（事業主）
 
-      care_employee: 0.0087,       // 介護保険（本人）※40〜64歳のみ適用
-      care_employer: 0.0087,       // 介護保険（事業主）
+      care_employee: 0.0087, // 介護保険（本人）※40〜64歳のみ適用
+      care_employer: 0.0087, // 介護保険（事業主）
 
-      pension_employee: 0.0915,    // 厚生年金（本人）全国共通
-      pension_employer: 0.0915     // 厚生年金（事業主）
+      pension_employee: 0.0915, // 厚生年金（本人）全国共通
+      pension_employer: 0.0915, // 厚生年金（事業主）
     };
 
     const ref = doc(this.firestore, 'rates/2025/prefectures/tokyo');
@@ -335,60 +488,388 @@ export class SettingsService {
 }
 
 const RATES_2024: Record<string, any> = {
-  hokkaido:{health_employee:0.0508,health_employer:0.0508,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  aomori:{health_employee:0.0500,health_employer:0.0500,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  iwate:{health_employee:0.0500,health_employer:0.0500,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  miyagi:{health_employee:0.0500,health_employer:0.0500,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  akita:{health_employee:0.0500,health_employer:0.0500,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  yamagata:{health_employee:0.0500,health_employer:0.0500,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  fukushima:{health_employee:0.0492,health_employer:0.0492,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  hokkaido: {
+    health_employee: 0.0508,
+    health_employer: 0.0508,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  aomori: {
+    health_employee: 0.05,
+    health_employer: 0.05,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  iwate: {
+    health_employee: 0.05,
+    health_employer: 0.05,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  miyagi: {
+    health_employee: 0.05,
+    health_employer: 0.05,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  akita: {
+    health_employee: 0.05,
+    health_employer: 0.05,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  yamagata: {
+    health_employee: 0.05,
+    health_employer: 0.05,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  fukushima: {
+    health_employee: 0.0492,
+    health_employer: 0.0492,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  ibaraki:{health_employee:0.0493,health_employer:0.0493,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  tochigi:{health_employee:0.0488,health_employer:0.0488,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  gunma:{health_employee:0.0485,health_employer:0.0485,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  saitama:{health_employee:0.0484,health_employer:0.0484,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  chiba:{health_employee:0.0487,health_employer:0.0487,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  tokyo:{health_employee:0.04905,health_employer:0.04905,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  kanagawa:{health_employee:0.0481,health_employer:0.0481,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  ibaraki: {
+    health_employee: 0.0493,
+    health_employer: 0.0493,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  tochigi: {
+    health_employee: 0.0488,
+    health_employer: 0.0488,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  gunma: {
+    health_employee: 0.0485,
+    health_employer: 0.0485,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  saitama: {
+    health_employee: 0.0484,
+    health_employer: 0.0484,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  chiba: {
+    health_employee: 0.0487,
+    health_employer: 0.0487,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  tokyo: {
+    health_employee: 0.04905,
+    health_employer: 0.04905,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  kanagawa: {
+    health_employee: 0.0481,
+    health_employer: 0.0481,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  niigata:{health_employee:0.0502,health_employer:0.0502,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  toyama:{health_employee:0.0509,health_employer:0.0509,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  ishikawa:{health_employee:0.0503,health_employer:0.0503,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  fukui:{health_employee:0.0497,health_employer:0.0497,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  niigata: {
+    health_employee: 0.0502,
+    health_employer: 0.0502,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  toyama: {
+    health_employee: 0.0509,
+    health_employer: 0.0509,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  ishikawa: {
+    health_employee: 0.0503,
+    health_employer: 0.0503,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  fukui: {
+    health_employee: 0.0497,
+    health_employer: 0.0497,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  yamanashi:{health_employee:0.0497,health_employer:0.0497,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  nagano:{health_employee:0.0490,health_employer:0.0490,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  yamanashi: {
+    health_employee: 0.0497,
+    health_employer: 0.0497,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  nagano: {
+    health_employee: 0.049,
+    health_employer: 0.049,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  gifu:{health_employee:0.0496,health_employer:0.0496,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  shizuoka:{health_employee:0.0489,health_employer:0.0489,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  aichi:{health_employee:0.0490,health_employer:0.0490,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  mie:{health_employee:0.04915,health_employer:0.04915,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  gifu: {
+    health_employee: 0.0496,
+    health_employer: 0.0496,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  shizuoka: {
+    health_employee: 0.0489,
+    health_employer: 0.0489,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  aichi: {
+    health_employee: 0.049,
+    health_employer: 0.049,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  mie: {
+    health_employee: 0.04915,
+    health_employer: 0.04915,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  shiga:{health_employee:0.0489,health_employer:0.0489,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  kyoto:{health_employee:0.0492,health_employer:0.0492,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  osaka:{health_employee:0.0489,health_employer:0.0489,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  hyogo:{health_employee:0.0493,health_employer:0.0493,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  nara:{health_employee:0.0488,health_employer:0.0488,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  wakayama:{health_employee:0.0492,health_employer:0.0492,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  shiga: {
+    health_employee: 0.0489,
+    health_employer: 0.0489,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  kyoto: {
+    health_employee: 0.0492,
+    health_employer: 0.0492,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  osaka: {
+    health_employee: 0.0489,
+    health_employer: 0.0489,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  hyogo: {
+    health_employee: 0.0493,
+    health_employer: 0.0493,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  nara: {
+    health_employee: 0.0488,
+    health_employer: 0.0488,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  wakayama: {
+    health_employee: 0.0492,
+    health_employer: 0.0492,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  tottori:{health_employee:0.0508,health_employer:0.0508,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  shimane:{health_employee:0.0508,health_employer:0.0508,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  okayama:{health_employee:0.0497,health_employer:0.0497,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  hiroshima:{health_employee:0.0494,health_employer:0.0494,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  yamaguchi:{health_employee:0.0502,health_employer:0.0502,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  tottori: {
+    health_employee: 0.0508,
+    health_employer: 0.0508,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  shimane: {
+    health_employee: 0.0508,
+    health_employer: 0.0508,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  okayama: {
+    health_employee: 0.0497,
+    health_employer: 0.0497,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  hiroshima: {
+    health_employee: 0.0494,
+    health_employer: 0.0494,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  yamaguchi: {
+    health_employee: 0.0502,
+    health_employer: 0.0502,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  tokushima:{health_employee:0.0504,health_employer:0.0504,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  kagawa:{health_employee:0.0503,health_employer:0.0503,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  ehime:{health_employee:0.0503,health_employer:0.0503,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  kochi:{health_employee:0.0502,health_employer:0.0502,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
+  tokushima: {
+    health_employee: 0.0504,
+    health_employer: 0.0504,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  kagawa: {
+    health_employee: 0.0503,
+    health_employer: 0.0503,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  ehime: {
+    health_employee: 0.0503,
+    health_employer: 0.0503,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  kochi: {
+    health_employee: 0.0502,
+    health_employer: 0.0502,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 
-  fukuoka:{health_employee:0.0496,health_employer:0.0496,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  saga:{health_employee:0.0497,health_employer:0.0497,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  nagasaki:{health_employee:0.0501,health_employer:0.0501,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  kumamoto:{health_employee:0.0500,health_employer:0.0500,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  oita:{health_employee:0.0501,health_employer:0.0501,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  miyazaki:{health_employee:0.0502,health_employer:0.0502,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  kagoshima:{health_employee:0.0501,health_employer:0.0501,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915},
-  okinawa:{health_employee:0.0490,health_employer:0.0490,care_employee:0.009,care_employer:0.009,pension_employee:0.0915,pension_employer:0.0915}
+  fukuoka: {
+    health_employee: 0.0496,
+    health_employer: 0.0496,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  saga: {
+    health_employee: 0.0497,
+    health_employer: 0.0497,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  nagasaki: {
+    health_employee: 0.0501,
+    health_employer: 0.0501,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  kumamoto: {
+    health_employee: 0.05,
+    health_employer: 0.05,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  oita: {
+    health_employee: 0.0501,
+    health_employer: 0.0501,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  miyazaki: {
+    health_employee: 0.0502,
+    health_employer: 0.0502,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  kagoshima: {
+    health_employee: 0.0501,
+    health_employer: 0.0501,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
+  okinawa: {
+    health_employee: 0.049,
+    health_employer: 0.049,
+    care_employee: 0.009,
+    care_employer: 0.009,
+    pension_employee: 0.0915,
+    pension_employer: 0.0915,
+  },
 };
-

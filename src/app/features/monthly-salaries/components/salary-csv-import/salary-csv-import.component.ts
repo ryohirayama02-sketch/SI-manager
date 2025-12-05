@@ -22,7 +22,7 @@ export interface SalaryItemChangeEvent {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './salary-csv-import.component.html',
-  styleUrl: './salary-csv-import.component.css'
+  styleUrl: './salary-csv-import.component.css',
 })
 export class SalaryCsvImportComponent {
   @Input() salaryItems: SalaryItem[] = [];
@@ -34,15 +34,17 @@ export class SalaryCsvImportComponent {
   @Output() closeDialog = new EventEmitter<void>();
   @Output() salaryItemChange = new EventEmitter<SalaryItemChangeEvent>();
   @Output() salaryItemBatchChange = new EventEmitter<SalaryItemChangeEvent[]>();
-  @Output() workingDaysChange = new EventEmitter<{ employeeId: string; month: number; value: number }>();
+  @Output() workingDaysChange = new EventEmitter<{
+    employeeId: string;
+    month: number;
+    value: number;
+  }>();
   @Output() importResult = new EventEmitter<CsvImportResult>();
 
   showCsvImportDialog: boolean = false;
   csvImportText: string = '';
 
-  constructor(
-    private salaryCalculationService: SalaryCalculationService
-  ) {}
+  constructor(private salaryCalculationService: SalaryCalculationService) {}
 
   onCsvFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -75,9 +77,14 @@ export class SalaryCsvImportComponent {
     if (this.salaryItems.length === 0) {
       return '月,従業員,支払基礎日数,基本給,住宅手当,残業手当\n1,若林,20,300000,30000,20000\n1,福本,20,200000,30000,20000';
     }
-    const header = '月,従業員,支払基礎日数,' + this.salaryItems.map(item => item.name).join(',');
-    const example = '1,若林,20,' + this.salaryItems.map(() => '300000').join(',');
-    return `${header}\n${example}\n1,福本,20,${this.salaryItems.map(() => '200000').join(',')}`;
+    const header =
+      '月,従業員,支払基礎日数,' +
+      this.salaryItems.map((item) => item.name).join(',');
+    const example =
+      '1,若林,20,' + this.salaryItems.map(() => '300000').join(',');
+    return `${header}\n${example}\n1,福本,20,${this.salaryItems
+      .map(() => '200000')
+      .join(',')}`;
   }
 
   getSalaryItemKey(employeeId: string, month: number): string {
@@ -153,7 +160,7 @@ export class SalaryCsvImportComponent {
       let errorCount = 0;
       const errors: string[] = [];
       const warnings: string[] = [];
-      
+
       // バッチ処理用のイベント配列
       const batchEvents: Array<{
         employeeId: string;
@@ -163,16 +170,28 @@ export class SalaryCsvImportComponent {
       }> = [];
 
       // デバッグ: 給与項目マスタの一覧をログ出力
-      console.log('[CSV Import] 給与項目マスタ:', this.salaryItems.map(item => ({ id: item.id, name: item.name, type: item.type })));
+      console.log(
+        '[CSV Import] 給与項目マスタ:',
+        this.salaryItems.map((item) => ({
+          id: item.id,
+          name: item.name,
+          type: item.type,
+        }))
+      );
       console.log('[CSV Import] CSVヘッダー:', headerParts);
-      console.log('[CSV Import] 給与項目列:', salaryItemColumns.map(col => col.name));
+      console.log(
+        '[CSV Import] 給与項目列:',
+        salaryItemColumns.map((col) => col.name)
+      );
 
       for (const line of dataLines) {
         const parts = line.split(',').map((p) => p.trim());
 
         if (parts.length < headerParts.length) {
           errorCount++;
-          errors.push(`行「${line}」: 列数が不足しています（期待: ${headerParts.length}, 実際: ${parts.length}）`);
+          errors.push(
+            `行「${line}」: 列数が不足しています（期待: ${headerParts.length}, 実際: ${parts.length}）`
+          );
           continue;
         }
 
@@ -182,7 +201,9 @@ export class SalaryCsvImportComponent {
 
         if (isNaN(month) || month < 1 || month > 12) {
           errorCount++;
-          errors.push(`行「${line}」: 月が不正です（1〜12の範囲）: ${monthStr}`);
+          errors.push(
+            `行「${line}」: 月が不正です（1〜12の範囲）: ${monthStr}`
+          );
           continue;
         }
 
@@ -195,7 +216,9 @@ export class SalaryCsvImportComponent {
         if (!employee) {
           errorCount++;
           errors.push(
-            `行「${line}」: 従業員「${employeeName}」が見つかりません（登録済み: ${this.employees.map(e => e.name).join(', ')}）`
+            `行「${line}」: 従業員「${employeeName}」が見つかりません（登録済み: ${this.employees
+              .map((e) => e.name)
+              .join(', ')}）`
           );
           continue;
         }
@@ -208,7 +231,7 @@ export class SalaryCsvImportComponent {
             this.workingDaysChange.emit({
               employeeId: employee.id,
               month: month,
-              value: workingDays
+              value: workingDays,
             });
           }
         }
@@ -223,32 +246,74 @@ export class SalaryCsvImportComponent {
             (item) => item.name === itemColumn.name
           );
 
-          // 完全一致しない場合、部分一致で検索（「基本給」→「基本給 (固定)」など）
+          // 完全一致しない場合、括弧や空白を除去して比較
           if (!salaryItem) {
-            salaryItem = this.salaryItems.find(
-              (item) => item.name.includes(itemColumn.name) || itemColumn.name.includes(item.name)
-            );
+            // CSVの項目名から括弧とその中身を除去（例：「基本給 (固定)」→「基本給」）
+            const normalizedCsvName = itemColumn.name
+              .replace(/\s*\([^)]*\)\s*/g, '')
+              .trim();
+
+            salaryItem = this.salaryItems.find((item) => {
+              // 給与項目マスタの名前からも括弧とその中身を除去
+              const normalizedItemName = item.name
+                .replace(/\s*\([^)]*\)\s*/g, '')
+                .trim();
+              // 正規化した名前で比較
+              return (
+                normalizedItemName === normalizedCsvName ||
+                item.name === itemColumn.name ||
+                item.name.includes(itemColumn.name) ||
+                itemColumn.name.includes(item.name)
+              );
+            });
           }
 
           // それでも見つからない場合、よくある別名で検索
           if (!salaryItem) {
             const nameMap: { [key: string]: string[] } = {
-              '基本給': ['基本給', '基本給 (固定)', '基本給(固定)'],
-              '欠勤控除': ['欠勤控除', '欠勤控除 (非固定)', '欠勤控除(非固定)', '欠勤控除 (控除)', '欠勤控除(控除)'],
-              '残業手当': ['残業手当', '残業手当 (非固定)', '残業手当(非固定)', '残業代', '残業代 (非固定)'],
-              '手当': ['手当', '手当 (固定)', '手当(固定)', '住宅手当', '住宅手当 (固定)'],
+              基本給: ['基本給', '基本給 (固定)', '基本給(固定)'],
+              欠勤控除: [
+                '欠勤控除',
+                '欠勤控除 (非固定)',
+                '欠勤控除(非固定)',
+                '欠勤控除 (控除)',
+                '欠勤控除(控除)',
+              ],
+              残業手当: [
+                '残業手当',
+                '残業手当 (非固定)',
+                '残業手当(非固定)',
+                '残業代',
+                '残業代 (非固定)',
+              ],
+              手当: [
+                '手当',
+                '手当 (固定)',
+                '手当(固定)',
+                '住宅手当',
+                '住宅手当 (固定)',
+              ],
             };
-            
-            const possibleNames = nameMap[itemColumn.name] || [itemColumn.name];
+
+            // CSVの項目名から括弧を除去してキーとして使用
+            const normalizedCsvName = itemColumn.name
+              .replace(/\s*\([^)]*\)\s*/g, '')
+              .trim();
+            const possibleNames = nameMap[normalizedCsvName] ||
+              nameMap[itemColumn.name] || [itemColumn.name];
             for (const possibleName of possibleNames) {
-              salaryItem = this.salaryItems.find(item => item.name === possibleName);
+              salaryItem = this.salaryItems.find(
+                (item) => item.name === possibleName
+              );
               if (salaryItem) break;
             }
           }
 
           if (!salaryItem) {
             errorCount++;
-            const availableItems = this.salaryItems.map(item => item.name).join(', ');
+            const availableItems = this.salaryItems
+              .map((item) => item.name)
+              .join(', ');
             errors.push(
               `行「${line}」: 給与項目「${itemColumn.name}」が見つかりません（利用可能: ${availableItems}）`
             );
@@ -266,9 +331,11 @@ export class SalaryCsvImportComponent {
           successCount++;
         }
       }
-      
+
       // バッチ処理: すべてのイベントを一度に発火
-      console.log(`[CSV Import] バッチ処理開始: ${batchEvents.length}件のイベント`);
+      console.log(
+        `[CSV Import] バッチ処理開始: ${batchEvents.length}件のイベント`
+      );
       if (batchEvents.length > 0) {
         // バッチ更新イベントを発火（親コンポーネントで一括処理）
         this.salaryItemBatchChange.emit(batchEvents);
@@ -276,11 +343,16 @@ export class SalaryCsvImportComponent {
       console.log(`[CSV Import] バッチ処理完了`);
 
       // 結果メッセージ
-      console.log('[CSV Import] 処理結果:', { successCount, errorCount, errors });
-      
+      console.log('[CSV Import] 処理結果:', {
+        successCount,
+        errorCount,
+        errors,
+      });
+
       if (errorCount > 0) {
         const errorMessages = errors.slice(0, 10).join('\n');
-        const remainingErrors = errors.length > 10 ? `\n...他${errors.length - 10}件のエラー` : '';
+        const remainingErrors =
+          errors.length > 10 ? `\n...他${errors.length - 10}件のエラー` : '';
         this.importResult.emit({
           type: 'error',
           message: `${successCount}件のインポートに成功しましたが、${errorCount}件のエラーがあります。\n\n${errorMessages}${remainingErrors}`,

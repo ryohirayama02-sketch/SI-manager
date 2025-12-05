@@ -1,5 +1,6 @@
 export interface Office {
   id?: string; // FirestoreのドキュメントID
+  roomId: string; // ルームID（マルチテナント対応）
   officeCode?: string; // 事業所整理記号
   officeNumber?: string; // 事業所番号
   corporateNumber?: string; // 法人番号

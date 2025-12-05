@@ -85,7 +85,7 @@
       </div>
 
       <div class="form-group">
-        <label for="myNumber">マイナンバー</label>
+        <label for="myNumber">個人番号</label>
         <input
           id="myNumber"
           formControlName="myNumber"
@@ -108,63 +108,43 @@
 
       <h3>雇用条件</h3>
       <div class="form-group">
-        <label for="employmentType">雇用形態</label>
+        <label for="weeklyWorkHoursCategory">週の所定労働時間</label>
         <select
-          id="employmentType"
-          formControlName="employmentType"
+          id="weeklyWorkHoursCategory"
+          formControlName="weeklyWorkHoursCategory"
           class="form-control"
         >
           <option value="">選択してください</option>
-          <option value="fulltime">正社員</option>
-          <option value="parttime">パート・アルバイト</option>
-          <option value="contract">契約社員</option>
-          <option value="temporary">派遣社員</option>
-          <option value="other">その他</option>
+          <option value="30hours-or-more">30時間以上</option>
+          <option value="20-30hours">20-30時間</option>
+          <option value="less-than-20hours">20時間未満</option>
         </select>
       </div>
 
       <div class="form-group">
-        <label>
-          <input type="checkbox" formControlName="isShortTime" />
-          短時間労働者
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label for="weeklyHours">週所定労働時間</label>
-        <input
-          id="weeklyHours"
-          type="number"
-          formControlName="weeklyHours"
-          class="form-control"
-          min="0"
-          step="0.5"
-        />
-      </div>
-
-      <div class="form-group">
-        <label for="monthlyWage">月額賃金見込</label>
+        <label for="monthlyWage">月額賃金</label>
         <input
           id="monthlyWage"
-          type="number"
+          type="text"
           formControlName="monthlyWage"
           class="form-control"
-          min="0"
-          step="1"
+          placeholder="円"
+          (input)="onMonthlyWageInput($event)"
+          (blur)="onMonthlyWageBlur()"
         />
       </div>
 
       <div class="form-group">
-        <label for="expectedEmploymentMonths">雇用見込期間（月）</label>
-        <input
+        <label for="expectedEmploymentMonths">予定雇用月数</label>
+        <select
           id="expectedEmploymentMonths"
-          type="number"
           formControlName="expectedEmploymentMonths"
           class="form-control"
-          min="0"
-          step="1"
-        />
-        <small class="form-text">短時間労働者の場合、2ヶ月超が必要</small>
+        >
+          <option value="">選択してください</option>
+          <option value="within-2months">2か月以内</option>
+          <option value="over-2months">2か月を超える見込み</option>
+        </select>
       </div>
 
       <div class="form-group">

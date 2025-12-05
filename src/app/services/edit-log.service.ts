@@ -1,13 +1,24 @@
 import { Injectable } from '@angular/core';
-import { Firestore, collection, addDoc, query, where, orderBy, limit, getDocs } from '@angular/fire/firestore';
+import {
+  Firestore,
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+} from '@angular/fire/firestore';
 import { EditLog } from '../models/edit-log.model';
 import { AuthService } from './auth.service';
+import { RoomIdService } from './room-id.service';
 
 @Injectable({ providedIn: 'root' })
 export class EditLogService {
   constructor(
     private firestore: Firestore,
-    private authService: AuthService
+    private authService: AuthService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -22,13 +33,17 @@ export class EditLogService {
   ): Promise<void> {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
-      console.warn('[EditLogService] ユーザーがログインしていないため、ログを記録できません');
+      console.warn(
+        '[EditLogService] ユーザーがログインしていないため、ログを記録できません'
+      );
       return;
     }
 
-    const roomId = sessionStorage.getItem('roomId');
+    const roomId = this.roomIdService.getCurrentRoomId();
     if (!roomId) {
-      console.warn('[EditLogService] ルームIDが取得できないため、ログを記録できません');
+      console.warn(
+        '[EditLogService] ルームIDが取得できないため、ログを記録できません'
+      );
       return;
     }
 
@@ -56,7 +71,7 @@ export class EditLogService {
    * インデックスエラーを回避するため、まずroomIdでフィルタしてからクライアント側でソート
    */
   async getEditLogs(maxCount: number = 100): Promise<EditLog[]> {
-    const roomId = sessionStorage.getItem('roomId');
+    const roomId = this.roomIdService.getCurrentRoomId();
     if (!roomId) {
       return [];
     }
@@ -70,7 +85,7 @@ export class EditLogService {
       );
 
       const snapshot = await getDocs(q);
-      const logs = snapshot.docs.map(doc => {
+      const logs = snapshot.docs.map((doc) => {
         const data = doc.data();
         let timestamp: Date;
 
@@ -95,7 +110,7 @@ export class EditLogService {
 
       // クライアント側で日時順にソート（降順）
       logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      
+
       // 最大件数まで返す
       return logs.slice(0, maxCount);
     } catch (error) {
@@ -104,4 +119,3 @@ export class EditLogService {
     }
   }
 }
-

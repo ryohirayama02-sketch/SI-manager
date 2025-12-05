@@ -14,10 +14,18 @@ import {
 } from '@angular/fire/firestore';
 import { serverTimestamp } from 'firebase/firestore';
 import { Bonus } from '../models/bonus.model';
+import { RoomIdService } from './room-id.service';
+import { EmployeeService } from './employee.service';
+import { EditLogService } from './edit-log.service';
 
 @Injectable({ providedIn: 'root' })
 export class BonusService {
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private roomIdService: RoomIdService,
+    private employeeService: EmployeeService,
+    private editLogService: EditLogService
+  ) {}
 
   // ========================================
   // 【削除候補】以下のメソッドは古い'bonuses'コレクションを参照しており、現在未使用です
@@ -142,6 +150,25 @@ export class BonusService {
     employeeId: string,
     year: number
   ): Promise<Bonus[]> {
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[BonusService] roomIdが取得できないため、空配列を返します');
+      return [];
+    }
+
+    // 従業員のroomIdを確認（セキュリティチェック）
+    const employee = await this.employeeService.getEmployeeById(employeeId);
+    if (!employee) {
+      return [];
+    }
+    if (employee.roomId !== roomId) {
+      console.warn('[BonusService] roomIdが一致しないため、空配列を返します', {
+        requestedRoomId: roomId,
+        employeeRoomId: employee.roomId,
+      });
+      return [];
+    }
+
     const path = `bonus/${year}/employees/${employeeId}/items`;
     console.log(
       `[bonus.service] 賞与取得: 年度=${year}, 従業員ID=${employeeId}, パス=${path}`
@@ -150,17 +177,21 @@ export class BonusService {
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
 
-    // payDateでフィルタリング（パス構造で年度は既に分離されているが、念のため）
+    // payDateとroomIdでフィルタリング
     const q = query(
       ref,
       where('payDate', '>=', startDate),
-      where('payDate', '<=', endDate)
+      where('payDate', '<=', endDate),
+      where('roomId', '==', roomId)
     );
 
     const snapshot = await getDocs(q);
     let bonuses = snapshot.docs.map(
       (doc) => ({ id: doc.id, ...doc.data() } as Bonus)
     );
+
+    // roomIdで再度フィルタリング（念のため）
+    bonuses = bonuses.filter((bonus) => bonus.roomId === roomId);
 
     // yearフィールドでもフィルタリング（データの整合性を保つため）
     bonuses = bonuses.filter((bonus) => {
@@ -291,6 +322,19 @@ export class BonusService {
    * @param data 賞与データ
    */
   async saveBonus(year: number, data: Bonus): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
+
+    // 従業員のroomIdを確認（セキュリティチェック）
+    const employee = await this.employeeService.getEmployeeById(
+      data.employeeId
+    );
+    if (!employee) {
+      throw new Error('従業員データが見つかりません');
+    }
+    if (employee.roomId !== roomId) {
+      throw new Error('この従業員の賞与データにアクセスする権限がありません');
+    }
+
     const docId = `${data.employeeId}_${data.month}`;
     const path = `bonus/${year}/employees/${data.employeeId}/items/${docId}`;
     console.log(
@@ -410,8 +454,13 @@ export class BonusService {
       console.log(`[bonus.service] createdAtがundefinedのため、現在時刻を使用`);
     }
 
+    // 既存データがあるかどうかを確認（編集ログ用）
+    const existingDoc = await getDoc(ref);
+    const isNew = !existingDoc.exists();
+
     const bonusData = {
       ...cleanedData,
+      roomId, // roomIdを自動付与
       year, // パラメータのyearを使用（保存先のパスと一致させる）
       createdAt: createdAtValue, // 正しく処理したcreatedAtを追加
     };
@@ -422,6 +471,17 @@ export class BonusService {
       isDate: createdAtValue instanceof Date,
     });
     await setDoc(ref, bonusData, { merge: true });
+
+    // 編集ログを記録
+    await this.editLogService.logEdit(
+      isNew ? 'create' : 'update',
+      'bonus',
+      docId,
+      `${employee.name || data.employeeId}の${year}年${data.month}月の賞与`,
+      `${employee.name || data.employeeId}の${year}年${data.month}月の賞与を${
+        isNew ? '追加' : '更新'
+      }しました`
+    );
   }
 
   /**
@@ -494,10 +554,43 @@ export class BonusService {
     employeeId: string,
     bonusId: string
   ): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
+
+    // 従業員のroomIdを確認（セキュリティチェック）
+    const employee = await this.employeeService.getEmployeeById(employeeId);
+    if (!employee) {
+      throw new Error('従業員データが見つかりません');
+    }
+    if (employee.roomId !== roomId) {
+      throw new Error('この従業員の賞与データを削除する権限がありません');
+    }
+
     const ref = doc(
       this.firestore,
       `bonus/${year}/employees/${employeeId}/items/${bonusId}`
     );
+
+    // 既存データのroomIdを確認（セキュリティチェック）
+    const existingDoc = await getDoc(ref);
+    if (existingDoc.exists()) {
+      const existingData = existingDoc.data();
+      if (existingData['roomId'] !== roomId) {
+        throw new Error('この賞与データを削除する権限がありません');
+      }
+
+      // 編集ログを記録（削除前に記録）
+      await this.editLogService.logEdit(
+        'delete',
+        'bonus',
+        bonusId,
+        `${employee.name || employeeId}の${year}年${
+          existingData['month'] || '不明'
+        }月の賞与`,
+        `${employee.name || employeeId}の${year}年${
+          existingData['month'] || '不明'
+        }月の賞与を削除しました`
+      );
+    }
     await deleteDoc(ref);
   }
 

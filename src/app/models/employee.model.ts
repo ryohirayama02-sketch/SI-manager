@@ -1,5 +1,6 @@
 export interface Employee {
   id: string; // FirestoreのドキュメントID
+  roomId: string; // ルームID（マルチテナント対応）
   name: string; // 氏名
   birthDate: string; // 生年月日（YYYY-MM-DD）
   joinDate: string; // 入社日

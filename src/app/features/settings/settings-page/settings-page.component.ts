@@ -13,6 +13,7 @@ import { OfficeService } from '../../../services/office.service';
 import { AuthService } from '../../../services/auth.service';
 import { RoomService } from '../../../services/room.service';
 import { EditLogService } from '../../../services/edit-log.service';
+import { RoomIdService } from '../../../services/room-id.service';
 import { Settings } from '../../../models/settings.model';
 import { Rate } from '../../../models/rate.model';
 import { SalaryItem } from '../../../models/salary-item.model';
@@ -174,6 +175,7 @@ export class SettingsPageComponent implements OnInit {
     private authService: AuthService,
     private roomService: RoomService,
     private editLogService: EditLogService,
+    private roomIdService: RoomIdService,
     private cdr: ChangeDetectorRef
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
@@ -514,8 +516,10 @@ export class SettingsPageComponent implements OnInit {
 
   async saveOffice(): Promise<void> {
     const value = this.officeForm.value;
+    const roomId = this.roomIdService.requireRoomId();
     const office: Office = {
       id: this.selectedOffice?.id,
+      roomId: roomId,
       officeCode: value.officeCode || undefined,
       officeNumber: value.officeNumber || undefined,
       corporateNumber: value.corporateNumber || undefined,

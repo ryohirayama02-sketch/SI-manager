@@ -15,6 +15,7 @@ import { BonusNotificationService } from '../../services/bonus-notification.serv
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { BonusCsvImportComponent } from './components/bonus-csv-import/bonus-csv-import.component';
+import { RoomIdService } from '../../services/room-id.service';
 
 interface BonusColumn {
   id: string; // 列の一意ID
@@ -59,7 +60,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     private bonusCalculationService: BonusCalculationService,
     private salaryCalculationService: SalaryCalculationService,
     private employeeEligibilityService: EmployeeEligibilityService,
-    private bonusNotificationService: BonusNotificationService
+    private bonusNotificationService: BonusNotificationService,
+    private roomIdService: RoomIdService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
     for (let y = 2023; y <= 2026; y++) {
@@ -485,7 +487,9 @@ export class BonusPageComponent implements OnInit, OnDestroy {
               }
             }
 
+            const roomId = this.roomIdService.requireRoomId();
             const bonus: Bonus = {
+              roomId: roomId,
               employeeId: emp.id,
               year: year,
               month: month,

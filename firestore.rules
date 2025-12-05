@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ヘルパー関数: ユーザーが認証されているかチェック
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // ヘルパー関数: 現在のルームIDを取得（sessionStorageから取得できないため、カスタムクレームまたはドキュメントから取得）
+    // 注意: セキュリティルールではsessionStorageにアクセスできないため、
+    // ユーザーのカスタムクレームにroomIdを設定するか、usersコレクションから取得する必要がある
+    function getCurrentRoomId() {
+      // 方法1: カスタムクレームから取得（推奨）
+      // return request.auth.token.roomId;
+      
+      // 方法2: usersコレクションから取得（現在の実装ではsessionStorageを使用しているため、暫定対応）
+      // セキュリティルールでは直接sessionStorageにアクセスできないため、
+      // クライアント側でroomIdをリクエストに含める必要がある
+      // または、users/{userId}ドキュメントにroomIdを保存し、ここから取得
+      return request.resource.data.roomId != null ? request.resource.data.roomId : resource.data.roomId;
+    }
+    
+    // ヘルパー関数: ドキュメントのroomIdと現在のユーザーのroomIdが一致するかチェック
+    function isSameRoom() {
+      return resource.data.roomId == getCurrentRoomId();
+    }
+    
+    // ヘルパー関数: リクエストデータのroomIdと現在のユーザーのroomIdが一致するかチェック
+    function isRequestSameRoom() {
+      return request.resource.data.roomId == getCurrentRoomId();
+    }
+    
+    // 従業員コレクション
+    match /employees/{employeeId} {
+      allow read: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+      allow update: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId && request.resource.data.roomId == request.auth.token.roomId;
+      allow delete: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 月次給与コレクション
+    match /monthlySalaries/{employeeId}/years/{year} {
+      allow read, write: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 賞与コレクション
+    match /bonus/{year}/employees/{employeeId}/items/{bonusId} {
+      allow read, write: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 事業所マスタコレクション
+    match /offices/{officeId} {
+      allow read: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+      allow update: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId && request.resource.data.roomId == request.auth.token.roomId;
+      allow delete: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 標準報酬等級表コレクション
+    match /grades/{year}/table/{gradeId} {
+      allow read, write: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 給与項目マスタコレクション
+    match /settings/{year}/salaryItems/{itemId} {
+      allow read, write: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 料率コレクション
+    match /rates/{year}/versions/{versionId}/prefectures/{prefecture} {
+      allow read, write: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // 編集ログコレクション
+    match /editLogs/{logId} {
+      allow read, write: if isAuthenticated() && resource.data.roomId == request.auth.token.roomId;
+      allow create: if isAuthenticated() && request.resource.data.roomId == request.auth.token.roomId;
+    }
+    
+    // ルームコレクション（読み取りのみ、作成は認証済みユーザーのみ）
+    match /rooms/{roomId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+    }
+    
+    // その他のコレクションはデフォルトで拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

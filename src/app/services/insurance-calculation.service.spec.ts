@@ -22,12 +22,13 @@ describe('InsuranceCalculationService', () => {
         name: 'テスト従業員',
         birthDate: '1990-01-01',
         joinDate: '2020-01-01',
-        isShortTime: false
+        isShortTime: false,
       };
 
       const bonusData: Bonus[] = [
         {
           id: '1',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-06-15',
           amount: 1000000,
@@ -44,10 +45,11 @@ describe('InsuranceCalculationService', () => {
           createdAt: new Date('2025-06-15'),
           isExempt: false,
           cappedHealth: 1000000,
-          cappedPension: 1000000
+          cappedPension: 1000000,
         } as unknown as Bonus,
         {
           id: '2',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-12-15',
           amount: 1500000,
@@ -64,8 +66,8 @@ describe('InsuranceCalculationService', () => {
           createdAt: new Date('2025-12-15'),
           isExempt: false,
           cappedHealth: 1500000,
-          cappedPension: 1500000
-        } as unknown as Bonus
+          cappedPension: 1500000,
+        } as unknown as Bonus,
       ];
 
       const result = service.getAnnualPremiums(employee, null, bonusData);
@@ -84,12 +86,13 @@ describe('InsuranceCalculationService', () => {
         name: 'テスト従業員',
         birthDate: '1990-01-01',
         joinDate: '2020-01-01',
-        isShortTime: false
+        isShortTime: false,
       };
 
       const bonusData: Bonus[] = [
         {
           id: '1',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-06-15',
           amount: 1000000,
@@ -107,10 +110,11 @@ describe('InsuranceCalculationService', () => {
           createdAt: new Date('2025-06-15'),
           isExempt: true,
           cappedHealth: 1000000,
-          cappedPension: 1000000
+          cappedPension: 1000000,
         } as unknown as Bonus,
         {
           id: '2',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-12-15',
           amount: 1500000,
@@ -127,8 +131,8 @@ describe('InsuranceCalculationService', () => {
           createdAt: new Date('2025-12-15'),
           isExempt: false,
           cappedHealth: 1500000,
-          cappedPension: 1500000
-        } as unknown as Bonus
+          cappedPension: 1500000,
+        } as unknown as Bonus,
       ];
 
       const result = service.getAnnualPremiums(employee, null, bonusData);
@@ -144,12 +148,13 @@ describe('InsuranceCalculationService', () => {
         name: 'テスト従業員',
         birthDate: '1990-01-01',
         joinDate: '2020-01-01',
-        isShortTime: false
+        isShortTime: false,
       };
 
       const bonusData: Bonus[] = [
         {
           id: '1',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-06-15',
           amount: 1000000,
@@ -161,14 +166,15 @@ describe('InsuranceCalculationService', () => {
           pensionEmployer: 91500,
           isExempted: false,
           isSalaryInsteadOfBonus: true,
-          reason_bonus_to_salary_text: '過去12ヶ月の賞与支給回数が1回のため給与扱い',
+          reason_bonus_to_salary_text:
+            '過去12ヶ月の賞与支給回数が1回のため給与扱い',
           year: 2025,
           month: 6,
           createdAt: new Date('2025-06-15'),
           isExempt: false,
           cappedHealth: 1000000,
-          cappedPension: 1000000
-        } as unknown as Bonus
+          cappedPension: 1000000,
+        } as unknown as Bonus,
       ];
 
       const result = service.getAnnualPremiums(employee, null, bonusData);
@@ -186,7 +192,7 @@ describe('InsuranceCalculationService', () => {
         name: 'テスト従業員',
         birthDate: '1990-01-01',
         joinDate: '2020-01-01',
-        isShortTime: false
+        isShortTime: false,
       };
 
       const monthlyPremiums = {
@@ -196,7 +202,7 @@ describe('InsuranceCalculationService', () => {
           careEmployee: 2000,
           careEmployer: 2000,
           pensionEmployee: 18300,
-          pensionEmployer: 18300
+          pensionEmployer: 18300,
         },
         7: {
           healthEmployee: 10000,
@@ -204,13 +210,14 @@ describe('InsuranceCalculationService', () => {
           careEmployee: 2000,
           careEmployer: 2000,
           pensionEmployee: 18300,
-          pensionEmployer: 18300
-        }
+          pensionEmployer: 18300,
+        },
       };
 
       const bonusPremiums: Bonus[] = [
         {
           id: '1',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-06-15',
           amount: 1000000,
@@ -227,11 +234,15 @@ describe('InsuranceCalculationService', () => {
           createdAt: new Date('2025-06-15'),
           isExempt: false,
           cappedHealth: 1000000,
-          cappedPension: 1000000
-        } as unknown as Bonus
+          cappedPension: 1000000,
+        } as unknown as Bonus,
       ];
 
-      const result = service.getMonthlyCompanyBurden(employee, monthlyPremiums, bonusPremiums);
+      const result = service.getMonthlyCompanyBurden(
+        employee,
+        monthlyPremiums,
+        bonusPremiums
+      );
 
       expect(result[6].health).toBe(70000); // 月次(10000+10000) + 賞与(50000+50000)
       expect(result[6].care).toBe(14000); // 月次(2000+2000) + 賞与(10000+10000)
@@ -250,7 +261,7 @@ describe('InsuranceCalculationService', () => {
         name: 'テスト従業員',
         birthDate: '1990-01-01',
         joinDate: '2020-01-01',
-        isShortTime: false
+        isShortTime: false,
       };
 
       const monthlyPremiums = {};
@@ -258,6 +269,7 @@ describe('InsuranceCalculationService', () => {
       const bonusPremiums: Bonus[] = [
         {
           id: '1',
+          roomId: 'test-room',
           employeeId: 'emp1',
           payDate: '2025-06-15',
           amount: 1000000,
@@ -274,11 +286,15 @@ describe('InsuranceCalculationService', () => {
           createdAt: new Date('2025-06-15'),
           isExempt: true,
           cappedHealth: 1000000,
-          cappedPension: 1000000
-        } as unknown as Bonus
+          cappedPension: 1000000,
+        } as unknown as Bonus,
       ];
 
-      const result = service.getMonthlyCompanyBurden(employee, monthlyPremiums, bonusPremiums);
+      const result = service.getMonthlyCompanyBurden(
+        employee,
+        monthlyPremiums,
+        bonusPremiums
+      );
 
       expect(result[6].health).toBe(0);
       expect(result[6].care).toBe(0);
@@ -312,4 +328,3 @@ describe('InsuranceCalculationService', () => {
     });
   });
 });
-

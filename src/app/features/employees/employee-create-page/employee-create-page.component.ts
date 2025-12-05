@@ -76,9 +76,10 @@ export class EmployeeCreatePageComponent implements OnInit {
       basicPensionNumber: [''],
       // 雇用条件
       employmentType: [''],
-      weeklyHours: [null],
+      weeklyWorkHoursCategory: [''],
+      weeklyHours: [null], // 後方互換性のため残す（weeklyWorkHoursCategoryから変換）
       monthlyWage: [null],
-      expectedEmploymentMonths: [null],
+      expectedEmploymentMonths: [''],
       isStudent: [false],
       // 所属
       prefecture: ['tokyo'],
@@ -118,8 +119,18 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     // フォーム値変更時に自動判定を実行
     this.form.valueChanges.subscribe(() => {
+      // weeklyWorkHoursCategoryからweeklyHoursに変換
+      this.convertWeeklyWorkHoursCategory();
       this.updateAutoDetection();
     });
+
+    // 月額賃金の初期値がある場合、カンマ区切りで表示
+    setTimeout(() => {
+      const monthlyWage = this.form.get('monthlyWage')?.value;
+      if (monthlyWage !== null && monthlyWage !== undefined) {
+        this.formatMonthlyWageDisplay();
+      }
+    }, 0);
 
     // 事業所選択時に都道府県を自動設定
     this.form
@@ -157,6 +168,93 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     // 家族情報フォームを初期化
     this.initializeFamilyForm();
+  }
+
+  /**
+   * 週の所定労働時間カテゴリから数値に変換
+   */
+  convertWeeklyWorkHoursCategory(): void {
+    const category = this.form.get('weeklyWorkHoursCategory')?.value;
+    let weeklyHours: number | null = null;
+
+    if (category === '30hours-or-more') {
+      weeklyHours = 30; // 30時間以上として扱う
+    } else if (category === '20-30hours') {
+      weeklyHours = 25; // 20-30時間の中央値として扱う
+    } else if (category === 'less-than-20hours') {
+      weeklyHours = 15; // 20時間未満として扱う
+    }
+
+    // weeklyHoursを更新（emitEvent: falseで無限ループを防ぐ）
+    if (weeklyHours !== null) {
+      this.form.patchValue({ weeklyHours }, { emitEvent: false });
+    } else {
+      this.form.patchValue({ weeklyHours: null }, { emitEvent: false });
+    }
+  }
+
+  /**
+   * 月額賃金の入力処理（カンマ区切り表示）
+   */
+  onMonthlyWageInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const value = input.value.replace(/,/g, ''); // カンマを削除
+
+    // 数値のみ許可
+    if (value === '' || /^\d+$/.test(value)) {
+      // フォームコントロールに数値を保存
+      const numValue = value === '' ? null : parseInt(value, 10);
+      this.form.patchValue({ monthlyWage: numValue }, { emitEvent: false });
+
+      // 表示用にカンマ区切りでフォーマット
+      if (value !== '') {
+        input.value = this.formatNumberWithCommas(value);
+      } else {
+        input.value = '';
+      }
+    } else {
+      // 数値以外が入力された場合は前の値に戻す
+      const currentValue = this.form.get('monthlyWage')?.value;
+      if (currentValue !== null && currentValue !== undefined) {
+        input.value = this.formatNumberWithCommas(currentValue.toString());
+      } else {
+        input.value = '';
+      }
+    }
+  }
+
+  /**
+   * 月額賃金のフォーカスアウト処理
+   */
+  onMonthlyWageBlur(): void {
+    this.formatMonthlyWageDisplay();
+  }
+
+  /**
+   * 月額賃金の表示をカンマ区切りでフォーマット
+   */
+  private formatMonthlyWageDisplay(): void {
+    const monthlyWageControl = this.form.get('monthlyWage');
+    if (monthlyWageControl) {
+      const value = monthlyWageControl.value;
+      if (value !== null && value !== undefined && value !== '') {
+        const input = document.getElementById(
+          'monthlyWage'
+        ) as HTMLInputElement;
+        if (input) {
+          input.value = this.formatNumberWithCommas(value.toString());
+        }
+      }
+    }
+  }
+
+  /**
+   * 数値をカンマ区切り文字列に変換
+   */
+  private formatNumberWithCommas(value: string): string {
+    const numValue = value.replace(/,/g, '');
+    if (numValue === '') return '';
+    return parseInt(numValue, 10).toLocaleString('ja-JP');
   }
 
   initializeFamilyForm(): void {
@@ -349,6 +447,8 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.healthInsuranceLossDate)
       employee.healthInsuranceLossDate = value.healthInsuranceLossDate;
     if (value.pensionLossDate) employee.pensionLossDate = value.pensionLossDate;
+    if (value.weeklyWorkHoursCategory)
+      employee.weeklyWorkHoursCategory = value.weeklyWorkHoursCategory;
     if (value.weeklyHours) employee.weeklyHours = value.weeklyHours;
     if (value.monthlyWage) employee.monthlyWage = value.monthlyWage;
     if (value.expectedEmploymentMonths)
