@@ -984,6 +984,16 @@ export class SettingsPageComponent implements OnInit {
     this.salaryItems.removeAt(index);
   }
 
+  onSalaryItemTypeChange(index: number): void {
+    const itemGroup = this.salaryItems.at(index) as FormGroup;
+    const typeValue = itemGroup.get('type')?.value;
+
+    // 種別が「欠勤控除」に変更された場合、項目名を自動で「欠勤控除」に設定
+    if (typeValue === 'deduction') {
+      itemGroup.get('name')?.setValue('欠勤控除');
+    }
+  }
+
   async saveSalaryItems(): Promise<void> {
     const items: SalaryItem[] = this.salaryItems.value;
     await this.settingsService.saveSalaryItems(this.salaryItemsYear, items);
