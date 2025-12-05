@@ -676,29 +676,39 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
-  clearAllRates(): void {
+  async clearAllRates(): Promise<void> {
     if (
       !confirm('すべての料率をクリアしますか？\nこの操作は取り消せません。')
     ) {
       return;
     }
-    // 47都道府県の料率をクリア
+    // 47都道府県の料率をクリア（画面表示用）
     for (const pref of this.prefectureList) {
       this.prefectureRates[pref.code] = {
         health_employee: 0,
         health_employer: 0,
       };
     }
-    // 介護保険料率をクリア
+    // 介護保険料率をクリア（画面表示用）
     this.careRates = {
       care_employee: 0,
       care_employer: 0,
     };
-    // 厚生年金料率をクリア
+    // 厚生年金料率をクリア（画面表示用）
     this.pensionRates = {
       pension_employee: 0,
       pension_employer: 0,
     };
+    // Firestoreにも0を保存（現在選択している年度のデータを削除）
+    try {
+      for (const pref of this.prefectureList) {
+        await this.savePrefectureRate(pref.code);
+      }
+      alert('すべての料率をクリアしました');
+    } catch (error) {
+      console.error('料率のクリアエラー:', error);
+      alert('料率のクリアに失敗しました');
+    }
     this.cdr.detectChanges();
   }
 
