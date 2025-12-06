@@ -413,7 +413,6 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.pensionLossDate) employee.pensionLossDate = value.pensionLossDate;
     if (value.weeklyWorkHoursCategory)
       employee.weeklyWorkHoursCategory = value.weeklyWorkHoursCategory;
-    if (value.weeklyHours) employee.weeklyHours = value.weeklyHours;
     if (value.monthlyWage) employee.monthlyWage = value.monthlyWage;
     if (value.expectedEmploymentMonths)
       employee.expectedEmploymentMonths = value.expectedEmploymentMonths;

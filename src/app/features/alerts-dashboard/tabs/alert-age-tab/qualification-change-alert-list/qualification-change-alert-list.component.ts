@@ -9,6 +9,7 @@ import { OfficeService } from '../../../../../services/office.service';
 import { MonthlySalaryService } from '../../../../../services/monthly-salary.service';
 import { SettingsService } from '../../../../../services/settings.service';
 import { FamilyMemberService } from '../../../../../services/family-member.service';
+import { EmployeeWorkCategoryService } from '../../../../../services/employee-work-category.service';
 import { Employee } from '../../../../../models/employee.model';
 import { Office } from '../../../../../models/office.model';
 import { SalaryItem } from '../../../../../models/salary-item.model';
@@ -35,7 +36,8 @@ export class QualificationChangeAlertListComponent {
     private officeService: OfficeService,
     private monthlySalaryService: MonthlySalaryService,
     private settingsService: SettingsService,
-    private familyMemberService: FamilyMemberService
+    private familyMemberService: FamilyMemberService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService
   ) {}
 
   formatDate(date: Date): string {
@@ -345,13 +347,13 @@ export class QualificationChangeAlertListComponent {
    * 週の所定労働時間を取得
    */
   private getWeeklyWorkHours(employee: Employee): string {
-    if (employee.weeklyWorkHoursCategory === '30hours-or-more') {
-      return '30時間以上';
-    } else if (employee.weeklyWorkHoursCategory === '20-30hours') {
-      return '20-30時間';
-    } else if (employee.weeklyWorkHoursCategory === 'less-than-20hours') {
-      return '20時間未満';
+    const category = this.employeeWorkCategoryService.getWorkCategory(employee);
+    if (category === 'full-time') {
+      return 'フルタイム（週30時間以上）';
     }
-    return '';
+    if (category === 'short-time-worker') {
+      return '短時間労働者（特定適用）';
+    }
+    return '社会保険非加入（週20時間未満または要件未達）';
   }
 }

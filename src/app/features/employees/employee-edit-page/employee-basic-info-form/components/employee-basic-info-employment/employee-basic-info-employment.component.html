@@ -2,16 +2,18 @@
   <h3>雇用条件</h3>
 
   <div class="form-group">
-    <label for="weeklyWorkHoursCategory">週の所定労働時間</label>
+    <label for="weeklyWorkHoursCategory">勤務区分</label>
     <select
       id="weeklyWorkHoursCategory"
       formControlName="weeklyWorkHoursCategory"
       class="form-control"
     >
       <option value="">選択してください</option>
-      <option value="30hours-or-more">30時間以上</option>
-      <option value="20-30hours">20-30時間</option>
-      <option value="less-than-20hours">20時間未満</option>
+      <option value="30hours-or-more">フルタイム（週30時間以上）</option>
+      <option value="20-30hours">短時間労働者（特定適用）</option>
+      <option value="less-than-20hours">
+        社会保険非加入（週20時間未満または要件未達）
+      </option>
     </select>
   </div>
 

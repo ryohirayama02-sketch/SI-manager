@@ -8,6 +8,7 @@ import {
   EmployeeEligibilityService,
   EmployeeEligibilityResult,
 } from '../../../services/employee-eligibility.service';
+import { EmployeeWorkCategoryService } from '../../../services/employee-work-category.service';
 import { MonthlySalaryService } from '../../../services/monthly-salary.service';
 import { SettingsService } from '../../../services/settings.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
@@ -90,6 +91,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     private settingsService: SettingsService,
     private salaryCalculationService: SalaryCalculationService,
     private employeeLifecycleService: EmployeeLifecycleService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
     private router: Router
   ) {
     // 先月の年月を計算
@@ -327,12 +329,10 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       info.eligibility.healthInsuranceEligible ||
       info.eligibility.pensionEligible
     ) {
-      if (
-        info.employee.isShortTime ||
-        (info.employee.weeklyHours &&
-          info.employee.weeklyHours >= 20 &&
-          info.employee.weeklyHours < 30)
-      ) {
+      const workCategory = this.employeeWorkCategoryService.getWorkCategory(
+        info.employee
+      );
+      if (workCategory === 'short-time-worker') {
         return '短時間対象';
       }
       return '加入対象';
@@ -348,12 +348,10 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       info.eligibility.healthInsuranceEligible ||
       info.eligibility.pensionEligible
     ) {
-      if (
-        info.employee.isShortTime ||
-        (info.employee.weeklyHours &&
-          info.employee.weeklyHours >= 20 &&
-          info.employee.weeklyHours < 30)
-      ) {
+      const workCategory = this.employeeWorkCategoryService.getWorkCategory(
+        info.employee
+      );
+      if (workCategory === 'short-time-worker') {
         return 'shortTime';
       }
       return 'eligible';

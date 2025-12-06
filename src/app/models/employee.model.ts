@@ -23,7 +23,6 @@ export interface Employee {
 
   // 自動算出
   isShortTime: boolean;
-  weeklyHours?: number | null;
 
   // --- 所属 ---
   prefecture: string;
