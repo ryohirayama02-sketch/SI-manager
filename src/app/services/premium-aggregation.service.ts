@@ -1,13 +1,18 @@
 import { Injectable } from '@angular/core';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-import { MonthlyPremiumRow, MonthlyTotal, CompanyMonthlyTotal } from './payment-summary-types';
+import {
+  MonthlyPremiumRow,
+  MonthlyTotal,
+  CompanyMonthlyTotal,
+} from './payment-summary-types';
 import { MonthlyPremiumAggregationService } from './monthly-premium-aggregation.service';
 import { BonusPremiumAggregationService } from './bonus-premium-aggregation.service';
+import { PremiumTotalAggregationService } from './premium-total-aggregation.service';
 
 /**
  * PremiumAggregationService
- * 
+ *
  * 会社全体の集計を担当するサービス（オーケストレーション）
  * 月次合計、年間合計を計算
  */
@@ -15,7 +20,8 @@ import { BonusPremiumAggregationService } from './bonus-premium-aggregation.serv
 export class PremiumAggregationService {
   constructor(
     private monthlyPremiumAggregationService: MonthlyPremiumAggregationService,
-    private bonusPremiumAggregationService: BonusPremiumAggregationService
+    private bonusPremiumAggregationService: BonusPremiumAggregationService,
+    private premiumTotalAggregationService: PremiumTotalAggregationService
   ) {}
 
   /**
@@ -27,25 +33,13 @@ export class PremiumAggregationService {
     monthlyPremiumsByEmployee: {
       [employeeId: string]: MonthlyPremiumRow[];
     },
-    monthlyPremiums: {
-      [employeeId: string]: {
-        [month: number]: {
-          healthEmployee: number;
-          healthEmployer: number;
-          careEmployee: number;
-          careEmployer: number;
-          pensionEmployee: number;
-          pensionEmployer: number;
-        };
-      };
-    },
     bonusesByEmployee: { [employeeId: string]: Bonus[] },
     ageCacheByEmployee: { [employeeId: string]: { [month: number]: number } }
   ): { [month: number]: MonthlyTotal } {
     return this.monthlyPremiumAggregationService.aggregateMonthlyTotals(
       employees,
       year,
-      monthlyPremiums,
+      monthlyPremiumsByEmployee,
       bonusesByEmployee,
       ageCacheByEmployee
     );
@@ -80,17 +74,13 @@ export class PremiumAggregationService {
     }
   ): CompanyMonthlyTotal[] {
     const totals: {
-      [month: number]: {
-        healthTotal: number;
-        careTotal: number;
-        pensionTotal: number;
-        total: number;
-      };
+      [month: number]: CompanyMonthlyTotal;
     } = {};
 
     // 1〜12月を初期化
     for (let month = 1; month <= 12; month++) {
       totals[month] = {
+        month,
         healthTotal: 0,
         careTotal: 0,
         pensionTotal: 0,
@@ -107,30 +97,31 @@ export class PremiumAggregationService {
 
       for (const row of employeeRows) {
         const month = row.month;
-        const healthSum = row.healthEmployee + row.healthEmployer;
-        const careSum = row.careEmployee + row.careEmployer;
-        const pensionSum = row.pensionEmployee + row.pensionEmployer;
-
-        totals[month].healthTotal += healthSum;
-        totals[month].careTotal += careSum;
-        totals[month].pensionTotal += pensionSum;
+        const updated =
+          this.premiumTotalAggregationService.addToCompanyMonthlyTotal(
+            totals[month],
+            {
+              healthEmployee: row.healthEmployee,
+              healthEmployer: row.healthEmployer,
+              careEmployee: row.careEmployee,
+              careEmployer: row.careEmployer,
+              pensionEmployee: row.pensionEmployee,
+              pensionEmployer: row.pensionEmployer,
+            }
+          );
+        totals[month] = updated;
       }
     }
 
     // 配列形式に変換
     const companyMonthlyTotals: CompanyMonthlyTotal[] = [];
     for (let month = 1; month <= 12; month++) {
-      const healthTotal = totals[month].healthTotal;
-      const careTotal = totals[month].careTotal;
-      const pensionTotal = totals[month].pensionTotal;
-      const total = healthTotal + careTotal + pensionTotal;
-
       companyMonthlyTotals.push({
         month,
-        healthTotal,
-        careTotal,
-        pensionTotal,
-        total,
+        healthTotal: totals[month].healthTotal,
+        careTotal: totals[month].careTotal,
+        pensionTotal: totals[month].pensionTotal,
+        total: totals[month].total,
       });
     }
 
@@ -161,4 +152,3 @@ export class PremiumAggregationService {
     return { health, care, pension, total };
   }
 }
-

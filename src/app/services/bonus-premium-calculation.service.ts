@@ -3,6 +3,7 @@ import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { MonthlyPremiumRow, BonusAnnualTotal } from './payment-summary-types';
+import { PremiumStoppingRuleService } from './premium-stopping-rule.service';
 
 /**
  * BonusPremiumCalculationService
@@ -12,7 +13,10 @@ import { MonthlyPremiumRow, BonusAnnualTotal } from './payment-summary-types';
  */
 @Injectable({ providedIn: 'root' })
 export class BonusPremiumCalculationService {
-  constructor(private employeeLifecycleService: EmployeeLifecycleService) {}
+  constructor(
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private premiumStoppingRuleService: PremiumStoppingRuleService
+  ) {}
 
   /**
    * 賞与保険料を月次給与の保険料に加算
@@ -37,25 +41,7 @@ export class BonusPremiumCalculationService {
     for (const bonus of employeeBonuses) {
       const bonusMonth = bonus.month;
 
-      // 停止判定（優先順位：退職 > 産休/育休 > 年齢停止）
       const age = ageCache[bonusMonth];
-      const pensionStopped = age >= 70;
-      const healthStopped = age >= 75;
-      const maternityLeave = this.employeeLifecycleService.isMaternityLeave(
-        emp,
-        year,
-        bonusMonth
-      );
-      const childcareLeave = this.employeeLifecycleService.isChildcareLeave(
-        emp,
-        year,
-        bonusMonth
-      );
-      const retired = this.employeeLifecycleService.isRetiredInMonth(
-        emp,
-        year,
-        bonusMonth
-      );
 
       let bonusHealthEmployee = bonus.healthEmployee || 0;
       let bonusHealthEmployer = bonus.healthEmployer || 0;
@@ -64,34 +50,27 @@ export class BonusPremiumCalculationService {
       let bonusPensionEmployee = bonus.pensionEmployee || 0;
       let bonusPensionEmployer = bonus.pensionEmployer || 0;
 
-      // 退職月判定（最優先：本人・会社とも保険料ゼロ）
-      if (retired) {
-        bonusHealthEmployee = 0;
-        bonusHealthEmployer = 0;
-        bonusCareEmployee = 0;
-        bonusCareEmployer = 0;
-        bonusPensionEmployee = 0;
-        bonusPensionEmployer = 0;
-      } else {
-        // 産休・育休による本人負担免除処理（事業主負担は維持）
-        if (maternityLeave || childcareLeave) {
-          bonusHealthEmployee = 0;
-          bonusCareEmployee = 0;
-          bonusPensionEmployee = 0;
+      const stopping = this.premiumStoppingRuleService.applyStoppingRules(
+        emp,
+        year,
+        bonusMonth,
+        age,
+        {
+          healthEmployee: bonusHealthEmployee,
+          healthEmployer: bonusHealthEmployer,
+          careEmployee: bonusCareEmployee,
+          careEmployer: bonusCareEmployer,
+          pensionEmployee: bonusPensionEmployee,
+          pensionEmployer: bonusPensionEmployer,
         }
+      );
 
-        // 年齢による停止処理
-        if (pensionStopped) {
-          bonusPensionEmployee = 0;
-          bonusPensionEmployer = 0;
-        }
-        if (healthStopped) {
-          bonusHealthEmployee = 0;
-          bonusHealthEmployer = 0;
-          bonusCareEmployee = 0;
-          bonusCareEmployer = 0;
-        }
-      }
+      bonusHealthEmployee = stopping.healthEmployee;
+      bonusHealthEmployer = stopping.healthEmployer;
+      bonusCareEmployee = stopping.careEmployee;
+      bonusCareEmployer = stopping.careEmployer;
+      bonusPensionEmployee = stopping.pensionEmployee;
+      bonusPensionEmployer = stopping.pensionEmployer;
 
       // 月次給与の保険料に賞与分を加算（該当月の保険料に加算）
       if (monthlyPremiums[bonusMonth]) {
@@ -106,6 +85,13 @@ export class BonusPremiumCalculationService {
       // 月次保険料一覧にも加算
       const premiumRow = monthlyPremiumRows.find((r) => r.month === bonusMonth);
       if (premiumRow) {
+        // 停止情報を反映
+        premiumRow.isRetired = stopping.isRetired;
+        premiumRow.isMaternityLeave = stopping.isMaternityLeave;
+        premiumRow.isChildcareLeave = stopping.isChildcareLeave;
+        premiumRow.isPensionStopped = stopping.isPensionStopped;
+        premiumRow.isHealthStopped = stopping.isHealthStopped;
+
         premiumRow.healthEmployee += bonusHealthEmployee;
         premiumRow.healthEmployer += bonusHealthEmployer;
         premiumRow.careEmployee += bonusCareEmployee;
@@ -207,8 +193,3 @@ export class BonusPremiumCalculationService {
     return bonusAnnualTotals;
   }
 }
-
-
-
-
-

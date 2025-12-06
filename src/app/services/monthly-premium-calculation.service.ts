@@ -1,18 +1,22 @@
 import { Injectable } from '@angular/core';
 import { MonthlySalaryService } from './monthly-salary.service';
-import { SalaryCalculationService, ShikakuShutokuResult } from './salary-calculation.service';
+import {
+  SalaryCalculationService,
+  ShikakuShutokuResult,
+} from './salary-calculation.service';
 import { NotificationDecisionService } from './notification-decision.service';
 import { MonthHelperService } from './month-helper.service';
-import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { SettingsService } from './settings.service';
 import { UncollectedPremiumService } from './uncollected-premium.service';
 import { StandardRemunerationHistoryService } from './standard-remuneration-history.service';
 import { Employee } from '../models/employee.model';
 import { MonthlyPremiumRow } from './payment-summary-types';
+import { PremiumStoppingRuleService } from './premium-stopping-rule.service';
+import { EmployeeLifecycleService } from './employee-lifecycle.service';
 
 /**
  * MonthlyPremiumCalculationService
- * 
+ *
  * 月次保険料計算を担当するサービス
  * 従業員ごとの月次給与から保険料を計算し、資格取得時決定の情報を追加
  */
@@ -23,10 +27,11 @@ export class MonthlyPremiumCalculationService {
     private salaryCalculationService: SalaryCalculationService,
     private notificationDecisionService: NotificationDecisionService,
     private monthHelper: MonthHelperService,
-    private employeeLifecycleService: EmployeeLifecycleService,
     private settingsService: SettingsService,
     private uncollectedPremiumService: UncollectedPremiumService,
-    private standardRemunerationHistoryService: StandardRemunerationHistoryService
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
+    private premiumStoppingRuleService: PremiumStoppingRuleService,
+    private employeeLifecycleService: EmployeeLifecycleService
   ) {}
 
   /**
@@ -41,26 +46,6 @@ export class MonthlyPremiumCalculationService {
     rates: any,
     prefecture?: string
   ): Promise<MonthlyPremiumRow> {
-    // 産休・育休判定（月単位：1日でも含まれれば免除）
-    const maternityLeave = this.employeeLifecycleService.isMaternityLeave(emp, year, month);
-    const childcareLeave = this.employeeLifecycleService.isChildcareLeave(emp, year, month);
-    const isExempt = maternityLeave || childcareLeave;
-    
-    // 産休・育休中は無条件で0円（給与データの有無に関わらず）
-    if (isExempt) {
-      return {
-        month,
-        healthEmployee: 0,
-        healthEmployer: 0,
-        careEmployee: 0,
-        careEmployer: 0,
-        pensionEmployee: 0,
-        pensionEmployer: 0,
-        exempt: true,
-        notes: [maternityLeave ? '産前産後休業中' : '育児休業中'],
-      };
-    }
-
     // 従業員データにstandardMonthlyRemunerationがない場合、salaryDataから定時決定を計算して取得
     // empのidが確実に含まれるようにする
     let employeeWithStandard = { ...emp };
@@ -68,7 +53,7 @@ export class MonthlyPremiumCalculationService {
     if (!employeeWithStandard.id) {
       employeeWithStandard.id = emp.id;
     }
-    
+
     console.log(
       `[徴収不能チェック] ${emp.name} (${year}年${month}月): employeeWithStandard.id=`,
       employeeWithStandard.id,
@@ -77,7 +62,7 @@ export class MonthlyPremiumCalculationService {
       `standardMonthlyRemuneration=`,
       employeeWithStandard.standardMonthlyRemuneration
     );
-    
+
     // 標準報酬月額が確定していない場合のみ、標準報酬履歴またはsalaryDataから定時決定を計算
     // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
     // その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要があります。
@@ -86,14 +71,18 @@ export class MonthlyPremiumCalculationService {
     // 1. 従業員データの標準報酬月額
     // 2. 標準報酬履歴から取得（指定された年月に適用される標準報酬月額）
     // 3. 年度全体の給与データから定時決定を計算
-    if (!employeeWithStandard.standardMonthlyRemuneration || employeeWithStandard.standardMonthlyRemuneration <= 0) {
+    if (
+      !employeeWithStandard.standardMonthlyRemuneration ||
+      employeeWithStandard.standardMonthlyRemuneration <= 0
+    ) {
       // まず標準報酬履歴から取得を試みる
-      const historyStandard = await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
-        emp.id,
-        year,
-        month
-      );
-      
+      const historyStandard =
+        await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
+          emp.id,
+          year,
+          month
+        );
+
       if (historyStandard && historyStandard > 0) {
         employeeWithStandard.standardMonthlyRemuneration = historyStandard;
         console.log(
@@ -105,12 +94,17 @@ export class MonthlyPremiumCalculationService {
         let dataToUse = salaryData;
         if (!dataToUse) {
           // salaryDataが存在しない場合、給与データを取得
-          dataToUse = await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+          dataToUse = await this.monthlySalaryService.getEmployeeSalary(
+            emp.id,
+            year
+          );
         }
-        
+
         if (dataToUse) {
           // 年度の給与データから定時決定を計算（その月の給与が0円でも、年度全体の給与データから標準報酬月額を取得）
-          const empSalaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};
+          const empSalaries: {
+            [key: string]: { total: number; fixed: number; variable: number };
+          } = {};
           for (let m = 1; m <= 12; m++) {
             const monthKey = m.toString();
             const monthData = dataToUse[monthKey];
@@ -123,7 +117,7 @@ export class MonthlyPremiumCalculationService {
               };
             }
           }
-          
+
           console.log(
             `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定を計算します`,
             {
@@ -131,20 +125,22 @@ export class MonthlyPremiumCalculationService {
               empSalariesKeys: Object.keys(empSalaries),
               currentMonthSalary: dataToUse[month.toString()],
               salaryDataExists: !!salaryData,
-              dataToUseExists: !!dataToUse
+              dataToUseExists: !!dataToUse,
             }
           );
-          
+
           // 定時決定を計算
-          const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
-            emp.id,
-            empSalaries,
-            gradeTable,
-            year
-          );
-          
+          const teijiResult =
+            this.salaryCalculationService.calculateTeijiKettei(
+              emp.id,
+              empSalaries,
+              gradeTable,
+              year
+            );
+
           if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
-            employeeWithStandard.standardMonthlyRemuneration = teijiResult.standardMonthlyRemuneration;
+            employeeWithStandard.standardMonthlyRemuneration =
+              teijiResult.standardMonthlyRemuneration;
             console.log(
               `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiResult.standardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
             );
@@ -154,7 +150,7 @@ export class MonthlyPremiumCalculationService {
               {
                 teijiResult,
                 empSalariesCount: Object.keys(empSalaries).length,
-                empSalaries: empSalaries
+                empSalaries: empSalaries,
               }
             );
           }
@@ -164,7 +160,10 @@ export class MonthlyPremiumCalculationService {
           );
         }
       }
-    } else if (employeeWithStandard.standardMonthlyRemuneration && employeeWithStandard.standardMonthlyRemuneration > 0) {
+    } else if (
+      employeeWithStandard.standardMonthlyRemuneration &&
+      employeeWithStandard.standardMonthlyRemuneration > 0
+    ) {
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): 従業員データから標準報酬月額を取得: ${employeeWithStandard.standardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
       );
@@ -176,27 +175,27 @@ export class MonthlyPremiumCalculationService {
     // 標準報酬月額が確定していれば、salaryDataが存在しなくても保険料を計算する必要がある
     const monthKeyString = month.toString();
     const monthSalaryData = salaryData ? salaryData[monthKeyString] : undefined;
-    
+
     console.log(
       `[徴収不能チェック] ${emp.name} (${year}年${month}月): salaryData存在チェック`,
       {
         salaryDataExists: !!salaryData,
         monthSalaryDataExists: !!monthSalaryData,
         monthSalaryData: monthSalaryData,
-        employeeWithStandardStandardMonthlyRemuneration: employeeWithStandard.standardMonthlyRemuneration
+        employeeWithStandardStandardMonthlyRemuneration:
+          employeeWithStandard.standardMonthlyRemuneration,
       }
     );
-    
+
     const fixedSalary =
       monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0;
     const variableSalary =
       monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0;
-    
+
     // その月の給与が0円でも、標準報酬月額が確定していれば保険料を計算する必要がある
     // 標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、その月の給与が0円でも標準報酬月額に基づいて保険料を計算する
     // 標準報酬月額が確定していれば、salaryDataが存在しなくても保険料を計算する必要がある
     if (salaryData || employeeWithStandard.standardMonthlyRemuneration) {
-
       // 年度料率の改定月ロジック：月ごとに料率を取得
       let monthRates = rates;
       if (prefecture) {
@@ -215,10 +214,11 @@ export class MonthlyPremiumCalculationService {
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): calculateMonthlyPremiums呼び出し前`,
         {
-          employeeWithStandardStandardMonthlyRemuneration: employeeWithStandard.standardMonthlyRemuneration,
+          employeeWithStandardStandardMonthlyRemuneration:
+            employeeWithStandard.standardMonthlyRemuneration,
           fixedSalary,
           variableSalary,
-          totalSalary: fixedSalary + variableSalary
+          totalSalary: fixedSalary + variableSalary,
         }
       );
       const premiumResult =
@@ -230,14 +230,14 @@ export class MonthlyPremiumCalculationService {
           variableSalary,
           gradeTable
         );
-      
+
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): calculateMonthlyPremiums結果`,
         {
           health_employee: premiumResult.health_employee,
           care_employee: premiumResult.care_employee,
           pension_employee: premiumResult.pension_employee,
-          reasons: premiumResult.reasons
+          reasons: premiumResult.reasons,
         }
       );
 
@@ -246,56 +246,84 @@ export class MonthlyPremiumCalculationService {
         (r) => r.includes('産前産後休業') || r.includes('育児休業')
       );
 
+      const ageForStopping = this.employeeLifecycleService.getAgeAtMonth(
+        new Date(emp.birthDate),
+        year,
+        month
+      );
+
+      const stopping = this.premiumStoppingRuleService.applyStoppingRules(
+        emp,
+        year,
+        month,
+        ageForStopping,
+        {
+          healthEmployee: premiumResult.health_employee,
+          healthEmployer: premiumResult.health_employer,
+          careEmployee: premiumResult.care_employee,
+          careEmployer: premiumResult.care_employer,
+          pensionEmployee: premiumResult.pension_employee,
+          pensionEmployer: premiumResult.pension_employer,
+        }
+      );
+
       const premiumRow: MonthlyPremiumRow = {
         month,
-        healthEmployee: premiumResult.health_employee,
-        healthEmployer: premiumResult.health_employer,
-        careEmployee: premiumResult.care_employee,
-        careEmployer: premiumResult.care_employer,
-        pensionEmployee: premiumResult.pension_employee,
-        pensionEmployer: premiumResult.pension_employer,
+        healthEmployee: stopping.healthEmployee,
+        healthEmployer: stopping.healthEmployer,
+        careEmployee: stopping.careEmployee,
+        careEmployer: stopping.careEmployer,
+        pensionEmployee: stopping.pensionEmployee,
+        pensionEmployer: stopping.pensionEmployer,
         exempt,
         notes: premiumResult.reasons,
+        isRetired: stopping.isRetired,
+        isMaternityLeave: stopping.isMaternityLeave,
+        isChildcareLeave: stopping.isChildcareLeave,
+        isPensionStopped: stopping.isPensionStopped,
+        isHealthStopped: stopping.isHealthStopped,
       };
 
       // 徴収不能額のチェックと保存
       // 総支給額と本人負担保険料を比較（欠勤控除を引いた総支給額を使用）
       // monthSalaryDataのtotalまたはtotalSalaryは既に欠勤控除を引いた値（calculateSalaryTotalsで計算済み）
-      const totalSalary = monthSalaryData?.totalSalary ?? monthSalaryData?.total ?? (fixedSalary + variableSalary);
-      const employeeTotalPremium = 
-        premiumResult.health_employee + 
-        premiumResult.care_employee + 
+      const totalSalary =
+        monthSalaryData?.totalSalary ??
+        monthSalaryData?.total ??
+        fixedSalary + variableSalary;
+      const employeeTotalPremium =
+        premiumResult.health_employee +
+        premiumResult.care_employee +
         premiumResult.pension_employee;
-      
-      console.log(
-        `[徴収不能チェック] ${emp.name} (${year}年${month}月):`,
-        {
-          totalSalary,
-          employeeTotalPremium,
-          health_employee: premiumResult.health_employee,
-          care_employee: premiumResult.care_employee,
-          pension_employee: premiumResult.pension_employee,
-          isExempt,
-          monthSalaryData: monthSalaryData ? {
-            totalSalary: monthSalaryData.totalSalary,
-            total: monthSalaryData.total,
-            fixed: monthSalaryData.fixed,
-            variable: monthSalaryData.variable
-          } : null,
-          fixedSalary,
-          variableSalary
-        }
-      );
-      
+
+      console.log(`[徴収不能チェック] ${emp.name} (${year}年${month}月):`, {
+        totalSalary,
+        employeeTotalPremium,
+        health_employee: premiumResult.health_employee,
+        care_employee: premiumResult.care_employee,
+        pension_employee: premiumResult.pension_employee,
+        exempt,
+        monthSalaryData: monthSalaryData
+          ? {
+              totalSalary: monthSalaryData.totalSalary,
+              total: monthSalaryData.total,
+              fixed: monthSalaryData.fixed,
+              variable: monthSalaryData.variable,
+            }
+          : null,
+        fixedSalary,
+        variableSalary,
+      });
+
       // 産休・育休中でない場合のみチェック
-      if (!isExempt) {
+      if (!stopping.isMaternityLeave && !stopping.isChildcareLeave) {
         const employeeId = employeeWithStandard.id || emp.id;
         console.log(
           `[徴収不能チェック] ${emp.name} (${year}年${month}月): 産休・育休ではないためチェック実行`,
           {
             employeeId,
             employeeWithStandardId: employeeWithStandard.id,
-            empId: emp.id
+            empId: emp.id,
           }
         );
         if (!employeeId) {
@@ -324,13 +352,19 @@ export class MonthlyPremiumCalculationService {
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データなし、給与0円として保険料計算を実行`
       );
-      
+
       // 給与データがない場合でも、従業員データにstandardMonthlyRemunerationがない場合は、
       // 給与データを取得して定時決定を計算
-      if (!employeeWithStandard.standardMonthlyRemuneration || employeeWithStandard.standardMonthlyRemuneration <= 0) {
-        const fetchedSalaryData = await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+      if (
+        !employeeWithStandard.standardMonthlyRemuneration ||
+        employeeWithStandard.standardMonthlyRemuneration <= 0
+      ) {
+        const fetchedSalaryData =
+          await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
         if (fetchedSalaryData) {
-          const empSalaries: { [key: string]: { total: number; fixed: number; variable: number } } = {};
+          const empSalaries: {
+            [key: string]: { total: number; fixed: number; variable: number };
+          } = {};
           for (let m = 1; m <= 12; m++) {
             const monthKey = m.toString();
             const monthData = fetchedSalaryData[monthKey];
@@ -343,24 +377,26 @@ export class MonthlyPremiumCalculationService {
               };
             }
           }
-          
+
           // 定時決定を計算
-          const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
-            emp.id,
-            empSalaries,
-            gradeTable,
-            year
-          );
-          
+          const teijiResult =
+            this.salaryCalculationService.calculateTeijiKettei(
+              emp.id,
+              empSalaries,
+              gradeTable,
+              year
+            );
+
           if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
-            employeeWithStandard.standardMonthlyRemuneration = teijiResult.standardMonthlyRemuneration;
+            employeeWithStandard.standardMonthlyRemuneration =
+              teijiResult.standardMonthlyRemuneration;
             console.log(
               `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データ取得後、定時決定から標準報酬月額を取得: ${teijiResult.standardMonthlyRemuneration}円`
             );
           }
         }
       }
-      
+
       const premiumResult =
         await this.salaryCalculationService.calculateMonthlyPremiums(
           employeeWithStandard, // 標準報酬月額を含む従業員データを使用
@@ -371,53 +407,77 @@ export class MonthlyPremiumCalculationService {
           gradeTable
         );
 
+      const stopping = this.premiumStoppingRuleService.applyStoppingRules(
+        emp,
+        year,
+        month,
+        this.employeeLifecycleService.getAgeAtMonth(
+          new Date(emp.birthDate),
+          year,
+          month
+        ),
+        {
+          healthEmployee: premiumResult.health_employee,
+          healthEmployer: premiumResult.health_employer,
+          careEmployee: premiumResult.care_employee,
+          careEmployer: premiumResult.care_employer,
+          pensionEmployee: premiumResult.pension_employee,
+          pensionEmployer: premiumResult.pension_employer,
+        }
+      );
+
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): 保険料計算結果`,
         {
           health_employee: premiumResult.health_employee,
           care_employee: premiumResult.care_employee,
           pension_employee: premiumResult.pension_employee,
-          reasons: premiumResult.reasons
+          reasons: premiumResult.reasons,
         }
       );
 
       const premiumRow: MonthlyPremiumRow = {
         month,
-        healthEmployee: premiumResult.health_employee,
-        healthEmployer: premiumResult.health_employer,
-        careEmployee: premiumResult.care_employee,
-        careEmployer: premiumResult.care_employer,
-        pensionEmployee: premiumResult.pension_employee,
-        pensionEmployer: premiumResult.pension_employer,
+        healthEmployee: stopping.healthEmployee,
+        healthEmployer: stopping.healthEmployer,
+        careEmployee: stopping.careEmployee,
+        careEmployer: stopping.careEmployer,
+        pensionEmployee: stopping.pensionEmployee,
+        pensionEmployer: stopping.pensionEmployer,
         exempt: false,
         notes: premiumResult.reasons,
+        isRetired: stopping.isRetired,
+        isMaternityLeave: stopping.isMaternityLeave,
+        isChildcareLeave: stopping.isChildcareLeave,
+        isPensionStopped: stopping.isPensionStopped,
+        isHealthStopped: stopping.isHealthStopped,
       };
 
       // 徴収不能額のチェックと保存（給与0円、標準報酬月額が確定していれば保険料が発生する可能性がある）
       const totalSalary = 0;
-      const employeeTotalPremium = 
-        premiumResult.health_employee + 
-        premiumResult.care_employee + 
+      const employeeTotalPremium =
+        premiumResult.health_employee +
+        premiumResult.care_employee +
         premiumResult.pension_employee;
-      
+
       console.log(
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データなしの場合`,
         {
           totalSalary,
           employeeTotalPremium,
-          isExempt
+          isExempt: stopping.isMaternityLeave || stopping.isChildcareLeave,
         }
       );
-      
+
       // 産休・育休中でない場合のみチェック
-      if (!isExempt) {
+      if (!stopping.isMaternityLeave && !stopping.isChildcareLeave) {
         const employeeId = employeeWithStandard.id || emp.id;
         console.log(
           `[徴収不能チェック] ${emp.name} (${year}年${month}月): 産休・育休ではないためチェック実行（給与データなし）`,
           {
             employeeId,
             employeeWithStandardId: employeeWithStandard.id,
-            empId: emp.id
+            empId: emp.id,
           }
         );
         if (!employeeId) {
@@ -477,14 +537,10 @@ export class MonthlyPremiumCalculationService {
       const monthSalaryData = salaryData[monthKey];
       if (monthSalaryData) {
         salaries[monthKey] = {
-          total:
-            monthSalaryData.totalSalary ?? monthSalaryData.total ?? 0,
-          fixed:
-            monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0,
+          total: monthSalaryData.totalSalary ?? monthSalaryData.total ?? 0,
+          fixed: monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0,
           variable:
-            monthSalaryData.variableSalary ??
-            monthSalaryData.variable ??
-            0,
+            monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0,
         };
       }
     }
@@ -547,5 +603,3 @@ export class MonthlyPremiumCalculationService {
     }
   }
 }
-
-

@@ -53,19 +53,6 @@ export class PaymentSummaryCalculationService {
       [employeeId: string]: MonthlyPremiumRow[];
     } = {};
 
-    const monthlyPremiums: {
-      [employeeId: string]: {
-        [month: number]: {
-          healthEmployee: number;
-          healthEmployer: number;
-          careEmployee: number;
-          careEmployer: number;
-          pensionEmployee: number;
-          pensionEmployer: number;
-        };
-      };
-    } = {};
-
     // 全従業員をループ
     for (const emp of employees) {
       const ageCache = ageCacheByEmployee[emp.id];
@@ -87,7 +74,6 @@ export class PaymentSummaryCalculationService {
 
       // 月次保険料一覧を保存
       monthlyPremiumsByEmployee[emp.id] = result.monthlyPremiumRows;
-      monthlyPremiums[emp.id] = result.monthlyPremiums;
     }
 
     // 月ごとの集計を計算
@@ -96,7 +82,6 @@ export class PaymentSummaryCalculationService {
         employees,
         year,
         monthlyPremiumsByEmployee,
-        monthlyPremiums,
         bonusesByEmployee,
         ageCacheByEmployee
       );

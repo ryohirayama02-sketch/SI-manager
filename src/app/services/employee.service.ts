@@ -128,11 +128,6 @@ export class EmployeeService {
     return normalizedData;
   }
 
-  // 新規作成（UC1）
-  async createEmployee(data: Employee): Promise<void> {
-    return Promise.resolve();
-  }
-
   async updateEmployee(id: string, data: any): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 

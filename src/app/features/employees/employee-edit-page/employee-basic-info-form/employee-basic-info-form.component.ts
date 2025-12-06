@@ -77,7 +77,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       myNumber: [''],
       basicPensionNumber: [''],
       insuredNumber: [''],
-      employmentType: [''], // 後方互換性のため残す
       weeklyWorkHoursCategory: [''],
       monthlyWage: [null],
       expectedEmploymentMonths: [null],
@@ -114,11 +113,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       childcareNotificationSubmitted: [false],
       childcareLivingTogether: [false],
       sickPayApplicationRequest: [false],
-      sickPayApplicationRequestDate: [null],
       childcareEmployerCertificateRequest: [false],
-      childcareEmployerCertificateRequestDate: [null],
       maternityAllowanceApplicationRequest: [false],
-      maternityAllowanceApplicationRequestDate: [null],
     });
   }
 
@@ -158,7 +154,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         myNumber: (data as any).myNumber || '',
         basicPensionNumber: (data as any).basicPensionNumber || '',
         insuredNumber: (data as any).insuredNumber || '',
-        employmentType: (data as any).employmentType || '',
         weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
         monthlyWage: data.monthlyWage || null,
         expectedEmploymentMonths:
@@ -203,16 +198,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
           data.childcareNotificationSubmitted || false,
         childcareLivingTogether: data.childcareLivingTogether || false,
         sickPayApplicationRequest: data.sickPayApplicationRequest || false,
-        sickPayApplicationRequestDate:
-          data.sickPayApplicationRequestDate || null,
         childcareEmployerCertificateRequest:
           data.childcareEmployerCertificateRequest || false,
-        childcareEmployerCertificateRequestDate:
-          data.childcareEmployerCertificateRequestDate || null,
         maternityAllowanceApplicationRequest:
           data.maternityAllowanceApplicationRequest || false,
-        maternityAllowanceApplicationRequestDate:
-          data.maternityAllowanceApplicationRequestDate || null,
       });
     }
 
@@ -281,7 +270,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     const updateData: any = {
       name: value.name,
       birthDate: value.birthDate,
-      employmentType: value.employmentType || '', // 後方互換性のため残す
       weeklyWorkHoursCategory: value.weeklyWorkHoursCategory || '',
       monthlyWage: value.monthlyWage || null,
       expectedEmploymentMonths: value.expectedEmploymentMonths || null,
@@ -367,21 +355,12 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       updateData.childcareLeaveEnd = value.childcareLeaveEnd || null;
     if (value.sickPayApplicationRequest !== undefined)
       updateData.sickPayApplicationRequest = value.sickPayApplicationRequest;
-    if (value.sickPayApplicationRequestDate)
-      updateData.sickPayApplicationRequestDate =
-        value.sickPayApplicationRequestDate;
     if (value.childcareEmployerCertificateRequest !== undefined)
       updateData.childcareEmployerCertificateRequest =
         value.childcareEmployerCertificateRequest;
-    if (value.childcareEmployerCertificateRequestDate)
-      updateData.childcareEmployerCertificateRequestDate =
-        value.childcareEmployerCertificateRequestDate;
     if (value.maternityAllowanceApplicationRequest !== undefined)
       updateData.maternityAllowanceApplicationRequest =
         value.maternityAllowanceApplicationRequest;
-    if (value.maternityAllowanceApplicationRequestDate)
-      updateData.maternityAllowanceApplicationRequestDate =
-        value.maternityAllowanceApplicationRequestDate;
 
     console.log('[employee-basic-info-form] 保存データ:', {
       officeNumber: updateData.officeNumber,

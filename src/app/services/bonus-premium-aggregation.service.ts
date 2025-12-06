@@ -1,19 +1,21 @@
 import { Injectable } from '@angular/core';
-import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { MonthlyTotal } from './payment-summary-types';
+import { PremiumStoppingRuleService } from './premium-stopping-rule.service';
+import { PremiumTotalAggregationService } from './premium-total-aggregation.service';
 
 /**
  * BonusPremiumAggregationService
- * 
+ *
  * 賞与保険料の集計を担当するサービス
  * 賞与保険料を支給月の月別合計に加算
  */
 @Injectable({ providedIn: 'root' })
 export class BonusPremiumAggregationService {
   constructor(
-    private employeeLifecycleService: EmployeeLifecycleService
+    private premiumStoppingRuleService: PremiumStoppingRuleService,
+    private premiumTotalAggregationService: PremiumTotalAggregationService
   ) {}
 
   /**
@@ -48,29 +50,13 @@ export class BonusPremiumAggregationService {
       }
 
       // 賞与支給者の年齢と退職日を確認
-      const bonusEmployee = employees.find(
-        (e) => e.id === bonus.employeeId
-      );
+      const bonusEmployee = employees.find((e) => e.id === bonus.employeeId);
       if (!bonusEmployee) {
-        continue;
-      }
-
-      // 退職月判定（最優先）
-      const retired = this.employeeLifecycleService.isRetiredInMonth(
-        bonusEmployee,
-        year,
-        bonusMonth
-      );
-
-      if (retired) {
-        allMonthlyTotals[bonusMonth].isRetired = true;
         continue;
       }
 
       const bonusAgeCache = ageCacheByEmployee[bonusEmployee.id];
       const age = bonusAgeCache[bonusMonth];
-      const pensionStopped = age >= 70;
-      const healthStopped = age >= 75;
 
       let bonusHealthEmployee = bonus.healthEmployee || 0;
       let bonusHealthEmployer = bonus.healthEmployer || 0;
@@ -79,38 +65,47 @@ export class BonusPremiumAggregationService {
       let bonusPensionEmployee = bonus.pensionEmployee || 0;
       let bonusPensionEmployer = bonus.pensionEmployer || 0;
 
-      // 年齢による停止処理
-      if (pensionStopped) {
-        bonusPensionEmployee = 0;
-        bonusPensionEmployer = 0;
-        allMonthlyTotals[bonusMonth].isPensionStopped = true;
-      }
-      if (healthStopped) {
-        bonusHealthEmployee = 0;
-        bonusHealthEmployer = 0;
-        bonusCareEmployee = 0;
-        bonusCareEmployer = 0;
-        allMonthlyTotals[bonusMonth].isHealthStopped = true;
-      }
+      const stopping = this.premiumStoppingRuleService.applyStoppingRules(
+        bonusEmployee,
+        year,
+        bonusMonth,
+        age,
+        {
+          healthEmployee: bonusHealthEmployee,
+          healthEmployer: bonusHealthEmployer,
+          careEmployee: bonusCareEmployee,
+          careEmployer: bonusCareEmployer,
+          pensionEmployee: bonusPensionEmployee,
+          pensionEmployer: bonusPensionEmployer,
+        }
+      );
+
+      bonusHealthEmployee = stopping.healthEmployee;
+      bonusHealthEmployer = stopping.healthEmployer;
+      bonusCareEmployee = stopping.careEmployee;
+      bonusCareEmployer = stopping.careEmployer;
+      bonusPensionEmployee = stopping.pensionEmployee;
+      bonusPensionEmployer = stopping.pensionEmployer;
 
       // 賞与保険料を月別合計に加算
-      allMonthlyTotals[bonusMonth].health +=
-        bonusHealthEmployee + bonusHealthEmployer;
-      allMonthlyTotals[bonusMonth].care +=
-        bonusCareEmployee + bonusCareEmployer;
-      allMonthlyTotals[bonusMonth].pension +=
-        bonusPensionEmployee + bonusPensionEmployer;
-      allMonthlyTotals[bonusMonth].total +=
-        bonusHealthEmployee +
-        bonusHealthEmployer +
-        (bonusCareEmployee + bonusCareEmployer) +
-        (bonusPensionEmployee + bonusPensionEmployer);
+      allMonthlyTotals[bonusMonth] =
+        this.premiumTotalAggregationService.addToMonthlyTotal(
+          allMonthlyTotals[bonusMonth],
+          {
+            healthEmployee: bonusHealthEmployee,
+            healthEmployer: bonusHealthEmployer,
+            careEmployee: bonusCareEmployee,
+            careEmployer: bonusCareEmployer,
+            pensionEmployee: bonusPensionEmployee,
+            pensionEmployer: bonusPensionEmployer,
+          }
+        );
+
+      allMonthlyTotals[bonusMonth].isPensionStopped = stopping.isPensionStopped;
+      allMonthlyTotals[bonusMonth].isHealthStopped = stopping.isHealthStopped;
+      allMonthlyTotals[bonusMonth].isRetired = stopping.isRetired;
+      allMonthlyTotals[bonusMonth].isMaternityLeave = stopping.isMaternityLeave;
+      allMonthlyTotals[bonusMonth].isChildcareLeave = stopping.isChildcareLeave;
     }
   }
 }
-
-
-
-
-
-

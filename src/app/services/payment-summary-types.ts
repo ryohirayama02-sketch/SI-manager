@@ -17,6 +17,11 @@ export interface MonthlyPremiumRow {
   shikakuReportRequired?: boolean;
   shikakuReportDeadline?: string;
   shikakuReportReason?: string;
+  isRetired?: boolean;
+  isMaternityLeave?: boolean;
+  isChildcareLeave?: boolean;
+  isPensionStopped?: boolean;
+  isHealthStopped?: boolean;
 }
 
 export interface MonthlyTotal {

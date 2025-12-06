@@ -10,7 +10,7 @@ import { MonthlyPremiumRow } from './payment-summary-types';
 
 /**
  * PaymentSummaryEmployeeCalculationService
- * 
+ *
  * 保険料サマリー計算の従業員ごとの計算を担当するサービス
  * 月次保険料計算、資格取得時決定情報追加、年齢関連バリデーション、賞与保険料加算を提供
  */
@@ -51,8 +51,9 @@ export class PaymentSummaryEmployeeCalculationService {
     };
   }> {
     // 給与データを取得
-    const salaryData = salaryDataByEmployeeId?.[emp.id] || 
-      await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
+    const salaryData =
+      salaryDataByEmployeeId?.[emp.id] ||
+      (await this.monthlySalaryService.getEmployeeSalary(emp.id, year));
 
     // 月次保険料一覧を計算
     const monthlyPremiumRows: MonthlyPremiumRow[] = [];
@@ -69,15 +70,16 @@ export class PaymentSummaryEmployeeCalculationService {
 
     // 1〜12月分の月次保険料を計算
     for (let month = 1; month <= 12; month++) {
-      const premiumRow = await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
-        emp,
-        year,
-        month,
-        salaryData,
-        gradeTable,
-        rates,
-        prefecture
-      );
+      const premiumRow =
+        await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
+          emp,
+          year,
+          month,
+          salaryData,
+          gradeTable,
+          rates,
+          prefecture
+        );
       monthlyPremiumRows.push(premiumRow);
       monthlyPremiums[month] = {
         healthEmployee: premiumRow.healthEmployee,
@@ -96,31 +98,33 @@ export class PaymentSummaryEmployeeCalculationService {
         const monthSalaryData = salaryData[monthKeyString];
         // totalSalaryまたはtotalが存在する場合はそれを使用（既に欠勤控除を引いた値）
         // 存在しない場合は、fixedSalary + variableSalaryから計算（欠勤控除は既に引かれている可能性がある）
-        const totalSalary = 
+        const totalSalary =
           (monthSalaryData?.totalSalary ?? monthSalaryData?.total ?? 0) ||
-          ((monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0) +
-           (monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0));
-        
-        const employeeTotalPremium = 
-          premiumRow.healthEmployee + 
-          premiumRow.careEmployee + 
+          (monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0) +
+            (monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0);
+
+        const employeeTotalPremium =
+          premiumRow.healthEmployee +
+          premiumRow.careEmployee +
           premiumRow.pensionEmployee;
-        
+
         console.log(
           `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]:`,
           {
             totalSalary,
             employeeTotalPremium,
             exempt: premiumRow.exempt,
-            monthSalaryData: monthSalaryData ? {
-              totalSalary: monthSalaryData.totalSalary,
-              total: monthSalaryData.total,
-              fixed: monthSalaryData.fixed,
-              variable: monthSalaryData.variable
-            } : null
+            monthSalaryData: monthSalaryData
+              ? {
+                  totalSalary: monthSalaryData.totalSalary,
+                  total: monthSalaryData.total,
+                  fixed: monthSalaryData.fixed,
+                  variable: monthSalaryData.variable,
+                }
+              : null,
           }
         );
-        
+
         // 産休・育休中でない場合のみチェック（給与が0円でもチェック）
         if (!premiumRow.exempt) {
           console.log(
@@ -183,5 +187,3 @@ export class PaymentSummaryEmployeeCalculationService {
     };
   }
 }
-
-
