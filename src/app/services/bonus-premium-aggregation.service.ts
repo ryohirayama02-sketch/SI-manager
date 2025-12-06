@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-import { MonthlyTotal } from './payment-summary-calculation.service';
+import { MonthlyTotal } from './payment-summary-types';
 
 /**
  * BonusPremiumAggregationService

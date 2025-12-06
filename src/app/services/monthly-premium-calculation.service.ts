@@ -8,7 +8,7 @@ import { SettingsService } from './settings.service';
 import { UncollectedPremiumService } from './uncollected-premium.service';
 import { StandardRemunerationHistoryService } from './standard-remuneration-history.service';
 import { Employee } from '../models/employee.model';
-import { MonthlyPremiumRow } from './payment-summary-calculation.service';
+import { MonthlyPremiumRow } from './payment-summary-types';
 
 /**
  * MonthlyPremiumCalculationService

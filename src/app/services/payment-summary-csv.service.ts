@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { PaymentSummaryStateService } from './payment-summary-state.service';
-import { MonthlyPremiumRow } from './payment-summary-calculation.service';
+import { MonthlyPremiumRow } from './payment-summary-types';
 import { Bonus } from '../models/bonus.model';
 
 /**

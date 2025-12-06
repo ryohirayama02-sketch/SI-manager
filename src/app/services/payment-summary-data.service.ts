@@ -4,14 +4,14 @@ import { BonusService } from './bonus.service';
 import { MonthlySalaryService } from './monthly-salary.service';
 import { SettingsService } from './settings.service';
 import { PaymentSummaryStateService } from './payment-summary-state.service';
-import { PaymentSummaryCalculationService } from './payment-summary-calculation.service';
+import { PaymentSummaryOrchestratorService } from './payment-summary-orchestrator.service';
 import { NotificationCalculationService } from './notification-calculation.service';
 import { AnnualWarningService } from './annual-warning.service';
 import { Bonus } from '../models/bonus.model';
 
 /**
  * PaymentSummaryDataService
- * 
+ *
  * 保険料サマリー画面のデータロード処理を担当するサービス
  * 従業員、賞与、給与、料率・等級表の読み込みと計算処理のオーケストレーションを提供
  */
@@ -23,7 +23,7 @@ export class PaymentSummaryDataService {
     private monthlySalaryService: MonthlySalaryService,
     private settingsService: SettingsService,
     private state: PaymentSummaryStateService,
-    private paymentSummaryCalculationService: PaymentSummaryCalculationService,
+    private paymentSummaryOrchestratorService: PaymentSummaryOrchestratorService,
     private notificationCalculationService: NotificationCalculationService,
     private annualWarningService: AnnualWarningService
   ) {}
@@ -51,7 +51,9 @@ export class PaymentSummaryDataService {
       this.state.year.toString(),
       this.state.prefecture
     );
-    const gradeTable = await this.settingsService.getStandardTable(this.state.year);
+    const gradeTable = await this.settingsService.getStandardTable(
+      this.state.year
+    );
     this.state.setRatesAndGradeTable(rates, gradeTable);
 
     // 賞与データを読み込む
@@ -119,7 +121,7 @@ export class PaymentSummaryDataService {
 
     // サービスを使用して計算（選択された従業員のみ）
     const result =
-      await this.paymentSummaryCalculationService.calculateMonthlyTotals(
+      await this.paymentSummaryOrchestratorService.calculateMonthlyTotals(
         filteredEmployees,
         this.state.currentYearBonuses,
         this.state.year,
@@ -134,7 +136,7 @@ export class PaymentSummaryDataService {
 
     // 年間合計を計算
     const annualTotals =
-      this.paymentSummaryCalculationService.calculateAnnualTotals(
+      this.paymentSummaryOrchestratorService.calculateAnnualTotals(
         result.companyMonthlyTotals
       );
     this.state.setAnnualTotals(annualTotals);
@@ -176,9 +178,3 @@ export class PaymentSummaryDataService {
     }
   }
 }
-
-
-
-
-
-

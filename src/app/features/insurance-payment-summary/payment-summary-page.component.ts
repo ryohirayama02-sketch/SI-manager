@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PaymentSummaryStateService } from '../../services/payment-summary-state.service';
 import { PaymentSummaryDataService } from '../../services/payment-summary-data.service';
-import { PaymentSummaryCalculationService } from '../../services/payment-summary-calculation.service';
+import { PaymentSummaryOrchestratorService } from '../../services/payment-summary-orchestrator.service';
 import { PaymentSummaryFormatService } from '../../services/payment-summary-format.service';
 import { NotificationFormatService } from '../../services/notification-format.service';
 import { PaymentSummaryCsvService } from '../../services/payment-summary-csv.service';
@@ -57,7 +57,7 @@ export class PaymentSummaryPageComponent implements OnInit {
   constructor(
     private stateService: PaymentSummaryStateService,
     private dataService: PaymentSummaryDataService,
-    private paymentSummaryCalculationService: PaymentSummaryCalculationService,
+    private paymentSummaryOrchestratorService: PaymentSummaryOrchestratorService,
     private paymentSummaryFormatService: PaymentSummaryFormatService,
     private notificationFormatService: NotificationFormatService,
     private csvService: PaymentSummaryCsvService,
@@ -93,7 +93,7 @@ export class PaymentSummaryPageComponent implements OnInit {
   }
 
   hasNotesForEmployee(employeeId: string): boolean {
-    return this.paymentSummaryCalculationService.hasNotesForEmployee(
+    return this.paymentSummaryOrchestratorService.hasNotesForEmployee(
       employeeId,
       this.stateService.monthlyPremiumsByEmployee
     );

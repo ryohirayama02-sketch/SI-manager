@@ -6,7 +6,7 @@ import { PremiumValidationService } from './premium-validation.service';
 import { UncollectedPremiumService } from './uncollected-premium.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-import { MonthlyPremiumRow } from './payment-summary-calculation.service';
+import { MonthlyPremiumRow } from './payment-summary-types';
 
 /**
  * PaymentSummaryEmployeeCalculationService

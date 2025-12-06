@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-import { MonthlyPremiumRow, MonthlyTotal, CompanyMonthlyTotal } from './payment-summary-calculation.service';
+import { MonthlyPremiumRow, MonthlyTotal, CompanyMonthlyTotal } from './payment-summary-types';
 import { MonthlyPremiumAggregationService } from './monthly-premium-aggregation.service';
 import { BonusPremiumAggregationService } from './bonus-premium-aggregation.service';
 

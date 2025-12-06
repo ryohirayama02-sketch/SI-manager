@@ -5,74 +5,17 @@ import { PaymentSummaryDataPreparationService } from './payment-summary-data-pre
 import { PaymentSummaryEmployeeCalculationService } from './payment-summary-employee-calculation.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
-
-export interface MonthlyPremiumRow {
-  month: number;
-  healthEmployee: number;
-  healthEmployer: number;
-  careEmployee: number;
-  careEmployer: number;
-  pensionEmployee: number;
-  pensionEmployer: number;
-  exempt: boolean;
-  notes: string[];
-  isAcquisitionMonth?: boolean;
-  acquisitionGrade?: number;
-  acquisitionStandard?: number;
-  acquisitionReason?: string;
-  shikakuReportRequired?: boolean;
-  shikakuReportDeadline?: string;
-  shikakuReportReason?: string;
-}
-
-export interface MonthlyTotal {
-  health: number;
-  care: number;
-  pension: number;
-  total: number;
-  isPensionStopped?: boolean;
-  isHealthStopped?: boolean;
-  isMaternityLeave?: boolean;
-  isChildcareLeave?: boolean;
-  isRetired?: boolean;
-}
-
-export interface CompanyMonthlyTotal {
-  month: number;
-  healthTotal: number;
-  careTotal: number;
-  pensionTotal: number;
-  total: number;
-}
-
-export interface BonusAnnualTotal {
-  healthEmployee: number;
-  healthEmployer: number;
-  careEmployee: number;
-  careEmployer: number;
-  pensionEmployee: number;
-  pensionEmployer: number;
-  totalEmployee: number;
-  totalEmployer: number;
-  total: number;
-}
-
-export interface CalculationResult {
-  monthlyPremiumsByEmployee: {
-    [employeeId: string]: MonthlyPremiumRow[];
-  };
-  monthlyTotals: {
-    [month: number]: MonthlyTotal;
-  };
-  companyMonthlyTotals: CompanyMonthlyTotal[];
-  bonusAnnualTotals: BonusAnnualTotal;
-  bonusByMonth: { [month: number]: Bonus[] };
-  errorMessages: { [employeeId: string]: string[] };
-}
+import {
+  MonthlyPremiumRow,
+  MonthlyTotal,
+  CompanyMonthlyTotal,
+  BonusAnnualTotal,
+  CalculationResult,
+} from './payment-summary-types';
 
 /**
  * PaymentSummaryCalculationService
- * 
+ *
  * 年間サマリー（payment-summary）の計算ロジックを担当するサービス（オーケストレーション）
  * 月次保険料計算、賞与保険料計算、集計、バリデーションの各サービスを統合して提供
  */
@@ -95,33 +38,16 @@ export class PaymentSummaryCalculationService {
     prefecture?: string
   ): Promise<CalculationResult> {
     // データ準備
-    const bonusByMonth = this.dataPreparationService.groupBonusesByMonth(bonuses);
-    const bonusesByEmployee = this.dataPreparationService.groupBonusesByEmployee(bonuses);
-    const ageCacheByEmployee = this.dataPreparationService.calculateAgeCache(employees, year);
+    const bonusByMonth =
+      this.dataPreparationService.groupBonusesByMonth(bonuses);
+    const bonusesByEmployee =
+      this.dataPreparationService.groupBonusesByEmployee(bonuses);
+    const ageCacheByEmployee = this.dataPreparationService.calculateAgeCache(
+      employees,
+      year
+    );
 
     const errorMessages: { [employeeId: string]: string[] } = {};
-
-    if (!employees || employees.length === 0) {
-      const bonusAnnualTotals: BonusAnnualTotal = {
-        healthEmployee: 0,
-        healthEmployer: 0,
-        careEmployee: 0,
-        careEmployer: 0,
-        pensionEmployee: 0,
-        pensionEmployer: 0,
-        totalEmployee: 0,
-        totalEmployer: 0,
-        total: 0,
-      };
-      return {
-        monthlyPremiumsByEmployee: {},
-        monthlyTotals: {},
-        companyMonthlyTotals: [],
-        bonusAnnualTotals,
-        bonusByMonth,
-        errorMessages,
-      };
-    }
 
     const monthlyPremiumsByEmployee: {
       [employeeId: string]: MonthlyPremiumRow[];
@@ -146,17 +72,18 @@ export class PaymentSummaryCalculationService {
       const employeeBonuses = bonusesByEmployee[emp.id] || [];
 
       // 従業員の月次保険料を計算
-      const result = await this.employeeCalculationService.calculateEmployeePremiums(
-        emp,
-        year,
-        gradeTable,
-        rates,
-        salaryDataByEmployeeId,
-        employeeBonuses,
-        ageCache,
-        errorMessages,
-        prefecture
-      );
+      const result =
+        await this.employeeCalculationService.calculateEmployeePremiums(
+          emp,
+          year,
+          gradeTable,
+          rates,
+          salaryDataByEmployeeId,
+          employeeBonuses,
+          ageCache,
+          errorMessages,
+          prefecture
+        );
 
       // 月次保険料一覧を保存
       monthlyPremiumsByEmployee[emp.id] = result.monthlyPremiumRows;
@@ -164,14 +91,15 @@ export class PaymentSummaryCalculationService {
     }
 
     // 月ごとの集計を計算
-    const allMonthlyTotals = this.premiumAggregationService.aggregateMonthlyTotals(
-      employees,
-      year,
-      monthlyPremiumsByEmployee,
-      monthlyPremiums,
-      bonusesByEmployee,
-      ageCacheByEmployee
-    );
+    const allMonthlyTotals =
+      this.premiumAggregationService.aggregateMonthlyTotals(
+        employees,
+        year,
+        monthlyPremiumsByEmployee,
+        monthlyPremiums,
+        bonusesByEmployee,
+        ageCacheByEmployee
+      );
 
     // 賞与保険料を支給月の月別合計に加算
     this.premiumAggregationService.addBonusToMonthlyTotals(
@@ -183,18 +111,20 @@ export class PaymentSummaryCalculationService {
     );
 
     // 賞与保険料の年間合計を計算
-    const bonusAnnualTotals = this.bonusPremiumCalculationService.calculateBonusAnnualTotals(
-      bonuses,
-      employees,
-      year,
-      ageCacheByEmployee
-    );
+    const bonusAnnualTotals =
+      this.bonusPremiumCalculationService.calculateBonusAnnualTotals(
+        bonuses,
+        employees,
+        year,
+        ageCacheByEmployee
+      );
 
     // 会社全体の月次保険料合計を計算
-    const companyMonthlyTotals = this.premiumAggregationService.calculateCompanyMonthlyTotals(
-      employees,
-      monthlyPremiumsByEmployee
-    );
+    const companyMonthlyTotals =
+      this.premiumAggregationService.calculateCompanyMonthlyTotals(
+        employees,
+        monthlyPremiumsByEmployee
+      );
 
     return {
       monthlyPremiumsByEmployee,
@@ -215,7 +145,9 @@ export class PaymentSummaryCalculationService {
     pension: number;
     total: number;
   } {
-    return this.premiumAggregationService.calculateAnnualTotals(companyMonthlyTotals);
+    return this.premiumAggregationService.calculateAnnualTotals(
+      companyMonthlyTotals
+    );
   }
 
   /**
