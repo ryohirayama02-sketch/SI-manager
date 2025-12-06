@@ -127,17 +127,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
     for (const emp of this.employees) {
       // 加入判定
-      const workInfo = {
-        weeklyHours: emp.weeklyHours,
-        monthlyWage: emp.monthlyWage,
-        expectedEmploymentMonths: emp.expectedEmploymentMonths,
-        isStudent: emp.isStudent,
-        consecutiveMonthsOver20Hours: emp.consecutiveMonthsOver20Hours,
-      };
-      const eligibility = this.employeeEligibilityService.checkEligibility(
-        emp,
-        workInfo
-      );
+      const eligibility = this.employeeEligibilityService.checkEligibility(emp);
 
       // 当月の保険料を計算
       // 注: payment-summary-calculation.service.tsは全従業員の年間データを計算するサービスで、
@@ -388,15 +378,15 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     }
 
     // 資格取得時決定の標準報酬月額
-    if (info.employee.acquisitionStandard) {
-      return `${info.employee.acquisitionStandard.toLocaleString(
+    if (info.employee.currentStandardMonthlyRemuneration) {
+      return `${info.employee.currentStandardMonthlyRemuneration.toLocaleString(
         'ja-JP'
       )}円（資格取得時決定）`;
     }
 
     // 通常の標準報酬月額（従業員データに保存されている値）
-    if (info.employee.standardMonthlyRemuneration) {
-      return `${info.employee.standardMonthlyRemuneration.toLocaleString(
+    if (info.employee.currentStandardMonthlyRemuneration) {
+      return `${info.employee.currentStandardMonthlyRemuneration.toLocaleString(
         'ja-JP'
       )}円`;
     }

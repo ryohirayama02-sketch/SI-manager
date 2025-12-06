@@ -11,6 +11,7 @@ import { Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
 import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
 import { EmployeeEligibilityService } from '../../../services/employee-eligibility.service';
+import { EmployeeWorkCategoryService } from '../../../services/employee-work-category.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
 import { FamilyMemberService } from '../../../services/family-member.service';
 import { OfficeService } from '../../../services/office.service';
@@ -60,6 +61,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     private employeeService: EmployeeService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeEligibilityService: EmployeeEligibilityService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
     private salaryCalculationService: SalaryCalculationService,
     private familyMemberService: FamilyMemberService,
     private officeService: OfficeService,
@@ -77,7 +79,6 @@ export class EmployeeCreatePageComponent implements OnInit {
       // 雇用条件
       employmentType: [''],
       weeklyWorkHoursCategory: [''],
-      weeklyHours: [null], // 後方互換性のため残す（weeklyWorkHoursCategoryから変換）
       monthlyWage: [null],
       expectedEmploymentMonths: [''],
       isStudent: [false],
@@ -119,8 +120,6 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     // フォーム値変更時に自動判定を実行
     this.form.valueChanges.subscribe(() => {
-      // weeklyWorkHoursCategoryからweeklyHoursに変換
-      this.convertWeeklyWorkHoursCategory();
       this.updateAutoDetection();
     });
 
@@ -168,29 +167,6 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     // 家族情報フォームを初期化
     this.initializeFamilyForm();
-  }
-
-  /**
-   * 週の所定労働時間カテゴリから数値に変換
-   */
-  convertWeeklyWorkHoursCategory(): void {
-    const category = this.form.get('weeklyWorkHoursCategory')?.value;
-    let weeklyHours: number | null = null;
-
-    if (category === '30hours-or-more') {
-      weeklyHours = 30; // 30時間以上として扱う
-    } else if (category === '20-30hours') {
-      weeklyHours = 25; // 20-30時間の中央値として扱う
-    } else if (category === 'less-than-20hours') {
-      weeklyHours = 15; // 20時間未満として扱う
-    }
-
-    // weeklyHoursを更新（emitEvent: falseで無限ループを防ぐ）
-    if (weeklyHours !== null) {
-      this.form.patchValue({ weeklyHours }, { emitEvent: false });
-    } else {
-      this.form.patchValue({ weeklyHours: null }, { emitEvent: false });
-    }
   }
 
   /**
@@ -315,32 +291,23 @@ export class EmployeeCreatePageComponent implements OnInit {
     }
 
     // 加入判定（EmployeeEligibilityServiceを使用）
-    if (
-      value.joinDate &&
-      value.weeklyHours !== null &&
-      value.weeklyHours !== undefined
-    ) {
-      const workInfo = {
-        weeklyHours: value.weeklyHours,
-        monthlyWage: value.monthlyWage,
-        expectedEmploymentMonths: value.expectedEmploymentMonths,
-        isStudent: value.isStudent,
-      };
-
+    if (value.joinDate) {
       const tempEmployee: Partial<Employee> = {
         birthDate: value.birthDate,
         joinDate: value.joinDate,
         retireDate: value.retireDate,
         isShortTime: value.isShortTime,
-        weeklyHours: value.weeklyHours,
         monthlyWage: value.monthlyWage,
         expectedEmploymentMonths: value.expectedEmploymentMonths,
         isStudent: value.isStudent,
+        weeklyWorkHoursCategory: value.weeklyWorkHoursCategory,
       };
 
       const eligibility = this.employeeEligibilityService.checkEligibility(
-        tempEmployee as Employee,
-        workInfo
+        tempEmployee as Employee
+      );
+      const workCategory = this.employeeWorkCategoryService.getWorkCategory(
+        tempEmployee as Employee
       );
 
       if (eligibility.candidateFlag) {
@@ -349,10 +316,7 @@ export class EmployeeCreatePageComponent implements OnInit {
         eligibility.healthInsuranceEligible ||
         eligibility.pensionEligible
       ) {
-        if (
-          value.isShortTime ||
-          (value.weeklyHours >= 20 && value.weeklyHours < 30)
-        ) {
+        if (workCategory === 'short-time-worker') {
           this.eligibilityStatus = '短時間対象（加入対象）';
         } else {
           this.eligibilityStatus = '加入対象';

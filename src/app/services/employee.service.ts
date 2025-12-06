@@ -128,7 +128,7 @@ export class EmployeeService {
     return normalizedData;
   }
 
-  async updateEmployee(id: string, data: any): Promise<void> {
+  async updateEmployee(id: string, data: Partial<Employee>): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 
     const ref = doc(this.firestore, `employees/${id}`);

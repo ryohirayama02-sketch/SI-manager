@@ -71,7 +71,7 @@ export class NotificationCalculationService {
       }
 
       // 定時決定を計算
-      const currentStandard = employee.standardMonthlyRemuneration || 0;
+      const currentStandard = employee.currentStandardMonthlyRemuneration || 0;
       const currentGrade =
         currentStandard > 0
           ? this.salaryCalculationService.findGrade(gradeTable, currentStandard)
@@ -184,7 +184,7 @@ export class NotificationCalculationService {
       }
     }
 
-    const currentStandard = employee.standardMonthlyRemuneration || 0;
+    const currentStandard = employee.currentStandardMonthlyRemuneration || 0;
     const currentGrade =
       currentStandard > 0
         ? this.salaryCalculationService.findGrade(gradeTable, currentStandard)

@@ -260,7 +260,7 @@ export class AlertTeijiTabComponent {
         csvRows.push(
           `従前の標準報酬月額,${
             previousHistory?.standardMonthlyRemuneration ||
-            employee.standardMonthlyRemuneration ||
+            employee.currentStandardMonthlyRemuneration ||
             ''
           }`
         );

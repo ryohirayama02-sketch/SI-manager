@@ -1,11 +1,14 @@
 import { Injectable } from '@angular/core';
 import { MaternityLeaveService } from './maternity-leave.service';
-import { EmployeeEligibilityService, AgeFlags } from './employee-eligibility.service';
+import {
+  EmployeeEligibilityService,
+  AgeFlags,
+} from './employee-eligibility.service';
 import { Employee } from '../models/employee.model';
 
 /**
  * BonusExemptionService
- * 
+ *
  * 賞与の免除判定を担当するサービス
  * 産休・育休、退職月、年齢による免除判定を提供
  */
@@ -158,21 +161,11 @@ export class BonusExemptionService {
   /**
    * 年齢フラグを取得
    */
-  getAgeFlags(
-    employee: Employee,
-    payDate: Date
-  ): AgeFlags {
+  getAgeFlags(employee: Employee, payDate: Date): AgeFlags {
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
-      undefined,
       payDate
     );
     return eligibilityResult.ageFlags;
   }
 }
-
-
-
-
-
-

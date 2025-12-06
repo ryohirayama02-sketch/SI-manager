@@ -10,7 +10,7 @@ export type WorkCategory = 'full-time' | 'short-time-worker' | 'non-insured';
  * 従業員の労働カテゴリ属性を判定するサービス
  */
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class EmployeeWorkCategoryService {
   /**
@@ -31,23 +31,24 @@ export class EmployeeWorkCategoryService {
       return 'non-insured';
     }
 
-    // 20-30時間：条件により短時間労働者またはフルタイム
+    // 20-30時間：条件により短時間労働者または非加入
     if (category === '20-30hours') {
-      // 月額賃金88000以上かつ予定雇用月数2か月以上かつ学生でない場合に短時間労働者
-      const monthlyWage = employee.monthlyWage || 0;
-      const expectedMonths = employee.expectedEmploymentMonths || 0;
+      // 月額賃金88000以上かつ予定雇用月数2か月超かつ学生でない場合に短時間労働者
+      const monthlyWage = employee.monthlyWage ?? 0;
+      const isOverTwoMonths =
+        employee.expectedEmploymentMonths === 'over-2months';
       const isStudent = employee.isStudent || false;
 
-      if (monthlyWage >= 88000 && expectedMonths >= 2 && !isStudent) {
+      if (monthlyWage >= 88000 && isOverTwoMonths && !isStudent) {
         return 'short-time-worker';
-      } else {
-        // 条件を満たさない場合はフルタイムとして扱う
-        return 'full-time';
       }
+
+      // 条件を満たさない場合は非加入
+      return 'non-insured';
     }
 
-    // デフォルト：フルタイム（後方互換性のため）
-    return 'full-time';
+    // デフォルト：非加入
+    return 'non-insured';
   }
 
   /**
@@ -88,26 +89,20 @@ export class EmployeeWorkCategoryService {
   }
 
   /**
-   * 従業員が産休を取得できるかどうか（フルタイムのみ）
+   * 従業員が産休を取得できるかどうか（保険加入者のみ）
    * @param employee 従業員情報
    * @returns 産休取得可能な場合true
    */
   canTakeMaternityLeave(employee: Employee): boolean {
-    return this.isFullTime(employee);
+    return this.isInsuranceRequired(employee);
   }
 
   /**
-   * 産休中の社会保険料が免除されるかどうか（保険未加入者は免除されない）
+   * 産休中の社会保険料が免除されるかどうか（保険加入者のみ）
    * @param employee 従業員情報
    * @returns 免除される場合true
    */
   isExemptFromPremiumsDuringMaternityLeave(employee: Employee): boolean {
-    // 保険未加入者は産休中の社会保険料もなし（免除の概念がない）
-    return !this.isNonInsured(employee);
+    return this.isInsuranceRequired(employee);
   }
 }
-
-
-
-
-

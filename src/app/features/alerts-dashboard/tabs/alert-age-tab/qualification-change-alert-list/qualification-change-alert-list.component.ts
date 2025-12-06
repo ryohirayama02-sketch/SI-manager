@@ -351,14 +351,6 @@ export class QualificationChangeAlertListComponent {
       return '20-30時間';
     } else if (employee.weeklyWorkHoursCategory === 'less-than-20hours') {
       return '20時間未満';
-    } else if (employee.weeklyHours) {
-      if (employee.weeklyHours >= 30) {
-        return '30時間以上';
-      } else if (employee.weeklyHours >= 20) {
-        return '20-30時間';
-      } else {
-        return '20時間未満';
-      }
     }
     return '';
   }

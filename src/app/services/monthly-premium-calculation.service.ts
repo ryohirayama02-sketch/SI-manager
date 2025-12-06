@@ -46,7 +46,7 @@ export class MonthlyPremiumCalculationService {
     rates: any,
     prefecture?: string
   ): Promise<MonthlyPremiumRow> {
-    // 従業員データにstandardMonthlyRemunerationがない場合、salaryDataから定時決定を計算して取得
+    // 従業員データにcurrentStandardMonthlyRemunerationがない場合、salaryDataから定時決定を計算して取得
     // empのidが確実に含まれるようにする
     let employeeWithStandard = { ...emp };
     // idが確実に含まれるようにする
@@ -60,7 +60,7 @@ export class MonthlyPremiumCalculationService {
       `emp.id=`,
       emp.id,
       `standardMonthlyRemuneration=`,
-      employeeWithStandard.standardMonthlyRemuneration
+      employeeWithStandard.currentStandardMonthlyRemuneration
     );
 
     // 標準報酬月額が確定していない場合のみ、標準報酬履歴またはsalaryDataから定時決定を計算
@@ -72,8 +72,8 @@ export class MonthlyPremiumCalculationService {
     // 2. 標準報酬履歴から取得（指定された年月に適用される標準報酬月額）
     // 3. 年度全体の給与データから定時決定を計算
     if (
-      !employeeWithStandard.standardMonthlyRemuneration ||
-      employeeWithStandard.standardMonthlyRemuneration <= 0
+      !employeeWithStandard.currentStandardMonthlyRemuneration ||
+      employeeWithStandard.currentStandardMonthlyRemuneration <= 0
     ) {
       // まず標準報酬履歴から取得を試みる
       const historyStandard =
@@ -84,7 +84,8 @@ export class MonthlyPremiumCalculationService {
         );
 
       if (historyStandard && historyStandard > 0) {
-        employeeWithStandard.standardMonthlyRemuneration = historyStandard;
+        employeeWithStandard.currentStandardMonthlyRemuneration =
+          historyStandard;
         console.log(
           `[徴収不能チェック] ${emp.name} (${year}年${month}月): 標準報酬履歴から標準報酬月額を取得: ${historyStandard}円（給与が0円でも保険料を計算）`
         );
@@ -139,7 +140,7 @@ export class MonthlyPremiumCalculationService {
             );
 
           if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
-            employeeWithStandard.standardMonthlyRemuneration =
+            employeeWithStandard.currentStandardMonthlyRemuneration =
               teijiResult.standardMonthlyRemuneration;
             console.log(
               `[徴収不能チェック] ${emp.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiResult.standardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
@@ -161,11 +162,11 @@ export class MonthlyPremiumCalculationService {
         }
       }
     } else if (
-      employeeWithStandard.standardMonthlyRemuneration &&
-      employeeWithStandard.standardMonthlyRemuneration > 0
+      employeeWithStandard.currentStandardMonthlyRemuneration &&
+      employeeWithStandard.currentStandardMonthlyRemuneration > 0
     ) {
       console.log(
-        `[徴収不能チェック] ${emp.name} (${year}年${month}月): 従業員データから標準報酬月額を取得: ${employeeWithStandard.standardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
+        `[徴収不能チェック] ${emp.name} (${year}年${month}月): 従業員データから標準報酬月額を取得: ${employeeWithStandard.currentStandardMonthlyRemuneration}円（給与が0円でも保険料を計算）`
       );
     }
 
@@ -183,7 +184,7 @@ export class MonthlyPremiumCalculationService {
         monthSalaryDataExists: !!monthSalaryData,
         monthSalaryData: monthSalaryData,
         employeeWithStandardStandardMonthlyRemuneration:
-          employeeWithStandard.standardMonthlyRemuneration,
+          employeeWithStandard.currentStandardMonthlyRemuneration,
       }
     );
 
@@ -195,7 +196,7 @@ export class MonthlyPremiumCalculationService {
     // その月の給与が0円でも、標準報酬月額が確定していれば保険料を計算する必要がある
     // 標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、その月の給与が0円でも標準報酬月額に基づいて保険料を計算する
     // 標準報酬月額が確定していれば、salaryDataが存在しなくても保険料を計算する必要がある
-    if (salaryData || employeeWithStandard.standardMonthlyRemuneration) {
+    if (salaryData || employeeWithStandard.currentStandardMonthlyRemuneration) {
       // 年度料率の改定月ロジック：月ごとに料率を取得
       let monthRates = rates;
       if (prefecture) {
@@ -215,7 +216,7 @@ export class MonthlyPremiumCalculationService {
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): calculateMonthlyPremiums呼び出し前`,
         {
           employeeWithStandardStandardMonthlyRemuneration:
-            employeeWithStandard.standardMonthlyRemuneration,
+            employeeWithStandard.currentStandardMonthlyRemuneration,
           fixedSalary,
           variableSalary,
           totalSalary: fixedSalary + variableSalary,
@@ -353,11 +354,11 @@ export class MonthlyPremiumCalculationService {
         `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データなし、給与0円として保険料計算を実行`
       );
 
-      // 給与データがない場合でも、従業員データにstandardMonthlyRemunerationがない場合は、
+      // 給与データがない場合でも、従業員データにcurrentStandardMonthlyRemunerationがない場合は、
       // 給与データを取得して定時決定を計算
       if (
-        !employeeWithStandard.standardMonthlyRemuneration ||
-        employeeWithStandard.standardMonthlyRemuneration <= 0
+        !employeeWithStandard.currentStandardMonthlyRemuneration ||
+        employeeWithStandard.currentStandardMonthlyRemuneration <= 0
       ) {
         const fetchedSalaryData =
           await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
@@ -388,7 +389,7 @@ export class MonthlyPremiumCalculationService {
             );
 
           if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
-            employeeWithStandard.standardMonthlyRemuneration =
+            employeeWithStandard.currentStandardMonthlyRemuneration =
               teijiResult.standardMonthlyRemuneration;
             console.log(
               `[徴収不能チェック] ${emp.name} (${year}年${month}月): 給与データ取得後、定時決定から標準報酬月額を取得: ${teijiResult.standardMonthlyRemuneration}円`
@@ -545,36 +546,23 @@ export class MonthlyPremiumCalculationService {
       }
     }
 
-    // 資格取得時決定の情報を取得
-    let acquisitionGrade = emp.acquisitionGrade;
-    let acquisitionStandard = emp.acquisitionStandard;
-    let acquisitionMonth = emp.acquisitionMonth;
+    // 資格取得時決定の情報を取得（現仕様ではEmployeeに保持しないため、その場計算のみ）
+    let acquisitionGrade: number | null = null;
+    let acquisitionStandard: number | null = null;
+    let acquisitionMonth: number | null = null;
     let shikakuResult: ShikakuShutokuResult | null = null;
 
-    // 既存情報がない場合のみ計算
-    if (!acquisitionGrade || !acquisitionStandard || !acquisitionMonth) {
-      shikakuResult =
-        await this.salaryCalculationService.calculateShikakuShutoku(
-          emp,
-          year,
-          salaries,
-          gradeTable
-        );
+    shikakuResult = await this.salaryCalculationService.calculateShikakuShutoku(
+      emp,
+      year,
+      salaries,
+      gradeTable
+    );
 
-      if (shikakuResult && shikakuResult.grade > 0) {
-        acquisitionGrade = shikakuResult.grade;
-        acquisitionStandard = shikakuResult.standardMonthlyRemuneration;
-        acquisitionMonth = shikakuResult.usedMonth;
-      }
-    } else {
-      // 既存情報がある場合はそのまま使用
-      shikakuResult = {
-        baseSalary: acquisitionStandard,
-        grade: acquisitionGrade,
-        standardMonthlyRemuneration: acquisitionStandard,
-        usedMonth: acquisitionMonth,
-        reasons: [],
-      };
+    if (shikakuResult && shikakuResult.grade > 0) {
+      acquisitionGrade = shikakuResult.grade;
+      acquisitionStandard = shikakuResult.standardMonthlyRemuneration;
+      acquisitionMonth = shikakuResult.usedMonth;
     }
 
     // UI表示用に設定

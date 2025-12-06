@@ -88,7 +88,6 @@ export class EmployeeBasicInfoAutoDetectionComponent
     // 加入区分を判定
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee as Employee,
-      undefined,
       currentDate
     );
 

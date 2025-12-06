@@ -73,7 +73,8 @@ export class ShikakuCalculationService {
     // 入社月に給与支給があるか確認
     const joinMonthKey = this.getSalaryKey(employee.id, joinMonth);
     const joinMonthSalary = salaries[joinMonthKey];
-    const joinMonthTotal = this.salaryAggregationService.getTotalSalaryPublic(joinMonthSalary);
+    const joinMonthTotal =
+      this.salaryAggregationService.getTotalSalaryPublic(joinMonthSalary);
 
     let usedMonth: number;
     let baseSalary: number;
@@ -103,7 +104,8 @@ export class ShikakuCalculationService {
 
       const nextMonthKey = this.getSalaryKey(employee.id, nextMonth);
       const nextMonthSalary = salaries[nextMonthKey];
-      const nextMonthTotal = this.salaryAggregationService.getTotalSalaryPublic(nextMonthSalary);
+      const nextMonthTotal =
+        this.salaryAggregationService.getTotalSalaryPublic(nextMonthSalary);
 
       if (nextMonthTotal > 0) {
         usedMonth = nextMonth;
@@ -134,7 +136,10 @@ export class ShikakuCalculationService {
     }
 
     // 等級を判定（四捨五入後の金額を使用）
-    const gradeResult = this.gradeDeterminationService.findGrade(gradeTable, roundedBaseSalary);
+    const gradeResult = this.gradeDeterminationService.findGrade(
+      gradeTable,
+      roundedBaseSalary
+    );
     if (!gradeResult) {
       reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
       return {
@@ -152,25 +157,6 @@ export class ShikakuCalculationService {
       }（標準報酬月額${gradeResult.remuneration.toLocaleString()}円）を決定`
     );
 
-    // 追加：資格取得時決定 Firestoreに保存（既存値があれば上書きしない）
-    if (
-      employee.acquisitionGrade === undefined ||
-      employee.acquisitionGrade === null ||
-      employee.acquisitionGrade === 0
-    ) {
-      try {
-        await this.employeeService.updateAcquisitionInfo(employee.id, {
-          acquisitionGrade: gradeResult.grade,
-          acquisitionStandard: gradeResult.remuneration,
-          acquisitionYear: year,
-          acquisitionMonth: usedMonth,
-        });
-      } catch (error) {
-        // 保存エラーは無視（ログ出力のみ）
-        console.warn('資格取得時決定情報の保存に失敗しました:', error);
-      }
-    }
-
     return {
       baseSalary: roundedBaseSalary,
       grade: gradeResult.grade,
@@ -180,9 +166,3 @@ export class ShikakuCalculationService {
     };
   }
 }
-
-
-
-
-
-

@@ -59,8 +59,8 @@ export class PremiumCalculationService {
       {
         fixedSalary,
         variableSalary,
-        standardMonthlyRemuneration: employee.standardMonthlyRemuneration,
-        acquisitionStandard: employee.acquisitionStandard,
+        standardMonthlyRemuneration:
+          employee.currentStandardMonthlyRemuneration,
       }
     );
     const reasons: string[] = [];
@@ -188,8 +188,7 @@ export class PremiumCalculationService {
         fixedSalary,
         variableSalary,
         employeeStandardMonthlyRemuneration:
-          employee.standardMonthlyRemuneration,
-        employeeAcquisitionStandard: employee.acquisitionStandard,
+          employee.currentStandardMonthlyRemuneration,
       }
     );
 
@@ -228,8 +227,7 @@ export class PremiumCalculationService {
       {
         appliedSuiji: appliedSuiji ? 'あり' : 'なし',
         employeeStandardMonthlyRemuneration:
-          employee.standardMonthlyRemuneration,
-        employeeAcquisitionStandard: employee.acquisitionStandard,
+          employee.currentStandardMonthlyRemuneration,
         fixedSalary,
         variableSalary,
         totalSalary: fixedSalary + variableSalary,
@@ -261,11 +259,11 @@ export class PremiumCalculationService {
     // 2. 随時改定が適用されていない場合、従業員データの標準報酬月額を確認
     if (
       !standardMonthlyRemuneration &&
-      employee.standardMonthlyRemuneration &&
-      employee.standardMonthlyRemuneration > 0
+      employee.currentStandardMonthlyRemuneration &&
+      employee.currentStandardMonthlyRemuneration > 0
     ) {
       // 定時決定で確定した標準報酬月額を使用
-      const teijiStandard = employee.standardMonthlyRemuneration;
+      const teijiStandard = employee.currentStandardMonthlyRemuneration;
       standardMonthlyRemuneration = teijiStandard;
       console.log(
         `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 定時決定から標準報酬月額を取得: ${teijiStandard}円（給与が0円でも保険料を計算）`,
@@ -298,42 +296,13 @@ export class PremiumCalculationService {
         {
           standardMonthlyRemuneration,
           employeeStandardMonthlyRemuneration:
-            employee.standardMonthlyRemuneration,
+            employee.currentStandardMonthlyRemuneration,
           totalSalary,
         }
       );
     }
 
-    // 3. 資格取得時決定の標準報酬月額を確認
-    if (
-      !standardMonthlyRemuneration &&
-      employee.acquisitionStandard &&
-      employee.acquisitionStandard > 0
-    ) {
-      const acquisitionStandard = employee.acquisitionStandard;
-      standardMonthlyRemuneration = acquisitionStandard;
-      console.log(
-        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): 資格取得時決定から標準報酬月額を取得: ${acquisitionStandard}円`
-      );
-      // 標準報酬月額から等級を逆引き
-      gradeResult = this.gradeDeterminationService.findGrade(
-        gradeTable,
-        acquisitionStandard
-      );
-      if (gradeResult) {
-        reasons.push(
-          `資格取得時決定の標準報酬月額（等級${
-            gradeResult.grade
-          }、${acquisitionStandard.toLocaleString()}円）を使用`
-        );
-      } else {
-        reasons.push(
-          `資格取得時決定の標準報酬月額（${acquisitionStandard.toLocaleString()}円）を使用（等級テーブルに該当なし）`
-        );
-      }
-    }
-
-    // 4. 標準報酬月額が確定していない場合、その月の給与額から等級を判定
+    // 3. 標準報酬月額が確定していない場合、その月の給与額から等級を判定
     // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
     // その月の給与から毎月計算するものではありません。
     // しかし、標準報酬月額が確定していない場合（新規入社など）は、
@@ -393,8 +362,7 @@ export class PremiumCalculationService {
       {
         standardMonthlyRemuneration,
         employeeStandardMonthlyRemuneration:
-          employee.standardMonthlyRemuneration,
-        employeeAcquisitionStandard: employee.acquisitionStandard,
+          employee.currentStandardMonthlyRemuneration,
         totalSalary: fixedSalary + variableSalary,
       }
     );
@@ -406,8 +374,7 @@ export class PremiumCalculationService {
         `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ❌ 標準報酬月額が取得できませんでした → 保険料0円を返します`,
         {
           employeeStandardMonthlyRemuneration:
-            employee.standardMonthlyRemuneration,
-          employeeAcquisitionStandard: employee.acquisitionStandard,
+            employee.currentStandardMonthlyRemuneration,
           totalSalary: fixedSalary + variableSalary,
           standardMonthlyRemuneration,
           reasons,
@@ -508,7 +475,6 @@ export class PremiumCalculationService {
 
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
-      undefined,
       checkDate
     );
     const ageFlags = eligibilityResult.ageFlags;

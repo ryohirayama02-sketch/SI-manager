@@ -139,7 +139,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         officeNumber: (data as any).officeNumber || '',
         prefecture: data.prefecture || 'tokyo',
         isShortTime: data.isShortTime || data.shortTimeWorker || false,
-        weeklyHours: data.weeklyHours || null,
       };
 
       const officeNumber = (data as any).officeNumber || '';
@@ -474,21 +473,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     const oldIsShortTime = oldData.isShortTime || false;
     const newIsShortTime = newData.isShortTime || false;
-    const oldWeeklyHours = oldData.weeklyHours || null;
-    const newWeeklyHours = newData.weeklyHours || null;
 
-    if (
-      oldIsShortTime !== newIsShortTime ||
-      (oldWeeklyHours !== newWeeklyHours &&
-        oldWeeklyHours !== null &&
-        newWeeklyHours !== null)
-    ) {
-      const oldStatus = oldIsShortTime
-        ? `短時間労働者 (週${oldWeeklyHours || '?'}時間)`
-        : `通常加入 (週${oldWeeklyHours || '?'}時間)`;
-      const newStatus = newIsShortTime
-        ? `短時間労働者 (週${newWeeklyHours || '?'}時間)`
-        : `通常加入 (週${newWeeklyHours || '?'}時間)`;
+    if (oldIsShortTime !== newIsShortTime) {
+      const oldStatus = oldIsShortTime ? '短時間労働者' : '通常加入';
+      const newStatus = newIsShortTime ? '短時間労働者' : '通常加入';
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
         changeType: '適用区分変更',
