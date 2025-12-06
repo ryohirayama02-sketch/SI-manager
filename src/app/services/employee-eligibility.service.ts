@@ -119,13 +119,13 @@ export class EmployeeEligibilityService {
       this.employeeWorkCategoryService.getWorkCategory(employee);
 
     if (workCategory === 'non-insured') {
-      reasons.push('週20時間未満のため加入対象外');
+      reasons.push('勤務区分が社会保険非加入のため加入不可');
     } else {
       if (workCategory === 'full-time') {
-        reasons.push('週30時間以上のため加入対象');
+        reasons.push('勤務区分がフルタイムのため加入対象');
       } else if (workCategory === 'short-time-worker') {
         reasons.push(
-          '短時間労働者（週20-30時間、月額賃金8.8万円以上、雇用見込2ヶ月超、学生でない）のため加入対象'
+          '勤務区分が短時間労働者（特定適用）に該当するため加入対象'
         );
       }
 

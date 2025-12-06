@@ -7,7 +7,7 @@ import { Employee } from '../models/employee.model';
 export type WorkCategory = 'full-time' | 'short-time-worker' | 'non-insured';
 
 /**
- * 従業員の労働カテゴリ属性を判定するサービス
+ * 勤務区分を判定するサービス（weeklyWorkHoursCategory と賃金/雇用見込/学生区分で決定）
  */
 @Injectable({
   providedIn: 'root',

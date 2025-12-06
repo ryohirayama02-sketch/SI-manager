@@ -147,8 +147,15 @@ export class QualificationChangeAlertListComponent {
       // 性別を取得（変更詳細から取得、または従業員の現在の性別を取得）
       const gender = this.getGender(employee, alert);
 
-      // 週の所定労働時間を取得
-      const weeklyWorkHours = this.getWeeklyWorkHours(employee);
+      // 勤務区分を取得
+      const category =
+        this.employeeWorkCategoryService.getWorkCategory(employee);
+      const categoryLabel =
+        category === 'full-time'
+          ? 'フルタイム（週30時間以上）'
+          : category === 'short-time-worker'
+          ? '短時間労働者（特定適用）'
+          : '社会保険非加入（週20時間未満または要件未達）';
 
       // CSVデータを生成
       const csvRows: string[] = [];
@@ -180,7 +187,7 @@ export class QualificationChangeAlertListComponent {
       );
       csvRows.push(`被扶養者,${hasDependents ? '有' : '無'}`);
       csvRows.push(`報酬月額,${remunerationAmount.toString()}`);
-      csvRows.push(`週の所定労働時間,${weeklyWorkHours}`);
+      csvRows.push(`勤務区分,${categoryLabel}`);
 
       // CSVファイルをダウンロード
       const csvContent = csvRows.join('\n');

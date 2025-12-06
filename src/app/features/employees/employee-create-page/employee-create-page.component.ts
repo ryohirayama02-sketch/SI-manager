@@ -311,7 +311,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       );
 
       if (eligibility.candidateFlag) {
-        this.eligibilityStatus = '加入候補者（3ヶ月連続で実働20時間以上）';
+        this.eligibilityStatus = '勤務区分により加入候補となる可能性あり';
       } else if (
         eligibility.healthInsuranceEligible ||
         eligibility.pensionEligible
