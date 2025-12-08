@@ -3,6 +3,7 @@ import { Firestore, collection, doc, setDoc, query, where, getDocs, onSnapshot, 
 import { UncollectedPremium } from '../models/uncollected-premium.model';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
+import { RoomIdService } from './room-id.service';
 
 /**
  * UncollectedPremiumService
@@ -12,7 +13,10 @@ import { map } from 'rxjs/operators';
  */
 @Injectable({ providedIn: 'root' })
 export class UncollectedPremiumService {
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private roomIdService: RoomIdService
+  ) {}
 
   /**
    * 徴収不能額を計算してFirestoreに保存
@@ -106,12 +110,15 @@ export class UncollectedPremiumService {
     year?: number,
     resolved?: boolean
   ): Promise<UncollectedPremium[]> {
-    const roomId = sessionStorage.getItem('roomId');
+    const roomId = this.roomIdService.requireRoomId();
     if (!roomId) {
       return [];
     }
 
-    let q = query(collection(this.firestore, 'uncollected-premiums'));
+    let q = query(
+      collection(this.firestore, 'uncollected-premiums'),
+      where('roomId', '==', roomId)
+    );
     
     // フィルタリング（roomIdは直接フィルタできないため、クライアント側でフィルタ）
     // 注: 実際の実装では、employeeIdからroomIdを取得してフィルタする必要がある場合がある

@@ -6,6 +6,8 @@ import {
   deleteDoc,
   collection,
   getDocs,
+  query,
+  where,
 } from '@angular/fire/firestore';
 import { MonthlySalaryData } from '../models/monthly-salary.model';
 import { SalaryItem } from '../models/salary-item.model';
@@ -13,6 +15,7 @@ import { FixedChangeResult } from '../models/suiji.model';
 import { SuijiKouhoResult } from './salary-calculation.service';
 import { SettingsService } from './settings.service';
 import { Employee } from '../models/employee.model';
+import { RoomIdService } from './room-id.service';
 
 export interface SalaryData {
   total: number;
@@ -24,7 +27,8 @@ export interface SalaryData {
 export class SuijiService {
   constructor(
     private firestore: Firestore,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -335,8 +339,9 @@ export class SuijiService {
   async loadAlerts(
     year: number
   ): Promise<(SuijiKouhoResult & { id: string })[]> {
+    const roomId = this.roomIdService.requireRoomId();
     const ref = collection(this.firestore, `suiji/${year}/alerts`);
-    const snap = await getDocs(ref);
+    const snap = await getDocs(query(ref, where('roomId', '==', roomId)));
     return snap.docs.map(
       (d) => ({ ...d.data(), id: d.id } as SuijiKouhoResult & { id: string })
     );
@@ -350,12 +355,13 @@ export class SuijiService {
   async loadAllAlerts(
     years: number[]
   ): Promise<(SuijiKouhoResult & { id: string; year: number })[]> {
+    const roomId = this.roomIdService.requireRoomId();
     const allAlerts: (SuijiKouhoResult & { id: string; year: number })[] = [];
 
     for (const year of years) {
       try {
         const ref = collection(this.firestore, `suiji/${year}/alerts`);
-        const snap = await getDocs(ref);
+        const snap = await getDocs(query(ref, where('roomId', '==', roomId)));
         const yearAlerts = snap.docs.map(
           (d) =>
             ({

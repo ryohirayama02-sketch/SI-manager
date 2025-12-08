@@ -1,10 +1,14 @@
 import { Injectable } from '@angular/core';
 import { Firestore, collection, addDoc, query, where, getDocs, orderBy, limit } from '@angular/fire/firestore';
+import { RoomIdService } from './room-id.service';
 import { EmployeeChangeHistory } from '../models/employee-change-history.model';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeChangeHistoryService {
-  constructor(private firestore: Firestore) {}
+  constructor(
+    private firestore: Firestore,
+    private roomIdService: RoomIdService
+  ) {}
 
   /**
    * 変更履歴を保存（重複チェック付き）
@@ -49,6 +53,7 @@ export class EmployeeChangeHistoryService {
    */
   async getRecentChangeHistory(employeeId: string, days: number = 5): Promise<EmployeeChangeHistory[]> {
     const col = collection(this.firestore, 'employeeChangeHistory');
+    const roomId = this.roomIdService.requireRoomId();
     const today = new Date();
     const cutoffDate = new Date(today);
     cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -56,6 +61,7 @@ export class EmployeeChangeHistoryService {
 
     const q = query(
       col,
+      where('roomId', '==', roomId),
       where('employeeId', '==', employeeId),
       where('changeDate', '>=', cutoffDateStr),
       orderBy('changeDate', 'desc')
@@ -77,6 +83,7 @@ export class EmployeeChangeHistoryService {
    */
   async getAllRecentChangeHistory(days: number = 5): Promise<EmployeeChangeHistory[]> {
     const col = collection(this.firestore, 'employeeChangeHistory');
+    const roomId = this.roomIdService.requireRoomId();
     const today = new Date();
     const cutoffDate = new Date(today);
     cutoffDate.setDate(cutoffDate.getDate() - days);
@@ -84,6 +91,7 @@ export class EmployeeChangeHistoryService {
 
     const q = query(
       col,
+      where('roomId', '==', roomId),
       where('changeDate', '>=', cutoffDateStr),
       orderBy('changeDate', 'desc')
     );
