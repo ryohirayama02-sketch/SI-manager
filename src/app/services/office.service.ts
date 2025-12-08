@@ -11,6 +11,7 @@ import {
   where,
   addDoc,
   collectionData,
+  updateDoc,
 } from '@angular/fire/firestore';
 import { Office } from '../models/office.model';
 import { RoomIdService } from './room-id.service';

@@ -13,6 +13,7 @@ import { Employee } from '../models/employee.model';
 import { MonthlyPremiumRow } from './payment-summary-types';
 import { PremiumStoppingRuleService } from './premium-stopping-rule.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
+import { RoomIdService } from './room-id.service';
 
 /**
  * MonthlyPremiumCalculationService
@@ -31,7 +32,8 @@ export class MonthlyPremiumCalculationService {
     private uncollectedPremiumService: UncollectedPremiumService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private premiumStoppingRuleService: PremiumStoppingRuleService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -94,11 +96,27 @@ export class MonthlyPremiumCalculationService {
         // salaryDataが存在しない場合でも、給与データを取得して定時決定を計算する必要があります
         let dataToUse = salaryData;
         if (!dataToUse) {
-          // salaryDataが存在しない場合、給与データを取得
-          dataToUse = await this.monthlySalaryService.getEmployeeSalary(
-            emp.id,
-            year
-          );
+          const roomId =
+            (emp as any).roomId || this.roomIdService.getCurrentRoomId();
+          if (!roomId) {
+            console.warn(
+              '[monthly-premium-calculation] roomId is not set. skip teiji calc.',
+              emp.id
+            );
+            dataToUse = null;
+          } else {
+            const yearMap: any = {};
+            for (let m = 1; m <= 12; m++) {
+              const md = await this.monthlySalaryService.getEmployeeSalary(
+                roomId,
+                emp.id,
+                year,
+                m
+              );
+              if (md) yearMap[m.toString()] = md;
+            }
+            dataToUse = Object.keys(yearMap).length > 0 ? yearMap : null;
+          }
         }
 
         if (dataToUse) {
@@ -360,9 +378,38 @@ export class MonthlyPremiumCalculationService {
         !employeeWithStandard.currentStandardMonthlyRemuneration ||
         employeeWithStandard.currentStandardMonthlyRemuneration <= 0
       ) {
-        const fetchedSalaryData =
-          await this.monthlySalaryService.getEmployeeSalary(emp.id, year);
-        if (fetchedSalaryData) {
+        const roomId =
+          (emp as any).roomId || this.roomIdService.getCurrentRoomId();
+        if (!roomId) {
+          console.warn(
+            '[monthly-premium-calculation] roomId is not set. skip salary fetch.',
+            emp.id
+          );
+          return {
+            month,
+            healthEmployee: 0,
+            healthEmployer: 0,
+            careEmployee: 0,
+            careEmployer: 0,
+            pensionEmployee: 0,
+            pensionEmployer: 0,
+            exempt: true,
+            notes: ['roomId not set'],
+          };
+        }
+        const fetchedSalaryData: any = {};
+        for (let m = 1; m <= 12; m++) {
+          const md = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            year,
+            m
+          );
+          if (md) {
+            fetchedSalaryData[m.toString()] = md;
+          }
+        }
+        if (Object.keys(fetchedSalaryData).length > 0) {
           const empSalaries: {
             [key: string]: { total: number; fixed: number; variable: number };
           } = {};

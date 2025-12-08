@@ -1,6 +1,9 @@
 import { Injectable } from '@angular/core';
 import { EmployeeService } from './employee.service';
-import { MonthlySalaryStateService, MonthlySalaryUIState } from './monthly-salary-state.service';
+import {
+  MonthlySalaryStateService,
+  MonthlySalaryUIState,
+} from './monthly-salary-state.service';
 import { MonthlySalaryDataService } from './monthly-salary-data.service';
 import { MonthlySalaryCalculationService } from './monthly-salary-calculation.service';
 import { Employee } from '../models/employee.model';
@@ -9,7 +12,7 @@ import { TeijiKetteiResult } from './salary-calculation.service';
 
 /**
  * MonthlySalaryInitializationService
- * 
+ *
  * 月次給与画面の初期化ロジックを担当するサービス
  * 初期データロードと年度変更処理を提供
  */
@@ -25,9 +28,13 @@ export class MonthlySalaryInitializationService {
   /**
    * 初期データをロード
    */
-  async loadAllData(year: number, months: number[]): Promise<MonthlySalaryUIState> {
+  async loadAllData(
+    roomId: string,
+    year: number,
+    months: number[]
+  ): Promise<MonthlySalaryUIState> {
     const employees = await this.employeeService.getAllEmployees();
-    
+
     // 状態を初期化
     this.state.initializeState(year, months, employees);
 
@@ -39,16 +46,22 @@ export class MonthlySalaryInitializationService {
     }
 
     // 料率と等級表を取得
-    const { rates, gradeTable } = await this.dataService.loadRatesAndGradeTable(year, employees);
+    const { rates, gradeTable } = await this.dataService.loadRatesAndGradeTable(
+      year,
+      employees
+    );
     this.state.setRatesAndGradeTable(rates, gradeTable);
 
     // 標準報酬等級表が空の場合の警告
     if (gradeTable.length === 0) {
-      this.state.addSystemWarning('標準報酬等級表が設定されていません。設定画面で標準報酬等級表を設定してください。');
+      this.state.addSystemWarning(
+        '標準報酬等級表が設定されていません。設定画面で標準報酬等級表を設定してください。'
+      );
     }
 
     // 既存の給与データを読み込む
     const loadedData = await this.dataService.loadExistingSalaries(
+      roomId,
       employees,
       months,
       year,
@@ -72,17 +85,19 @@ export class MonthlySalaryInitializationService {
     this.state.setResults(results);
 
     // 全従業員の計算結果情報を取得
-    const calculatedInfo = await this.calculationService.updateAllCalculatedInfo(
-      employees,
-      loadedData.salaries,
-      months,
-      gradeTable,
-      year
-    );
+    const calculatedInfo =
+      await this.calculationService.updateAllCalculatedInfo(
+        employees,
+        loadedData.salaries,
+        months,
+        gradeTable,
+        year
+      );
     this.state.setCalculatedInfo(calculatedInfo);
 
     // 復職後随時改定の強調月を取得
-    const rehabHighlightMonths = this.calculationService.getRehabHighlightMonths(employees, year);
+    const rehabHighlightMonths =
+      this.calculationService.getRehabHighlightMonths(employees, year);
     this.state.setRehabHighlightMonths(rehabHighlightMonths);
 
     // UIStateを返す
@@ -101,7 +116,7 @@ export class MonthlySalaryInitializationService {
       rehabHighlightMonths: this.state.rehabHighlightMonths,
       errorMessages: this.state.errorMessages,
       warningMessages: this.state.warningMessages,
-      infoByEmployee: this.state.infoByEmployee
+      infoByEmployee: this.state.infoByEmployee,
     };
   }
 
@@ -109,13 +124,16 @@ export class MonthlySalaryInitializationService {
    * 年度変更時の処理
    */
   async onYearChange(
+    roomId: string,
     year: number,
     employees: Employee[],
     months: number[],
     currentSalaryItems: SalaryItem[],
     currentSalaryItemData: { [key: string]: { [itemId: string]: number } },
     currentWorkingDaysData: { [key: string]: number },
-    currentSalaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    currentSalaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     currentResults: { [employeeId: string]: TeijiKetteiResult }
   ): Promise<{
     rates: any;
@@ -123,7 +141,9 @@ export class MonthlySalaryInitializationService {
     salaryItems: SalaryItem[];
     salaryItemData: { [key: string]: { [itemId: string]: number } };
     workingDaysData: { [key: string]: number };
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } };
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    };
     results: { [employeeId: string]: TeijiKetteiResult };
     infoByEmployee: {
       [employeeId: string]: {
@@ -142,15 +162,19 @@ export class MonthlySalaryInitializationService {
     this.state.initializeState(year, months, employees);
 
     // 料率と等級表を取得
-    const { rates, gradeTable } = await this.dataService.loadRatesAndGradeTable(year, employees);
+    const { rates, gradeTable } = await this.dataService.loadRatesAndGradeTable(
+      year,
+      employees
+    );
     this.state.setRatesAndGradeTable(rates, gradeTable);
-    
+
     // 給与項目マスタを読み込む
     const salaryItems = await this.dataService.loadSalaryItems(year);
     this.state.setSalaryItems(salaryItems);
-    
+
     // 既存の給与データを読み込む
     const loadedData = await this.dataService.loadExistingSalaries(
+      roomId,
       employees,
       months,
       year,
@@ -174,13 +198,14 @@ export class MonthlySalaryInitializationService {
     this.state.setResults(results);
 
     // 全従業員の計算結果情報を取得
-    const calculatedInfo = await this.calculationService.updateAllCalculatedInfo(
-      employees,
-      loadedData.salaries,
-      months,
-      gradeTable,
-      year
-    );
+    const calculatedInfo =
+      await this.calculationService.updateAllCalculatedInfo(
+        employees,
+        loadedData.salaries,
+        months,
+        gradeTable,
+        year
+      );
     this.state.setCalculatedInfo(calculatedInfo);
 
     // エラー・警告メッセージを初期化
@@ -205,7 +230,9 @@ export class MonthlySalaryInitializationService {
     }
     // 標準報酬等級表が空の場合の警告を追加
     if (gradeTable.length === 0) {
-      this.state.addSystemWarning('標準報酬等級表が設定されていません。設定画面で標準報酬等級表を設定してください。');
+      this.state.addSystemWarning(
+        '標準報酬等級表が設定されていません。設定画面で標準報酬等級表を設定してください。'
+      );
     }
 
     return {
@@ -220,14 +247,7 @@ export class MonthlySalaryInitializationService {
       exemptMonths: this.state.exemptMonths,
       exemptReasons: this.state.exemptReasons,
       errorMessages: this.state.errorMessages,
-      warningMessages: this.state.warningMessages
+      warningMessages: this.state.warningMessages,
     };
   }
 }
-
-
-
-
-
-
-

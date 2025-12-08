@@ -10,6 +10,7 @@ import { Employee } from '../../../../models/employee.model';
 import { Office } from '../../../../models/office.model';
 import { SalaryItem } from '../../../../models/salary-item.model';
 import { getJSTDate } from '../../../../utils/alerts-helper';
+import { RoomIdService } from '../../../../services/room-id.service';
 
 export interface TeijiKetteiResultData {
   employeeId: string;
@@ -53,7 +54,8 @@ export class AlertTeijiTabComponent {
     private officeService: OfficeService,
     private monthlySalaryService: MonthlySalaryService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -137,11 +139,29 @@ export class AlertTeijiTabComponent {
         }
 
         // 給与データを取得
-        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+        const roomId = this.roomIdService.getCurrentRoomId();
+        if (!roomId) {
+          console.warn('[alert-teiji-tab] roomId is not set. skip CSV row.');
+          continue;
+        }
+        const aprilData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
           employee.id,
-          this.teijiYear
+          this.teijiYear,
+          4
         );
-        if (!salaryData) continue;
+        const mayData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employee.id,
+          this.teijiYear,
+          5
+        );
+        const juneData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employee.id,
+          this.teijiYear,
+          6
+        );
 
         // 給与項目マスタを取得
         const salaryItems = await this.settingsService.loadSalaryItems(
@@ -163,11 +183,6 @@ export class AlertTeijiTabComponent {
                 h.applyStartMonth < applyStartMonth)
           ) || histories[0];
 
-        // 算定基礎届は常に4-6月の給与データを使用（固定）
-        const aprilData = salaryData['4'];
-        const mayData = salaryData['5'];
-        const juneData = salaryData['6'];
-
         const payMonths: number[] = [];
         const workingDaysList: number[] = [];
         const remunerationList: number[] = [];
@@ -175,13 +190,17 @@ export class AlertTeijiTabComponent {
         // 給与項目データを準備
         const salaryItemData: { [key: string]: { [itemId: string]: number } } =
           {};
-        for (let month = 1; month <= 12; month++) {
-          const monthKey = month.toString();
-          const monthData = salaryData[monthKey];
-          if (monthData?.salaryItems) {
+        const monthDataList = [
+          { month: 4, data: aprilData },
+          { month: 5, data: mayData },
+          { month: 6, data: juneData },
+        ];
+        for (const entry of monthDataList) {
+          const { month, data } = entry;
+          if (data?.salaryItems) {
             const key = `${employee.id}_${month}`;
             salaryItemData[key] = {};
-            for (const item of monthData.salaryItems) {
+            for (const item of data.salaryItems) {
               salaryItemData[key][item.itemId] = item.amount;
             }
           }

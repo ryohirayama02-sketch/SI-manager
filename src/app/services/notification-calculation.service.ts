@@ -12,6 +12,7 @@ import {
 import { MonthlySalaryService } from './monthly-salary.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
+import { RoomIdService } from './room-id.service';
 
 /**
  * 届出要否の計算ロジックを担当するサービス
@@ -23,7 +24,8 @@ export class NotificationCalculationService {
     private bonusService: BonusService,
     private salaryCalculationService: SalaryCalculationService,
     private notificationDecisionService: NotificationDecisionService,
-    private monthlySalaryService: MonthlySalaryService
+    private monthlySalaryService: MonthlySalaryService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -382,10 +384,31 @@ export class NotificationCalculationService {
       [employeeId: string]: NotificationDecisionResult[];
     } = {};
 
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn(
+        '[notification-calculation] roomId is not set. skip calculation.'
+      );
+      return notificationsByEmployee;
+    }
+
     for (const emp of employees) {
-      const salaryData =
-        salaryDataByEmployeeId?.[emp.id] ||
-        (await this.monthlySalaryService.getEmployeeSalary(emp.id, year));
+      let salaryData = salaryDataByEmployeeId?.[emp.id];
+      if (!salaryData) {
+        const monthMap: any = {};
+        for (let month = 1; month <= 12; month++) {
+          const monthData = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            year,
+            month
+          );
+          if (monthData) {
+            monthMap[month.toString()] = monthData;
+          }
+        }
+        salaryData = monthMap;
+      }
       notificationsByEmployee[emp.id] = await this.calculateNotifications(
         emp,
         salaryData,

@@ -16,6 +16,7 @@ import {
   MonthlySalaryData,
 } from '../models/monthly-salary.model';
 import { SuijiKouhoResult } from './salary-calculation.service';
+import { RoomIdService } from './room-id.service';
 
 /**
  * MonthlySalarySaveService
@@ -35,7 +36,8 @@ export class MonthlySalarySaveService {
     private gradeDeterminationService: GradeDeterminationService,
     private monthlySalaryCalculationService: MonthlySalaryCalculationService,
     private monthlyPremiumCalculationService: MonthlyPremiumCalculationService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -56,18 +58,22 @@ export class MonthlySalarySaveService {
   ): Promise<{
     suijiAlerts: SuijiKouhoResult[];
   }> {
+    const roomId = this.roomIdService.requireRoomId();
     for (const emp of employees) {
       const payload: any = {};
 
-      // 既存データを取得して、0に変更された項目を検出するために使用
-      const existingData = await this.monthlySalaryService.getEmployeeSalary(
-        emp.id,
-        year
-      );
+      // 既存データを取得して、0に変更された項目を検出するために使用（月別取得）
       const existingMonthDataMap: { [month: string]: any } = {};
-      if (existingData) {
-        for (const monthStr of Object.keys(existingData)) {
-          existingMonthDataMap[monthStr] = existingData[monthStr];
+      for (const month of months) {
+        const existingMonthData =
+          await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            year,
+            month
+          );
+        if (existingMonthData) {
+          existingMonthDataMap[month.toString()] = existingMonthData;
         }
       }
 
@@ -85,7 +91,7 @@ export class MonthlySalarySaveService {
         const itemKey = this.state.getSalaryItemKey(emp.id, month);
         const itemEntries: SalaryItemEntry[] = [];
         const monthStr = month.toString();
-        const existingMonthData = existingMonthDataMap[monthStr];
+          const existingMonthData = existingMonthDataMap[monthStr];
 
         // 既存データの項目IDセットを作成（0に変更された項目を検出するため）
         const existingItemIds = new Set<string>();
@@ -174,7 +180,7 @@ export class MonthlySalarySaveService {
         for (const monthStr of Object.keys(payload)) {
           const month = parseInt(monthStr, 10);
           const newMonthData = payload[monthStr];
-          const existingMonthData = existingData?.[monthStr];
+        const existingMonthData = existingMonthDataMap[monthStr];
 
           // 変更内容を取得
           const details = this.getSalaryChangeDetails(
@@ -189,11 +195,17 @@ export class MonthlySalarySaveService {
 
         // 変更があった月がある場合のみ保存とログ記録
         if (changeDetails.length > 0) {
-          await this.monthlySalaryService.saveEmployeeSalary(
-            emp.id,
-            year,
-            payload
-          );
+          for (const change of changeDetails) {
+            const monthPayload = payload[change.month.toString()];
+            if (!monthPayload) continue;
+            await this.monthlySalaryService.saveEmployeeSalary(
+              roomId,
+              emp.id,
+              year,
+              change.month,
+              monthPayload
+            );
+          }
 
           // 編集ログを記録（変更があった月と詳細内容）
           const logDescriptions: string[] = [];
@@ -558,38 +570,26 @@ export class MonthlySalarySaveService {
       );
 
       // 保存された給与データを取得
-      const savedSalaryData = await this.monthlySalaryService.getEmployeeSalary(
-        emp.id,
-        year
-      );
-
       for (const month of months) {
         const monthKeyString = month.toString();
-        const monthSalaryData = savedSalaryData?.[monthKeyString];
+        const monthSalaryData =
+          await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            year,
+            month
+          );
 
-        // 給与データがある場合、保険料計算を実行
-        if (monthSalaryData) {
-          await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
-            updatedEmployee, // 最新の従業員データを使用
-            year,
-            month,
-            savedSalaryData,
-            gradeTable,
-            rates,
-            prefecture
-          );
-        } else {
-          // 給与データがない場合でも、標準報酬月額が確定していれば保険料計算を実行（給与0円として）
-          await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
-            updatedEmployee, // 最新の従業員データを使用
-            year,
-            month,
-            undefined,
-            gradeTable,
-            rates,
-            prefecture
-          );
-        }
+        const salaryDataMap: any = { [monthKeyString]: monthSalaryData || null };
+        await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
+          updatedEmployee, // 最新の従業員データを使用
+          year,
+          month,
+          salaryDataMap,
+          gradeTable,
+          rates,
+          prefecture
+        );
       }
     }
     console.log('[徴収不能チェック] 保存後の保険料計算完了');

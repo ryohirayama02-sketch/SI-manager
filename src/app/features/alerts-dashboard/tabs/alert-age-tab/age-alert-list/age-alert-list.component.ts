@@ -12,6 +12,7 @@ import { FamilyMemberService } from '../../../../../services/family-member.servi
 import { Employee } from '../../../../../models/employee.model';
 import { Office } from '../../../../../models/office.model';
 import { SalaryItem } from '../../../../../models/salary-item.model';
+import { RoomIdService } from '../../../../../services/room-id.service';
 
 @Component({
   selector: 'app-age-alert-list',
@@ -35,7 +36,8 @@ export class AgeAlertListComponent {
     private officeService: OfficeService,
     private monthlySalaryService: MonthlySalaryService,
     private settingsService: SettingsService,
-    private familyMemberService: FamilyMemberService
+    private familyMemberService: FamilyMemberService,
+    private roomIdService: RoomIdService
   ) {}
 
   formatDate(date: Date): string {
@@ -119,13 +121,19 @@ export class AgeAlertListComponent {
         const prevMonth = reachMonth - 1;
         const prevYear = prevMonth < 1 ? reachYear - 1 : reachYear;
         const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[age-alert-list] roomId is not set. skip exportToCsv.');
+      return;
+    }
 
         // 給与データを取得
-        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-          employee.id,
-          prevYear
-        );
-        const prevMonthData = salaryData?.[actualPrevMonth.toString()];
+    const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
+      roomId,
+      employee.id,
+      prevYear,
+      actualPrevMonth
+    );
 
         // 給与項目マスタを取得
         const salaryItems = await this.settingsService.loadSalaryItems(

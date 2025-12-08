@@ -204,7 +204,8 @@ export class EmployeeService {
     const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return { id: snap.id, ...(snap.data() as Employee) };
+    const data = snap.data() as Employee;
+    return { ...(data as any), id: snap.id };
   }
 
   /**

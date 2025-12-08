@@ -1,5 +1,8 @@
 import { Injectable } from '@angular/core';
-import { MonthlySalaryStateService, MonthlySalaryUIState } from './monthly-salary-state.service';
+import {
+  MonthlySalaryStateService,
+  MonthlySalaryUIState,
+} from './monthly-salary-state.service';
 import { MonthlySalaryDataService } from './monthly-salary-data.service';
 import { MonthlySalaryCalculationService } from './monthly-salary-calculation.service';
 import { MonthlySalarySaveService } from './monthly-salary-save.service';
@@ -11,15 +14,14 @@ import { SuijiKouhoResult } from './salary-calculation.service';
 
 /**
  * MonthlySalaryUIService
- * 
+ *
  * 月次給与画面のUIロジックを担当するサービス（オーケストレーション）
  * 初期化、状態管理、データロード、計算、保存の各サービスを統合して提供
  */
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class MonthlySalaryUIService {
-
   constructor(
     private state: MonthlySalaryStateService,
     private dataService: MonthlySalaryDataService,
@@ -31,21 +33,28 @@ export class MonthlySalaryUIService {
   /**
    * 初期データをロード
    */
-  async loadAllData(year: number, months: number[]): Promise<MonthlySalaryUIState> {
-    return this.initializationService.loadAllData(year, months);
+  async loadAllData(
+    roomId: string,
+    year: number,
+    months: number[]
+  ): Promise<MonthlySalaryUIState> {
+    return this.initializationService.loadAllData(roomId, year, months);
   }
 
   /**
    * 年度変更時の処理
    */
   async onYearChange(
+    roomId: string,
     year: number,
     employees: Employee[],
     months: number[],
     currentSalaryItems: SalaryItem[],
     currentSalaryItemData: { [key: string]: { [itemId: string]: number } },
     currentWorkingDaysData: { [key: string]: number },
-    currentSalaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    currentSalaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     currentResults: { [employeeId: string]: TeijiKetteiResult }
   ): Promise<{
     rates: any;
@@ -53,7 +62,9 @@ export class MonthlySalaryUIService {
     salaryItems: SalaryItem[];
     salaryItemData: { [key: string]: { [itemId: string]: number } };
     workingDaysData: { [key: string]: number };
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } };
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    };
     results: { [employeeId: string]: TeijiKetteiResult };
     infoByEmployee: {
       [employeeId: string]: {
@@ -69,6 +80,7 @@ export class MonthlySalaryUIService {
     warningMessages: { [employeeId: string]: string[] };
   }> {
     return this.initializationService.onYearChange(
+      roomId,
       year,
       employees,
       months,
@@ -89,7 +101,9 @@ export class MonthlySalaryUIService {
     year: number,
     salaryItemData: { [key: string]: { [itemId: string]: number } },
     workingDaysData: { [key: string]: number },
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     exemptMonths: { [employeeId: string]: number[] },
     salaryItems: SalaryItem[],
     gradeTable: any[]
@@ -116,7 +130,9 @@ export class MonthlySalaryUIService {
     employeeId: string,
     month: number,
     salaryItemData: { [key: string]: { [itemId: string]: number } },
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     salaryItems: SalaryItem[]
   ): void {
     this.dataService.updateSalaryTotals(
@@ -157,7 +173,11 @@ export class MonthlySalaryUIService {
     month: number,
     exemptReasons: { [key: string]: string }
   ): string {
-    return this.calculationService.getExemptReason(employeeId, month, exemptReasons);
+    return this.calculationService.getExemptReason(
+      employeeId,
+      month,
+      exemptReasons
+    );
   }
 
   /**
@@ -165,7 +185,9 @@ export class MonthlySalaryUIService {
    */
   async updateAllCalculatedInfo(
     employees: Employee[],
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     months: number[],
     gradeTable: any[],
     year: number
@@ -199,7 +221,10 @@ export class MonthlySalaryUIService {
     avg: number | null,
     gradeTable: any[]
   ): { rank: number; standard: number } | null {
-    return this.calculationService.getStandardMonthlyRemuneration(avg, gradeTable);
+    return this.calculationService.getStandardMonthlyRemuneration(
+      avg,
+      gradeTable
+    );
   }
 
   /**

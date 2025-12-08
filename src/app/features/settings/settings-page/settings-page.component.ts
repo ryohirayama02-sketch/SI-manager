@@ -20,6 +20,7 @@ import { SalaryItem } from '../../../models/salary-item.model';
 import { Office } from '../../../models/office.model';
 import { EditLog } from '../../../models/edit-log.model';
 import { User } from '@angular/fire/auth';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-settings-page',
@@ -580,7 +581,19 @@ export class SettingsPageComponent implements OnInit {
 
   // 事業所マスタ関連メソッド
   async loadOffices(): Promise<void> {
-    this.offices = await this.officeService.getAllOffices();
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[SettingsPage] roomId is not set. skip loadOffices.');
+      this.offices = [];
+      return;
+    }
+    const officesData = await firstValueFrom(
+      this.officeService.getOfficesByRoom(roomId)
+    );
+    this.offices = (officesData as any[]).map((o) => ({
+      roomId,
+      ...o,
+    })) as Office[];
   }
 
   selectOffice(office: Office | null): void {
@@ -620,10 +633,18 @@ export class SettingsPageComponent implements OnInit {
       createdAt: this.selectedOffice?.createdAt || new Date(),
     };
 
-    const savedId = await this.officeService.saveOffice(office);
-    // 新規作成の場合は、保存されたIDを設定
     if (!this.selectedOffice?.id) {
+      const savedId = await this.officeService.createOfficeInRoom(
+        roomId,
+        office
+      );
       office.id = savedId;
+    } else {
+      await this.officeService.updateOfficeInRoom(
+        roomId,
+        this.selectedOffice.id,
+        office
+      );
     }
     alert('事業所マスタを保存しました');
     await this.loadOffices();
@@ -644,7 +665,12 @@ export class SettingsPageComponent implements OnInit {
     if (!confirm('この事業所マスタを削除しますか？')) {
       return;
     }
-    await this.officeService.deleteOffice(officeId);
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[SettingsPage] roomId is not set. skip deleteOffice.');
+      return;
+    }
+    await this.officeService.deleteOfficeInRoom(roomId, officeId);
     alert('事業所マスタを削除しました');
     await this.loadOffices();
     if (this.selectedOffice?.id === officeId) {

@@ -5,8 +5,13 @@ import {
   setDoc,
   getDoc,
   collection,
+  deleteDoc,
+  getDocs,
   collectionGroup,
   onSnapshot,
+  QuerySnapshot,
+  DocumentData,
+  DocumentChange,
 } from '@angular/fire/firestore';
 import {
   MonthlySalaryData,
@@ -26,11 +31,12 @@ export class MonthlySalaryService {
   ) {}
 
   async saveEmployeeSalary(
+    roomId: string,
     employeeId: string,
     year: number,
+    month: number,
     payload: any
   ): Promise<void> {
-    const roomId = this.roomIdService.requireRoomId();
 
     // 従業員のroomIdを確認（セキュリティチェック）
     const employee = await this.employeeService.getEmployeeById(employeeId);
@@ -47,13 +53,10 @@ export class MonthlySalaryService {
     // roomIdを自動付与
     normalizedPayload.roomId = roomId;
 
-    // 構造: monthlySalaries/{employeeId}/years/{year} (偶数セグメント)
+    // 構造: rooms/{roomId}/monthlySalaries/{employeeId}/years/{year}/{month}
     const ref = doc(
       this.firestore,
-      'monthlySalaries',
-      employeeId,
-      'years',
-      year.toString()
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/${month}`
     );
     await setDoc(ref, normalizedPayload, { merge: true });
   }
@@ -121,60 +124,44 @@ export class MonthlySalaryService {
   }
 
   async getEmployeeSalary(
+    roomId: string,
     employeeId: string,
-    year: number
+    year: number,
+    month: number
   ): Promise<any | null> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[MonthlySalaryService] roomIdが取得できないため、nullを返します'
-      );
-      return null;
-    }
-
-    // 従業員のroomIdを確認（セキュリティチェック）
-    const employee = await this.employeeService.getEmployeeById(employeeId);
-    if (!employee) {
-      return null;
-    }
-    if (employee.roomId !== roomId) {
-      console.warn(
-        '[MonthlySalaryService] roomIdが一致しないため、nullを返します',
-        {
-          requestedRoomId: roomId,
-          employeeRoomId: employee.roomId,
-        }
-      );
-      return null;
-    }
-
-    // 構造: monthlySalaries/{employeeId}/years/{year} (偶数セグメント)
     const ref = doc(
       this.firestore,
-      'monthlySalaries',
-      employeeId,
-      'years',
-      year.toString()
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/${month}`
     );
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
+    return this.normalizeSalaryData(snap.data());
+  }
 
-    const data = snap.data();
+  async deleteEmployeeSalary(
+    roomId: string,
+    employeeId: string,
+    year: number,
+    month: number
+  ): Promise<void> {
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/${month}`
+    );
+    await deleteDoc(ref);
+  }
 
-    // roomIdの検証（セキュリティチェック）
-    if (data['roomId'] !== roomId) {
-      console.warn(
-        '[MonthlySalaryService] 給与データのroomIdが一致しないため、nullを返します',
-        {
-          requestedRoomId: roomId,
-          documentRoomId: data['roomId'],
-        }
-      );
-      return null;
-    }
-
-    // 取得したデータを正規化（totalSalary = fixedSalary + variableSalary を保証）
-    return this.normalizeSalaryData(data);
+  async listEmployeeSalaryMonths(
+    roomId: string,
+    employeeId: string,
+    year: number
+  ): Promise<string[]> {
+    const col = collection(
+      this.firestore,
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}`
+    );
+    const snap = await getDocs(col);
+    return snap.docs.map((d) => d.id);
   }
 
   async getMonthlyPremiums(
@@ -267,9 +254,9 @@ export class MonthlySalaryService {
     // 実際の構造: monthlySalaries/{employeeId}/years/{year}
     const colGroup = collectionGroup(this.firestore, 'years');
     return new Observable<void>((observer) => {
-      const unsubscribe = onSnapshot(colGroup, (snapshot) => {
+      const unsubscribe = onSnapshot(colGroup, (snapshot: QuerySnapshot<DocumentData>) => {
         // 指定年度のドキュメントが変更された場合のみ通知
-        const hasChanges = snapshot.docChanges().some((change) => {
+        const hasChanges = snapshot.docChanges().some((change: DocumentChange<DocumentData>) => {
           const docData = change.doc.data();
           // 年度が一致するか、または親パスに年度が含まれるかを確認
           // 簡易的な実装：すべての変更を通知（年度フィルタリングは呼び出し側で行う）

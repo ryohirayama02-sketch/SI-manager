@@ -10,6 +10,7 @@ import { SettingsService } from '../../services/settings.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
+import { RoomIdService } from '../../services/room-id.service';
 
 interface MonthlyPremiumData {
   month: number;
@@ -118,7 +119,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private monthlySalaryService: MonthlySalaryService,
     private salaryCalculationService: SalaryCalculationService,
     private settingsService: SettingsService,
-    private employeeEligibilityService: EmployeeEligibilityService
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private roomIdService: RoomIdService
   ) {
     // 年度選択用の年度リストを生成（現在年度±2年）
     const currentYear = new Date().getFullYear();
@@ -431,12 +433,15 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     gradeTable: any[]
   ): Promise<void> {
     try {
+      const roomId = this.roomIdService.getCurrentRoomId();
+      if (!roomId) {
+        console.warn(
+          '[insurance-result] roomId is not set. skip processEmployeeInsuranceData.'
+        );
+        return;
+      }
       this.errorMessages[emp.id] = [];
       this.warningMessages[emp.id] = [];
-
-      // 月次給与データを取得
-      const monthlySalaryData =
-        await this.monthlySalaryService.getEmployeeSalary(emp.id, this.year);
 
       // 月次給与の保険料を計算
       const monthlyPremiums: MonthlyPremiumData[] = [];
@@ -451,8 +456,13 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       };
 
       for (let month = 1; month <= 12; month++) {
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          this.year,
+          month
+        );
         const monthKey = month.toString();
-        const monthData = monthlySalaryData?.[monthKey];
 
         // 給与データの取得（存在しない場合は0）
         const fixedSalary =

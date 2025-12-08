@@ -20,6 +20,7 @@ import { SettingsService } from '../../../../../../services/settings.service';
 import { EmployeeService } from '../../../../../../services/employee.service';
 import { SuijiService } from '../../../../../../services/suiji.service';
 import { SalaryAggregationService } from '../../../../../../services/salary-aggregation.service';
+import { RoomIdService } from '../../../../../../services/room-id.service';
 
 @Component({
   selector: 'app-employee-basic-info-standard-remuneration',
@@ -49,7 +50,8 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     private employeeService: EmployeeService,
     private suijiService: SuijiService,
     private salaryAggregationService: SalaryAggregationService,
-    private router: Router
+    private router: Router,
+    private roomIdService: RoomIdService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -92,13 +94,11 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     this.isLoading = true;
     try {
       const currentYear = new Date().getFullYear();
-
-      // 給与データを取得
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-        this.employeeId,
-        currentYear
-      );
-      if (!salaryData) {
+      const roomId = this.roomIdService.getCurrentRoomId();
+      if (!roomId) {
+        console.warn(
+          '[employee-basic-info-standard] roomId is not set. skip loadCalculationResults.'
+        );
         this.isLoading = false;
         return;
       }
@@ -112,7 +112,12 @@ export class EmployeeBasicInfoStandardRemunerationComponent
       // SalaryAggregationServiceを使用して、月次報酬入力画面と同じロジックで取得
       const salaries: { [key: string]: SalaryData } = {};
       for (let month = 1; month <= 12; month++) {
-        const monthData = salaryData[month.toString()];
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          this.employeeId,
+          currentYear,
+          month
+        );
         const key = `${this.employeeId}_${month}`;
 
         if (monthData) {

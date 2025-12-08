@@ -32,6 +32,7 @@ import { MonthlySalaryEditUiService } from '../../services/monthly-salary-edit-u
 import { MonthlySalarySuijiUiService } from '../../services/monthly-salary-suiji-ui.service';
 import { MonthlySalaryCsvImportUiService } from '../../services/monthly-salary-csv-import-ui.service';
 import { FormsModule } from '@angular/forms';
+import { RoomIdService } from '../../services/room-id.service';
 
 @Component({
   selector: 'app-monthly-salaries-page',
@@ -107,7 +108,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     private editUiService: MonthlySalaryEditUiService,
     private suijiUiService: MonthlySalarySuijiUiService,
     private csvImportUiService: MonthlySalaryCsvImportUiService,
-    private router: Router
+    private router: Router,
+    private roomIdService: RoomIdService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
     for (let y = 2023; y <= 2026; y++) {
@@ -116,8 +118,14 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    // サービスに全データロードを委譲
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[MonthlySalariesPage] roomId is not set. skip load.');
+      return;
+    }
+
     const state = await this.monthlySalaryUIService.loadAllData(
+      roomId,
       this.year,
       this.months
     );
@@ -200,6 +208,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   async onYearChange(): Promise<void> {
     // サービスに年度変更処理を委譲
     const result = await this.monthlySalaryUIService.onYearChange(
+      this.roomIdService.requireRoomId(),
       this.year,
       this.employees,
       this.months,
@@ -440,8 +449,14 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
    * 画面の状態を再読み込み
    */
   async reloadData(): Promise<void> {
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[MonthlySalariesPage] roomId is not set. skip reloadData.');
+      return;
+    }
     // サービスに全データロードを委譲
     const state = await this.monthlySalaryUIService.loadAllData(
+      roomId,
       this.year,
       this.months
     );

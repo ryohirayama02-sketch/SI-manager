@@ -463,7 +463,18 @@ export class EmployeeCreatePageComponent implements OnInit {
       );
 
     // 従業員を登録
-    const newEmployeeId = await this.employeeService.addEmployee(employee);
+    let roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[employee-create] roomId missing, try requireRoomId');
+      roomId = this.roomIdService.requireRoomId();
+    }
+    if (!employee.roomId) {
+      employee.roomId = roomId;
+    }
+    const newEmployeeId = await this.employeeService.createEmployeeInRoom(
+      roomId,
+      employee as Employee
+    );
 
     // 家族情報を保存（登録済みの家族情報がある場合）
     if (this.familyMembers.length > 0 && newEmployeeId) {

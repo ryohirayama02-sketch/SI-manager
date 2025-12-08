@@ -50,6 +50,7 @@ import { AlertsDashboardStateService } from '../../services/alerts-dashboard-sta
 import { UncollectedPremiumService } from '../../services/uncollected-premium.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
+import { RoomIdService } from '../../services/room-id.service';
 
 export interface AlertItem {
   id: string;
@@ -114,6 +115,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private alertAggregationService: AlertAggregationService,
     private alertsDashboardUiService: AlertsDashboardUiService,
     private uncollectedPremiumService: UncollectedPremiumService,
+    private roomIdService: RoomIdService,
     public state: AlertsDashboardStateService
   ) {}
 
@@ -179,28 +181,29 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   async loadAllSalaries(): Promise<void> {
     this.salariesByYear = {};
     const years = [2023, 2024, 2025, 2026]; // 取得対象年度
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[alerts-dashboard] roomId is not set. skip loadAllSalaries.');
+      return;
+    }
 
     for (const year of years) {
       this.salariesByYear[year] = {};
       for (const emp of this.employees) {
-        const data = await this.monthlySalaryService.getEmployeeSalary(
-          emp.id,
-          year
-        );
-        if (!data) continue;
-
         for (let month = 1; month <= 12; month++) {
-          const monthKey = month.toString();
-          const monthData = data[monthKey];
-          if (monthData) {
-            const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
-            const variable =
-              monthData.variableSalary ?? monthData.variable ?? 0;
-            const total =
-              monthData.totalSalary ?? monthData.total ?? fixed + variable;
-            const key = this.getSalaryKey(emp.id, month);
-            this.salariesByYear[year][key] = { total, fixed, variable };
-          }
+          const monthData = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            year,
+            month
+          );
+          if (!monthData) continue;
+          const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+          const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+          const total =
+            monthData.totalSalary ?? monthData.total ?? fixed + variable;
+          const key = this.getSalaryKey(emp.id, month);
+          this.salariesByYear[year][key] = { total, fixed, variable };
         }
       }
     }
@@ -345,6 +348,13 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       this.isLoadingTeijiKettei = true;
       const targetYear = this.state.teijiYear;
       this.gradeTable = await this.settingsService.getStandardTable(targetYear);
+      const roomId = this.roomIdService.getCurrentRoomId();
+      if (!roomId) {
+        console.warn(
+          '[alerts-dashboard] roomId is not set. skip loadTeijiKetteiData.'
+        );
+        return;
+      }
 
       // 配列をクリア（重複を防ぐ）
       this.state.teijiKetteiResults = [];
@@ -365,17 +375,25 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           continue;
         }
         processedEmployeeIds.add(emp.id);
-        // 給与データを取得
-        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-          emp.id,
-          targetYear
-        );
-        if (!salaryData) continue;
-
         // 4-6月の給与所得と支払基礎日数を取得
-        const aprilData = salaryData['4'];
-        const mayData = salaryData['5'];
-        const juneData = salaryData['6'];
+        const aprilData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          targetYear,
+          4
+        );
+        const mayData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          targetYear,
+          5
+        );
+        const juneData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          targetYear,
+          6
+        );
 
         // 支払基礎日数が17日以上の月のみを対象とする
         const aprilWorkingDays = aprilData?.workingDays ?? 0;
@@ -430,7 +448,12 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         const salaries: { [key: string]: any } = {};
         for (let month = 1; month <= 12; month++) {
           const monthKey = this.getSalaryKey(emp.id, month);
-          const monthData = salaryData[month.toString()];
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          targetYear,
+          month
+        );
           if (monthData) {
             // 欠勤控除を取得（給与項目マスタから）
             let deductionTotal = 0;

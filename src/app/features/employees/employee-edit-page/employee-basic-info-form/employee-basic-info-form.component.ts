@@ -21,6 +21,7 @@ import { EmployeeChangeHistoryService } from '../../../../services/employee-chan
 import { EmployeeWorkCategoryService } from '../../../../services/employee-work-category.service';
 import { FamilyMemberService } from '../../../../services/family-member.service';
 import { Router } from '@angular/router';
+import { RoomIdService } from '../../../../services/room-id.service';
 import { EmployeeBasicInfoPersonalComponent } from './components/employee-basic-info-personal/employee-basic-info-personal.component';
 import { EmployeeBasicInfoEmploymentComponent } from './components/employee-basic-info-employment/employee-basic-info-employment.component';
 import { EmployeeBasicInfoAffiliationComponent } from './components/employee-basic-info-affiliation/employee-basic-info-affiliation.component';
@@ -57,6 +58,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
   eligibilitySubscription: Subscription | null = null;
   private originalEmployeeData: any = {};
+  private roomId: string | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -66,6 +68,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private employeeWorkCategoryService: EmployeeWorkCategoryService,
     private familyMemberService: FamilyMemberService,
+    private roomIdService: RoomIdService,
     private router: Router
   ) {
     this.form = this.fb.group({
@@ -120,8 +123,16 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     if (!this.employeeId) return;
+    this.roomId = this.roomIdService.getCurrentRoomId();
+    if (!this.roomId) {
+      console.warn('[employee-basic-info-form] roomId is not set. skip load.');
+      return;
+    }
 
-    const data = await this.employeeService.getEmployeeById(this.employeeId);
+    const data = await this.employeeService.getEmployeeByRoom(
+      this.roomId,
+      this.employeeId
+    );
     if (data) {
       console.log('[employee-basic-info-form] 読み込みデータ:', {
         officeNumber: (data as any).officeNumber,
@@ -138,7 +149,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         address: (data as any).address || '',
         officeNumber: (data as any).officeNumber || '',
         prefecture: data.prefecture || 'tokyo',
-        isShortTime: data.isShortTime || data.shortTimeWorker || false,
+        isShortTime:
+          data.isShortTime || (data as any).shortTimeWorker || false,
       };
 
       const officeNumber = (data as any).officeNumber || '';
@@ -163,7 +175,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         prefecture: prefecture,
         officeNumber: officeNumber,
         department: (data as any).department || '',
-        joinDate: data.joinDate || data.hireDate || '',
+        joinDate: data.joinDate || (data as any).hireDate || '',
         retireDate: data.retireDate || '',
         healthInsuranceAcquisitionDate:
           (data as any).healthInsuranceAcquisitionDate || '',
@@ -171,13 +183,17 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         healthInsuranceLossDate: (data as any).healthInsuranceLossDate || '',
         pensionLossDate: (data as any).pensionLossDate || '',
         currentStandardMonthlyRemuneration:
-          data.standardMonthlyRemuneration || data.acquisitionStandard || null,
+          (data as any).currentStandardMonthlyRemuneration ||
+          (data as any).standardMonthlyRemuneration ||
+          (data as any).acquisitionStandard ||
+          null,
         determinationReason: (data as any).determinationReason || '',
         lastTeijiKetteiYear: (data as any).lastTeijiKetteiYear || null,
         lastTeijiKetteiMonth: (data as any).lastTeijiKetteiMonth || null,
         lastSuijiKetteiYear: (data as any).lastSuijiKetteiYear || null,
         lastSuijiKetteiMonth: (data as any).lastSuijiKetteiMonth || null,
-        isShortTime: data.isShortTime || data.shortTimeWorker || false,
+        isShortTime:
+          data.isShortTime || (data as any).shortTimeWorker || false,
         leaveOfAbsenceStart: data.leaveOfAbsenceStart || '',
         leaveOfAbsenceEnd: data.leaveOfAbsenceEnd || '',
         returnFromLeaveDate: data.returnFromLeaveDate || '',
@@ -368,7 +384,15 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       fullUpdateData: updateData,
     });
 
-    await this.employeeService.updateEmployee(this.employeeId, updateData);
+    if (!this.roomId) {
+      console.warn('[employee-basic-info-form] roomId is not set. skip update.');
+      return;
+    }
+    await this.employeeService.updateEmployeeInRoom(
+      this.roomId,
+      this.employeeId,
+      updateData as any
+    );
     await this.detectAndSaveChanges(this.originalEmployeeData, value);
 
     alert('保存しました');

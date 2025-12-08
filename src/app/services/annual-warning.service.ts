@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { MonthlySalaryService } from './monthly-salary.service';
 import { SalaryCalculationService } from './salary-calculation.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
+import { RoomIdService } from './room-id.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 
@@ -33,7 +34,8 @@ export class AnnualWarningService {
   constructor(
     private monthlySalaryService: MonthlySalaryService,
     private salaryCalculationService: SalaryCalculationService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -66,8 +68,24 @@ export class AnnualWarningService {
     for (const emp of employees) {
       const ageCache = ageCacheByEmployee[emp.id];
       const employeeRows = monthlyPremiumsByEmployee[emp.id];
-      const salaryData = salaryDataByEmployeeId?.[emp.id] || 
-        await this.monthlySalaryService.getEmployeeSalary(emp.id, year).catch(() => null);
+      let salaryData = salaryDataByEmployeeId?.[emp.id];
+      if (!salaryData) {
+        const roomId = this.roomIdService.getCurrentRoomId();
+        if (!roomId) {
+          console.warn('[annual-warning] roomId is not set. skip employee.', emp.id);
+          continue;
+        }
+        const monthMap: any = {};
+        for (let m = 1; m <= 12; m++) {
+          const monthData = await this.monthlySalaryService
+            .getEmployeeSalary(roomId, emp.id, year, m)
+            .catch(() => null);
+          if (monthData) {
+            monthMap[m.toString()] = monthData;
+          }
+        }
+        salaryData = monthMap;
+      }
 
       // 優先度A-1: 退職月なのに保険料が発生している月
       if (emp.retireDate) {

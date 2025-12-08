@@ -18,6 +18,7 @@ import { Employee } from '../models/employee.model';
 import { MonthlySalaryService } from './monthly-salary.service';
 import { SalaryCalculationService } from './salary-calculation.service';
 import { SettingsService } from './settings.service';
+import { RoomIdService } from './room-id.service';
 
 @Injectable({ providedIn: 'root' })
 export class StandardRemunerationHistoryService {
@@ -25,7 +26,8 @@ export class StandardRemunerationHistoryService {
     private firestore: Firestore,
     private monthlySalaryService: MonthlySalaryService,
     private salaryCalculationService: SalaryCalculationService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -162,11 +164,28 @@ export class StandardRemunerationHistoryService {
     ]; // 過去2年から将来1年まで
 
     for (const year of years) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-        employeeId,
-        year
-      );
-      if (!salaryData) continue;
+      const roomId =
+        (employee as any).roomId || this.roomIdService.getCurrentRoomId();
+      if (!roomId) {
+        console.warn(
+          '[standard-remuneration-history] roomId is not set. skip employee.',
+          employeeId
+        );
+        continue;
+      }
+      const salaryData: any = {};
+      for (let m = 1; m <= 12; m++) {
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employeeId,
+          year,
+          m
+        );
+        if (monthData) {
+          salaryData[m.toString()] = monthData;
+        }
+      }
+      if (!Object.keys(salaryData).length) continue;
 
       // 給与データを整形
       const salaries: {

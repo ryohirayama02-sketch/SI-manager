@@ -8,6 +8,7 @@ import { EmployeeChangeHistoryService } from './employee-change-history.service'
 import { QualificationChangeAlertService } from './qualification-change-alert.service';
 import { NotificationFormatService } from './notification-format.service';
 import { OfficeService } from './office.service';
+import { RoomIdService } from './room-id.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { SuijiKouhoResultWithDiff } from '../features/alerts-dashboard/tabs/alert-suiji-tab/alert-suiji-tab.component';
@@ -48,7 +49,8 @@ export class AlertGenerationService {
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private qualificationChangeAlertService: QualificationChangeAlertService,
     private notificationFormatService: NotificationFormatService,
-    private officeService: OfficeService
+    private officeService: OfficeService,
+    private roomIdService: RoomIdService
   ) {}
 
   async generateSuijiAlerts(
@@ -99,12 +101,31 @@ export class AlertGenerationService {
     const gradeTable = await this.settingsService.getStandardTable(currentYear);
 
     const salaryDataByEmployeeId: { [employeeId: string]: any } = {};
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[alert-generation] roomId is not set. skip salary loading.');
+      return {
+        gradeTable,
+        salaryDataByEmployeeId,
+        bonusesByEmployeeId: {},
+        notificationsByEmployee: {},
+        notificationAlerts: [],
+      };
+    }
     for (const emp of employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-        emp.id,
-        currentYear
-      );
-      salaryDataByEmployeeId[emp.id] = salaryData;
+      const monthMap: any = {};
+      for (let month = 1; month <= 12; month++) {
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          currentYear,
+          month
+        );
+        if (monthData) {
+          monthMap[month.toString()] = monthData;
+        }
+      }
+      salaryDataByEmployeeId[emp.id] = monthMap;
     }
 
     const bonuses = await this.bonusService.loadBonus(currentYear);

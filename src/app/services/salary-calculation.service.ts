@@ -19,6 +19,7 @@ import { ShikakuCalculationService } from './shikaku-calculation.service';
 import { TeijiCalculationService } from './teiji-calculation.service';
 import { SuijiCalculationService } from './suiji-calculation.service';
 import { PremiumCalculationService } from './premium-calculation.service';
+import { RoomIdService } from './room-id.service';
 import {
   SalaryItemEntry,
   MonthlySalaryData,
@@ -126,7 +127,8 @@ export class SalaryCalculationService {
     private shikakuCalculationService: ShikakuCalculationService,
     private teijiCalculationService: TeijiCalculationService,
     private suijiCalculationService: SuijiCalculationService,
-    private premiumCalculationService: PremiumCalculationService
+    private premiumCalculationService: PremiumCalculationService,
+    private roomIdService: RoomIdService
   ) {}
 
   /** 給与データのキーを作成（外部から呼ばれるため公開） */
@@ -312,47 +314,42 @@ export class SalaryCalculationService {
     month: number,
     standardBonus: number
   ): Promise<void> {
-    const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-      employeeId,
-      year
-    );
-    const monthKey = month.toString();
+    const roomId = this.roomIdService.requireRoomId();
+    const monthData =
+      (await this.monthlySalaryService.getEmployeeSalary(
+        roomId,
+        employeeId,
+        year,
+        month
+      )) || {
+        fixedSalary: 0,
+        variableSalary: 0,
+        totalSalary: 0,
+        fixed: 0,
+        variable: 0,
+        total: 0,
+      };
 
-    if (!salaryData) {
-      await this.monthlySalaryService.saveEmployeeSalary(employeeId, year, {
-        [monthKey]: {
-          fixedSalary: 0,
-          variableSalary: standardBonus,
-          totalSalary: standardBonus,
-          fixed: 0,
-          variable: standardBonus,
-          total: standardBonus,
-        },
-      });
-      return;
-    }
-
-    const monthData = salaryData[monthKey] || {
-      fixedSalary: 0,
-      variableSalary: 0,
-      totalSalary: 0,
-    };
-    const currentFixed = (monthData as any).fixedSalary ?? monthData.fixed ?? 0;
+    const currentFixed =
+      (monthData as any).fixedSalary ?? (monthData as any).fixed ?? 0;
     const currentVariable =
-      (monthData as any).variableSalary ?? monthData.variable ?? 0;
+      (monthData as any).variableSalary ?? (monthData as any).variable ?? 0;
     const newTotal = currentFixed + currentVariable + standardBonus;
 
-    await this.monthlySalaryService.saveEmployeeSalary(employeeId, year, {
-      ...salaryData,
-      [monthKey]: {
+    await this.monthlySalaryService.saveEmployeeSalary(
+      roomId,
+      employeeId,
+      year,
+      month,
+      {
         fixedSalary: currentFixed,
         variableSalary: currentVariable + standardBonus,
         totalSalary: newTotal,
         fixed: currentFixed,
         variable: currentVariable + standardBonus,
         total: newTotal,
-      },
-    });
+      }
+    );
   }
 
   /** 資格取得時決定（入社月の標準報酬決定）を計算する（後方互換性のため残す） */

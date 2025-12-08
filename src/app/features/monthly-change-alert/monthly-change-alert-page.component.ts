@@ -8,6 +8,7 @@ import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { SuijiKouhoResult } from '../../services/salary-calculation.service';
 import { Employee } from '../../models/employee.model';
+import { RoomIdService } from '../../services/room-id.service';
 
 // 前月比差額を含む拡張型
 interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
@@ -39,7 +40,8 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
     private suijiService: SuijiService,
     private employeeService: EmployeeService,
     private monthlySalaryService: MonthlySalaryService,
-    private employeeEligibilityService: EmployeeEligibilityService
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private roomIdService: RoomIdService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
     for (let y = 2023; y <= 2026; y++) {
@@ -79,16 +81,19 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
 
   async loadSalaries(): Promise<void> {
     this.salaries = {};
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[monthly-change-alert] roomId is not set. skip loadSalaries.');
+      return;
+    }
     for (const emp of this.employees) {
-      const data = await this.monthlySalaryService.getEmployeeSalary(
-        emp.id,
-        this.year
-      );
-      if (!data) continue;
-
       for (let month = 1; month <= 12; month++) {
-        const monthKey = month.toString();
-        const monthData = data[monthKey];
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          this.year,
+          month
+        );
         if (monthData) {
           const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
           const variable = monthData.variableSalary ?? monthData.variable ?? 0;

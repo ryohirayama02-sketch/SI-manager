@@ -13,6 +13,7 @@ import { EmployeeWorkCategoryService } from '../../../../../services/employee-wo
 import { Employee } from '../../../../../models/employee.model';
 import { Office } from '../../../../../models/office.model';
 import { SalaryItem } from '../../../../../models/salary-item.model';
+import { RoomIdService } from '../../../../../services/room-id.service';
 
 @Component({
   selector: 'app-qualification-change-alert-list',
@@ -37,7 +38,8 @@ export class QualificationChangeAlertListComponent {
     private monthlySalaryService: MonthlySalaryService,
     private settingsService: SettingsService,
     private familyMemberService: FamilyMemberService,
-    private employeeWorkCategoryService: EmployeeWorkCategoryService
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
+    private roomIdService: RoomIdService
   ) {}
 
   formatDate(date: Date): string {
@@ -104,13 +106,21 @@ export class QualificationChangeAlertListComponent {
       const prevMonth = changeMonth - 1;
       const prevYear = prevMonth < 1 ? changeYear - 1 : changeYear;
       const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn(
+        '[qualification-change-alert-list] roomId is not set. skip exportToCsv.'
+      );
+      return;
+    }
 
       // 給与データを取得
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-        employee.id,
-        prevYear
-      );
-      const prevMonthData = salaryData?.[actualPrevMonth.toString()];
+    const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
+      roomId,
+      employee.id,
+      prevYear,
+      actualPrevMonth
+    );
 
       // 給与項目マスタを取得
       const salaryItems = await this.settingsService.loadSalaryItems(prevYear);

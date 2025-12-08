@@ -14,6 +14,7 @@ import { SettingsService } from '../../../services/settings.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
 import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
 import { Employee } from '../../../models/employee.model';
+import { RoomIdService } from '../../../services/room-id.service';
 
 interface EmployeeDisplayInfo {
   employee: Employee;
@@ -91,6 +92,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     private salaryCalculationService: SalaryCalculationService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeWorkCategoryService: EmployeeWorkCategoryService,
+    private roomIdService: RoomIdService,
     private router: Router
   ) {
     // 先月の年月を計算
@@ -101,17 +103,17 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    await this.reloadEmployees();
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[EmployeeListPage] roomId is not set. skip loading.');
+      return;
+    }
     this.employeesSubscription = this.employeeService
-      .observeEmployees()
-      .subscribe(() => {
-        this.reloadEmployees();
+      .getEmployeesByRoom(roomId)
+      .subscribe(async (emps) => {
+        this.employees = emps;
+        await this.loadEmployeeDisplayInfos();
       });
-  }
-
-  async reloadEmployees(): Promise<void> {
-    this.employees = await this.employeeService.getEmployees();
-    await this.loadEmployeeDisplayInfos();
   }
 
   ngOnDestroy(): void {
@@ -139,41 +141,43 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       let grade: number | null = null;
 
       try {
-        const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+        const roomId = this.roomIdService.getCurrentRoomId();
+        if (!roomId) {
+          console.warn('[employee-list] roomId is not set. skip salary fetch.');
+          continue;
+        }
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
           emp.id,
-          this.currentYear
+          this.currentYear,
+          this.currentMonth
         );
 
         let fixedSalary = 0;
         let variableSalary = 0;
 
-        if (salaryData) {
-          const monthKey = this.currentMonth.toString();
-          const monthData = salaryData[monthKey];
+        if (monthData) {
+          fixedSalary =
+            monthData.fixedTotal ??
+            monthData.fixed ??
+            monthData.fixedSalary ??
+            0;
+          variableSalary =
+            monthData.variableTotal ??
+            monthData.variable ??
+            monthData.variableSalary ??
+            0;
+          const totalSalary = fixedSalary + variableSalary;
 
-          if (monthData) {
-            fixedSalary =
-              monthData.fixedTotal ??
-              monthData.fixed ??
-              monthData.fixedSalary ??
-              0;
-            variableSalary =
-              monthData.variableTotal ??
-              monthData.variable ??
-              monthData.variableSalary ??
-              0;
-            const totalSalary = fixedSalary + variableSalary;
-
-            // 標準報酬月額と等級を計算（給与がある場合のみ）
-            if (totalSalary > 0 && gradeTable.length > 0) {
-              const gradeResult = this.salaryCalculationService.findGrade(
-                gradeTable,
-                totalSalary
-              );
-              if (gradeResult) {
-                standardMonthlyRemuneration = gradeResult.remuneration;
-                grade = gradeResult.grade;
-              }
+          // 標準報酬月額と等級を計算（給与がある場合のみ）
+          if (totalSalary > 0 && gradeTable.length > 0) {
+            const gradeResult = this.salaryCalculationService.findGrade(
+              gradeTable,
+              totalSalary
+            );
+            if (gradeResult) {
+              standardMonthlyRemuneration = gradeResult.remuneration;
+              grade = gradeResult.grade;
             }
           }
         }
@@ -552,14 +556,19 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
     // 給与 < 本人負担保険料の月があるかチェック（先月のデータをチェック）
     try {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
+      const roomId = this.roomIdService.getCurrentRoomId();
+      if (!roomId) {
+        console.warn(
+          '[employee-list] roomId is not set. skip hasCollectionImpossibleAlert.'
+        );
+        return false;
+      }
+      const monthData = await this.monthlySalaryService.getEmployeeSalary(
+        roomId,
         employee.id,
-        this.currentYear
+        lastMonthYear,
+        lastMonthMonth
       );
-      if (!salaryData) return false;
-
-      const monthKey = this.currentMonth.toString();
-      const monthData = salaryData[monthKey];
       if (!monthData) return false;
 
       const totalSalary = monthData.totalSalary ?? monthData.total ?? 0;

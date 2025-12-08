@@ -8,6 +8,7 @@ import { PaymentSummaryOrchestratorService } from './payment-summary-orchestrato
 import { NotificationCalculationService } from './notification-calculation.service';
 import { AnnualWarningService } from './annual-warning.service';
 import { Bonus } from '../models/bonus.model';
+import { RoomIdService } from './room-id.service';
 
 /**
  * PaymentSummaryDataService
@@ -25,7 +26,8 @@ export class PaymentSummaryDataService {
     private state: PaymentSummaryStateService,
     private paymentSummaryOrchestratorService: PaymentSummaryOrchestratorService,
     private notificationCalculationService: NotificationCalculationService,
-    private annualWarningService: AnnualWarningService
+    private annualWarningService: AnnualWarningService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -98,15 +100,28 @@ export class PaymentSummaryDataService {
    */
   private async loadSalaryData(): Promise<{ [employeeId: string]: any }> {
     const salaryDataByEmployeeId: { [employeeId: string]: any } = {};
+    const roomId = this.roomIdService.getCurrentRoomId();
+    if (!roomId) {
+      console.warn('[payment-summary] roomId is not set. skip loadSalaryData.');
+      return salaryDataByEmployeeId;
+    }
     for (const emp of this.state.employees) {
-      const salaryData = await this.monthlySalaryService.getEmployeeSalary(
-        emp.id,
-        this.state.year
-      );
-      salaryDataByEmployeeId[emp.id] = salaryData;
+      const monthMap: any = {};
+      for (let month = 1; month <= 12; month++) {
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          this.state.year,
+          month
+        );
+        if (monthData) {
+          monthMap[month.toString()] = monthData;
+        }
+      }
+      salaryDataByEmployeeId[emp.id] = monthMap;
       console.log(
         `[payment-summary] 給与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, データ=`,
-        salaryData
+        monthMap
       );
     }
     return salaryDataByEmployeeId;

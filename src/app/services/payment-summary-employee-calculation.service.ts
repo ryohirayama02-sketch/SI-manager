@@ -7,6 +7,7 @@ import { UncollectedPremiumService } from './uncollected-premium.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { MonthlyPremiumRow } from './payment-summary-types';
+import { RoomIdService } from './room-id.service';
 
 /**
  * PaymentSummaryEmployeeCalculationService
@@ -21,7 +22,8 @@ export class PaymentSummaryEmployeeCalculationService {
     private monthlyPremiumCalculationService: MonthlyPremiumCalculationService,
     private bonusPremiumCalculationService: BonusPremiumCalculationService,
     private premiumValidationService: PremiumValidationService,
-    private uncollectedPremiumService: UncollectedPremiumService
+    private uncollectedPremiumService: UncollectedPremiumService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -51,9 +53,33 @@ export class PaymentSummaryEmployeeCalculationService {
     };
   }> {
     // 給与データを取得
-    const salaryData =
-      salaryDataByEmployeeId?.[emp.id] ||
-      (await this.monthlySalaryService.getEmployeeSalary(emp.id, year));
+    let salaryData = salaryDataByEmployeeId?.[emp.id];
+    if (!salaryData) {
+      const roomId = this.roomIdService.getCurrentRoomId();
+      if (!roomId) {
+        console.warn(
+          '[payment-summary-employee] roomId is not set. skip employee.',
+          emp.id
+        );
+        return {
+          monthlyPremiumRows: [],
+          monthlyPremiums: {},
+        };
+      }
+      const monthMap: any = {};
+      for (let month = 1; month <= 12; month++) {
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          year,
+          month
+        );
+        if (monthData) {
+          monthMap[month.toString()] = monthData;
+        }
+      }
+      salaryData = monthMap;
+    }
 
     // 月次保険料一覧を計算
     const monthlyPremiumRows: MonthlyPremiumRow[] = [];

@@ -9,7 +9,7 @@ import { SalaryItem } from '../models/salary-item.model';
 
 /**
  * MonthlySalaryDataService
- * 
+ *
  * 月次給与画面のデータロード処理を担当するサービス
  * 従業員、給与項目マスタ、料率・等級表、既存給与データの読み込みを提供
  */
@@ -57,7 +57,7 @@ export class MonthlySalaryDataService {
    */
   async loadSalaryItems(year: number): Promise<SalaryItem[]> {
     let salaryItems = await this.settingsService.loadSalaryItems(year);
-    
+
     // 給与項目をソート（orderがない場合はname昇順）
     salaryItems.sort((a, b) => {
       const orderA = (a as any).order ?? 999;
@@ -73,75 +73,76 @@ export class MonthlySalaryDataService {
    * 既存の給与データを読み込む
    */
   async loadExistingSalaries(
+    roomId: string,
     employees: Employee[],
     months: number[],
     year: number,
     currentSalaryItemData: { [key: string]: { [itemId: string]: number } },
     currentWorkingDaysData: { [key: string]: number },
-    currentSalaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    currentSalaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     salaryItems: SalaryItem[]
   ): Promise<{
     salaryItemData: { [key: string]: { [itemId: string]: number } };
     workingDaysData: { [key: string]: number };
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } };
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    };
   }> {
     const salaryItemData = { ...currentSalaryItemData };
     const workingDaysData = { ...currentWorkingDaysData };
     const salaries = { ...currentSalaries };
 
     for (const emp of employees) {
-      const data = await this.monthlySalaryService.getEmployeeSalary(
-        emp.id,
-        year
-      );
-      if (!data) continue;
-
       for (const month of months) {
-        const monthKey = month.toString();
-        const monthData = data[monthKey];
+        const monthDoc = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          year,
+          month
+        );
+        if (!monthDoc) continue;
 
-        if (monthData) {
-          // 新しい項目別形式を優先
-          if (monthData.salaryItems && Array.isArray(monthData.salaryItems)) {
-            const itemKey = this.state.getSalaryItemKey(emp.id, month);
-            salaryItemData[itemKey] = {};
-            for (const entry of monthData.salaryItems) {
-              // 0の値も読み込む（明示的に0が設定されている場合）
-              salaryItemData[itemKey][entry.itemId] = entry.amount;
-            }
-            // 集計を更新
-            this.updateSalaryTotals(
-              emp.id,
-              month,
-              salaryItemData,
-              salaries,
-              salaryItems
-            );
-          } else {
-            // 既存形式のフォールバック
-            const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
-            const variable =
-              monthData.variableSalary ?? monthData.variable ?? 0;
-            const total =
-              monthData.totalSalary ?? monthData.total ?? fixed + variable;
-
-            const salaryKey = this.state.getSalaryKey(emp.id, month);
-            salaries[salaryKey] = { total, fixed, variable };
+        // 新しい項目別形式を優先
+        if (monthDoc.salaryItems && Array.isArray(monthDoc.salaryItems)) {
+          const itemKey = this.state.getSalaryItemKey(emp.id, month);
+          salaryItemData[itemKey] = {};
+          for (const entry of monthDoc.salaryItems) {
+            // 0の値も読み込む（明示的に0が設定されている場合）
+            salaryItemData[itemKey][entry.itemId] = entry.amount;
           }
+          // 集計を更新
+          this.updateSalaryTotals(
+            emp.id,
+            month,
+            salaryItemData,
+            salaries,
+            salaryItems
+          );
+        } else {
+          // 既存形式のフォールバック
+          const fixed = monthDoc.fixedSalary ?? monthDoc.fixed ?? 0;
+          const variable = monthDoc.variableSalary ?? monthDoc.variable ?? 0;
+          const total =
+            monthDoc.totalSalary ?? monthDoc.total ?? fixed + variable;
 
-          // 支払基礎日数を読み込む
-          const workingDaysKey = this.state.getWorkingDaysKey(emp.id, month);
-          if (
-            monthData.workingDays !== undefined &&
-            monthData.workingDays !== null
-          ) {
-            workingDaysData[workingDaysKey] = monthData.workingDays;
-          } else {
-            // デフォルト値として月の日数を設定（既存データがない場合のみ）
-            if (workingDaysData[workingDaysKey] === undefined) {
-              const daysInMonth = new Date(year, month, 0).getDate();
-              workingDaysData[workingDaysKey] = daysInMonth;
-            }
+          const salaryKey = this.state.getSalaryKey(emp.id, month);
+          salaries[salaryKey] = { total, fixed, variable };
+        }
+
+        // 支払基礎日数を読み込む
+        const workingDaysKey = this.state.getWorkingDaysKey(emp.id, month);
+        if (
+          monthDoc.workingDays !== undefined &&
+          monthDoc.workingDays !== null
+        ) {
+          workingDaysData[workingDaysKey] = monthDoc.workingDays;
+        } else {
+          // デフォルト値として月の日数を設定（既存データがない場合のみ）
+          if (workingDaysData[workingDaysKey] === undefined) {
+            const daysInMonth = new Date(year, month, 0).getDate();
+            workingDaysData[workingDaysKey] = daysInMonth;
           }
         }
       }
@@ -157,7 +158,9 @@ export class MonthlySalaryDataService {
     employeeId: string,
     month: number,
     salaryItemData: { [key: string]: { [itemId: string]: number } },
-    salaries: { [key: string]: { total: number; fixed: number; variable: number } },
+    salaries: {
+      [key: string]: { total: number; fixed: number; variable: number };
+    },
     salaryItems: SalaryItem[]
   ): void {
     const key = this.state.getSalaryItemKey(employeeId, month);
@@ -187,5 +190,3 @@ export class MonthlySalaryDataService {
     };
   }
 }
-
-
