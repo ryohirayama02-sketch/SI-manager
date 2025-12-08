@@ -67,3 +67,4 @@ cleanupExtraFields()
     console.error("cleanup failed", err);
     process.exit(1);
   });
+

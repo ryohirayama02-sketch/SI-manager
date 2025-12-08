@@ -47,3 +47,4 @@ cleanupWeeklyHours().catch((err) => {
   console.error("[cleanup-weeklyHours] failed", err);
   process.exit(1);
 });
+

@@ -76,8 +76,6 @@ export class EmployeeCreatePageComponent implements OnInit {
       address: [''],
       myNumber: [''],
       basicPensionNumber: [''],
-      // 雇用条件
-      employmentType: [''],
       weeklyWorkHoursCategory: [''],
       monthlyWage: [null],
       expectedEmploymentMonths: [''],
@@ -111,11 +109,8 @@ export class EmployeeCreatePageComponent implements OnInit {
       childcareNotificationSubmitted: [false],
       childcareLivingTogether: [false],
       sickPayApplicationRequest: [false],
-      sickPayApplicationRequestDate: [null],
       childcareEmployerCertificateRequest: [false],
-      childcareEmployerCertificateRequestDate: [null],
       maternityAllowanceApplicationRequest: [false],
-      maternityAllowanceApplicationRequestDate: [null],
     });
 
     // フォーム値変更時に自動判定を実行
@@ -399,7 +394,6 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.myNumber) employee.myNumber = value.myNumber;
     if (value.basicPensionNumber)
       employee.basicPensionNumber = value.basicPensionNumber;
-    if (value.employmentType) employee.employmentType = value.employmentType;
     if (value.officeNumber) employee.officeNumber = value.officeNumber;
     if (value.department) employee.department = value.department;
     if (value.retireDate) employee.retireDate = value.retireDate;
@@ -444,21 +438,12 @@ export class EmployeeCreatePageComponent implements OnInit {
       employee.childcareLeaveEnd = value.childcareLeaveEnd;
     if (value.sickPayApplicationRequest !== undefined)
       employee.sickPayApplicationRequest = value.sickPayApplicationRequest;
-    if (value.sickPayApplicationRequestDate)
-      employee.sickPayApplicationRequestDate =
-        value.sickPayApplicationRequestDate;
     if (value.childcareEmployerCertificateRequest !== undefined)
       employee.childcareEmployerCertificateRequest =
         value.childcareEmployerCertificateRequest;
-    if (value.childcareEmployerCertificateRequestDate)
-      employee.childcareEmployerCertificateRequestDate =
-        value.childcareEmployerCertificateRequestDate;
     if (value.maternityAllowanceApplicationRequest !== undefined)
       employee.maternityAllowanceApplicationRequest =
         value.maternityAllowanceApplicationRequest;
-    if (value.maternityAllowanceApplicationRequestDate)
-      employee.maternityAllowanceApplicationRequestDate =
-        value.maternityAllowanceApplicationRequestDate;
 
     // 従業員を登録
     const newEmployeeId = await this.employeeService.addEmployee(employee);
