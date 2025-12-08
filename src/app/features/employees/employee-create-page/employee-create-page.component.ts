@@ -18,6 +18,7 @@ import { OfficeService } from '../../../services/office.service';
 import { Employee } from '../../../models/employee.model';
 import { FamilyMember } from '../../../models/family-member.model';
 import { Office } from '../../../models/office.model';
+import { RoomIdService } from '../../../services/room-id.service';
 
 @Component({
   selector: 'app-employee-create-page',
@@ -65,6 +66,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     private salaryCalculationService: SalaryCalculationService,
     private familyMemberService: FamilyMemberService,
     private officeService: OfficeService,
+    private roomIdService: RoomIdService,
     private router: Router
   ) {
     this.form = this.fb.group({
@@ -157,6 +159,11 @@ export class EmployeeCreatePageComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    if (!this.roomIdService.hasRoomId()) {
+      this.router.navigate(['/room-enter']);
+      return;
+    }
+
     // 事業所一覧を読み込み
     await this.loadOffices();
 

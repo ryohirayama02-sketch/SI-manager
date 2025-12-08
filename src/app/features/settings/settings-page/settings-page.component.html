@@ -112,7 +112,7 @@
                       type="number"
                       [value]="
                         formatHealthRate(
-                          prefectureRates[pref.code].health_employee || 0
+                          prefectureRates[pref.code]?.health_employee || 0
                         )
                       "
                       (input)="onHealthEmployeeInput(pref.code, $event)"
@@ -134,7 +134,7 @@
                       type="number"
                       [value]="
                         formatHealthRate(
-                          prefectureRates[pref.code].health_employer || 0
+                          prefectureRates[pref.code]?.health_employer || 0
                         )
                       "
                       (input)="onHealthEmployerInput(pref.code, $event)"
@@ -173,7 +173,7 @@
                       type="number"
                       [value]="
                         formatHealthRate(
-                          prefectureRates[pref.code].health_employee || 0
+                          prefectureRates[pref.code]?.health_employee || 0
                         )
                       "
                       (input)="onHealthEmployeeInput(pref.code, $event)"
@@ -195,7 +195,7 @@
                       type="number"
                       [value]="
                         formatHealthRate(
-                          prefectureRates[pref.code].health_employer || 0
+                          prefectureRates[pref.code]?.health_employer || 0
                         )
                       "
                       (input)="onHealthEmployerInput(pref.code, $event)"
