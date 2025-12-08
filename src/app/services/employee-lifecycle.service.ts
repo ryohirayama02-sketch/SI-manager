@@ -36,12 +36,16 @@ export class EmployeeLifecycleService {
    * @returns 産休期間中の場合true
    */
   isMaternityLeave(emp: Employee, year: number, month: number): boolean {
-    if (!emp.maternityLeaveStart || !emp.maternityLeaveEnd) {
+    // 終了日が未設定の場合は終了予定日で判定する
+    const startValue = emp.maternityLeaveStart;
+    const endValue = emp.maternityLeaveEnd ?? emp.maternityLeaveEndExpected;
+
+    if (!startValue || !endValue) {
       return false;
     }
 
-    const startDate = new Date(emp.maternityLeaveStart);
-    const endDate = new Date(emp.maternityLeaveEnd);
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
     const targetDate = new Date(year, month - 1, 1); // 月初日
     const targetEndDate = new Date(year, month, 0); // 月末日
 
@@ -57,12 +61,16 @@ export class EmployeeLifecycleService {
    * @returns 育休期間中の場合true
    */
   isChildcareLeave(emp: Employee, year: number, month: number): boolean {
-    if (!emp.childcareLeaveStart || !emp.childcareLeaveEnd) {
+    // 終了日が未設定の場合は終了予定日で判定する
+    const startValue = emp.childcareLeaveStart;
+    const endValue = emp.childcareLeaveEnd ?? emp.childcareLeaveEndExpected;
+
+    if (!startValue || !endValue) {
       return false;
     }
 
-    const startDate = new Date(emp.childcareLeaveStart);
-    const endDate = new Date(emp.childcareLeaveEnd);
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
     const targetDate = new Date(year, month - 1, 1); // 月初日
     const targetEndDate = new Date(year, month, 0); // 月末日
 
@@ -141,14 +149,30 @@ export class EmployeeLifecycleService {
 
     const birthDate = employee.birthDate ? new Date(employee.birthDate) : null;
     const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
-    const retireDate = employee.retireDate ? new Date(employee.retireDate) : null;
-    const maternityLeaveStart = employee.maternityLeaveStart ? new Date(employee.maternityLeaveStart) : null;
-    const maternityLeaveEnd = employee.maternityLeaveEnd ? new Date(employee.maternityLeaveEnd) : null;
-    const childcareLeaveStart = employee.childcareLeaveStart ? new Date(employee.childcareLeaveStart) : null;
-    const childcareLeaveEnd = employee.childcareLeaveEnd ? new Date(employee.childcareLeaveEnd) : null;
-    const returnFromLeaveDate = employee.returnFromLeaveDate ? new Date(employee.returnFromLeaveDate) : null;
-    const leaveOfAbsenceStart = employee.leaveOfAbsenceStart ? new Date(employee.leaveOfAbsenceStart) : null;
-    const leaveOfAbsenceEnd = employee.leaveOfAbsenceEnd ? new Date(employee.leaveOfAbsenceEnd) : null;
+    const retireDate = employee.retireDate
+      ? new Date(employee.retireDate)
+      : null;
+    const maternityLeaveStart = employee.maternityLeaveStart
+      ? new Date(employee.maternityLeaveStart)
+      : null;
+    const maternityLeaveEnd = employee.maternityLeaveEnd
+      ? new Date(employee.maternityLeaveEnd)
+      : null;
+    const childcareLeaveStart = employee.childcareLeaveStart
+      ? new Date(employee.childcareLeaveStart)
+      : null;
+    const childcareLeaveEnd = employee.childcareLeaveEnd
+      ? new Date(employee.childcareLeaveEnd)
+      : null;
+    const returnFromLeaveDate = employee.returnFromLeaveDate
+      ? new Date(employee.returnFromLeaveDate)
+      : null;
+    const leaveOfAbsenceStart = employee.leaveOfAbsenceStart
+      ? new Date(employee.leaveOfAbsenceStart)
+      : null;
+    const leaveOfAbsenceEnd = employee.leaveOfAbsenceEnd
+      ? new Date(employee.leaveOfAbsenceEnd)
+      : null;
 
     // 入社日が生年月日より後かチェック
     if (birthDate && joinDate) {
@@ -179,10 +203,19 @@ export class EmployeeLifecycleService {
     }
 
     // 産休・育休の日付整合性チェック
-    if (maternityLeaveStart && maternityLeaveEnd && childcareLeaveStart && childcareLeaveEnd) {
-      const daysBetween = (childcareLeaveStart.getTime() - maternityLeaveEnd.getTime()) / (1000 * 60 * 60 * 24);
+    if (
+      maternityLeaveStart &&
+      maternityLeaveEnd &&
+      childcareLeaveStart &&
+      childcareLeaveEnd
+    ) {
+      const daysBetween =
+        (childcareLeaveStart.getTime() - maternityLeaveEnd.getTime()) /
+        (1000 * 60 * 60 * 24);
       if (daysBetween > 30) {
-        errors.push('産休・育休の設定が矛盾しています（産休終了日と育休開始日の間が30日を超えています）');
+        errors.push(
+          '産休・育休の設定が矛盾しています（産休終了日と育休開始日の間が30日を超えています）'
+        );
       }
     }
 
@@ -209,16 +242,16 @@ export class EmployeeLifecycleService {
 
     // 育休期間中なのに届出未提出または子と同居していない場合の警告
     if (childcareLeaveStart && childcareLeaveEnd) {
-      const isNotificationSubmitted = employee.childcareNotificationSubmitted === true;
+      const isNotificationSubmitted =
+        employee.childcareNotificationSubmitted === true;
       const isLivingTogether = employee.childcareLivingTogether === true;
       if (!isNotificationSubmitted || !isLivingTogether) {
-        warnings.push('育休期間が設定されていますが、届出未提出または子と同居していない場合、保険料免除の対象外となります');
+        warnings.push(
+          '育休期間が設定されていますが、届出未提出または子と同居していない場合、保険料免除の対象外となります'
+        );
       }
     }
 
     return { errors, warnings };
   }
 }
-
-
-

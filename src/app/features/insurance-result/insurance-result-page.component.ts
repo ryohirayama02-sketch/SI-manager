@@ -544,23 +544,31 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           );
           const exemptReason = isExempt ? '免除中' : '';
 
+          // 免除月は保険料を0として扱う（念のためUI集計側でも明示ゼロ化）
+          const healthEmployee = isExempt ? 0 : premiumResult.health_employee;
+          const healthEmployer = isExempt ? 0 : premiumResult.health_employer;
+          const careEmployee = isExempt ? 0 : premiumResult.care_employee;
+          const careEmployer = isExempt ? 0 : premiumResult.care_employer;
+          const pensionEmployee = isExempt ? 0 : premiumResult.pension_employee;
+          const pensionEmployer = isExempt ? 0 : premiumResult.pension_employer;
+
           const monthlyPremium: MonthlyPremiumData = {
             month,
             grade,
             standardMonthlyRemuneration,
-            healthEmployee: premiumResult.health_employee,
-            healthEmployer: premiumResult.health_employer,
-            careEmployee: premiumResult.care_employee,
-            careEmployer: premiumResult.care_employer,
-            pensionEmployee: premiumResult.pension_employee,
-            pensionEmployer: premiumResult.pension_employer,
+            healthEmployee,
+            healthEmployer,
+            careEmployee,
+            careEmployer,
+            pensionEmployee,
+            pensionEmployer,
             total:
-              premiumResult.health_employee +
-              premiumResult.health_employer +
-              premiumResult.care_employee +
-              premiumResult.care_employer +
-              premiumResult.pension_employee +
-              premiumResult.pension_employer,
+              healthEmployee +
+              healthEmployer +
+              careEmployee +
+              careEmployer +
+              pensionEmployee +
+              pensionEmployer,
             isExempt,
             exemptReason,
             reasons: [],
@@ -569,12 +577,12 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           monthlyPremiums.push(monthlyPremium);
 
           // 月次合計に加算
-          monthlyTotal.healthEmployee += premiumResult.health_employee;
-          monthlyTotal.healthEmployer += premiumResult.health_employer;
-          monthlyTotal.careEmployee += premiumResult.care_employee;
-          monthlyTotal.careEmployer += premiumResult.care_employer;
-          monthlyTotal.pensionEmployee += premiumResult.pension_employee;
-          monthlyTotal.pensionEmployer += premiumResult.pension_employer;
+          monthlyTotal.healthEmployee += healthEmployee;
+          monthlyTotal.healthEmployer += healthEmployer;
+          monthlyTotal.careEmployee += careEmployee;
+          monthlyTotal.careEmployer += careEmployer;
+          monthlyTotal.pensionEmployee += pensionEmployee;
+          monthlyTotal.pensionEmployer += pensionEmployer;
         } else {
           console.log(
             `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ❌ 条件を満たさないためスキップ`,
@@ -854,21 +862,32 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       }
 
       // 賞与合計
+      // 賞与が免除扱いの場合は表示/計算とも0円で扱う
+      const isBonusExempt = !!bonusPremium?.isExempted;
       const bonusTotal = bonusPremium
         ? {
-            healthEmployee: bonusPremium.healthEmployee || 0,
-            healthEmployer: bonusPremium.healthEmployer || 0,
-            careEmployee: bonusPremium.careEmployee || 0,
-            careEmployer: bonusPremium.careEmployer || 0,
-            pensionEmployee: bonusPremium.pensionEmployee || 0,
-            pensionEmployer: bonusPremium.pensionEmployer || 0,
-            total:
-              (bonusPremium.healthEmployee || 0) +
-              (bonusPremium.healthEmployer || 0) +
-              (bonusPremium.careEmployee || 0) +
-              (bonusPremium.careEmployer || 0) +
-              (bonusPremium.pensionEmployee || 0) +
-              (bonusPremium.pensionEmployer || 0),
+            healthEmployee: isBonusExempt
+              ? 0
+              : bonusPremium.healthEmployee || 0,
+            healthEmployer: isBonusExempt
+              ? 0
+              : bonusPremium.healthEmployer || 0,
+            careEmployee: isBonusExempt ? 0 : bonusPremium.careEmployee || 0,
+            careEmployer: isBonusExempt ? 0 : bonusPremium.careEmployer || 0,
+            pensionEmployee: isBonusExempt
+              ? 0
+              : bonusPremium.pensionEmployee || 0,
+            pensionEmployer: isBonusExempt
+              ? 0
+              : bonusPremium.pensionEmployer || 0,
+            total: isBonusExempt
+              ? 0
+              : (bonusPremium.healthEmployee || 0) +
+                (bonusPremium.healthEmployer || 0) +
+                (bonusPremium.careEmployee || 0) +
+                (bonusPremium.careEmployer || 0) +
+                (bonusPremium.pensionEmployee || 0) +
+                (bonusPremium.pensionEmployer || 0),
           }
         : {
             healthEmployee: 0,
