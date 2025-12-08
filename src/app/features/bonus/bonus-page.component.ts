@@ -39,7 +39,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   availableYears: number[] = [];
   rates: any = null;
   prefecture: string = 'tokyo';
-  roomId: string | null = null;
+  roomId: string = '';
 
   // CSVインポート関連
   csvImportText: string = '';
@@ -71,11 +71,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    this.roomId = this.roomIdService.getCurrentRoomId();
-    if (!this.roomId) {
-      console.warn('[bonus-page] roomIdが取得できないため処理を中断します');
-      return;
-    }
+    this.roomId = this.roomIdService.requireRoomId();
     this.employees = await this.employeeService.getAllEmployees();
     this.rates = await this.settingsService.getRates(
       this.year.toString(),
@@ -124,10 +120,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与入力列を削除
    */
   async removeBonusColumn(columnId: string): Promise<void> {
-    if (!this.roomId) {
-      console.warn('[bonus-page] roomIdが未設定のため削除を中断します');
-      return;
-    }
     const column = this.bonusColumns.find((col) => col.id === columnId);
     if (!column) return;
 
@@ -292,10 +284,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 既存の賞与データを読み込む
    */
   async loadExistingBonuses(): Promise<void> {
-    if (!this.roomId) {
-      console.warn('[bonus-page] roomIdが未設定のため賞与読込を中断します');
-      return;
-    }
     // 既存の列とデータをクリア
     this.bonusColumns = [];
     this.bonusData = {};
@@ -386,10 +374,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与データを保存
    */
   async saveAllBonuses(): Promise<void> {
-    if (!this.roomId) {
-      console.warn('[bonus-page] roomIdが未設定のため保存を中断します');
-      return;
-    }
     // 保存中フラグを設定
     this.isSaving = true;
 

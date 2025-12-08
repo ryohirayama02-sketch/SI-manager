@@ -144,11 +144,7 @@ export class AlertSuijiTabComponent {
       const changeYear = alert.year || getJSTDate().getFullYear();
       const changeMonth = alert.changeMonth;
       const applyStartMonth = this.getApplyStartMonth(alert);
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[alert-suiji-tab] roomId is not set. skip exportToCsv.');
-      return;
-    }
+      const roomId = this.roomIdService.requireRoomId();
 
       // 適用開始月の年度を計算
       let applyStartYear = changeYear;
@@ -159,28 +155,33 @@ export class AlertSuijiTabComponent {
       const month1 = changeMonth;
       const month2 = changeMonth + 1;
       const month3 = changeMonth + 2;
-    // 各月の給与データを room スコープで取得
-    const salaryDataMonth1 = await this.monthlySalaryService.getEmployeeSalary(
-      roomId,
-      employee.id,
-      changeYear,
-      month1
-    );
-    const salaryDataMonth2 = await this.monthlySalaryService.getEmployeeSalary(
-      roomId,
-      employee.id,
-      changeYear,
-      month2
-    );
-    const salaryDataMonth3 = await this.monthlySalaryService.getEmployeeSalary(
-      roomId,
-      employee.id,
-      changeYear,
-      month3
-    );
+      // 各月の給与データを room スコープで取得
+      const salaryDataMonth1 =
+        await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employee.id,
+          changeYear,
+          month1
+        );
+      const salaryDataMonth2 =
+        await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employee.id,
+          changeYear,
+          month2
+        );
+      const salaryDataMonth3 =
+        await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employee.id,
+          changeYear,
+          month3
+        );
 
-    // 給与項目マスタを取得
-    const salaryItems = await this.settingsService.loadSalaryItems(changeYear);
+      // 給与項目マスタを取得
+      const salaryItems = await this.settingsService.loadSalaryItems(
+        changeYear
+      );
 
       // 標準報酬履歴を取得（従前の標準報酬月額と従前改定月）
       const histories =
@@ -251,43 +252,44 @@ export class AlertSuijiTabComponent {
       }
       csvRows.push('');
 
-    // 給与支給月（連続3か月）
-    const salaryMonths: number[] = [];
-    const workingDaysList: number[] = [];
-    const remunerationList: number[] = [];
+      // 給与支給月（連続3か月）
+      const salaryMonths: number[] = [];
+      const workingDaysList: number[] = [];
+      const remunerationList: number[] = [];
 
-    // 給与項目データを準備（salaryItemsからitemIdとamountのマップを作成）
-    const salaryItemData: { [key: string]: { [itemId: string]: number } } = {};
-    const monthDataList = [
-      { month: month1, data: salaryDataMonth1 },
-      { month: month2, data: salaryDataMonth2 },
-      { month: month3, data: salaryDataMonth3 },
-    ];
-    for (const entry of monthDataList) {
-      const { month, data } = entry;
-      if (data?.salaryItems) {
-        const key = `${employee.id}_${month}`;
-        salaryItemData[key] = {};
-        for (const item of data.salaryItems) {
-          salaryItemData[key][item.itemId] = item.amount;
+      // 給与項目データを準備（salaryItemsからitemIdとamountのマップを作成）
+      const salaryItemData: { [key: string]: { [itemId: string]: number } } =
+        {};
+      const monthDataList = [
+        { month: month1, data: salaryDataMonth1 },
+        { month: month2, data: salaryDataMonth2 },
+        { month: month3, data: salaryDataMonth3 },
+      ];
+      for (const entry of monthDataList) {
+        const { month, data } = entry;
+        if (data?.salaryItems) {
+          const key = `${employee.id}_${month}`;
+          salaryItemData[key] = {};
+          for (const item of data.salaryItems) {
+            salaryItemData[key][item.itemId] = item.amount;
+          }
         }
       }
-    }
 
-    for (const entry of monthDataList) {
-      const { month, data } = entry;
-      if (!data || month > 12) continue;
-      salaryMonths.push(month);
-      workingDaysList.push(data.workingDays || 0);
-      remunerationList.push(
-        this.calculateRemuneration(
-          data,
-          `${employee.id}_${month}`,
-          salaryItemData,
-          salaryItems
-        )
-      );
-    }
+      for (const entry of monthDataList) {
+        const { month, data } = entry;
+        if (!data || month > 12) continue;
+        salaryMonths.push(month);
+        workingDaysList.push(data.workingDays || 0);
+        remunerationList.push(
+          this.calculateRemuneration(
+            data,
+            `${employee.id}_${month}`,
+            salaryItemData,
+            salaryItems
+          )
+        );
+      }
 
       csvRows.push(
         `給与支給月,${salaryMonths.map((m) => `${m}月`).join('、')}`

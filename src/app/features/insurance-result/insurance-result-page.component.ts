@@ -433,13 +433,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     gradeTable: any[]
   ): Promise<void> {
     try {
-      const roomId = this.roomIdService.getCurrentRoomId();
-      if (!roomId) {
-        console.warn(
-          '[insurance-result] roomId is not set. skip processEmployeeInsuranceData.'
-        );
-        return;
-      }
+      const roomId = this.roomIdService.requireRoomId();
       this.errorMessages[emp.id] = [];
       this.warningMessages[emp.id] = [];
 

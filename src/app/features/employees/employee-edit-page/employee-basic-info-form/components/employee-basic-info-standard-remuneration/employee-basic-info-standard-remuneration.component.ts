@@ -94,14 +94,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     this.isLoading = true;
     try {
       const currentYear = new Date().getFullYear();
-      const roomId = this.roomIdService.getCurrentRoomId();
-      if (!roomId) {
-        console.warn(
-          '[employee-basic-info-standard] roomId is not set. skip loadCalculationResults.'
-        );
-        this.isLoading = false;
-        return;
-      }
+      const roomId = this.roomIdService.requireRoomId();
 
       // 給与項目マスタを取得（欠勤控除を取得するため）
       const salaryItems = await this.settingsService.loadSalaryItems(

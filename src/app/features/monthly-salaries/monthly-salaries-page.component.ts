@@ -445,11 +445,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
    * 画面の状態を再読み込み
    */
   async reloadData(): Promise<void> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[MonthlySalariesPage] roomId is not set. skip reloadData.');
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
     // サービスに全データロードを委譲
     const state = await this.monthlySalaryUIService.loadAllData(
       roomId,

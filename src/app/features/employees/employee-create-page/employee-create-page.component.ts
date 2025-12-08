@@ -312,10 +312,7 @@ export class EmployeeCreatePageComponent implements OnInit {
         tempEmployee as Employee
       );
 
-      if (
-        eligibility.healthInsuranceEligible ||
-        eligibility.pensionEligible
-      ) {
+      if (eligibility.healthInsuranceEligible || eligibility.pensionEligible) {
         if (workCategory === 'short-time-worker') {
           this.eligibilityStatus = '短時間対象（加入対象）';
         } else {
@@ -457,17 +454,12 @@ export class EmployeeCreatePageComponent implements OnInit {
         value.maternityAllowanceApplicationRequest;
 
     // 勤務区分から短時間フラグを自動算出し上書き
-    employee.isShortTime =
-      this.employeeWorkCategoryService.isShortTimeWorker(
-        tempEmployee as Employee
-      );
+    employee.isShortTime = this.employeeWorkCategoryService.isShortTimeWorker(
+      tempEmployee as Employee
+    );
 
     // 従業員を登録
-    let roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[employee-create] roomId missing, try requireRoomId');
-      roomId = this.roomIdService.requireRoomId();
-    }
+    const roomId = employee.roomId || this.roomIdService.requireRoomId();
     if (!employee.roomId) {
       employee.roomId = roomId;
     }

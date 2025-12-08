@@ -581,12 +581,7 @@ export class SettingsPageComponent implements OnInit {
 
   // 事業所マスタ関連メソッド
   async loadOffices(): Promise<void> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[SettingsPage] roomId is not set. skip loadOffices.');
-      this.offices = [];
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
     const officesData = await firstValueFrom(
       this.officeService.getOfficesByRoom(roomId)
     );
@@ -665,11 +660,7 @@ export class SettingsPageComponent implements OnInit {
     if (!confirm('この事業所マスタを削除しますか？')) {
       return;
     }
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[SettingsPage] roomId is not set. skip deleteOffice.');
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
     await this.officeService.deleteOfficeInRoom(roomId, officeId);
     alert('事業所マスタを削除しました');
     await this.loadOffices();

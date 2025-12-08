@@ -181,11 +181,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   async loadAllSalaries(): Promise<void> {
     this.salariesByYear = {};
     const years = [2023, 2024, 2025, 2026]; // 取得対象年度
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[alerts-dashboard] roomId is not set. skip loadAllSalaries.');
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
     for (const year of years) {
       this.salariesByYear[year] = {};
@@ -348,13 +344,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       this.isLoadingTeijiKettei = true;
       const targetYear = this.state.teijiYear;
       this.gradeTable = await this.settingsService.getStandardTable(targetYear);
-      const roomId = this.roomIdService.getCurrentRoomId();
-      if (!roomId) {
-        console.warn(
-          '[alerts-dashboard] roomId is not set. skip loadTeijiKetteiData.'
-        );
-        return;
-      }
+      const roomId = this.roomIdService.requireRoomId();
 
       // 配列をクリア（重複を防ぐ）
       this.state.teijiKetteiResults = [];
@@ -448,12 +438,12 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         const salaries: { [key: string]: any } = {};
         for (let month = 1; month <= 12; month++) {
           const monthKey = this.getSalaryKey(emp.id, month);
-        const monthData = await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          emp.id,
-          targetYear,
-          month
-        );
+          const monthData = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            targetYear,
+            month
+          );
           if (monthData) {
             // 欠勤控除を取得（給与項目マスタから）
             let deductionTotal = 0;
