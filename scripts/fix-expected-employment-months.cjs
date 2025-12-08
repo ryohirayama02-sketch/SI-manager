@@ -24,6 +24,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+// TODO: 実行時に対象ルームを指定すること
+const roomId = "YOUR_ROOM_ID";
 
 function convertValue(value) {
   if (typeof value !== "number") return value;
@@ -33,7 +35,7 @@ function convertValue(value) {
 
 async function fixExpectedEmploymentMonths() {
   console.log("[fix] start");
-  const snapshot = await getDocs(collection(db, "employees"));
+  const snapshot = await getDocs(collection(db, `rooms/${roomId}/employees`));
   console.log(`[fix] fetched ${snapshot.size} employee docs`);
 
   for (const docSnap of snapshot.docs) {
@@ -51,7 +53,7 @@ async function fixExpectedEmploymentMonths() {
         continue; // No change needed (unlikely, but for completeness)
       }
 
-      const ref = doc(db, "employees", docSnap.id);
+      const ref = doc(db, `rooms/${roomId}/employees/${docSnap.id}`);
       await updateDoc(ref, { expectedEmploymentMonths: updated });
       console.log(
         `[fix] ${docSnap.id}: ${JSON.stringify(current)} -> ${JSON.stringify(
@@ -70,4 +72,3 @@ fixExpectedEmploymentMonths().catch((err) => {
   console.error("[fix] fatal", err);
   process.exit(1);
 });
-

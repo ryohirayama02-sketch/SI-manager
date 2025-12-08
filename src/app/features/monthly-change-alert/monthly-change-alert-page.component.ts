@@ -20,7 +20,7 @@ interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './monthly-change-alert-page.component.html',
-  styleUrl: './monthly-change-alert-page.component.css'
+  styleUrl: './monthly-change-alert-page.component.css',
 })
 export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
   alerts: SuijiKouhoResultWithDiff[] = [];
@@ -53,7 +53,7 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
     this.employees = await this.employeeService.getAllEmployees();
     await this.loadSalaries();
     await this.loadAlerts(this.year);
-    
+
     // 給与データの変更を購読
     this.salarySubscription = this.monthlySalaryService
       .observeMonthlySalaries(this.year)
@@ -64,9 +64,11 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
       });
 
     // 加入区分の変更を購読
-    this.eligibilitySubscription = this.employeeEligibilityService.observeEligibility().subscribe(() => {
-      this.reloadEligibility();
-    });
+    this.eligibilitySubscription = this.employeeEligibilityService
+      .observeEligibility()
+      .subscribe(() => {
+        this.reloadEligibility();
+      });
   }
 
   ngOnDestroy(): void {
@@ -81,11 +83,7 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
 
   async loadSalaries(): Promise<void> {
     this.salaries = {};
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[monthly-change-alert] roomId is not set. skip loadSalaries.');
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
     for (const emp of this.employees) {
       for (let month = 1; month <= 12; month++) {
         const monthData = await this.monthlySalaryService.getEmployeeSalary(
@@ -97,7 +95,8 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
         if (monthData) {
           const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
           const variable = monthData.variableSalary ?? monthData.variable ?? 0;
-          const total = monthData.totalSalary ?? monthData.total ?? fixed + variable;
+          const total =
+            monthData.totalSalary ?? monthData.total ?? fixed + variable;
           const key = this.getSalaryKey(emp.id, month);
           this.salaries[key] = { total, fixed, variable };
         }
@@ -112,9 +111,9 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
   async loadAlerts(year: number): Promise<void> {
     const loadedAlerts = await this.suijiService.loadAlerts(year);
     // 各アラートに前月比差額を追加
-    this.alerts = loadedAlerts.map(alert => ({
+    this.alerts = loadedAlerts.map((alert) => ({
       ...alert,
-      diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth)
+      diffPrev: this.getPrevMonthDiff(alert.employeeId, alert.changeMonth),
     }));
   }
 
@@ -136,7 +135,7 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
   }
 
   getEmployeeName(employeeId: string): string {
-    const emp = this.employees.find(e => e.id === employeeId);
+    const emp = this.employees.find((e) => e.id === employeeId);
     return emp?.name || employeeId;
   }
 
@@ -151,10 +150,10 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
   async onYearChange(): Promise<void> {
     // 既存の購読を解除
     this.salarySubscription?.unsubscribe();
-    
+
     await this.loadSalaries();
     await this.loadAlerts(this.year);
-    
+
     // 新しい年度の購読を開始
     this.salarySubscription = this.monthlySalaryService
       .observeMonthlySalaries(this.year)
@@ -170,4 +169,3 @@ export class MonthlyChangeAlertPageComponent implements OnInit, OnDestroy {
     return Math.abs(diff) >= 2;
   }
 }
-

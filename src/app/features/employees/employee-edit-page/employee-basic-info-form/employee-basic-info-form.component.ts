@@ -123,11 +123,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     if (!this.employeeId) return;
-    this.roomId = this.roomIdService.getCurrentRoomId();
-    if (!this.roomId) {
-      console.warn('[employee-basic-info-form] roomId is not set. skip load.');
-      return;
-    }
+    this.roomId = this.roomIdService.requireRoomId();
 
     const data = await this.employeeService.getEmployeeByRoom(
       this.roomId,
@@ -149,8 +145,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         address: (data as any).address || '',
         officeNumber: (data as any).officeNumber || '',
         prefecture: data.prefecture || 'tokyo',
-        isShortTime:
-          data.isShortTime || (data as any).shortTimeWorker || false,
+        isShortTime: data.isShortTime || (data as any).shortTimeWorker || false,
       };
 
       const officeNumber = (data as any).officeNumber || '';
@@ -192,8 +187,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         lastTeijiKetteiMonth: (data as any).lastTeijiKetteiMonth || null,
         lastSuijiKetteiYear: (data as any).lastSuijiKetteiYear || null,
         lastSuijiKetteiMonth: (data as any).lastSuijiKetteiMonth || null,
-        isShortTime:
-          data.isShortTime || (data as any).shortTimeWorker || false,
+        isShortTime: data.isShortTime || (data as any).shortTimeWorker || false,
         leaveOfAbsenceStart: data.leaveOfAbsenceStart || '',
         leaveOfAbsenceEnd: data.leaveOfAbsenceEnd || '',
         returnFromLeaveDate: data.returnFromLeaveDate || '',
@@ -385,7 +379,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     });
 
     if (!this.roomId) {
-      console.warn('[employee-basic-info-form] roomId is not set. skip update.');
+      console.warn(
+        '[employee-basic-info-form] roomId is not set. skip update.'
+      );
       return;
     }
     await this.employeeService.updateEmployeeInRoom(

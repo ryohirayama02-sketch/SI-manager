@@ -21,6 +21,8 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+// TODO: 実行時に対象ルームを指定すること
+const roomId = 'YOUR_ROOM_ID';
 
 const TARGET_FIELDS = [
   'employmentType',
@@ -30,7 +32,7 @@ const TARGET_FIELDS = [
 ];
 
 async function cleanupExtraFields(): Promise<void> {
-  const snapshot = await getDocs(collection(db, 'employees'));
+  const snapshot = await getDocs(collection(db, `rooms/${roomId}/employees`));
   console.log(`[cleanup] fetched ${snapshot.size} employee docs`);
 
   for (const docSnap of snapshot.docs) {
@@ -44,7 +46,7 @@ async function cleanupExtraFields(): Promise<void> {
     }
 
     if (Object.keys(fieldsToDelete).length > 0) {
-      const ref = doc(db, 'employees', docSnap.id);
+      const ref = doc(db, `rooms/${roomId}/employees/${docSnap.id}`);
       await updateDoc(ref, fieldsToDelete);
       console.log(
         `[cleanup] ${docSnap.id}: deleted fields -> ${Object.keys(
@@ -63,4 +65,3 @@ cleanupExtraFields()
     console.error('cleanup failed', err);
     process.exit(1);
   });
-

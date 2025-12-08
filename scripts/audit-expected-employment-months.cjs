@@ -18,10 +18,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+// TODO: 実行時に対象ルームを指定すること
+const roomId = "YOUR_ROOM_ID";
 
 async function auditExpectedEmploymentMonths() {
   console.log("[audit] start");
-  const snapshot = await getDocs(collection(db, "employees"));
+  const snapshot = await getDocs(collection(db, `rooms/${roomId}/employees`));
   console.log(`[audit] fetched ${snapshot.size} employee docs`);
 
   const counts = {};
@@ -50,4 +52,3 @@ auditExpectedEmploymentMonths().catch((err) => {
   console.error("[audit] failed", err);
   process.exit(1);
 });
-

@@ -11,11 +11,13 @@ initializeApp({
 });
 
 const db = getFirestore();
+// TODO: 実行時に対象ルームを指定すること
+const roomId = "YOUR_ROOM_ID";
 
 async function cleanupWeeklyHours() {
   console.log("[cleanup-weeklyHours] start");
 
-  const snapshot = await db.collection("employees").get();
+  const snapshot = await db.collection(`rooms/${roomId}/employees`).get();
   console.log(`[cleanup-weeklyHours] fetched ${snapshot.size} employee docs`);
 
   let deletedCount = 0;
@@ -27,7 +29,7 @@ async function cleanupWeeklyHours() {
     }
 
     const oldValue = data.weeklyHours;
-    await db.collection("employees").doc(docSnap.id).update({
+    await db.collection(`rooms/${roomId}/employees`).doc(docSnap.id).update({
       weeklyHours: FieldValue.delete(),
     });
     deletedCount++;
@@ -47,4 +49,3 @@ cleanupWeeklyHours().catch((err) => {
   console.error("[cleanup-weeklyHours] failed", err);
   process.exit(1);
 });
-

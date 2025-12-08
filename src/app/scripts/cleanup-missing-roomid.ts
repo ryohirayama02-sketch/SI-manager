@@ -15,7 +15,8 @@ import {
  * 必要なときだけ一時的に呼び出してください（AppComponent などから）。
  */
 export async function cleanupMissingRoomId(
-  firestore: Firestore
+  firestore: Firestore,
+  roomId: string
 ): Promise<void> {
   // helper: delete all docs in a query result
   const deleteByQuery = async (label: string, q: any) => {
@@ -33,19 +34,14 @@ export async function cleanupMissingRoomId(
     }
   };
 
-  // 1) employeeChangeHistory (collectionGroup)
-  const historyNoRoom = query(
+  // 1) employeeChangeHistory (collectionGroup) - room 限定で削除
+  const historyByRoom = query(
     collectionGroup(firestore, 'employeeChangeHistory'),
-    where('roomId', '==', null)
+    where('roomId', '==', roomId)
   );
-  const historyEmptyRoom = query(
-    collectionGroup(firestore, 'employeeChangeHistory'),
-    where('roomId', '==', '')
-  );
-  await deleteByQuery('employeeChangeHistory (roomId == null)', historyNoRoom);
   await deleteByQuery(
-    'employeeChangeHistory (roomId == empty)',
-    historyEmptyRoom
+    `employeeChangeHistory (roomId == ${roomId})`,
+    historyByRoom
   );
 
   // helper: migrate or delete a single doc from old path to new room path
@@ -65,19 +61,14 @@ export async function cleanupMissingRoomId(
     );
     let migrated = 0;
     let skippedMissingRoom = 0;
-    let deletedMissingRoom = 0;
     for (const docSnap of snap.docs) {
       const data = docSnap.data();
       const roomId = (data as any)?.roomId;
       if (!roomId) {
         console.log(
-          `[cleanupMissingRoomId] ${label}: missing roomId -> skip/delete candidate ${docSnap.id}`
+          `[cleanupMissingRoomId] ${label}: missing roomId -> skip (no migration) ${docSnap.id}`
         );
-        console.log(
-          `[cleanupMissingRoomId] ${label}: deleting ${docSnap.ref.path}`
-        );
-        await deleteDoc(docSnap.ref);
-        deletedMissingRoom++;
+        skippedMissingRoom++;
         continue;
       }
       const newPath = newPathBuilder(roomId, docSnap.id);
@@ -90,7 +81,7 @@ export async function cleanupMissingRoomId(
       migrated++;
     }
     console.log(
-      `[cleanupMissingRoomId] ${label}: migrated=${migrated}, deletedMissingRoomId=${deletedMissingRoom}`
+      `[cleanupMissingRoomId] ${label}: migrated=${migrated}, skippedMissingRoomId=${skippedMissingRoom}`
     );
   };
 

@@ -137,10 +137,7 @@ export class UncollectedPremiumService {
     year?: number,
     resolved?: boolean
   ): Promise<UncollectedPremium[]> {
-    const roomId = this.roomIdService.requireRoomId();
-    if (!roomId) {
-      return [];
-    }
+    const roomId = this.roomIdService.requireRoomId(); // roomId は必ず取得される
 
     const snapshot = await getDocs(
       collection(this.firestore, `rooms/${roomId}/uncollected-premiums`)

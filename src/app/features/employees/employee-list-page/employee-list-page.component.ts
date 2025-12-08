@@ -548,13 +548,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
     // 給与 < 本人負担保険料の月があるかチェック（先月のデータをチェック）
     try {
-      const roomId = this.roomIdService.getCurrentRoomId();
-      if (!roomId) {
-        console.warn(
-          '[employee-list] roomId is not set. skip hasCollectionImpossibleAlert.'
-        );
-        return false;
-      }
+      const roomId = this.roomIdService.requireRoomId();
       const monthData = await this.monthlySalaryService.getEmployeeSalary(
         roomId,
         employee.id,

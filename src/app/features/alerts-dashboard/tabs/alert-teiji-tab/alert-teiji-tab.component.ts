@@ -139,11 +139,7 @@ export class AlertTeijiTabComponent {
         }
 
         // 給与データを取得
-        const roomId = this.roomIdService.getCurrentRoomId();
-        if (!roomId) {
-          console.warn('[alert-teiji-tab] roomId is not set. skip CSV row.');
-          continue;
-        }
+        const roomId = this.roomIdService.requireRoomId();
         const aprilData = await this.monthlySalaryService.getEmployeeSalary(
           roomId,
           employee.id,
