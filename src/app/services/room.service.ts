@@ -1,5 +1,13 @@
 import { Injectable } from '@angular/core';
-import { Firestore, doc, getDoc, setDoc } from '@angular/fire/firestore';
+import {
+  Firestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  getDocs,
+  serverTimestamp,
+} from '@angular/fire/firestore';
 
 export interface RoomData {
   password: string;
@@ -75,6 +83,31 @@ export class RoomService {
       console.error('[RoomService] getRoom: エラー', error);
       throw error;
     }
+  }
+
+  /**
+   * ユーザーが所属するルーム一覧を取得
+   */
+  async getUserRooms(uid: string): Promise<{ roomId: string; joinedAt?: Date }[]> {
+    const colRef = collection(this.firestore, `users/${uid}/rooms`);
+    const snap = await getDocs(colRef);
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        roomId: d.id,
+        joinedAt: data['joinedAt']?.toDate?.() || data['joinedAt'],
+      };
+    });
+  }
+
+  /**
+   * ユーザーのルーム所属を作成（既存なら何もしない）
+   */
+  async ensureUserRoomMembership(uid: string, roomId: string): Promise<void> {
+    const ref = doc(this.firestore, `users/${uid}/rooms/${roomId}`);
+    const snap = await getDoc(ref);
+    if (snap.exists()) return;
+    await setDoc(ref, { joinedAt: serverTimestamp() });
   }
 }
 

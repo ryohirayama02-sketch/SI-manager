@@ -68,6 +68,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     // 初期状態を設定
     const currentUser = this.authService.getCurrentUser();
     this.updateAuthenticationStatus(currentUser);
+
   }
 
   /**

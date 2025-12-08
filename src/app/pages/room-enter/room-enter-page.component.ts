@@ -4,6 +4,8 @@ import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractContro
 import { Router } from '@angular/router';
 import { RoomService } from '../../services/room.service';
 import { AuthService } from '../../services/auth.service';
+import { Timestamp } from '@angular/fire/firestore';
+import { RoomIdService } from '../../services/room-id.service';
 
 @Component({
   selector: 'app-room-enter-page',
@@ -19,6 +21,7 @@ export class RoomEnterPageComponent implements OnInit {
   private _isLoading = false;
   errorMessage = '';
   successMessage = '';
+  userRooms: { roomId: string; joinedAt?: Date }[] = [];
 
   get isLoading(): boolean {
     return this._isLoading;
@@ -33,7 +36,8 @@ export class RoomEnterPageComponent implements OnInit {
     private roomService: RoomService,
     private authService: AuthService,
     private router: Router,
-    private fb: FormBuilder
+    private fb: FormBuilder,
+    private roomIdService: RoomIdService
   ) {
     // 入室フォーム
     this.roomForm = this.fb.group({
@@ -96,6 +100,9 @@ export class RoomEnterPageComponent implements OnInit {
       return;
     }
 
+    // 所属ルーム一覧を読み込み
+    this.loadUserRooms(currentUser.uid);
+
     // 既にルーム入室済みの場合は従業員一覧へ
     const roomId = sessionStorage.getItem('roomId');
     console.log(
@@ -136,8 +143,14 @@ export class RoomEnterPageComponent implements OnInit {
       );
 
       if (isValid) {
+        const currentUser = this.authService.getCurrentUser();
+        if (!currentUser) {
+          this.errorMessage = 'ログインが必要です';
+          return;
+        }
+        await this.roomService.ensureUserRoomMembership(currentUser.uid, roomId);
         // ルームIDをセッションストレージに保存
-        sessionStorage.setItem('roomId', roomId);
+        this.roomIdService.setRoomId(roomId);
         console.log(
           '[RoomEnterPage] onSubmit: roomIdをセッションストレージに保存',
           roomId
@@ -181,11 +194,10 @@ export class RoomEnterPageComponent implements OnInit {
 
       console.log('[RoomEnterPage] onCreateRoom: ルーム作成成功');
       
-      // 作成成功後、自動的に入室
-      sessionStorage.setItem('roomId', roomId);
+      // 所属登録＋自動入室
+      await this.roomService.ensureUserRoomMembership(currentUser.uid, roomId);
+      this.roomIdService.setRoomId(roomId);
       this.successMessage = 'ルームを作成しました。入室しています...';
-      
-      // 少し待ってからアラート画面へ遷移
       setTimeout(() => {
         this.router.navigate(['/alerts']);
       }, 1000);
@@ -196,5 +208,20 @@ export class RoomEnterPageComponent implements OnInit {
       this.isLoading = false;
       console.log('[RoomEnterPage] onCreateRoom: 処理完了');
     }
+  }
+
+  private async loadUserRooms(uid: string): Promise<void> {
+    try {
+      this.userRooms = await this.roomService.getUserRooms(uid);
+    } catch (error) {
+      console.error('[RoomEnterPage] loadUserRooms: 取得に失敗', error);
+    }
+  }
+
+  onSelectRoom(roomId: string): void {
+    this.roomIdService.setRoomId(roomId);
+    this.router.navigate(['/alerts']);
+    // キャッシュや購読の食い残しを防ぐため暫定リロード
+    window.location.reload();
   }
 }

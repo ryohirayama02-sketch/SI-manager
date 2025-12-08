@@ -32,7 +32,18 @@ export class RoomIdService {
   hasRoomId(): boolean {
     return !!this.getCurrentRoomId();
   }
+
+  /**
+   * roomId を設定
+   */
+  setRoomId(roomId: string): void {
+    sessionStorage.setItem('roomId', roomId);
+  }
+
+  /**
+   * roomId をクリア
+   */
+  clearRoomId(): void {
+    sessionStorage.removeItem('roomId');
+  }
 }
-
-
-
