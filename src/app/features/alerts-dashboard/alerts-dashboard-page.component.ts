@@ -349,22 +349,27 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       // 配列をクリア（重複を防ぐ）
       this.state.teijiKetteiResults = [];
 
-      // 処理済みの従業員IDを追跡（重複を防ぐ）
-      const processedEmployeeIds = new Set<string>();
+      // 重複表示を防ぐため、従業員IDをキーに結果を保持
+      const teijiResultsMap = new Map<string, TeijiKetteiResultData>();
 
       console.log(
         `[alerts-dashboard] loadTeijiKetteiData開始: 年度=${targetYear}, 従業員数=${this.employees.length}`
       );
 
       for (const emp of this.employees) {
-        // 既に処理済みの従業員はスキップ
-        if (processedEmployeeIds.has(emp.id)) {
+        // 従業員IDが無い場合はスキップ（重複/不正データ防止）
+        if (!emp.id) {
+          console.warn('[alerts-dashboard] 従業員ID未設定のためスキップ', emp);
+          continue;
+        }
+
+        // 既に同じ従業員IDが追加済みなら上書きせずスキップ
+        if (teijiResultsMap.has(emp.id)) {
           console.warn(
-            `[alerts-dashboard] 重複した従業員をスキップ: ${emp.name} (${emp.id})`
+            `[alerts-dashboard] 重複した従業員IDを検出: ${emp.name} (${emp.id})`
           );
           continue;
         }
-        processedEmployeeIds.add(emp.id);
         // 4-6月の給与所得と支払基礎日数を取得
         const aprilData = await this.monthlySalaryService.getEmployeeSalary(
           roomId,
@@ -519,7 +524,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           }
         }
 
-        this.state.teijiKetteiResults.push({
+        teijiResultsMap.set(emp.id, {
           employeeId: emp.id,
           employeeName: emp.name,
           aprilSalary,
@@ -534,6 +539,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           teijiResult,
         });
       }
+
+      // 従業員ID単位で重複を排除した結果を反映
+      this.state.teijiKetteiResults = Array.from(teijiResultsMap.values());
 
       console.log(
         `[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.state.teijiKetteiResults.length}`
