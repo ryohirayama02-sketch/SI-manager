@@ -9,6 +9,7 @@ import {
   getDocs,
   onSnapshot,
   Timestamp,
+  deleteDoc,
 } from '@angular/fire/firestore';
 import { UncollectedPremium } from '../models/uncollected-premium.model';
 import { Observable } from 'rxjs';
@@ -253,5 +254,21 @@ export class UncollectedPremiumService {
   async markAsResolved(ids: string[]): Promise<void> {
     const promises = ids.map((id) => this.updateResolvedStatus(id, true));
     await Promise.all(promises);
+  }
+
+  /**
+   * 従業員に紐づく徴収不能アラートを全削除
+   */
+  async deleteByEmployee(roomId: string, employeeId: string): Promise<void> {
+    const snapshot = await getDocs(
+      query(
+        collection(this.firestore, `rooms/${roomId}/uncollected-premiums`),
+        where('employeeId', '==', employeeId)
+      )
+    );
+
+    for (const docSnap of snapshot.docs) {
+      await deleteDoc(docSnap.ref);
+    }
   }
 }

@@ -17,13 +17,15 @@ import { Employee } from '../models/employee.model';
 import { Observable } from 'rxjs';
 import { RoomIdService } from './room-id.service';
 import { EditLogService } from './edit-log.service';
+import { UncollectedPremiumService } from './uncollected-premium.service';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeService {
   constructor(
     private firestore: Firestore,
     private roomIdService: RoomIdService,
-    private editLogService: EditLogService
+    private editLogService: EditLogService,
+    private uncollectedPremiumService: UncollectedPremiumService
   ) {}
 
   async addEmployee(employee: any): Promise<string> {
@@ -253,6 +255,9 @@ export class EmployeeService {
       existingData['name'] || '不明',
       `従業員「${existingData['name'] || '不明'}」を削除しました`
     );
+
+    // 従業員削除時に紐づく徴収不能アラートも先に削除
+    await this.uncollectedPremiumService.deleteByEmployee(roomId, id);
 
     await deleteDoc(ref);
   }
