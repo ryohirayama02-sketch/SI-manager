@@ -91,7 +91,7 @@ export class MonthlySalarySaveService {
         const itemKey = this.state.getSalaryItemKey(emp.id, month);
         const itemEntries: SalaryItemEntry[] = [];
         const monthStr = month.toString();
-          const existingMonthData = existingMonthDataMap[monthStr];
+        const existingMonthData = existingMonthDataMap[monthStr];
 
         // 既存データの項目IDセットを作成（0に変更された項目を検出するため）
         const existingItemIds = new Set<string>();
@@ -180,7 +180,7 @@ export class MonthlySalarySaveService {
         for (const monthStr of Object.keys(payload)) {
           const month = parseInt(monthStr, 10);
           const newMonthData = payload[monthStr];
-        const existingMonthData = existingMonthDataMap[monthStr];
+          const existingMonthData = existingMonthDataMap[monthStr];
 
           // 変更内容を取得
           const details = this.getSalaryChangeDetails(
@@ -580,7 +580,9 @@ export class MonthlySalarySaveService {
             month
           );
 
-        const salaryDataMap: any = { [monthKeyString]: monthSalaryData || null };
+        const salaryDataMap: any = {
+          [monthKeyString]: monthSalaryData || null,
+        };
         await this.monthlyPremiumCalculationService.calculateEmployeeMonthlyPremiums(
           updatedEmployee, // 最新の従業員データを使用
           year,
@@ -678,7 +680,9 @@ export class MonthlySalarySaveService {
 
     // 給与項目の比較
     if (newData.salaryItems && Array.isArray(newData.salaryItems)) {
-      const existingItems = existingData.salaryItems || [];
+      const existingItems = Array.isArray(existingData.salaryItems)
+        ? existingData.salaryItems
+        : [];
 
       // 各項目の金額を比較
       const newItemsMap = new Map<string, number>();

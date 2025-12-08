@@ -23,6 +23,10 @@ export class OfficeService {
     private editLogService: EditLogService
   ) {}
 
+  private sanitize(value: any) {
+    return value === undefined ? null : value;
+  }
+
   /**
    * 事業所マスタを保存
    */
@@ -52,39 +56,17 @@ export class OfficeService {
       isNew = true;
     }
 
-    const dataToSave: any = {
-      roomId, // roomIdを自動付与
+    // id を必ずセットし、undefined を null にサニタイズして保存
+    const payload = {
+      ...office,
+      id: docId,
+      roomId,
       updatedAt: new Date(),
-      createdAt: office.createdAt || new Date(),
+      createdAt: office.createdAt ?? new Date(),
     };
-
-    if (office.officeCode !== null && office.officeCode !== undefined) {
-      dataToSave.officeCode = office.officeCode;
-    }
-    if (office.officeNumber !== null && office.officeNumber !== undefined) {
-      dataToSave.officeNumber = office.officeNumber;
-    }
-    if (
-      office.corporateNumber !== null &&
-      office.corporateNumber !== undefined
-    ) {
-      dataToSave.corporateNumber = office.corporateNumber;
-    }
-    if (office.prefecture !== null && office.prefecture !== undefined) {
-      dataToSave.prefecture = office.prefecture;
-    }
-    if (office.address !== null && office.address !== undefined) {
-      dataToSave.address = office.address;
-    }
-    if (office.officeName !== null && office.officeName !== undefined) {
-      dataToSave.officeName = office.officeName;
-    }
-    if (office.phoneNumber !== null && office.phoneNumber !== undefined) {
-      dataToSave.phoneNumber = office.phoneNumber;
-    }
-    if (office.ownerName !== null && office.ownerName !== undefined) {
-      dataToSave.ownerName = office.ownerName;
-    }
+    const dataToSave = Object.fromEntries(
+      Object.entries(payload).map(([k, v]) => [k, this.sanitize(v)])
+    );
 
     const ref = doc(this.firestore, `rooms/${roomId}/offices/${docId}`);
     await setDoc(ref, dataToSave, { merge: true });
@@ -253,10 +235,23 @@ export class OfficeService {
    * 指定ルームに事業所を作成（自動ID）
    */
   async createOfficeInRoom(roomId: string, office: Office): Promise<string> {
-    const colRef = collection(this.firestore, `rooms/${roomId}/offices`);
-    const payload = { ...office, roomId };
-    const docRef = await addDoc(colRef, payload);
-    return docRef.id;
+    const newRef = doc(collection(this.firestore, `rooms/${roomId}/offices`));
+    const docId = newRef.id;
+
+    const payload = {
+      ...office,
+      id: docId,
+      roomId,
+      createdAt: office.createdAt ?? new Date(),
+      updatedAt: new Date(),
+    };
+
+    const dataToSave = Object.fromEntries(
+      Object.entries(payload).map(([k, v]) => [k, this.sanitize(v)])
+    );
+
+    await setDoc(newRef, dataToSave, { merge: true });
+    return docId;
   }
 
   /**

@@ -519,17 +519,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           }
         }
 
-        // 既に同じ従業員IDが結果に含まれていないか確認（二重チェック）
-        const existingIndex = this.state.teijiKetteiResults.findIndex(
-          (r) => r.employeeId === emp.id
-        );
-        if (existingIndex >= 0) {
-          console.warn(
-            `[alerts-dashboard] 既に結果に存在する従業員をスキップ: ${emp.name} (${emp.id})`
-          );
-          continue;
-        }
-
         this.state.teijiKetteiResults.push({
           employeeId: emp.id,
           employeeName: emp.name,

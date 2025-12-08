@@ -66,18 +66,12 @@ export class MonthlySalaryService {
    * 給与データを正規化（項目別形式を優先、既存形式はフォールバック）
    */
   private normalizeSalaryData(payload: any): any {
-    const normalized: any = { ...payload };
-
-    // 月ごとのデータを正規化
-    for (const key in normalized) {
-      const monthData = normalized[key];
+    const normalizeMonth = (monthData: any) => {
       if (monthData && typeof monthData === 'object') {
         // 新しい項目別形式を優先
         if (monthData.salaryItems && Array.isArray(monthData.salaryItems)) {
-          // 項目別形式：fixedTotal/variableTotal/totalは既に計算済み
-          normalized[key] = {
+          return {
             ...monthData,
-            // 後方互換性のため既存属性も設定
             fixed: monthData.fixedTotal ?? 0,
             variable: monthData.variableTotal ?? 0,
             total: monthData.total ?? 0,
@@ -85,42 +79,53 @@ export class MonthlySalaryService {
             variableSalary: monthData.variableTotal ?? 0,
             totalSalary: monthData.total ?? 0,
           };
-        } else {
-          // 既存形式：fixed/variable/totalから計算
-          const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
-          const variable = monthData.variableSalary ?? monthData.variable ?? 0;
-          const total =
-            monthData.totalSalary ?? monthData.total ?? fixed + variable;
-
-          // 自動算出：totalSalary = fixedSalary + variableSalary
-          const calculatedTotal = fixed + variable;
-
-          // バリデーション：fixed + variable が total と一致しない場合 → 自動補正
-          if (Math.abs(total - calculatedTotal) > 0.01) {
-            normalized[key] = {
-              ...monthData,
-              fixedSalary: fixed,
-              variableSalary: variable,
-              totalSalary: calculatedTotal,
-              fixed: fixed,
-              variable: variable,
-              total: calculatedTotal,
-            };
-          } else {
-            normalized[key] = {
-              ...monthData,
-              fixedSalary: fixed,
-              variableSalary: variable,
-              totalSalary: total,
-              fixed: fixed,
-              variable: variable,
-              total: total,
-            };
-          }
         }
+
+        // 既存形式：fixed/variable/totalから計算
+        const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+        const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+        const total =
+          monthData.totalSalary ?? monthData.total ?? fixed + variable;
+
+        const calculatedTotal = fixed + variable;
+        const alignedTotal =
+          Math.abs(total - calculatedTotal) > 0.01 ? calculatedTotal : total;
+
+        return {
+          ...monthData,
+          fixedSalary: fixed,
+          variableSalary: variable,
+          totalSalary: alignedTotal,
+          fixed,
+          variable,
+          total: alignedTotal,
+        };
       }
+      return monthData;
+    };
+
+    const isSingleMonth =
+      payload &&
+      typeof payload === 'object' &&
+      (Array.isArray(payload.salaryItems) ||
+        [
+          'fixed',
+          'variable',
+          'total',
+          'fixedSalary',
+          'variableSalary',
+          'totalSalary',
+          'workingDays',
+        ].some((k) => payload[k] !== undefined));
+
+    if (isSingleMonth) {
+      return normalizeMonth(payload);
     }
 
+    const normalized: any = {};
+    for (const key in payload) {
+      normalized[key] = normalizeMonth(payload[key]);
+    }
     return normalized;
   }
 

@@ -21,6 +21,10 @@ export class EditLogService {
     private roomIdService: RoomIdService
   ) {}
 
+  private sanitize(value: any) {
+    return value === undefined ? null : value;
+  }
+
   /**
    * 編集ログを記録
    */
@@ -53,8 +57,8 @@ export class EditLogService {
       description,
       timestamp: new Date(),
       roomId,
-      oldValue,
-      newValue,
+      oldValue: this.sanitize(oldValue),
+      newValue: this.sanitize(newValue),
     };
 
     try {
