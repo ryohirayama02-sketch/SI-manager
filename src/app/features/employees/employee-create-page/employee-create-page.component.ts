@@ -305,9 +305,7 @@ export class EmployeeCreatePageComponent implements OnInit {
         tempEmployee as Employee
       );
 
-      if (eligibility.candidateFlag) {
-        this.eligibilityStatus = '勤務区分により加入候補となる可能性あり';
-      } else if (
+      if (
         eligibility.healthInsuranceEligible ||
         eligibility.pensionEligible
       ) {
@@ -375,11 +373,17 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     const value = this.form.value;
 
+    const tempEmployee: Partial<Employee> = {
+      weeklyWorkHoursCategory: value.weeklyWorkHoursCategory,
+      monthlyWage: value.monthlyWage,
+      expectedEmploymentMonths: value.expectedEmploymentMonths,
+      isStudent: value.isStudent,
+    };
+
     const employee: any = {
       name: value.name,
       birthDate: value.birthDate,
       joinDate: value.joinDate,
-      isShortTime: value.isShortTime ?? false,
       prefecture: value.prefecture || 'tokyo',
       isStudent: value.isStudent ?? false,
       childcareNotificationSubmitted:
@@ -444,6 +448,12 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.maternityAllowanceApplicationRequest !== undefined)
       employee.maternityAllowanceApplicationRequest =
         value.maternityAllowanceApplicationRequest;
+
+    // 勤務区分から短時間フラグを自動算出し上書き
+    employee.isShortTime =
+      this.employeeWorkCategoryService.isShortTimeWorker(
+        tempEmployee as Employee
+      );
 
     // 従業員を登録
     const newEmployeeId = await this.employeeService.addEmployee(employee);

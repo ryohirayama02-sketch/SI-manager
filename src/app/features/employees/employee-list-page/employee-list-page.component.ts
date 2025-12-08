@@ -54,7 +54,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
   // フィルター用
   filterName: string = '';
-  filterEligibilityStatus: string = ''; // 'all' | 'eligible' | 'short-time' | 'non-eligible' | 'candidate'
+  filterEligibilityStatus: string = ''; // 'all' | 'eligible' | 'short-time' | 'non-eligible'
 
   // Firestore購読用
   employeesSubscription: Subscription | null = null;
@@ -81,7 +81,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     eligible: '社会保険の加入対象です',
     shortTime: '短時間労働者（一定要件を満たせば加入）',
     nonEligible: '社会保険の加入対象外です',
-    candidate: '加入要件を満たす可能性があります',
   };
 
   constructor(
@@ -230,11 +229,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       // 備考欄の生成
       const notes: string[] = [];
 
-      // 加入候補者アラート
-      if (eligibility.candidateFlag) {
-        notes.push('⚠️ 加入候補者（3ヶ月連続で実働20時間以上）');
-      }
-
       // 年齢到達による停止・変更（Service統一ロジックを使用）
       const age = this.salaryCalculationService.calculateAge(emp.birthDate);
       const currentDate = new Date();
@@ -322,9 +316,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   getEligibilityStatusLabel(info: EmployeeDisplayInfo): string {
-    if (info.eligibility.candidateFlag) {
-      return '加入候補';
-    }
     if (
       info.eligibility.healthInsuranceEligible ||
       info.eligibility.pensionEligible
@@ -341,9 +332,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   getEligibilityCategory(info: EmployeeDisplayInfo): string {
-    if (info.eligibility.candidateFlag) {
-      return 'candidate';
-    }
     if (
       info.eligibility.healthInsuranceEligible ||
       info.eligibility.pensionEligible
@@ -357,10 +345,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       return 'eligible';
     }
     return 'nonEligible';
-  }
-
-  isCandidate(info: EmployeeDisplayInfo): boolean {
-    return info.eligibility.candidateFlag === true;
   }
 
   getStandardMonthlyRemunerationDisplay(info: EmployeeDisplayInfo): string {
@@ -677,12 +661,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         if (
           this.filterEligibilityStatus === 'non-eligible' &&
           status !== '非対象'
-        ) {
-          return false;
-        }
-        if (
-          this.filterEligibilityStatus === 'candidate' &&
-          status !== '加入候補'
         ) {
           return false;
         }

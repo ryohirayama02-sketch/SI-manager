@@ -9,13 +9,8 @@ import { NotificationFormatService } from '../../services/notification-format.se
 import { PaymentSummaryCsvService } from '../../services/payment-summary-csv.service';
 import { PaymentSummaryAggregationUiService } from '../../services/payment-summary-aggregation-ui.service';
 import { AnnualWarningPanelComponent } from './components/annual-warning-panel/annual-warning-panel.component';
-import { AnnualBonusSummaryComponent } from './components/annual-bonus-summary/annual-bonus-summary.component';
 import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-total-table/company-monthly-total-table.component';
-import { MonthlyPremiumTableComponent } from './components/monthly-premium-table/monthly-premium-table.component';
-import { EmployeeNotificationPanelComponent } from './components/employee-notification-panel/employee-notification-panel.component';
 import { PaymentSummaryHeaderComponent } from './components/payment-summary-header/payment-summary-header.component';
-import { PaymentSummaryYearSelectorComponent } from './components/payment-summary-year-selector/payment-summary-year-selector.component';
-import { PaymentSummaryEmployeeSelectorComponent } from './components/payment-summary-employee-selector/payment-summary-employee-selector.component';
 import { ErrorPanelComponent } from './components/error-panel/error-panel.component';
 import { LoadingIndicatorComponent } from './components/loading-indicator/loading-indicator.component';
 import { ScrollToTopComponent } from './components/scroll-to-top/scroll-to-top.component';
@@ -34,12 +29,8 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
     CommonModule,
     FormsModule,
     AnnualWarningPanelComponent,
-    AnnualBonusSummaryComponent,
     CompanyMonthlyTotalTableComponent,
-    MonthlyPremiumTableComponent,
-    EmployeeNotificationPanelComponent,
     PaymentSummaryHeaderComponent,
-    PaymentSummaryYearSelectorComponent,
     ErrorPanelComponent,
     LoadingIndicatorComponent,
     ScrollToTopComponent,

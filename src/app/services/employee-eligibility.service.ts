@@ -22,7 +22,6 @@ export interface EmployeeEligibilityResult {
   healthInsuranceEligible: boolean;
   pensionEligible: boolean;
   careInsuranceEligible: boolean;
-  candidateFlag: boolean; // 加入候補者（3ヶ月連続で実働20時間以上など）
   reasons: string[]; // 判定根拠
   ageCategory: AgeCategory; // 年齢区分
   ageFlags: AgeFlags; // 年齢フラグ
@@ -84,7 +83,6 @@ export class EmployeeEligibilityService {
     let healthInsuranceEligible = false;
     let pensionEligible = false;
     let careInsuranceEligible = false;
-    let candidateFlag = false;
 
     // STEP1: 退職済み判定
     if (employee.retireDate) {
@@ -98,7 +96,6 @@ export class EmployeeEligibilityService {
           healthInsuranceEligible: false,
           pensionEligible: false,
           careInsuranceEligible: false,
-          candidateFlag: false,
           reasons,
           ageCategory,
           ageFlags,
@@ -145,7 +142,6 @@ export class EmployeeEligibilityService {
       healthInsuranceEligible,
       pensionEligible,
       careInsuranceEligible,
-      candidateFlag,
       reasons,
       ageCategory,
       ageFlags,
