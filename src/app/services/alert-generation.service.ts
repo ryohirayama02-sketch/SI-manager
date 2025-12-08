@@ -103,7 +103,9 @@ export class AlertGenerationService {
     const salaryDataByEmployeeId: { [employeeId: string]: any } = {};
     const roomId = this.roomIdService.getCurrentRoomId();
     if (!roomId) {
-      console.warn('[alert-generation] roomId is not set. skip salary loading.');
+      console.warn(
+        '[alert-generation] roomId is not set. skip salary loading.'
+      );
       return {
         gradeTable,
         salaryDataByEmployeeId,
@@ -128,13 +130,16 @@ export class AlertGenerationService {
       salaryDataByEmployeeId[emp.id] = monthMap;
     }
 
-    const bonuses = await this.bonusService.loadBonus(currentYear);
     const bonusesByEmployeeId: { [employeeId: string]: Bonus[] } = {};
-    for (const bonus of bonuses) {
-      if (!bonusesByEmployeeId[bonus.employeeId]) {
-        bonusesByEmployeeId[bonus.employeeId] = [];
+    for (const emp of employees) {
+      const empBonuses = await this.bonusService.listBonuses(
+        roomId,
+        emp.id,
+        currentYear
+      );
+      if (empBonuses.length > 0) {
+        bonusesByEmployeeId[emp.id] = empBonuses;
       }
-      bonusesByEmployeeId[bonus.employeeId].push(bonus);
     }
 
     const notificationsByEmployee =
@@ -470,9 +475,14 @@ export class AlertGenerationService {
 
     const currentYear = getJSTDate().getFullYear();
     const today = normalizeDate(getJSTDate());
+    const roomId = this.roomIdService.requireRoomId();
 
     for (const emp of employees) {
-      const bonuses = await this.bonusService.loadBonus(currentYear, emp.id);
+      const bonuses = await this.bonusService.listBonuses(
+        roomId,
+        emp.id,
+        currentYear
+      );
 
       for (const bonus of bonuses) {
         if (!bonus.amount || bonus.amount === 0) {

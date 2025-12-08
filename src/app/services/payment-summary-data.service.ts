@@ -76,9 +76,11 @@ export class PaymentSummaryDataService {
    * 賞与データを読み込む
    */
   private async loadBonuses(): Promise<Bonus[]> {
+    const roomId = this.roomIdService.requireRoomId();
     const bonuses: Bonus[] = [];
     for (const emp of this.state.employees) {
-      const employeeBonuses = await this.bonusService.getBonusesForResult(
+      const employeeBonuses = await this.bonusService.listBonuses(
+        roomId,
         emp.id,
         this.state.year
       );

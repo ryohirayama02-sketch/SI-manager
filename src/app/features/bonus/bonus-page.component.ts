@@ -39,6 +39,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   availableYears: number[] = [];
   rates: any = null;
   prefecture: string = 'tokyo';
+  roomId: string | null = null;
 
   // CSVインポート関連
   csvImportText: string = '';
@@ -70,6 +71,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
+    this.roomId = this.roomIdService.getCurrentRoomId();
+    if (!this.roomId) {
+      console.warn('[bonus-page] roomIdが取得できないため処理を中断します');
+      return;
+    }
     this.employees = await this.employeeService.getAllEmployees();
     this.rates = await this.settingsService.getRates(
       this.year.toString(),
@@ -118,6 +124,10 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与入力列を削除
    */
   async removeBonusColumn(columnId: string): Promise<void> {
+    if (!this.roomId) {
+      console.warn('[bonus-page] roomIdが未設定のため削除を中断します');
+      return;
+    }
     const column = this.bonusColumns.find((col) => col.id === columnId);
     if (!column) return;
 
@@ -137,14 +147,23 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
       // 各従業員の該当する賞与データを削除
       for (const emp of this.employees) {
-        const bonuses = await this.bonusService.getBonusesByYear(emp.id, year);
+        const bonuses = await this.bonusService.listBonuses(
+          this.roomId,
+          emp.id,
+          year
+        );
         const bonusToDelete = bonuses.find((b) => {
           const bPayDate = new Date(b.payDate);
           return bPayDate.getTime() === payDate.getTime();
         });
 
         if (bonusToDelete && bonusToDelete.id) {
-          await this.bonusService.deleteBonus(year, emp.id, bonusToDelete.id);
+          await this.bonusService.deleteBonus(
+            this.roomId,
+            emp.id,
+            year,
+            bonusToDelete.id
+          );
         }
       }
     }
@@ -273,6 +292,10 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 既存の賞与データを読み込む
    */
   async loadExistingBonuses(): Promise<void> {
+    if (!this.roomId) {
+      console.warn('[bonus-page] roomIdが未設定のため賞与読込を中断します');
+      return;
+    }
     // 既存の列とデータをクリア
     this.bonusColumns = [];
     this.bonusData = {};
@@ -282,7 +305,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     const payDateSet = new Set<string>();
 
     for (const emp of this.employees) {
-      const bonuses = await this.bonusService.loadBonus(this.year, emp.id);
+      const bonuses = await this.bonusService.listBonuses(
+        this.roomId,
+        emp.id,
+        this.year
+      );
 
       for (const bonus of bonuses) {
         const payDate = bonus.payDate || '';
@@ -359,6 +386,10 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与データを保存
    */
   async saveAllBonuses(): Promise<void> {
+    if (!this.roomId) {
+      console.warn('[bonus-page] roomIdが未設定のため保存を中断します');
+      return;
+    }
     // 保存中フラグを設定
     this.isSaving = true;
 
@@ -382,7 +413,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       // 各従業員について処理
       for (const emp of this.employees) {
         // 既存の賞与データを取得
-        const existingBonuses = await this.bonusService.getBonusesByYear(
+        const existingBonuses = await this.bonusService.listBonuses(
+          this.roomId,
           emp.id,
           this.year
         );
@@ -394,8 +426,9 @@ export class BonusPageComponent implements OnInit, OnDestroy {
             // 現在の列に存在しない支給日付のデータを削除
             if (existingBonus.id) {
               await this.bonusService.deleteBonus(
-                this.year,
+                this.roomId,
                 emp.id,
+                this.year,
                 existingBonus.id
               );
             }
@@ -487,9 +520,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
               }
             }
 
-            const roomId = this.roomIdService.requireRoomId();
             const bonus: Bonus = {
-              roomId: roomId,
+              roomId: this.roomId,
               employeeId: emp.id,
               year: year,
               month: month,
@@ -518,13 +550,23 @@ export class BonusPageComponent implements OnInit, OnDestroy {
               exemptReason: calculationResult.exemptReason || undefined,
             };
 
-            await this.bonusService.saveBonus(year, bonus);
+            const bonusId =
+              existingBonus?.id || `bonus_${column.payDate.replace(/-/g, '')}`;
+
+            await this.bonusService.saveBonus(
+              this.roomId,
+              emp.id,
+              year,
+              bonusId,
+              bonus
+            );
           } else {
             // 賞与額が0で、免除月でない場合は、既存データがあれば削除
             if (existingBonus && existingBonus.id) {
               await this.bonusService.deleteBonus(
-                year,
+                this.roomId,
                 emp.id,
+                year,
                 existingBonus.id
               );
             }

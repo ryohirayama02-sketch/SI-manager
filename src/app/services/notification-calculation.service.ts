@@ -123,7 +123,11 @@ export class NotificationCalculationService {
     // 3. 賞与支払届の届出要否判定（キャッシュから取得、なければ読み込み）
     const bonuses =
       bonusesByEmployeeId?.[employee.id] ||
-      (await this.bonusService.getBonusesForResult(employee.id, year));
+      (await this.bonusService.listBonuses(
+        this.roomIdService.requireRoomId(),
+        employee.id,
+        year
+      ));
     for (const bonus of bonuses) {
       if (bonus.payDate && bonus.amount) {
         const payDate = new Date(bonus.payDate);
@@ -285,7 +289,8 @@ export class NotificationCalculationService {
     employeeId: string,
     year: number
   ): Promise<NotificationDecisionResult[]> {
-    const bonuses = await this.bonusService.getBonusesForResult(
+    const bonuses = await this.bonusService.listBonuses(
+      this.roomIdService.requireRoomId(),
       employeeId,
       year
     );

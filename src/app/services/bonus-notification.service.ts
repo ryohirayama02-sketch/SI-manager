@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BonusService } from './bonus.service';
+import { RoomIdService } from './room-id.service';
 
 /**
  * BonusNotificationService
@@ -9,7 +10,10 @@ import { BonusService } from './bonus.service';
  */
 @Injectable({ providedIn: 'root' })
 export class BonusNotificationService {
-  constructor(private bonusService: BonusService) {}
+  constructor(
+    private bonusService: BonusService,
+    private roomIdService: RoomIdService
+  ) {}
 
   /**
    * 賞与→給与扱いチェック
@@ -24,11 +28,13 @@ export class BonusNotificationService {
     bonusCount: number;
     salaryInsteadReasons: string[];
   }> {
-    // 過去12ヶ月（支給日ベース）の賞与を取得（今回の支給日を含む）
-    const bonusesLast12Months = await this.bonusService.getBonusesLast12Months(
-      employeeId,
-      payDate
-    );
+    const roomId = this.roomIdService.requireRoomId();
+    const targetYears = [payDate.getFullYear() - 1, payDate.getFullYear()];
+    let bonusesLast12Months: any[] = [];
+    for (const y of targetYears) {
+      const list = await this.bonusService.listBonuses(roomId, employeeId, y);
+      bonusesLast12Months.push(...list);
+    }
     const bonusCountLast12Months = bonusesLast12Months.length;
     const bonusCount = bonusCountLast12Months;
 
@@ -147,11 +153,13 @@ export class BonusNotificationService {
     payDate: Date,
     excludePayDate?: string
   ): Promise<boolean> {
-    // 過去12ヶ月（支給日ベース）の賞与を取得（今回の支給日を含む）
-    const bonusesLast12Months = await this.bonusService.getBonusesLast12Months(
-      employeeId,
-      payDate
-    );
+    const roomId = this.roomIdService.requireRoomId();
+    const targetYears = [payDate.getFullYear() - 1, payDate.getFullYear()];
+    let bonusesLast12Months: any[] = [];
+    for (const y of targetYears) {
+      const list = await this.bonusService.listBonuses(roomId, employeeId, y);
+      bonusesLast12Months.push(...list);
+    }
 
     // 既存の賞与のみをカウント（今回保存しようとしている賞与は除外）
     const payDateStr = payDate.toISOString().split('T')[0];

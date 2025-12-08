@@ -1,20 +1,30 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  FormsModule,
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EmployeeService } from '../../../services/employee.service';
 import { BonusService } from '../../../services/bonus.service';
 import { SettingsService } from '../../../services/settings.service';
-import { BonusCalculationService, BonusCalculationResult } from '../../../services/bonus-calculation.service';
+import {
+  BonusCalculationService,
+  BonusCalculationResult,
+} from '../../../services/bonus-calculation.service';
 import { Employee } from '../../../models/employee.model';
 import { Bonus } from '../../../models/bonus.model';
+import { RoomIdService } from '../../../services/room-id.service';
 
 @Component({
   selector: 'app-bonus-edit-page',
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './bonus-edit-page.component.html',
-  styleUrl: './bonus-edit-page.component.css'
+  styleUrl: './bonus-edit-page.component.css',
 })
 export class BonusEditPageComponent implements OnInit {
   form: FormGroup;
@@ -25,10 +35,10 @@ export class BonusEditPageComponent implements OnInit {
   year: number = new Date().getFullYear();
   rates: any = null;
   prefecture: string = 'tokyo';
-  
+
   // 計算結果
   calculationResult: BonusCalculationResult | null = null;
-  
+
   // カンマ表示用
   bonusAmountDisplay: string = '';
 
@@ -39,12 +49,13 @@ export class BonusEditPageComponent implements OnInit {
     private employeeService: EmployeeService,
     private bonusService: BonusService,
     private settingsService: SettingsService,
-    private bonusCalculationService: BonusCalculationService
+    private bonusCalculationService: BonusCalculationService,
+    private roomIdService: RoomIdService
   ) {
     this.form = this.fb.group({
       payDate: ['', Validators.required],
       amount: [0, [Validators.required, Validators.min(0)]],
-      notes: ['']
+      notes: [''],
     });
   }
 
@@ -61,8 +72,8 @@ export class BonusEditPageComponent implements OnInit {
 
     // 従業員情報を取得
     const employees = await this.employeeService.getAllEmployees();
-    this.employee = employees.find(e => e.id === this.employeeId) || null;
-    
+    this.employee = employees.find((e) => e.id === this.employeeId) || null;
+
     if (!this.employee) {
       alert('従業員が見つかりません');
       this.router.navigate(['/bonus']);
@@ -79,31 +90,58 @@ export class BonusEditPageComponent implements OnInit {
     }
 
     try {
+      const roomId = this.roomIdService.requireRoomId();
       // クエリパラメータから年度を取得（優先検索年度）
       const queryParams = this.route.snapshot.queryParams;
-      const preferredYear = queryParams['year'] ? parseInt(queryParams['year'], 10) : undefined;
-      
-      // 年度を自動検索して取得（優先年度を指定）
-      const result = await this.bonusService.getBonusWithYear(this.employeeId, this.bonusId, preferredYear);
-      
-      if (!result) {
+      const preferredYear = queryParams['year']
+        ? parseInt(queryParams['year'], 10)
+        : undefined;
+      const currentYear = new Date().getFullYear();
+      const searchYears: number[] = [];
+      if (preferredYear !== undefined) {
+        searchYears.push(preferredYear);
+      }
+      for (let year = currentYear - 2; year <= currentYear + 2; year++) {
+        if (preferredYear !== undefined && year === preferredYear) continue;
+        searchYears.push(year);
+      }
+
+      let foundBonus: Bonus | null = null;
+      let foundYear: number | null = null;
+      for (const year of searchYears) {
+        const bonus = await this.bonusService.getBonus(
+          roomId,
+          this.employeeId,
+          year,
+          this.bonusId
+        );
+        if (bonus) {
+          foundBonus = bonus as Bonus;
+          foundYear = year;
+          break;
+        }
+      }
+
+      if (!foundBonus || foundYear === null) {
         alert('賞与データが見つかりません');
         this.router.navigate(['/bonus']);
         return;
       }
 
-      this.bonus = result.bonus;
-      // 賞与データの年度があればそれを使用、なければ検索結果の年度を使用
-      this.year = this.bonus.year || result.year;
+      this.bonus = foundBonus;
+      this.year = this.bonus.year || foundYear;
 
       // 料率を取得
-      this.rates = await this.settingsService.getRates(this.year.toString(), this.prefecture);
+      this.rates = await this.settingsService.getRates(
+        this.year.toString(),
+        this.prefecture
+      );
 
       // フォームに値を設定
       this.form.patchValue({
         payDate: this.bonus.payDate || '',
         amount: this.bonus.amount || 0,
-        notes: this.bonus.notes || ''
+        notes: this.bonus.notes || '',
       });
 
       // カンマ表示を設定
@@ -154,7 +192,12 @@ export class BonusEditPageComponent implements OnInit {
   }
 
   async updateBonusCalculation(): Promise<void> {
-    if (!this.employee || !this.form.value.amount || this.form.value.amount < 0 || !this.rates) {
+    if (
+      !this.employee ||
+      !this.form.value.amount ||
+      this.form.value.amount < 0 ||
+      !this.rates
+    ) {
       this.calculationResult = null;
       return;
     }
@@ -217,7 +260,7 @@ export class BonusEditPageComponent implements OnInit {
       isOverAge70: this.calculationResult.isOverAge70,
       isOverAge75: this.calculationResult.isOverAge75,
       requireReport: this.calculationResult.requireReport,
-      isSalaryInsteadOfBonus: this.calculationResult.isSalaryInsteadOfBonus
+      isSalaryInsteadOfBonus: this.calculationResult.isSalaryInsteadOfBonus,
     };
 
     // undefinedでない値のみ追加
@@ -232,7 +275,14 @@ export class BonusEditPageComponent implements OnInit {
     }
 
     try {
-      await this.bonusService.updateBonus(this.year, this.employeeId, this.bonusId, updateData);
+      const roomId = this.roomIdService.requireRoomId();
+      await this.bonusService.saveBonus(
+        roomId,
+        this.employeeId,
+        this.year,
+        this.bonusId,
+        updateData
+      );
       alert('賞与データを更新しました');
       this.router.navigate(['/bonus']);
     } catch (error) {
@@ -245,4 +295,3 @@ export class BonusEditPageComponent implements OnInit {
     this.router.navigate(['/bonus']);
   }
 }
-

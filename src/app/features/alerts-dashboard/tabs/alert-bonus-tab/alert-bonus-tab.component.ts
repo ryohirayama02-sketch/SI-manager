@@ -6,7 +6,7 @@ import { EmployeeService } from '../../../../services/employee.service';
 import { BonusService } from '../../../../services/bonus.service';
 import { Employee } from '../../../../models/employee.model';
 import { Office } from '../../../../models/office.model';
-import { Bonus } from '../../../../models/bonus.model';
+import { RoomIdService } from '../../../../services/room-id.service';
 
 export interface BonusReportAlert {
   id: string;
@@ -40,7 +40,8 @@ export class AlertBonusTabComponent {
     private bonusAlertUiService: BonusAlertUiService,
     private officeService: OfficeService,
     private employeeService: EmployeeService,
-    private bonusService: BonusService
+    private bonusService: BonusService,
+    private roomIdService: RoomIdService
   ) {}
 
   /**
@@ -98,6 +99,7 @@ export class AlertBonusTabComponent {
     }
 
     try {
+      const roomId = this.roomIdService.requireRoomId();
       // CSVデータを生成
       const csvLines: string[] = [];
 
@@ -143,9 +145,10 @@ export class AlertBonusTabComponent {
         const payDateFormatted = `R${reiwaYearStr}${month}${day}`;
 
         // 賞与データを取得（1000円未満切り捨て額を取得）
-        const bonuses = await this.bonusService.getBonusesByEmployee(
+        const bonuses = await this.bonusService.listBonuses(
+          roomId,
           alert.employeeId,
-          payDateObj
+          year
         );
         const bonus = bonuses.find((b) => b.payDate === alert.payDate);
         const standardBonusAmount =
