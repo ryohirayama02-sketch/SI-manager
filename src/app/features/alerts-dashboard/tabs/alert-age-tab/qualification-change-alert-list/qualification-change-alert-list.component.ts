@@ -106,21 +106,15 @@ export class QualificationChangeAlertListComponent {
       const prevMonth = changeMonth - 1;
       const prevYear = prevMonth < 1 ? changeYear - 1 : changeYear;
       const actualPrevMonth = prevMonth < 1 ? 12 : prevMonth;
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[qualification-change-alert-list] roomId is not set. skip exportToCsv.'
-      );
-      return;
-    }
+      const roomId = this.roomIdService.requireRoomId();
 
       // 給与データを取得
-    const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
-      roomId,
-      employee.id,
-      prevYear,
-      actualPrevMonth
-    );
+      const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
+        roomId,
+        employee.id,
+        prevYear,
+        actualPrevMonth
+      );
 
       // 給与項目マスタを取得
       const salaryItems = await this.settingsService.loadSalaryItems(prevYear);

@@ -118,11 +118,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[MonthlySalariesPage] roomId is not set. skip load.');
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
     const state = await this.monthlySalaryUIService.loadAllData(
       roomId,

@@ -389,13 +389,7 @@ export class NotificationCalculationService {
       [employeeId: string]: NotificationDecisionResult[];
     } = {};
 
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[notification-calculation] roomId is not set. skip calculation.'
-      );
-      return notificationsByEmployee;
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
     for (const emp of employees) {
       let salaryData = salaryDataByEmployeeId?.[emp.id];

@@ -35,10 +35,10 @@ export class BonusEditPageComponent implements OnInit {
   year: number = new Date().getFullYear();
   rates: any = null;
   prefecture: string = 'tokyo';
-
+  
   // 計算結果
   calculationResult: BonusCalculationResult | null = null;
-
+  
   // カンマ表示用
   bonusAmountDisplay: string = '';
 
@@ -73,7 +73,7 @@ export class BonusEditPageComponent implements OnInit {
     // 従業員情報を取得
     const employees = await this.employeeService.getAllEmployees();
     this.employee = employees.find((e) => e.id === this.employeeId) || null;
-
+    
     if (!this.employee) {
       alert('従業員が見つかりません');
       this.router.navigate(['/bonus']);

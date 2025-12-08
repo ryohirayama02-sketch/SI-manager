@@ -97,26 +97,18 @@ export class MonthlyPremiumCalculationService {
         let dataToUse = salaryData;
         if (!dataToUse) {
           const roomId =
-            (emp as any).roomId || this.roomIdService.getCurrentRoomId();
-          if (!roomId) {
-            console.warn(
-              '[monthly-premium-calculation] roomId is not set. skip teiji calc.',
-              emp.id
+            (emp as any).roomId || this.roomIdService.requireRoomId();
+          const yearMap: any = {};
+          for (let m = 1; m <= 12; m++) {
+            const md = await this.monthlySalaryService.getEmployeeSalary(
+              roomId,
+              emp.id,
+              year,
+              m
             );
-            dataToUse = null;
-          } else {
-            const yearMap: any = {};
-            for (let m = 1; m <= 12; m++) {
-              const md = await this.monthlySalaryService.getEmployeeSalary(
-                roomId,
-                emp.id,
-                year,
-                m
-              );
-              if (md) yearMap[m.toString()] = md;
-            }
-            dataToUse = Object.keys(yearMap).length > 0 ? yearMap : null;
+            if (md) yearMap[m.toString()] = md;
           }
+          dataToUse = Object.keys(yearMap).length > 0 ? yearMap : null;
         }
 
         if (dataToUse) {
@@ -379,24 +371,7 @@ export class MonthlyPremiumCalculationService {
         employeeWithStandard.currentStandardMonthlyRemuneration <= 0
       ) {
         const roomId =
-          (emp as any).roomId || this.roomIdService.getCurrentRoomId();
-        if (!roomId) {
-          console.warn(
-            '[monthly-premium-calculation] roomId is not set. skip salary fetch.',
-            emp.id
-          );
-          return {
-            month,
-            healthEmployee: 0,
-            healthEmployer: 0,
-            careEmployee: 0,
-            careEmployer: 0,
-            pensionEmployee: 0,
-            pensionEmployer: 0,
-            exempt: true,
-            notes: ['roomId not set'],
-          };
-        }
+          (emp as any).roomId || this.roomIdService.requireRoomId();
         const fetchedSalaryData: any = {};
         for (let m = 1; m <= 12; m++) {
           const md = await this.monthlySalaryService.getEmployeeSalary(

@@ -12,6 +12,8 @@ import {
   QuerySnapshot,
   DocumentData,
   DocumentChange,
+  query,
+  where,
 } from '@angular/fire/firestore';
 import {
   MonthlySalaryData,
@@ -37,7 +39,6 @@ export class MonthlySalaryService {
     month: number,
     payload: any
   ): Promise<void> {
-
     // 従業員のroomIdを確認（セキュリティチェック）
     const employee = await this.employeeService.getEmployeeById(employeeId);
     if (!employee) {
@@ -250,20 +251,28 @@ export class MonthlySalaryService {
    * @returns Observable<void>
    */
   observeMonthlySalaries(year: number): Observable<void> {
-    // 全従業員の指定年度の給与データを監視するため、collectionGroupを使用
-    // 実際の構造: rooms/{roomId}/monthlySalaries/{employeeId}/years/{year}/months/{month}
-    const colGroup = collectionGroup(this.firestore, 'months');
+    const roomId = this.roomIdService.requireRoomId();
+    // 指定ルームの指定年度の給与データのみを監視
+    const colGroup = query(
+      collectionGroup(this.firestore, 'months'),
+      where('roomId', '==', roomId)
+    );
     return new Observable<void>((observer) => {
-      const unsubscribe = onSnapshot(colGroup, (snapshot: QuerySnapshot<DocumentData>) => {
-        // 指定年度のドキュメントが変更された場合のみ通知
-        const yearSegment = `/years/${year}/months/`;
-        const hasChanges = snapshot.docChanges().some((change: DocumentChange<DocumentData>) =>
-          change.doc.ref.path.includes(yearSegment)
-        );
-        if (hasChanges || snapshot.docChanges().length > 0) {
-          observer.next();
+      const unsubscribe = onSnapshot(
+        colGroup,
+        (snapshot: QuerySnapshot<DocumentData>) => {
+          // 指定年度のドキュメントが変更された場合のみ通知
+          const yearSegment = `/years/${year}/months/`;
+          const hasChanges = snapshot
+            .docChanges()
+            .some((change: DocumentChange<DocumentData>) =>
+              change.doc.ref.path.includes(yearSegment)
+            );
+          if (hasChanges || snapshot.docChanges().length > 0) {
+            observer.next();
+          }
         }
-      });
+      );
       return () => unsubscribe();
     });
   }

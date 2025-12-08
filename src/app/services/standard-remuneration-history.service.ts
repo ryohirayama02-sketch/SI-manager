@@ -6,9 +6,6 @@ import {
   setDoc,
   getDoc,
   getDocs,
-  query,
-  where,
-  orderBy,
 } from '@angular/fire/firestore';
 import {
   StandardRemunerationHistory,
@@ -38,7 +35,11 @@ export class StandardRemunerationHistoryService {
   ): Promise<void> {
     // IDが指定されている場合は既存の履歴を更新、なければ新規作成
     const docId = history.id || `temp_${Date.now()}`;
-    const ref = doc(this.firestore, 'standardRemunerationHistories', docId);
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/employees/${history.employeeId}/standardRemunerationHistory/${docId}`
+    );
 
     // 既存のドキュメントを取得してcreatedAtを保持
     const existingSnap = await getDoc(ref);
@@ -82,9 +83,12 @@ export class StandardRemunerationHistoryService {
   async getStandardRemunerationHistories(
     employeeId: string
   ): Promise<StandardRemunerationHistory[]> {
-    const ref = collection(this.firestore, 'standardRemunerationHistories');
-    const q = query(ref, where('employeeId', '==', employeeId));
-    const snapshot = await getDocs(q);
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = collection(
+      this.firestore,
+      `rooms/${roomId}/employees/${employeeId}/standardRemunerationHistory`
+    );
+    const snapshot = await getDocs(ref);
     const histories = snapshot.docs.map((doc) => {
       const data = doc.data();
       // FirestoreのTimestampをDateに変換
@@ -165,14 +169,7 @@ export class StandardRemunerationHistoryService {
 
     for (const year of years) {
       const roomId =
-        (employee as any).roomId || this.roomIdService.getCurrentRoomId();
-      if (!roomId) {
-        console.warn(
-          '[standard-remuneration-history] roomId is not set. skip employee.',
-          employeeId
-        );
-        continue;
-      }
+        (employee as any).roomId || this.roomIdService.requireRoomId();
       const salaryData: any = {};
       for (let m = 1; m <= 12; m++) {
         const monthData = await this.monthlySalaryService.getEmployeeSalary(
@@ -269,7 +266,11 @@ export class StandardRemunerationHistoryService {
     // 一意のIDを生成（employeeId_year_month）
     const docId =
       history.id || `${history.employeeId}_${history.year}_${history.month}`;
-    const ref = doc(this.firestore, 'insuranceStatusHistories', docId);
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/employees/${history.employeeId}/insuranceStatusHistories/${docId}`
+    );
     // undefinedのフィールドを削除（Firestoreはundefinedをサポートしていない）
     const data: any = {
       employeeId: history.employeeId,
@@ -297,18 +298,12 @@ export class StandardRemunerationHistoryService {
     employeeId: string,
     year?: number
   ): Promise<InsuranceStatusHistory[]> {
-    const ref = collection(this.firestore, 'insuranceStatusHistories');
-    let q;
-    if (year) {
-      q = query(
-        ref,
-        where('employeeId', '==', employeeId),
-        where('year', '==', year)
-      );
-    } else {
-      q = query(ref, where('employeeId', '==', employeeId));
-    }
-    const snapshot = await getDocs(q);
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = collection(
+      this.firestore,
+      `rooms/${roomId}/employees/${employeeId}/insuranceStatusHistories`
+    );
+    const snapshot = await getDocs(ref);
     const histories = snapshot.docs.map((doc) => {
       const data = doc.data();
       // FirestoreのTimestampをDateに変換
@@ -357,7 +352,11 @@ export class StandardRemunerationHistoryService {
     }
 
     // Mapから配列に変換してソート（year, monthで降順ソート）
-    const uniqueHistories = Array.from(uniqueMap.values());
+    let filtered = Array.from(uniqueMap.values());
+    if (year) {
+      filtered = filtered.filter((h) => h.year === year);
+    }
+    const uniqueHistories = filtered;
     return uniqueHistories.sort((a, b) => {
       if (a.year !== b.year) {
         return b.year - a.year;
@@ -378,6 +377,9 @@ export class StandardRemunerationHistoryService {
     if (!years) {
       years = [2023, 2024, 2025, 2026];
     }
+
+    const roomId =
+      (employee as any).roomId || this.roomIdService.requireRoomId();
 
     for (const year of years) {
       for (let month = 1; month <= 12; month++) {
@@ -467,8 +469,7 @@ export class StandardRemunerationHistoryService {
         const existingDocId = `${employeeId}_${year}_${month}`;
         const existingRef = doc(
           this.firestore,
-          'insuranceStatusHistories',
-          existingDocId
+          `rooms/${roomId}/employees/${employeeId}/insuranceStatusHistories/${existingDocId}`
         );
         const existingSnap = await getDoc(existingRef);
 

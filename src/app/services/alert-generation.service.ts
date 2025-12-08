@@ -101,19 +101,7 @@ export class AlertGenerationService {
     const gradeTable = await this.settingsService.getStandardTable(currentYear);
 
     const salaryDataByEmployeeId: { [employeeId: string]: any } = {};
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[alert-generation] roomId is not set. skip salary loading.'
-      );
-      return {
-        gradeTable,
-        salaryDataByEmployeeId,
-        bonusesByEmployeeId: {},
-        notificationsByEmployee: {},
-        notificationAlerts: [],
-      };
-    }
+    const roomId = this.roomIdService.requireRoomId();
     for (const emp of employees) {
       const monthMap: any = {};
       for (let month = 1; month <= 12; month++) {

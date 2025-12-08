@@ -55,17 +55,7 @@ export class PaymentSummaryEmployeeCalculationService {
     // 給与データを取得
     let salaryData = salaryDataByEmployeeId?.[emp.id];
     if (!salaryData) {
-      const roomId = this.roomIdService.getCurrentRoomId();
-      if (!roomId) {
-        console.warn(
-          '[payment-summary-employee] roomId is not set. skip employee.',
-          emp.id
-        );
-        return {
-          monthlyPremiumRows: [],
-          monthlyPremiums: {},
-        };
-      }
+      const roomId = (emp as any).roomId || this.roomIdService.requireRoomId();
       const monthMap: any = {};
       for (let month = 1; month <= 12; month++) {
         const monthData = await this.monthlySalaryService.getEmployeeSalary(

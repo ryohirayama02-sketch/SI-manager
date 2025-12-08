@@ -54,7 +54,7 @@ export class EmployeeService {
     // roomIdを自動付与
     cleanEmployee.roomId = roomId;
 
-    const col = collection(this.firestore, 'employees');
+    const col = collection(this.firestore, `rooms/${roomId}/employees`);
     const docRef = await addDoc(col, cleanEmployee);
 
     // 編集ログを記録
@@ -71,17 +71,9 @@ export class EmployeeService {
 
   // 全従業員を取得（roomIdでフィルタリング）
   async getAllEmployees(): Promise<any[]> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[EmployeeService] roomIdが取得できないため、空配列を返します'
-      );
-      return [];
-    }
-
-    const colRef = collection(this.firestore, 'employees');
-    const q = query(colRef, where('roomId', '==', roomId));
-    const snap = await getDocs(q);
+    const roomId = this.roomIdService.requireRoomId();
+    const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
+    const snap = await getDocs(colRef);
 
     return snap.docs.map((doc) => ({
       id: doc.id,
@@ -91,15 +83,8 @@ export class EmployeeService {
 
   // IDで従業員を取得（roomIdで検証）
   async getEmployeeById(id: string): Promise<any | null> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[EmployeeService] roomIdが取得できないため、nullを返します'
-      );
-      return null;
-    }
-
-    const ref = doc(this.firestore, `employees/${id}`);
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${id}`);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
 
@@ -132,7 +117,7 @@ export class EmployeeService {
   async updateEmployee(id: string, data: Partial<Employee>): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 
-    const ref = doc(this.firestore, `employees/${id}`);
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${id}`);
 
     // 既存データのroomIdを確認（セキュリティチェック）
     const existingDoc = await getDoc(ref);
@@ -237,7 +222,10 @@ export class EmployeeService {
   /**
    * 指定ルームの従業員を削除
    */
-  async deleteEmployeeInRoom(roomId: string, employeeId: string): Promise<void> {
+  async deleteEmployeeInRoom(
+    roomId: string,
+    employeeId: string
+  ): Promise<void> {
     const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
     await deleteDoc(ref);
   }
@@ -245,7 +233,7 @@ export class EmployeeService {
   async deleteEmployee(id: string): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 
-    const ref = doc(this.firestore, `employees/${id}`);
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${id}`);
 
     // 既存データのroomIdを確認（セキュリティチェック）
     const existingDoc = await getDoc(ref);
@@ -285,7 +273,7 @@ export class EmployeeService {
   ): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 
-    const ref = doc(this.firestore, `employees/${employeeId}`);
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
 
     // 既存データのroomIdを確認（セキュリティチェック）
     const existingDoc = await getDoc(ref);
@@ -313,17 +301,10 @@ export class EmployeeService {
    * @returns Observable<void>
    */
   observeEmployees(): Observable<void> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      return new Observable<void>((observer) => {
-        observer.complete();
-      });
-    }
-
-    const colRef = collection(this.firestore, 'employees');
-    const q = query(colRef, where('roomId', '==', roomId));
+    const roomId = this.roomIdService.requireRoomId();
+    const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
     return new Observable<void>((observer) => {
-      const unsubscribe = onSnapshot(q, () => {
+      const unsubscribe = onSnapshot(colRef, () => {
         observer.next();
       });
       return () => unsubscribe();

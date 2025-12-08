@@ -27,7 +27,8 @@ export class SettingsService {
   ) {}
 
   async loadSettings(): Promise<Settings> {
-    const ref = doc(this.firestore, 'settings/general');
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(this.firestore, `rooms/${roomId}/settings/general`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
@@ -39,7 +40,8 @@ export class SettingsService {
   }
 
   async saveSettings(settings: Settings): Promise<void> {
-    const ref = doc(this.firestore, 'settings/general');
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(this.firestore, `rooms/${roomId}/settings/general`);
     await setDoc(ref, settings, { merge: true });
   }
 
@@ -48,7 +50,8 @@ export class SettingsService {
    * @returns 'payDate' | 'closingDate'（デフォルト: 'payDate'）
    */
   async getSalaryMonthRule(): Promise<string> {
-    const ref = doc(this.firestore, 'settings/global');
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(this.firestore, `rooms/${roomId}/settings/global`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
@@ -63,7 +66,8 @@ export class SettingsService {
    * @param rule 'payDate' | 'closingDate'
    */
   async saveSalaryMonthRule(rule: string): Promise<void> {
-    const ref = doc(this.firestore, 'settings/global');
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(this.firestore, `rooms/${roomId}/settings/global`);
     await setDoc(ref, { salaryMonthRule: rule }, { merge: true });
   }
 
@@ -75,7 +79,8 @@ export class SettingsService {
   async getRateVersionInfo(
     year: string
   ): Promise<{ applyFromMonth: number; versionId: string }> {
-    const ref = doc(this.firestore, `rates/${year}`);
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(this.firestore, `rooms/${roomId}/rates/${year}`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
@@ -98,8 +103,9 @@ export class SettingsService {
     year: string,
     applyFromMonth: number
   ): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     const versionId = `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
-    const ref = doc(this.firestore, `rates/${year}`);
+    const ref = doc(this.firestore, `rooms/${roomId}/rates/${year}`);
     await setDoc(
       ref,
       {
@@ -116,22 +122,16 @@ export class SettingsService {
     prefecture: string,
     payMonth?: string
   ): Promise<any | null> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[SettingsService] roomIdが取得できないため、nullを返します'
-      );
-      return null;
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
     // バージョン情報を取得
     const versionInfo = await this.getRateVersionInfo(year);
     const versionId = versionInfo.versionId;
 
-    // 新しい構造から取得: rates/{year}/versions/{versionId}/prefectures/{prefecture}
+    // 新しい構造から取得: rooms/{roomId}/rates/{year}/versions/{versionId}/prefectures/{prefecture}
     const ref = doc(
       this.firestore,
-      `rates/${year}/versions/${versionId}/prefectures/${prefecture}`
+      `rooms/${roomId}/rates/${year}/versions/${versionId}/prefectures/${prefecture}`
     );
     const snap = await getDoc(ref);
     if (snap.exists()) {
@@ -153,7 +153,7 @@ export class SettingsService {
     // 既存の単一ドキュメント構造との互換性チェック（後方互換性のため）
     const legacyRef = doc(
       this.firestore,
-      `rates/${year}/prefectures/${prefecture}`
+      `rooms/${roomId}/rates/${year}/prefectures/${prefecture}`
     );
     const legacySnap = await getDoc(legacyRef);
     if (legacySnap.exists()) {
@@ -167,7 +167,7 @@ export class SettingsService {
     // 新しいサブコレクション構造から取得（後方互換性のため）
     const versionsRef = collection(
       this.firestore,
-      `rates/${year}/prefectures/${prefecture}/versions`
+      `rooms/${roomId}/rates/${year}/prefectures/${prefecture}/versions`
     );
 
     if (payMonth) {
@@ -228,10 +228,10 @@ export class SettingsService {
       Math.abs(oldHealthEmployerPercent - newHealthEmployerPercent) >= 0.0001;
     const hasChanges = healthEmployeeChanged || healthEmployerChanged;
 
-    // 新しい構造に保存: rates/{year}/versions/{versionId}/prefectures/{prefecture}
+    // 新しい構造に保存: rooms/{roomId}/rates/{year}/versions/{versionId}/prefectures/{prefecture}
     const ref = doc(
       this.firestore,
-      `rates/${year}/versions/${versionId}/prefectures/${prefecture}`
+      `rooms/${roomId}/rates/${year}/versions/${versionId}/prefectures/${prefecture}`
     );
     const effectiveFrom =
       data.effectiveFrom ||
@@ -239,10 +239,10 @@ export class SettingsService {
     // roomIdを自動付与
     await setDoc(ref, { ...data, effectiveFrom, roomId }, { merge: true });
 
-    // 後方互換性のため、既存の構造にも保存
+    // 後方互換性のため、既存の構造にも保存（room配下に統一）
     const legacyRef = doc(
       this.firestore,
-      `rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`
+      `rooms/${roomId}/rates/${year}/prefectures/${prefecture}/versions/${effectiveFrom}`
     );
     await setDoc(
       legacyRef,
@@ -334,17 +334,13 @@ export class SettingsService {
   }
 
   async getStandardTable(year: number): Promise<any[]> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[SettingsService] roomIdが取得できないため、空配列を返します'
-      );
-      return [];
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
-    const ref = collection(this.firestore, `grades/${year}/table`);
-    const q = query(ref, where('roomId', '==', roomId));
-    const snap = await getDocs(q);
+    const ref = collection(
+      this.firestore,
+      `rooms/${roomId}/grades/${year}/table`
+    );
+    const snap = await getDocs(ref);
     const rows = snap.docs.map((d) => {
       const data = d.data();
       // Firestoreのフィールド名（grade, remuneration）を既存コードのフィールド名（rank, standard）にマッピング
@@ -378,12 +374,11 @@ export class SettingsService {
 
   async saveStandardTable(year: number, rows: any[]): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
-    const basePath = `grades/${year}/table`;
+    const basePath = `rooms/${roomId}/grades/${year}/table`;
 
     // 既存のデータをすべて削除（重複を防ぐため、roomIdでフィルタ）
     const existingRef = collection(this.firestore, basePath);
-    const existingQ = query(existingRef, where('roomId', '==', roomId));
-    const existingSnap = await getDocs(existingQ);
+    const existingSnap = await getDocs(existingRef);
     const deletePromises = existingSnap.docs.map((d) => deleteDoc(d.ref));
     await Promise.all(deletePromises);
 
@@ -481,23 +476,19 @@ export class SettingsService {
   }
 
   async loadSalaryItems(year: number): Promise<SalaryItem[]> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[SettingsService] roomIdが取得できないため、空配列を返します'
-      );
-      return [];
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
-    const ref = collection(this.firestore, `settings/${year}/salaryItems`);
-    const q = query(ref, where('roomId', '==', roomId));
-    const snap = await getDocs(q);
+    const ref = collection(
+      this.firestore,
+      `rooms/${roomId}/settings/${year}/salaryItems`
+    );
+    const snap = await getDocs(ref);
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SalaryItem));
   }
 
   async saveSalaryItems(year: number, items: SalaryItem[]): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
-    const basePath = `settings/${year}/salaryItems`;
+    const basePath = `rooms/${roomId}/settings/${year}/salaryItems`;
 
     // 現在保存する項目のIDリスト
     const currentItemIds = new Set(items.map((item) => item.id));
@@ -533,7 +524,10 @@ export class SettingsService {
   async deleteSalaryItem(year: number, itemId: string): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 
-    const ref = doc(this.firestore, `settings/${year}/salaryItems/${itemId}`);
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/settings/${year}/salaryItems/${itemId}`
+    );
 
     // 既存データのroomIdを確認（セキュリティチェック）
     const existingDoc = await getDoc(ref);
@@ -559,6 +553,7 @@ export class SettingsService {
   }
 
   async seedRatesTokyo2025(): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     const data = {
       // 協会けんぽ・東京都 一般保険料率（2025年度）
       // ※ 現行公式値に基づく
@@ -572,14 +567,18 @@ export class SettingsService {
       pension_employer: 0.0915, // 厚生年金（事業主）
     };
 
-    const ref = doc(this.firestore, 'rates/2025/prefectures/tokyo');
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/rates/2025/prefectures/tokyo`
+    );
     await setDoc(ref, data, { merge: true });
   }
 
   async seedRatesAllPrefectures2025(): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     for (const key of Object.keys(RATES_2024)) {
       await setDoc(
-        doc(this.firestore, `rates/2025/prefectures/${key}`),
+        doc(this.firestore, `rooms/${roomId}/rates/2025/prefectures/${key}`),
         RATES_2024[key]
       );
     }

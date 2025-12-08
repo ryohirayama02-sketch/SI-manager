@@ -102,11 +102,7 @@ export class PaymentSummaryDataService {
    */
   private async loadSalaryData(): Promise<{ [employeeId: string]: any }> {
     const salaryDataByEmployeeId: { [employeeId: string]: any } = {};
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[payment-summary] roomId is not set. skip loadSalaryData.');
-      return salaryDataByEmployeeId;
-    }
+    const roomId = this.roomIdService.requireRoomId();
     for (const emp of this.state.employees) {
       const monthMap: any = {};
       for (let month = 1; month <= 12; month++) {

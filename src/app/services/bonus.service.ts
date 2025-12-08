@@ -29,7 +29,7 @@ export class BonusService {
     year: number
   ): string {
     return `rooms/${roomId}/bonuses/${employeeId}/years/${year}/bonuses`;
-  }
+      }
 
   /**
    * 賞与を保存（新パス構造）

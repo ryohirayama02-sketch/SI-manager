@@ -54,12 +54,14 @@ export class AnnualWarningService {
     const warningSet = new Set<string>(); // 重複排除用
 
     // 年齢キャッシュを事前計算（全従業員の1〜12月の年齢をキャッシュ）
-    const ageCacheByEmployee: { [employeeId: string]: { [month: number]: number } } = {};
+    const ageCacheByEmployee: {
+      [employeeId: string]: { [month: number]: number };
+    } = {};
     for (const emp of employees) {
       const birthDate = new Date(emp.birthDate);
       ageCacheByEmployee[emp.id] = {};
       for (let m = 1; m <= 12; m++) {
-        ageCacheByEmployee[emp.id][m] = 
+        ageCacheByEmployee[emp.id][m] =
           this.employeeLifecycleService.getAgeAtMonth(birthDate, year, m);
       }
     }
@@ -70,11 +72,7 @@ export class AnnualWarningService {
       const employeeRows = monthlyPremiumsByEmployee[emp.id];
       let salaryData = salaryDataByEmployeeId?.[emp.id];
       if (!salaryData) {
-        const roomId = this.roomIdService.getCurrentRoomId();
-        if (!roomId) {
-          console.warn('[annual-warning] roomId is not set. skip employee.', emp.id);
-          continue;
-        }
+        const roomId = this.roomIdService.requireRoomId();
         const monthMap: any = {};
         for (let m = 1; m <= 12; m++) {
           const monthData = await this.monthlySalaryService
@@ -124,7 +122,10 @@ export class AnnualWarningService {
           const age = ageCache[row.month];
 
           // 70歳以上なのに厚生年金保険料が発生
-          if (age >= 70 && (row.pensionEmployee > 0 || row.pensionEmployer > 0)) {
+          if (
+            age >= 70 &&
+            (row.pensionEmployee > 0 || row.pensionEmployer > 0)
+          ) {
             const msg = `従業員「${emp.name}」は70歳以上ですが、${row.month}月の厚生年金保険料が発生しています。`;
             if (!warningSet.has(msg)) {
               warningSet.add(msg);
@@ -149,8 +150,16 @@ export class AnnualWarningService {
 
           // 産休・育休中なのに本人負担が残っているケース
           const month = row.month;
-          const maternityLeave = this.employeeLifecycleService.isMaternityLeave(emp, year, month);
-          const childcareLeave = this.employeeLifecycleService.isChildcareLeave(emp, year, month);
+          const maternityLeave = this.employeeLifecycleService.isMaternityLeave(
+            emp,
+            year,
+            month
+          );
+          const childcareLeave = this.employeeLifecycleService.isChildcareLeave(
+            emp,
+            year,
+            month
+          );
 
           if (maternityLeave || childcareLeave) {
             const totalEmployee =
@@ -201,15 +210,23 @@ export class AnnualWarningService {
           const monthSalaryData = salaryData[monthKeyString];
 
           // 産休・育休中の月は給与データがなくても正常なので、データ欠損チェックから除外
-          const maternityLeave = this.employeeLifecycleService.isMaternityLeave(emp, year, month);
-          const childcareLeave = this.employeeLifecycleService.isChildcareLeave(emp, year, month);
-          
+          const maternityLeave = this.employeeLifecycleService.isMaternityLeave(
+            emp,
+            year,
+            month
+          );
+          const childcareLeave = this.employeeLifecycleService.isChildcareLeave(
+            emp,
+            year,
+            month
+          );
+
           // データ欠損チェック（産休・育休中は除外）
           if (!monthSalaryData && !maternityLeave && !childcareLeave) {
             missingMonths.push(month);
             continue;
           }
-          
+
           // 産休・育休中の場合は給与データチェックをスキップ
           if (maternityLeave || childcareLeave) {
             continue;
@@ -217,7 +234,8 @@ export class AnnualWarningService {
 
           // 4-6月の不一致警告
           if (month >= 4 && month <= 6) {
-            const fixed = monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
+            const fixed =
+              monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
             const variable =
               monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
             const total = monthSalaryData.total ?? 0;
@@ -236,7 +254,8 @@ export class AnnualWarningService {
           }
 
           // 負の金額チェック
-          const fixed = monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
+          const fixed =
+            monthSalaryData.fixedTotal ?? monthSalaryData.fixed ?? 0;
           const variable =
             monthSalaryData.variableTotal ?? monthSalaryData.variable ?? 0;
           const total = monthSalaryData.total ?? 0;
@@ -282,9 +301,7 @@ export class AnnualWarningService {
 
     // 2. 退職月の賞与支給 → エラー
     for (const bonus of bonuses) {
-      const bonusEmployee = employees.find(
-        (e) => e.id === bonus.employeeId
-      );
+      const bonusEmployee = employees.find((e) => e.id === bonus.employeeId);
       if (bonusEmployee && bonusEmployee.retireDate) {
         const retireDate = new Date(bonusEmployee.retireDate);
         const retireYear = retireDate.getFullYear();
@@ -352,4 +369,3 @@ export class AnnualWarningService {
     return warnings;
   }
 }
-

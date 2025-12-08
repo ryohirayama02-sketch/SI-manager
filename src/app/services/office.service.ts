@@ -7,8 +7,6 @@ import {
   getDoc,
   getDocs,
   deleteDoc,
-  query,
-  where,
   addDoc,
   collectionData,
   updateDoc,
@@ -37,7 +35,10 @@ export class OfficeService {
       docId = office.id;
 
       // 既存データのroomIdを確認（セキュリティチェック）
-      const existingRef = doc(this.firestore, 'offices', docId);
+      const existingRef = doc(
+        this.firestore,
+        `rooms/${roomId}/offices/${docId}`
+      );
       const existingDoc = await getDoc(existingRef);
       if (existingDoc.exists()) {
         const existingData = existingDoc.data();
@@ -46,7 +47,7 @@ export class OfficeService {
         }
       }
     } else {
-      const newRef = doc(collection(this.firestore, 'offices'));
+      const newRef = doc(collection(this.firestore, `rooms/${roomId}/offices`));
       docId = newRef.id;
       isNew = true;
     }
@@ -85,7 +86,7 @@ export class OfficeService {
       dataToSave.ownerName = office.ownerName;
     }
 
-    const ref = doc(this.firestore, 'offices', docId);
+    const ref = doc(this.firestore, `rooms/${roomId}/offices/${docId}`);
     await setDoc(ref, dataToSave, { merge: true });
 
     // 編集ログを記録
@@ -106,13 +107,9 @@ export class OfficeService {
    * 事業所マスタを取得（roomIdで検証）
    */
   async getOffice(officeId: string): Promise<Office | null> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[OfficeService] roomIdが取得できないため、nullを返します');
-      return null;
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
-    const ref = doc(this.firestore, 'offices', officeId);
+    const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
     const snapshot = await getDoc(ref);
     if (snapshot.exists()) {
       const data = snapshot.data();
@@ -157,17 +154,10 @@ export class OfficeService {
    * 全事業所マスタを取得（roomIdでフィルタリング）
    */
   async getAllOffices(): Promise<Office[]> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[OfficeService] roomIdが取得できないため、空配列を返します'
-      );
-      return [];
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
-    const ref = collection(this.firestore, 'offices');
-    const q = query(ref, where('roomId', '==', roomId));
-    const snapshot = await getDocs(q);
+    const ref = collection(this.firestore, `rooms/${roomId}/offices`);
+    const snapshot = await getDocs(ref);
     const offices = snapshot.docs.map((doc) => {
       const data = doc.data();
       let createdAt: Date | undefined;
@@ -208,7 +198,7 @@ export class OfficeService {
   async deleteOffice(officeId: string): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
 
-    const ref = doc(this.firestore, 'offices', officeId);
+    const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
 
     // 既存データのroomIdを確認（セキュリティチェック）
     const existingDoc = await getDoc(ref);
@@ -250,7 +240,10 @@ export class OfficeService {
   /**
    * 指定ルームの事業所を取得
    */
-  async getOfficeByRoom(roomId: string, officeId: string): Promise<Office | null> {
+  async getOfficeByRoom(
+    roomId: string,
+    officeId: string
+  ): Promise<Office | null> {
     const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
     const snap = await getDoc(ref);
     return snap.exists() ? (snap.data() as Office) : null;

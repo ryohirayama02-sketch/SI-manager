@@ -103,11 +103,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn('[EmployeeListPage] roomId is not set. skip loading.');
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
     this.employeesSubscription = this.employeeService
       .getEmployeesByRoom(roomId)
       .subscribe(async (emps) => {
@@ -141,11 +137,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       let grade: number | null = null;
 
       try {
-        const roomId = this.roomIdService.getCurrentRoomId();
-        if (!roomId) {
-          console.warn('[employee-list] roomId is not set. skip salary fetch.');
-          continue;
-        }
+        const roomId = this.roomIdService.requireRoomId();
         const monthData = await this.monthlySalaryService.getEmployeeSalary(
           roomId,
           emp.id,
