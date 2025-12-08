@@ -56,7 +56,7 @@ export class MonthlySalaryService {
     // 構造: rooms/{roomId}/monthlySalaries/{employeeId}/years/{year}/{month}
     const ref = doc(
       this.firestore,
-      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/${month}`
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months/${month}`
     );
     await setDoc(ref, normalizedPayload, { merge: true });
   }
@@ -131,7 +131,7 @@ export class MonthlySalaryService {
   ): Promise<any | null> {
     const ref = doc(
       this.firestore,
-      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/${month}`
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months/${month}`
     );
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -146,7 +146,7 @@ export class MonthlySalaryService {
   ): Promise<void> {
     const ref = doc(
       this.firestore,
-      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/${month}`
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months/${month}`
     );
     await deleteDoc(ref);
   }
@@ -158,7 +158,7 @@ export class MonthlySalaryService {
   ): Promise<string[]> {
     const col = collection(
       this.firestore,
-      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}`
+      `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months`
     );
     const snap = await getDocs(col);
     return snap.docs.map((d) => d.id);
@@ -250,18 +250,16 @@ export class MonthlySalaryService {
    * @returns Observable<void>
    */
   observeMonthlySalaries(year: number): Observable<void> {
-    // 全従業員の給与データを監視するため、collectionGroupを使用
-    // 実際の構造: monthlySalaries/{employeeId}/years/{year}
-    const colGroup = collectionGroup(this.firestore, 'years');
+    // 全従業員の指定年度の給与データを監視するため、collectionGroupを使用
+    // 実際の構造: rooms/{roomId}/monthlySalaries/{employeeId}/years/{year}/months/{month}
+    const colGroup = collectionGroup(this.firestore, 'months');
     return new Observable<void>((observer) => {
       const unsubscribe = onSnapshot(colGroup, (snapshot: QuerySnapshot<DocumentData>) => {
         // 指定年度のドキュメントが変更された場合のみ通知
-        const hasChanges = snapshot.docChanges().some((change: DocumentChange<DocumentData>) => {
-          const docData = change.doc.data();
-          // 年度が一致するか、または親パスに年度が含まれるかを確認
-          // 簡易的な実装：すべての変更を通知（年度フィルタリングは呼び出し側で行う）
-          return true;
-        });
+        const yearSegment = `/years/${year}/months/`;
+        const hasChanges = snapshot.docChanges().some((change: DocumentChange<DocumentData>) =>
+          change.doc.ref.path.includes(yearSegment)
+        );
         if (hasChanges || snapshot.docChanges().length > 0) {
           observer.next();
         }
