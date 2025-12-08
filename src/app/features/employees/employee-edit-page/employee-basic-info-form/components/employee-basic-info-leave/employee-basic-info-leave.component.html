@@ -8,6 +8,7 @@
     <input
       id="leaveOfAbsenceStart"
       type="date"
+      [attr.max]="maxDate"
       formControlName="leaveOfAbsenceStart"
       class="form-control"
       (change)="onDateChange()"
@@ -19,6 +20,7 @@
     <input
       id="leaveOfAbsenceEnd"
       type="date"
+      [attr.max]="maxDate"
       formControlName="leaveOfAbsenceEnd"
       class="form-control"
       (change)="onDateChange()"
@@ -30,6 +32,7 @@
     <input
       id="returnFromLeaveDate"
       type="date"
+      [attr.max]="maxDate"
       formControlName="returnFromLeaveDate"
       class="form-control"
       (change)="onDateChange()"
@@ -43,6 +46,7 @@
     <input
       id="expectedDeliveryDate"
       type="date"
+      [attr.max]="maxDate"
       formControlName="expectedDeliveryDate"
       class="form-control"
       (change)="onDateChange()"
@@ -54,6 +58,7 @@
     <input
       id="maternityLeaveStart"
       type="date"
+      [attr.max]="maxDate"
       formControlName="maternityLeaveStart"
       class="form-control"
       (change)="onDateChange()"
@@ -65,6 +70,7 @@
     <input
       id="maternityLeaveEndExpected"
       type="date"
+      [attr.max]="maxDate"
       formControlName="maternityLeaveEndExpected"
       class="form-control"
       (change)="onDateChange()"
@@ -76,6 +82,7 @@
     <input
       id="actualDeliveryDate"
       type="date"
+      [attr.max]="maxDate"
       formControlName="actualDeliveryDate"
       class="form-control"
       (change)="onDateChange()"
@@ -87,6 +94,7 @@
     <input
       id="maternityLeaveEnd"
       type="date"
+      [attr.max]="maxDate"
       formControlName="maternityLeaveEnd"
       class="form-control"
       (change)="onDateChange()"
@@ -110,6 +118,7 @@
     <input
       id="childcareChildBirthDate"
       type="date"
+      [attr.max]="maxDate"
       formControlName="childcareChildBirthDate"
       class="form-control"
       (change)="onDateChange()"
@@ -121,6 +130,7 @@
     <input
       id="childcareLeaveStart"
       type="date"
+      [attr.max]="maxDate"
       formControlName="childcareLeaveStart"
       class="form-control"
       (change)="onDateChange()"
@@ -132,6 +142,7 @@
     <input
       id="childcareLeaveEndExpected"
       type="date"
+      [attr.max]="maxDate"
       formControlName="childcareLeaveEndExpected"
       class="form-control"
       (change)="onDateChange()"
@@ -143,6 +154,7 @@
     <input
       id="childcareLeaveEnd"
       type="date"
+      [attr.max]="maxDate"
       formControlName="childcareLeaveEnd"
       class="form-control"
       (change)="onDateChange()"

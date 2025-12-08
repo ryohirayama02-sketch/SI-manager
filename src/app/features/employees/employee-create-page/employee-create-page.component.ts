@@ -31,6 +31,7 @@ export class EmployeeCreatePageComponent implements OnInit {
   form: FormGroup;
   errorMessages: string[] = [];
   warningMessages: string[] = [];
+  isSubmitting = false;
 
   // 自動判定結果の表示用
   eligibilityStatus: string = '';
@@ -367,6 +368,9 @@ export class EmployeeCreatePageComponent implements OnInit {
   }
 
   async onSubmit(): Promise<void> {
+    if (this.isSubmitting) {
+      return;
+    }
     this.validateDates();
     if (this.errorMessages.length > 0) {
       return;
@@ -374,6 +378,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (!this.form.valid) {
       return;
     }
+    this.isSubmitting = true;
 
     const value = this.form.value;
 
@@ -480,6 +485,11 @@ export class EmployeeCreatePageComponent implements OnInit {
     }
 
     this.router.navigate(['/employees']);
+    this.isSubmitting = false;
+  }
+
+  ngOnDestroy(): void {
+    this.isSubmitting = false;
   }
 
   // 家族情報関連メソッド

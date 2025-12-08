@@ -107,7 +107,12 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     this.employeesSubscription = this.employeeService
       .getEmployeesByRoom(roomId)
       .subscribe(async (emps) => {
-        this.employees = emps;
+        // Firestoreが重複ドキュメントを返した場合に備え、IDでユニーク化
+        const uniqueMap = new Map<string, Employee>();
+        for (const emp of emps) {
+          if (emp.id) uniqueMap.set(emp.id, emp);
+        }
+        this.employees = Array.from(uniqueMap.values());
         await this.loadEmployeeDisplayInfos();
       });
   }
@@ -432,49 +437,69 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     const targetDate = new Date(year, month - 1, 1);
     const targetEndDate = new Date(year, month, 0); // その月の最終日
 
-    // 産前産後休業中
-    if (employee.maternityLeaveStart && employee.maternityLeaveEnd) {
-      const start = new Date(employee.maternityLeaveStart);
-      const end = new Date(employee.maternityLeaveEnd);
+    const within = (
+      startStr?: string | null,
+      endStr?: string | null,
+      fallbackEnd?: string | null
+    ) => {
+      if (!startStr) return false;
+      const start = new Date(startStr);
       start.setHours(0, 0, 0, 0);
+      const end = new Date(endStr || fallbackEnd || '9999-12-31');
       end.setHours(23, 59, 59, 999);
-      if (targetDate <= end && targetEndDate >= start) {
-        return {
-          status: 'maternity',
-          startDate: employee.maternityLeaveStart,
-          endDate: employee.maternityLeaveEnd,
-        };
-      }
+      return targetDate <= end && targetEndDate >= start;
+    };
+
+    // 産前産後休業中（終了日未入力でも継続扱い）
+    if (
+      within(
+        employee.maternityLeaveStart,
+        employee.maternityLeaveEnd,
+        employee.maternityLeaveEndExpected
+      )
+    ) {
+      return {
+        status: 'maternity',
+        startDate: employee.maternityLeaveStart || null,
+        endDate:
+          employee.maternityLeaveEnd ||
+          employee.maternityLeaveEndExpected ||
+          null,
+      };
     }
 
-    // 育児休業中
-    if (employee.childcareLeaveStart && employee.childcareLeaveEnd) {
-      const start = new Date(employee.childcareLeaveStart);
-      const end = new Date(employee.childcareLeaveEnd);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      if (targetDate <= end && targetEndDate >= start) {
-        return {
-          status: 'childcare',
-          startDate: employee.childcareLeaveStart,
-          endDate: employee.childcareLeaveEnd,
-        };
-      }
+    // 育児休業中（終了日未入力でも継続扱い）
+    if (
+      within(
+        employee.childcareLeaveStart,
+        employee.childcareLeaveEnd,
+        employee.childcareLeaveEndExpected
+      )
+    ) {
+      return {
+        status: 'childcare',
+        startDate: employee.childcareLeaveStart || null,
+        endDate:
+          employee.childcareLeaveEnd ||
+          employee.childcareLeaveEndExpected ||
+          null,
+      };
     }
 
-    // 無給休職中（leaveOfAbsenceStart と leaveOfAbsenceEnd の期間内）
-    if (employee.leaveOfAbsenceStart && employee.leaveOfAbsenceEnd) {
-      const start = new Date(employee.leaveOfAbsenceStart);
-      const end = new Date(employee.leaveOfAbsenceEnd);
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999);
-      if (targetDate <= end && targetEndDate >= start) {
-        return {
-          status: 'leave',
-          startDate: employee.leaveOfAbsenceStart,
-          endDate: employee.leaveOfAbsenceEnd,
-        };
-      }
+    // 無給休職中（終了日未入力でも継続扱い）
+    if (
+      within(
+        employee.leaveOfAbsenceStart,
+        employee.leaveOfAbsenceEnd,
+        employee.returnFromLeaveDate
+      )
+    ) {
+      return {
+        status: 'leave',
+        startDate: employee.leaveOfAbsenceStart || null,
+        endDate:
+          employee.leaveOfAbsenceEnd || employee.returnFromLeaveDate || null,
+      };
     }
 
     // 無給休職中（returnFromLeaveDate が未来の場合）
@@ -621,12 +646,23 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   getFilteredEmployees(): EmployeeDisplayInfo[] {
+    // IDでユニーク化してからフィルタ（新規登録直後の重複混入を防ぐ）
+    const uniqueMap = new Map<string, EmployeeDisplayInfo>();
+    for (const info of this.employeeDisplayInfos) {
+      if (info.employee.id) {
+        uniqueMap.set(info.employee.id, info);
+      }
+    }
+    const uniqueInfos = Array.from(uniqueMap.values());
+
     // タブに応じてフィルタリング
     let targetInfos: EmployeeDisplayInfo[];
     if (this.activeTab === 'onLeave') {
-      targetInfos = this.getOnLeaveEmployees();
+      targetInfos = uniqueInfos.filter((info) =>
+        this.isOnMaternityOrChildcareLeave(info.employee)
+      );
     } else {
-      targetInfos = this.employeeDisplayInfos;
+      targetInfos = uniqueInfos;
     }
 
     return targetInfos.filter((info) => {
