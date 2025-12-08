@@ -187,16 +187,6 @@ export class PaymentSummaryEmployeeCalculationService {
       );
     }
 
-    // 賞与保険料を月次給与の保険料に加算
-    this.bonusPremiumCalculationService.addBonusPremiumsToMonthly(
-      emp,
-      year,
-      employeeBonuses,
-      monthlyPremiumRows,
-      monthlyPremiums,
-      ageCache
-    );
-
     return {
       monthlyPremiumRows,
       monthlyPremiums,

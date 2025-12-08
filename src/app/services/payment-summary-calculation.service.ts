@@ -86,15 +86,6 @@ export class PaymentSummaryCalculationService {
         ageCacheByEmployee
       );
 
-    // 賞与保険料を支給月の月別合計に加算
-    this.premiumAggregationService.addBonusToMonthlyTotals(
-      bonuses,
-      employees,
-      year,
-      allMonthlyTotals,
-      ageCacheByEmployee
-    );
-
     // 賞与保険料の年間合計を計算
     const bonusAnnualTotals =
       this.bonusPremiumCalculationService.calculateBonusAnnualTotals(
