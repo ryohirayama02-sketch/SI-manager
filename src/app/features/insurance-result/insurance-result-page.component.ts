@@ -542,7 +542,13 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             this.year,
             month
           );
-          const exemptReason = isExempt ? '免除中' : '';
+          const exemptInfo =
+            this.salaryCalculationService.getExemptReasonForMonth(
+              emp,
+              this.year,
+              month
+            );
+          const exemptReason = isExempt ? exemptInfo?.reason || '免除中' : '';
 
           // 免除月は保険料を0として扱う（念のためUI集計側でも明示ゼロ化）
           const healthEmployee = isExempt ? 0 : premiumResult.health_employee;
@@ -723,6 +729,16 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         hasLeaveOfAbsence: false,
       };
     }
+  }
+
+  /**
+   * 免除ラベルを表示用に整形
+   */
+  getExemptLabel(reason?: string | null): string {
+    if (!reason) return '免除中';
+    if (reason.includes('産前産後')) return '産休中';
+    if (reason.includes('育児')) return '育休中';
+    return '免除中';
   }
 
   checkLeaveOfAbsence(emp: Employee): boolean {

@@ -177,27 +177,6 @@ export class AnnualWarningService {
         }
       }
 
-      // 年齢停止ルールの境界月（70歳/75歳到達月）
-      for (let month = 1; month <= 12; month++) {
-        const age = ageCache[month];
-        const prevAge = month > 1 ? ageCache[month - 1] : age - 1;
-
-        if (prevAge < 70 && age >= 70) {
-          const msg = `${emp.name}：${month}月に70歳到達（厚生年金停止開始）`;
-          if (!warningSet.has(msg)) {
-            warningSet.add(msg);
-            warnings.push(msg);
-          }
-        }
-        if (prevAge < 75 && age >= 75) {
-          const msg = `${emp.name}：${month}月に75歳到達（健保・介保停止開始）`;
-          if (!warningSet.has(msg)) {
-            warningSet.add(msg);
-            warnings.push(msg);
-          }
-        }
-      }
-
       // 1. 4月〜6月の固定+非固定 ≠ 総支給 の不一致警告（算定基礎届）
       // 6. データ欠損（月の給与データなし）
       // 7. 不正な月（負の金額など）の入力

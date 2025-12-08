@@ -71,16 +71,18 @@
   padding: 2px 4px;
   border-radius: 3px;
   font-size: 0.75rem;
-  color: white;
+  color: #0b1f33;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: opacity 0.2s;
+  background: #b2d7ff; /* 視認性の高い淡いブルー（他タブと被りにくい） */
+  border: 1px solid #7fb2f0;
 }
 
 .schedule-item:hover {
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 /* イベントがある日付マスでも幅を統一 */

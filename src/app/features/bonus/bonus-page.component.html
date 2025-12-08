@@ -81,19 +81,19 @@
           <td
             *ngFor="let column of bonusColumns"
             [ngClass]="{
-              'exempt-month': isExemptMonth(emp.id, column.payDate)
+              'exempt-month': isBonusExempt(emp.id, column.payDate)
             }"
           >
-            <!-- 免除月の場合 -->
+            <!-- 免除（産休/育休）時は入力不可でラベル表示 -->
             <div
-              *ngIf="isExemptMonth(emp.id, column.payDate)"
+              *ngIf="isBonusExempt(emp.id, column.payDate)"
               class="exempt-label"
             >
-              {{ getExemptReason(emp.id, column.payDate) }}
+              {{ getBonusExemptReason(emp.id, column.payDate) || "免除中" }}
             </div>
             <!-- 通常月の場合 -->
             <input
-              *ngIf="!isExemptMonth(emp.id, column.payDate)"
+              *ngIf="!isBonusExempt(emp.id, column.payDate)"
               type="text"
               [value]="formatAmount(getBonusAmount(column.id, emp.id))"
               (input)="onBonusInput(column.id, emp.id, $event)"

@@ -158,7 +158,7 @@
             <span
               *ngIf="row.monthlyPremium?.isExempt"
               style="color: #ff6b00; font-weight: bold"
-              >免除中</span
+              >{{ getExemptLabel(row.monthlyPremium?.exemptReason) }}</span
             >
             <span *ngIf="!row.monthlyPremium?.isExempt">
               {{ row.monthlyTotal.healthEmployee | number : "1.0-0" }} /
@@ -169,7 +169,7 @@
             <span
               *ngIf="row.monthlyPremium?.isExempt"
               style="color: #ff6b00; font-weight: bold"
-              >免除中</span
+              >{{ getExemptLabel(row.monthlyPremium?.exemptReason) }}</span
             >
             <span *ngIf="!row.monthlyPremium?.isExempt">
               {{ row.monthlyTotal.careEmployee | number : "1.0-0" }} /
@@ -180,7 +180,7 @@
             <span
               *ngIf="row.monthlyPremium?.isExempt"
               style="color: #ff6b00; font-weight: bold"
-              >免除中</span
+              >{{ getExemptLabel(row.monthlyPremium?.exemptReason) }}</span
             >
             <span *ngIf="!row.monthlyPremium?.isExempt">
               {{ row.monthlyTotal.pensionEmployee | number : "1.0-0" }} /
@@ -189,7 +189,9 @@
           </td>
           <td *ngIf="hasBonusColumn()">
             <span *ngIf="row.bonusPremium">
-              <span *ngIf="row.bonusPremium.isExempted">免除中</span>
+              <span *ngIf="row.bonusPremium.isExempted">{{
+                getExemptLabel(row.bonusPremium.exemptReason)
+              }}</span>
               <span *ngIf="!row.bonusPremium.isExempted">
                 {{ row.bonusTotal.healthEmployee | number : "1.0-0" }} /
                 {{ row.bonusTotal.healthEmployer | number : "1.0-0" }}
@@ -199,7 +201,9 @@
           </td>
           <td *ngIf="hasBonusColumn()">
             <span *ngIf="row.bonusPremium">
-              <span *ngIf="row.bonusPremium.isExempted">免除中</span>
+              <span *ngIf="row.bonusPremium.isExempted">{{
+                getExemptLabel(row.bonusPremium.exemptReason)
+              }}</span>
               <span *ngIf="!row.bonusPremium.isExempted">
                 {{ row.bonusTotal.careEmployee | number : "1.0-0" }} /
                 {{ row.bonusTotal.careEmployer | number : "1.0-0" }}
@@ -209,7 +213,9 @@
           </td>
           <td *ngIf="hasBonusColumn()">
             <span *ngIf="row.bonusPremium">
-              <span *ngIf="row.bonusPremium.isExempted">免除中</span>
+              <span *ngIf="row.bonusPremium.isExempted">{{
+                getExemptLabel(row.bonusPremium.exemptReason)
+              }}</span>
               <span *ngIf="!row.bonusPremium.isExempted">
                 {{ row.bonusTotal.pensionEmployee | number : "1.0-0" }} /
                 {{ row.bonusTotal.pensionEmployer | number : "1.0-0" }}

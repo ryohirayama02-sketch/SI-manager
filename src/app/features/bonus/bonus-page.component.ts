@@ -12,6 +12,7 @@ import {
 import { SalaryCalculationService } from '../../services/salary-calculation.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { BonusNotificationService } from '../../services/bonus-notification.service';
+import { BonusExemptionService } from '../../services/bonus-exemption.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { BonusCsvImportComponent } from './components/bonus-csv-import/bonus-csv-import.component';
@@ -62,7 +63,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     private salaryCalculationService: SalaryCalculationService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private bonusNotificationService: BonusNotificationService,
-    private roomIdService: RoomIdService
+    private roomIdService: RoomIdService,
+    private bonusExemptionService: BonusExemptionService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
     for (let y = 2023; y <= 2026; y++) {
@@ -238,37 +240,43 @@ export class BonusPageComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * 免除月かどうかを判定
+   * 賞与の免除判定（産休/育休）を支給日ベースで確認
    */
-  isExemptMonth(employeeId: string, payDate: string): boolean {
+  isBonusExempt(employeeId: string, payDate: string): boolean {
     if (!payDate) return false;
-
+    const employee = this.employees.find((e) => e.id === employeeId);
+    if (!employee) return false;
     const date = new Date(payDate);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-
-    return this.exemptMonths[employeeId]?.includes(month) ?? false;
+    const maternity = this.bonusExemptionService.checkMaternityExemption(
+      employee,
+      date
+    );
+    const childcare = this.bonusExemptionService.checkChildcareExemption(
+      employee,
+      date
+    );
+    return maternity.isExempted || childcare.isExempted;
   }
 
   /**
-   * 免除理由ラベルを取得
+   * 賞与の免除理由ラベル（UI表示用）
    */
-  getExemptReason(employeeId: string, payDate: string): string {
+  getBonusExemptReason(employeeId: string, payDate: string): string {
     if (!payDate) return '';
-
+    const employee = this.employees.find((e) => e.id === employeeId);
+    if (!employee) return '';
     const date = new Date(payDate);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-
-    const key = `${employeeId}_${month}`;
-    const reason = this.exemptReasons[key] || '';
-
-    if (reason.includes('産前産後休業')) {
-      return '産休中';
-    } else if (reason.includes('育児休業')) {
-      return '育休中';
-    }
-    return '免除中';
+    const maternity = this.bonusExemptionService.checkMaternityExemption(
+      employee,
+      date
+    );
+    if (maternity.isExempted) return '産休中';
+    const childcare = this.bonusExemptionService.checkChildcareExemption(
+      employee,
+      date
+    );
+    if (childcare.isExempted) return '育休中';
+    return '';
   }
 
   async onYearChange(): Promise<void> {
@@ -431,7 +439,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           let amount = this.bonusData[key] || 0;
 
           // 免除月の場合は0として明示的に保存
-          if (this.isExemptMonth(emp.id, column.payDate)) {
+          if (this.isBonusExempt(emp.id, column.payDate)) {
             amount = 0;
           }
 
@@ -446,7 +454,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           // 新規保存の場合のみチェック（既存の賞与を更新する場合はチェックしない）
           if (
             !existingBonus &&
-            (amount > 0 || this.isExemptMonth(emp.id, column.payDate))
+            (amount > 0 || this.isBonusExempt(emp.id, column.payDate))
           ) {
             const isFourthBonus =
               await this.bonusNotificationService.isFourthBonusInLast12Months(
@@ -464,7 +472,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           }
 
           // 賞与額が0より大きい場合、または免除月で0として保存する場合
-          if (amount > 0 || this.isExemptMonth(emp.id, column.payDate)) {
+          if (amount > 0 || this.isBonusExempt(emp.id, column.payDate)) {
             const employee = this.employees.find((e) => e.id === emp.id);
             if (!employee) continue;
 
