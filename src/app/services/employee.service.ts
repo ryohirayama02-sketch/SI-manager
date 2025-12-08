@@ -11,6 +11,7 @@ import {
   onSnapshot,
   query,
   where,
+  collectionData,
 } from '@angular/fire/firestore';
 import { Employee } from '../models/employee.model';
 import { Observable } from 'rxjs';
@@ -181,6 +182,63 @@ export class EmployeeService {
       existingData['name'] || '不明',
       `従業員「${existingData['name'] || '不明'}」を更新しました`
     );
+  }
+
+  // ---------- rooms/{roomId}/employees 系（新構造用） ----------
+
+  /**
+   * 指定ルームの従業員一覧を取得（リアルタイム購読）
+   */
+  getEmployeesByRoom(roomId: string): Observable<Employee[]> {
+    const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
+    return collectionData(colRef, { idField: 'id' }) as Observable<Employee[]>;
+  }
+
+  /**
+   * 指定ルームの従業員を取得
+   */
+  async getEmployeeByRoom(
+    roomId: string,
+    employeeId: string
+  ): Promise<Employee | null> {
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...(snap.data() as Employee) };
+  }
+
+  /**
+   * 指定ルームに従業員を作成（自動ID）
+   */
+  async createEmployeeInRoom(
+    roomId: string,
+    employee: Employee
+  ): Promise<string> {
+    const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
+    const payload = { ...employee, roomId };
+    const docRef = await addDoc(colRef, payload);
+    return docRef.id;
+  }
+
+  /**
+   * 指定ルームの従業員を更新（roomId を保持）
+   */
+  async updateEmployeeInRoom(
+    roomId: string,
+    employeeId: string,
+    employee: Employee
+  ): Promise<void> {
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
+    const payload = { ...employee, roomId };
+    await updateDoc(ref, payload as any);
+  }
+
+  /**
+   * 指定ルームの従業員を削除
+   */
+  async deleteEmployeeInRoom(roomId: string, employeeId: string): Promise<void> {
+    const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
+    await deleteDoc(ref);
   }
 
   async deleteEmployee(id: string): Promise<void> {

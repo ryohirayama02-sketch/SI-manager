@@ -9,6 +9,8 @@ import {
   deleteDoc,
   query,
   where,
+  addDoc,
+  collectionData,
 } from '@angular/fire/firestore';
 import { Office } from '../models/office.model';
 import { RoomIdService } from './room-id.service';
@@ -231,6 +233,56 @@ export class OfficeService {
       `事業所「${officeName}」を削除しました`
     );
 
+    await deleteDoc(ref);
+  }
+
+  // ---------- rooms/{roomId}/offices 系（新構造用） ----------
+
+  /**
+   * 指定ルームの事業所一覧を取得（リアルタイム購読）
+   */
+  getOfficesByRoom(roomId: string) {
+    const colRef = collection(this.firestore, `rooms/${roomId}/offices`);
+    return collectionData(colRef, { idField: 'id' });
+  }
+
+  /**
+   * 指定ルームの事業所を取得
+   */
+  async getOfficeByRoom(roomId: string, officeId: string): Promise<Office | null> {
+    const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
+    const snap = await getDoc(ref);
+    return snap.exists() ? (snap.data() as Office) : null;
+  }
+
+  /**
+   * 指定ルームに事業所を作成（自動ID）
+   */
+  async createOfficeInRoom(roomId: string, office: Office): Promise<string> {
+    const colRef = collection(this.firestore, `rooms/${roomId}/offices`);
+    const payload = { ...office, roomId };
+    const docRef = await addDoc(colRef, payload);
+    return docRef.id;
+  }
+
+  /**
+   * 指定ルームの事業所を更新（roomId を保持）
+   */
+  async updateOfficeInRoom(
+    roomId: string,
+    officeId: string,
+    office: Office
+  ): Promise<void> {
+    const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
+    const payload = { ...office, roomId };
+    await updateDoc(ref, payload as any);
+  }
+
+  /**
+   * 指定ルームの事業所を削除
+   */
+  async deleteOfficeInRoom(roomId: string, officeId: string): Promise<void> {
+    const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
     await deleteDoc(ref);
   }
 }
