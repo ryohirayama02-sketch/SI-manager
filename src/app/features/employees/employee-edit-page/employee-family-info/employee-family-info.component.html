@@ -61,7 +61,7 @@
             : "-"
         }}
       </td>
-      <td>{{ getPensionCategory(member) }}</td>
+      <td>{{ member.isThirdCategory ? "第3号" : "-" }}</td>
       <td>{{ member.supportStartDate || "-" }}</td>
       <td>{{ member.supportEndDate || "-" }}</td>
       <td>
