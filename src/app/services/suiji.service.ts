@@ -326,8 +326,12 @@ export class SuijiService {
    * @param result 随時改定候補結果
    */
   async saveSuijiKouho(year: number, result: SuijiKouhoResult): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     const docId = `${result.employeeId}_${result.changeMonth}`;
-    const ref = doc(this.firestore, `suiji/${year}/alerts/${docId}`);
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/suiji/${year}/alerts/${docId}`
+    );
     await setDoc(ref, result, { merge: true });
   }
 
@@ -340,8 +344,11 @@ export class SuijiService {
     year: number
   ): Promise<(SuijiKouhoResult & { id: string })[]> {
     const roomId = this.roomIdService.requireRoomId();
-    const ref = collection(this.firestore, `suiji/${year}/alerts`);
-    const snap = await getDocs(query(ref, where('roomId', '==', roomId)));
+    const ref = collection(
+      this.firestore,
+      `rooms/${roomId}/suiji/${year}/alerts`
+    );
+    const snap = await getDocs(ref);
     return snap.docs.map(
       (d) => ({ ...d.data(), id: d.id } as SuijiKouhoResult & { id: string })
     );
@@ -360,8 +367,11 @@ export class SuijiService {
 
     for (const year of years) {
       try {
-        const ref = collection(this.firestore, `suiji/${year}/alerts`);
-        const snap = await getDocs(query(ref, where('roomId', '==', roomId)));
+        const ref = collection(
+          this.firestore,
+          `rooms/${roomId}/suiji/${year}/alerts`
+        );
+        const snap = await getDocs(ref);
         const yearAlerts = snap.docs.map(
           (d) =>
             ({
@@ -394,8 +404,12 @@ export class SuijiService {
     employeeId: string,
     changeMonth: number
   ): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
     const docId = `${employeeId}_${changeMonth}`;
-    const ref = doc(this.firestore, `suiji/${year}/alerts/${docId}`);
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/suiji/${year}/alerts/${docId}`
+    );
     await deleteDoc(ref);
   }
 

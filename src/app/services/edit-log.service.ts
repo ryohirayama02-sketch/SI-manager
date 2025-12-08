@@ -41,13 +41,7 @@ export class EditLogService {
       return;
     }
 
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      console.warn(
-        '[EditLogService] ルームIDが取得できないため、ログを記録できません'
-      );
-      return;
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
     const editLog: Omit<EditLog, 'id'> = {
       userId: currentUser.uid,
@@ -64,7 +58,10 @@ export class EditLogService {
     };
 
     try {
-      await addDoc(collection(this.firestore, 'editLogs'), editLog);
+      await addDoc(
+        collection(this.firestore, `rooms/${roomId}/editLogs`),
+        editLog
+      );
     } catch (error) {
       console.error('[EditLogService] ログ記録エラー:', error);
     }
@@ -75,16 +72,12 @@ export class EditLogService {
    * インデックスエラーを回避するため、まずroomIdでフィルタしてからクライアント側でソート
    */
   async getEditLogs(maxCount: number = 100): Promise<EditLog[]> {
-    const roomId = this.roomIdService.getCurrentRoomId();
-    if (!roomId) {
-      return [];
-    }
+    const roomId = this.roomIdService.requireRoomId();
 
     try {
       // roomIdでフィルタのみ（インデックス不要）
       const q = query(
-        collection(this.firestore, 'editLogs'),
-        where('roomId', '==', roomId),
+        collection(this.firestore, `rooms/${roomId}/editLogs`),
         limit(maxCount * 2) // 余分に取得してクライアント側でソート
       );
 

@@ -2,8 +2,10 @@ import {
   collection,
   collectionGroup,
   deleteDoc,
+  doc,
   getDocs,
   query,
+  setDoc,
   where,
   Firestore,
 } from '@angular/fire/firestore';
@@ -12,7 +14,9 @@ import {
  * roomId が欠損しているドキュメントのみを削除するメンテナンススクリプト。
  * 必要なときだけ一時的に呼び出してください（AppComponent などから）。
  */
-export async function cleanupMissingRoomId(firestore: Firestore): Promise<void> {
+export async function cleanupMissingRoomId(
+  firestore: Firestore
+): Promise<void> {
   // helper: delete all docs in a query result
   const deleteByQuery = async (label: string, q: any) => {
     const snap = await getDocs(q);
@@ -39,46 +43,82 @@ export async function cleanupMissingRoomId(firestore: Firestore): Promise<void> 
     where('roomId', '==', '')
   );
   await deleteByQuery('employeeChangeHistory (roomId == null)', historyNoRoom);
-  await deleteByQuery('employeeChangeHistory (roomId == empty)', historyEmptyRoom);
-
-  // 2) suiji/{year}/alerts for 2023-2026
-  const years = [2023, 2024, 2025, 2026];
-  for (const year of years) {
-    const base = collection(firestore, `suiji/${year}/alerts`);
-    const suijiNull = query(base, where('roomId', '==', null));
-    const suijiEmpty = query(base, where('roomId', '==', ''));
-    await deleteByQuery(`suiji/${year}/alerts (roomId == null)`, suijiNull);
-    await deleteByQuery(`suiji/${year}/alerts (roomId == empty)`, suijiEmpty);
-  }
-
-  // 3) uncollected-premiums (collection; include missing roomId field)
-  const uncollectedRef = collection(firestore, 'uncollected-premiums');
-  const uncollectedNull = query(uncollectedRef, where('roomId', '==', null));
-  const uncollectedEmpty = query(uncollectedRef, where('roomId', '==', ''));
-  await deleteByQuery('uncollected-premiums (roomId == null)', uncollectedNull);
-  await deleteByQuery('uncollected-premiums (roomId == empty)', uncollectedEmpty);
-
-  // missing roomId field: fetch all and filter client-side
-  const allUncollectedSnap = await getDocs(uncollectedRef);
-  const missingRoomId = allUncollectedSnap.docs.filter(
-    (d) => d.data()['roomId'] === undefined
+  await deleteByQuery(
+    'employeeChangeHistory (roomId == empty)',
+    historyEmptyRoom
   );
-  if (missingRoomId.length === 0) {
+
+  // helper: migrate or delete a single doc from old path to new room path
+  const migrateDoc = async (
+    label: string,
+    oldCollectionPath: string,
+    newPathBuilder: (roomId: string, docId: string) => string
+  ) => {
+    const sourceCollection = collection(firestore, oldCollectionPath);
+    const snap = await getDocs(sourceCollection);
+    if (snap.empty) {
+      console.log(`[cleanupMissingRoomId] ${label}: no documents found`);
+      return;
+    }
     console.log(
-      '[cleanupMissingRoomId] uncollected-premiums (roomId missing): no targets'
+      `[cleanupMissingRoomId] ${label}: processing ${snap.size} documents...`
     );
-  } else {
-    console.log(
-      `[cleanupMissingRoomId] uncollected-premiums (roomId missing): deleting ${missingRoomId.length} documents...`
-    );
-    for (const docSnap of missingRoomId) {
+    let migrated = 0;
+    let skippedMissingRoom = 0;
+    let deletedMissingRoom = 0;
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data();
+      const roomId = (data as any)?.roomId;
+      if (!roomId) {
+        console.log(
+          `[cleanupMissingRoomId] ${label}: missing roomId -> skip/delete candidate ${docSnap.id}`
+        );
+        console.log(
+          `[cleanupMissingRoomId] ${label}: deleting ${docSnap.ref.path}`
+        );
+        await deleteDoc(docSnap.ref);
+        deletedMissingRoom++;
+        continue;
+      }
+      const newPath = newPathBuilder(roomId, docSnap.id);
+      const newRef = doc(firestore, newPath);
+      await setDoc(newRef, data, { merge: true });
       await deleteDoc(docSnap.ref);
       console.log(
-        `[cleanupMissingRoomId] deleted uncollected-premiums (roomId missing): ${docSnap.id}`
+        `[cleanupMissingRoomId] ${label}: migrated ${docSnap.id} -> ${newPath}`
       );
+      migrated++;
     }
+    console.log(
+      `[cleanupMissingRoomId] ${label}: migrated=${migrated}, deletedMissingRoomId=${deletedMissingRoom}`
+    );
+  };
+
+  // 2) suiji/{year}/alerts for 2023-2026 (move to rooms/{roomId}/suiji/{year}/alerts)
+  const years = [2023, 2024, 2025, 2026];
+  for (const year of years) {
+    await migrateDoc(
+      `suiji/${year}/alerts`,
+      `suiji/${year}/alerts`,
+      (roomId, docId) => `rooms/${roomId}/suiji/${year}/alerts/${docId}`
+    );
   }
 
-  console.log('[cleanupMissingRoomId] completed.');
-}
+  // 3) uncollected-premiums (move to rooms/{roomId}/uncollected-premiums)
+  await migrateDoc(
+    'uncollected-premiums',
+    'uncollected-premiums',
+    (roomId, docId) => `rooms/${roomId}/uncollected-premiums/${docId}`
+  );
 
+  // 4) editLogs (move to rooms/{roomId}/editLogs)
+  await migrateDoc(
+    'editLogs',
+    'editLogs',
+    (roomId, docId) => `rooms/${roomId}/editLogs/${docId}`
+  );
+
+  console.log(
+    '[cleanupMissingRoomId] completed with migration stats logged above.'
+  );
+}
