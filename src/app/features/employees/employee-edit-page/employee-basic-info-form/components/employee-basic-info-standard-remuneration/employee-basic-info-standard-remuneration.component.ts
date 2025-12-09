@@ -57,6 +57,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
   async ngOnInit(): Promise<void> {
     await this.loadCalculationResults();
     await this.applyLatestResult();
+    await this.setStandardFromMonthlyWageIfEmpty();
 
     // ルーターイベントを購読（画面遷移後に再読み込み）
     this.routerSubscription = this.router.events
@@ -66,6 +67,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         if (this.employeeId) {
           await this.loadCalculationResults();
           await this.applyLatestResult();
+          await this.setStandardFromMonthlyWageIfEmpty();
         }
       });
   }
@@ -84,6 +86,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         this.previousEmployeeId = oldEmployeeId;
         await this.loadCalculationResults();
         await this.applyLatestResult();
+        await this.setStandardFromMonthlyWageIfEmpty();
       }
     }
   }
@@ -360,6 +363,8 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         });
       }
     }
+
+    await this.setStandardFromMonthlyWageIfEmpty();
   }
 
   /**
@@ -409,5 +414,55 @@ export class EmployeeBasicInfoStandardRemunerationComponent
    */
   getSuijiYear(suiji: any): number {
     return suiji.year || this.currentYear;
+  }
+
+  /**
+   * 月額賃金から標準報酬月額を自動算定（空欄時のみ）
+   */
+  private async setStandardFromMonthlyWageIfEmpty(): Promise<void> {
+    const ctrl = this.form.get('currentStandardMonthlyRemuneration');
+    if (!ctrl || ctrl.value) {
+      return;
+    }
+
+    const wageVal = this.form.get('monthlyWage')?.value;
+    if (wageVal === null || wageVal === undefined || wageVal === '') {
+      console.log('[std-remuneration] skip auto-set: monthlyWage empty');
+      return;
+    }
+
+    const rawWage = Number(wageVal);
+    if (Number.isNaN(rawWage) || rawWage <= 0) {
+      console.log('[std-remuneration] skip auto-set: monthlyWage invalid', wageVal);
+      return;
+    }
+
+    const joinVal = this.form.get('joinDate')?.value;
+    const currentYear = joinVal
+      ? new Date(joinVal).getFullYear()
+      : new Date().getFullYear();
+    const gradeTable =
+      (await this.settingsService.getStandardTable(currentYear)) || [];
+    const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
+      rawWage,
+      gradeTable
+    );
+    const standard = result?.standard ?? rawWage;
+    console.log('[std-remuneration] auto-set from monthlyWage', {
+      rawWage,
+      joinVal,
+      currentYear,
+      gradeTableLength: gradeTable?.length ?? 0,
+      result,
+      standard,
+    });
+
+    this.form.patchValue(
+      {
+        currentStandardMonthlyRemuneration: standard,
+        determinationReason: this.form.get('determinationReason')?.value || 'shikaku',
+      },
+      { emitEvent: false }
+    );
   }
 }

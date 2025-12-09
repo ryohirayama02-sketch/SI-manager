@@ -12,7 +12,6 @@ import { EmployeeService } from '../../../services/employee.service';
 import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
 import { EmployeeEligibilityService } from '../../../services/employee-eligibility.service';
 import { EmployeeWorkCategoryService } from '../../../services/employee-work-category.service';
-import { SalaryCalculationService } from '../../../services/salary-calculation.service';
 import { FamilyMemberService } from '../../../services/family-member.service';
 import { OfficeService } from '../../../services/office.service';
 import { Employee } from '../../../models/employee.model';
@@ -20,6 +19,8 @@ import { FamilyMember } from '../../../models/family-member.model';
 import { Office } from '../../../models/office.model';
 import { RoomIdService } from '../../../services/room-id.service';
 import { EmployeeChangeHistoryService } from '../../../services/employee-change-history.service';
+import { SettingsService } from '../../../services/settings.service';
+import { SalaryCalculationService } from '../../../services/salary-calculation.service';
 
 @Component({
   selector: 'app-employee-create-page',
@@ -71,6 +72,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     private officeService: OfficeService,
     private roomIdService: RoomIdService,
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
+    private settingsService: SettingsService,
     private router: Router
   ) {
     this.form = this.fb.group({
@@ -115,11 +117,18 @@ export class EmployeeCreatePageComponent implements OnInit {
       sickPayApplicationRequest: [false],
       childcareEmployerCertificateRequest: [false],
       maternityAllowanceApplicationRequest: [false],
+      currentStandardMonthlyRemuneration: [{ value: null, disabled: true }],
     });
 
     // フォーム値変更時に自動判定を実行
     this.form.valueChanges.subscribe(() => {
       this.updateAutoDetection();
+    });
+    this.form.get('monthlyWage')?.valueChanges.subscribe(() => {
+      this.updateStandardFromMonthlyWage();
+    });
+    this.form.get('joinDate')?.valueChanges.subscribe(() => {
+      this.updateStandardFromMonthlyWage();
     });
 
     // 月額賃金の初期値がある場合、カンマ区切りで表示
@@ -127,6 +136,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       const monthlyWage = this.form.get('monthlyWage')?.value;
       if (monthlyWage !== null && monthlyWage !== undefined) {
         this.formatMonthlyWageDisplay();
+        this.updateStandardFromMonthlyWage();
       }
     }, 0);
 
@@ -192,6 +202,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       } else {
         input.value = '';
       }
+      this.updateStandardFromMonthlyWage();
     } else {
       // 数値以外が入力された場合は前の値に戻す
       const currentValue = this.form.get('monthlyWage')?.value;
@@ -208,6 +219,7 @@ export class EmployeeCreatePageComponent implements OnInit {
    */
   onMonthlyWageBlur(): void {
     this.formatMonthlyWageDisplay();
+    this.updateStandardFromMonthlyWage();
   }
 
   /**
@@ -226,6 +238,58 @@ export class EmployeeCreatePageComponent implements OnInit {
         }
       }
     }
+  }
+
+  /**
+   * 月額賃金から標準報酬月額を自動算出してセット（確認専用・入力不可）
+   */
+  private async updateStandardFromMonthlyWage(): Promise<void> {
+    const wage = this.form.get('monthlyWage')?.value;
+    if (wage === null || wage === undefined || wage === '') {
+      console.log('[employee-create] standard calc skipped: wage empty');
+      this.form.patchValue(
+        { currentStandardMonthlyRemuneration: null },
+        { emitEvent: false }
+      );
+      return;
+    }
+
+    const rawNumber = Number(wage);
+    if (Number.isNaN(rawNumber) || rawNumber <= 0) {
+      console.log('[employee-create] standard calc skipped: wage invalid', wage);
+      this.form.patchValue(
+        { currentStandardMonthlyRemuneration: null },
+        { emitEvent: false }
+      );
+      return;
+    }
+
+    const joinVal = this.form.get('joinDate')?.value;
+    const currentYear = joinVal
+      ? new Date(joinVal).getFullYear()
+      : new Date().getFullYear();
+    const gradeTable =
+      (await this.settingsService.getStandardTable(currentYear)) || [];
+    console.log('[employee-create] standard calc input', {
+      rawNumber,
+      joinVal,
+      currentYear,
+      gradeTableLength: gradeTable?.length ?? 0,
+    });
+    const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
+      rawNumber,
+      gradeTable
+    );
+    // 等級表で判定できない場合は、入力額をそのまま標準報酬月額として設定
+    const standard = result?.standard ?? rawNumber;
+    console.log('[employee-create] standard calc result', {
+      result,
+      standard,
+    });
+    this.form.patchValue(
+      { currentStandardMonthlyRemuneration: standard },
+      { emitEvent: false }
+    );
   }
 
   /**
@@ -256,7 +320,7 @@ export class EmployeeCreatePageComponent implements OnInit {
   }
 
   updateAutoDetection(): void {
-    const value = this.form.value;
+    const value = this.form.getRawValue();
 
     if (!value.birthDate) {
       this.eligibilityStatus = '';
@@ -451,6 +515,11 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.maternityAllowanceApplicationRequest !== undefined)
       employee.maternityAllowanceApplicationRequest =
         value.maternityAllowanceApplicationRequest;
+    if (value.currentStandardMonthlyRemuneration !== undefined) {
+      employee.currentStandardMonthlyRemuneration =
+        value.currentStandardMonthlyRemuneration;
+      employee.determinationReason = 'shikaku';
+    }
 
     // 勤務区分から短時間フラグを自動算出し上書き
     employee.isShortTime = this.employeeWorkCategoryService.isShortTimeWorker(
