@@ -1,35 +1,5 @@
 <div class="info-label" *ngIf="warningMessages['system']?.length">
-  <strong>警告:</strong> {{ warningMessages['system'][0] }}
+  <strong>警告:</strong> {{ warningMessages["system"][0] }}
 </div>
 
-<!-- エラー・警告メッセージ -->
-<div *ngFor="let emp of employees">
-  <div *ngIf="errorMessages[emp.id]?.length" class="error-box">
-    <h4>エラー（{{ emp.name }}）</h4>
-    <ul>
-      <li *ngFor="let err of errorMessages[emp.id]">{{ err }}</li>
-    </ul>
-  </div>
-  
-  <div *ngIf="warningMessages[emp.id]?.length" class="warning-box">
-    <h4>警告（{{ emp.name }}）</h4>
-    <ul>
-      <li *ngFor="let w of warningMessages[emp.id]">{{ w }}</li>
-    </ul>
-  </div>
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+<!-- 個別のエラー・警告表示は非表示に変更 -->
