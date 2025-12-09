@@ -22,6 +22,9 @@ export class EmployeeHistoryComponent implements OnInit {
   insuranceStatusHistories: InsuranceStatusHistory[] = [];
   selectedHistoryYear: number = new Date().getFullYear();
   isLoadingHistories: boolean = false;
+  joinDate?: string;
+  joinYear?: number | null;
+  joinMonth?: number | null;
 
   constructor(
     private employeeService: EmployeeService,
@@ -43,6 +46,13 @@ export class EmployeeHistoryComponent implements OnInit {
         this.employeeId
       );
       if (!employee) return;
+      this.joinDate = employee.joinDate;
+      this.joinYear = this.joinDate
+        ? new Date(this.joinDate).getFullYear()
+        : null;
+      this.joinMonth = this.joinDate
+        ? new Date(this.joinDate).getMonth() + 1
+        : null;
 
       // 常に最新の履歴を自動生成
       await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
@@ -166,6 +176,15 @@ export class EmployeeHistoryComponent implements OnInit {
   }
 
   getFilteredInsuranceHistories(): InsuranceStatusHistory[] {
+    // 入社日前は表示しない
+    const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
+    const hasJoinMonth = this.joinMonth !== null && this.joinMonth !== undefined;
+    if (hasJoinYear) {
+      if (this.selectedHistoryYear < (this.joinYear as number)) {
+        return [];
+      }
+    }
+
     // 選択年度でフィルタリング
     const filtered = this.insuranceStatusHistories.filter(
       (h) => h.year === this.selectedHistoryYear
@@ -174,6 +193,16 @@ export class EmployeeHistoryComponent implements OnInit {
     // 同じ年月の重複を排除（最新のupdatedAtを持つものを優先、なければcreatedAt）
     const uniqueMap = new Map<string, InsuranceStatusHistory>();
     for (const history of filtered) {
+      // 入社月より前の月は除外（入社年のみ）
+      if (
+        hasJoinYear &&
+        hasJoinMonth &&
+        history.year === (this.joinYear as number) &&
+        history.month < (this.joinMonth as number)
+      ) {
+        continue;
+      }
+
       const key = `${history.year}_${history.month}`;
       const existing = uniqueMap.get(key);
 
