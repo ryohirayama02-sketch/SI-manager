@@ -37,6 +37,28 @@ export class EmployeeFamilyInfoComponent implements OnInit {
     });
   }
 
+  /**
+   * 年収入力をカンマ付きで表示しつつ、フォーム値は数値として保持
+   */
+  onExpectedIncomeInput(event: Event): void {
+    const inputEl = event.target as HTMLInputElement;
+    const raw = inputEl.value.replace(/,/g, '').trim();
+    if (raw === '') {
+      this.familyForm.get('expectedIncome')?.setValue(null, { emitEvent: false });
+      inputEl.value = '';
+      return;
+    }
+    const num = Number(raw);
+    if (Number.isNaN(num)) {
+      // 不正入力はクリア
+      this.familyForm.get('expectedIncome')?.setValue(null, { emitEvent: false });
+      inputEl.value = '';
+      return;
+    }
+    this.familyForm.get('expectedIncome')?.setValue(num, { emitEvent: false });
+    inputEl.value = num.toLocaleString();
+  }
+
   async ngOnInit(): Promise<void> {
     await this.loadFamilyMembers();
   }
@@ -71,7 +93,7 @@ export class EmployeeFamilyInfoComponent implements OnInit {
       birthDate: member.birthDate,
       relationship: member.relationship,
       livingTogether: member.livingTogether,
-      expectedIncome: member.expectedIncome || null,
+      expectedIncome: member.expectedIncome ?? null,
       isThirdCategory: member.isThirdCategory,
       supportStartDate: member.supportStartDate || '',
       supportEndDate: member.supportEndDate || '',
@@ -107,8 +129,17 @@ export class EmployeeFamilyInfoComponent implements OnInit {
         birthDate: value.birthDate,
         relationship: value.relationship,
         livingTogether: value.livingTogether,
-        expectedIncome: value.expectedIncome || null,
-        isThirdCategory: value.isThirdCategory,
+        expectedIncome:
+          value.expectedIncome === null || value.expectedIncome === undefined
+            ? undefined
+            : Number(value.expectedIncome),
+        // 年収見込みが 1,060,000 未満なら第3号を自動でON、それ以外はフォーム値を尊重
+        isThirdCategory:
+          value.expectedIncome !== null &&
+          value.expectedIncome !== undefined &&
+          Number(value.expectedIncome) < 1060000
+            ? true
+            : value.isThirdCategory,
         supportStartDate: value.supportStartDate || undefined,
         supportEndDate: value.supportEndDate || undefined,
         changeDate: value.changeDate || undefined

@@ -20,7 +20,6 @@ export interface SupportAlert {
     | '配偶者別居'
     | '配偶者75歳到達'
     | '子18歳到達'
-    | '子20歳到達'
     | '子22歳到達'
     | '子別居'
     | '子収入増加'
@@ -326,44 +325,7 @@ export class AlertFamilyTabComponent implements OnInit {
               });
             }
 
-            // ② 20歳到達（国民年金加入開始）
-            const age20Date = new Date(
-              birthDate.getFullYear() + 20,
-              birthDate.getMonth(),
-              birthDate.getDate()
-            );
-            age20Date.setHours(0, 0, 0, 0);
-            const age20AlertStart = new Date(age20Date);
-            age20AlertStart.setMonth(age20AlertStart.getMonth() - 1);
-
-            if (today >= age20AlertStart && age >= 19 && age < 21) {
-              const submitDeadline = new Date(age20Date);
-              submitDeadline.setDate(submitDeadline.getDate() + 14);
-              const daysUntilDeadline = Math.ceil(
-                (submitDeadline.getTime() - today.getTime()) /
-                  (1000 * 60 * 60 * 24)
-              );
-
-              alerts.push({
-                id: `child_20_${emp.id}_${member.id}`,
-                employeeId: emp.id,
-                employeeName: emp.name,
-                familyMemberId: member.id || '',
-                familyMemberName: member.name,
-                relationship: relationship,
-                alertType: '子20歳到達',
-                notificationName:
-                  '国民年金 第1号被保険者加入手続き（本人手続き）※学生：学生納付特例申請',
-                alertDate: age20Date,
-                submitDeadline: submitDeadline,
-                daysUntilDeadline: daysUntilDeadline,
-                details: `子が20歳になります。国民年金の加入が必要です（本人手続き）。学生は「学生納付特例」の申請が必要です。就労する場合は扶養見直しが必要です（提出期限: ${this.formatDate(
-                  submitDeadline
-                )}）。`,
-              });
-            }
-
-            // ③ 22歳到達（大学卒業＋収入増の可能性）
+            // ② 22歳到達（大学卒業＋収入増の可能性）
             const age22Year = birthDate.getFullYear() + 22;
             const age22GraduationDate = new Date(age22Year, 2, 31);
             age22GraduationDate.setHours(0, 0, 0, 0);
