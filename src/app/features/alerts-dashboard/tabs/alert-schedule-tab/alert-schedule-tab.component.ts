@@ -65,6 +65,7 @@ export class AlertScheduleTabComponent {
       '産休・育休・休職': 'leave',
       '扶養・氏名・住所変更': 'family',
       徴収不能: 'uncollected',
+      前月分の社会保険料納付期限: 'payment',
     };
 
     const result: {

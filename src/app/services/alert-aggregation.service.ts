@@ -166,6 +166,22 @@ export class AlertAggregationService {
       scheduleData[dateKey]['徴収不能'] = count;
     }
 
+    // 前月分の社会保険料納付期限（毎月末日）
+    const now = getJSTDate();
+    const paymentYear = now.getFullYear();
+    for (let month = 1; month <= 12; month++) {
+      // 月末日を取得（翌月0日）
+      const lastDay = new Date(paymentYear, month, 0);
+      const dateKey = this.formatDateKey(lastDay);
+      if (!scheduleData[dateKey]) {
+        scheduleData[dateKey] = {};
+      }
+      if (!scheduleData[dateKey]['前月分の社会保険料納付期限']) {
+        scheduleData[dateKey]['前月分の社会保険料納付期限'] = 0;
+      }
+      scheduleData[dateKey]['前月分の社会保険料納付期限']++;
+    }
+
     return scheduleData;
   }
 

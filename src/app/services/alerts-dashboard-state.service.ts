@@ -91,6 +91,7 @@ export class AlertsDashboardStateService {
       leave: '#17a2b8',
       family: '#6f42c1',
       uncollected: '#e91e63',
+      payment: '#ff7043',
     };
     return colorMap[tabId] || '#6c757d';
   }
