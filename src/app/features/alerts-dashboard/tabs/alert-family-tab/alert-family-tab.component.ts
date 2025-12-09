@@ -298,9 +298,16 @@ export class AlertFamilyTabComponent implements OnInit {
             const age18Year = birthDate.getFullYear() + 18;
             const age18GraduationDate = new Date(age18Year, 2, 31);
             age18GraduationDate.setHours(0, 0, 0, 0);
-            const age18AlertStart = new Date(age18GraduationDate);
-            age18AlertStart.setMonth(age18AlertStart.getMonth() - 1);
+            // アラート発火は卒業予定日の30日前（3/1想定）
+            const age18AlertStart = new Date(age18Year, 2, 1);
             if (today >= age18AlertStart && age >= 17 && age < 19) {
+              const submitDeadline = new Date(age18GraduationDate);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
               alerts.push({
                 id: `child_18_${emp.id}_${member.id}`,
                 employeeId: emp.id,
@@ -311,7 +318,11 @@ export class AlertFamilyTabComponent implements OnInit {
                 alertType: '子18歳到達',
                 notificationName: '扶養見直し（届出不要）',
                 alertDate: age18GraduationDate,
-                details: `子が18歳に到達します（高校卒業予定: ${age18Year}年3月31日）。進学・就労有無による扶養見直しが必要です（届出不要）。`,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子が18歳に到達します（高校卒業予定: ${age18Year}年3月31日）。進学・就労有無による扶養見直しが必要です（届出不要）。提出期限: ${this.formatDate(
+                  submitDeadline
+                )}。`,
               });
             }
 
@@ -356,8 +367,8 @@ export class AlertFamilyTabComponent implements OnInit {
             const age22Year = birthDate.getFullYear() + 22;
             const age22GraduationDate = new Date(age22Year, 2, 31);
             age22GraduationDate.setHours(0, 0, 0, 0);
-            const age22AlertStart = new Date(age22GraduationDate);
-            age22AlertStart.setMonth(age22AlertStart.getMonth() - 1);
+            // アラート発火は卒業予定日の30日前（3/1想定）
+            const age22AlertStart = new Date(age22Year, 2, 1);
             if (today >= age22AlertStart && age >= 21 && age < 23) {
               const submitDeadline = new Date(age22GraduationDate);
               submitDeadline.setDate(submitDeadline.getDate() + 5);
