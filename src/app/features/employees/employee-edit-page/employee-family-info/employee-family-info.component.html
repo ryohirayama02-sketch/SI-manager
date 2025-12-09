@@ -61,17 +61,7 @@
             : "-"
         }}
       </td>
-      <td>
-        {{
-          member.expectedIncome !== null &&
-          member.expectedIncome !== undefined &&
-          member.expectedIncome >= 1060000
-            ? "-"
-            : member.isThirdCategory
-              ? "第3号"
-              : "-"
-        }}
-      </td>
+      <td>{{ getThirdCategoryDisplay(member) }}</td>
       <td>{{ member.supportStartDate || "-" }}</td>
       <td>{{ member.supportEndDate || "-" }}</td>
       <td>

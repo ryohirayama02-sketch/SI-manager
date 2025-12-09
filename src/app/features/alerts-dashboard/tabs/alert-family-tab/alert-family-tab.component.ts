@@ -1,4 +1,12 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnInit,
+  OnChanges,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FamilyAlertUiService } from '../../../../services/family-alert-ui.service';
 import { EmployeeService } from '../../../../services/employee.service';
@@ -19,6 +27,7 @@ export interface SupportAlert {
     | '配偶者収入増加'
     | '配偶者別居'
     | '配偶者75歳到達'
+    | '配偶者第3号取得'
     | '子18歳到達'
     | '子22歳到達'
     | '子別居'
@@ -42,7 +51,7 @@ export interface SupportAlert {
   templateUrl: './alert-family-tab.component.html',
   styleUrl: './alert-family-tab.component.css',
 })
-export class AlertFamilyTabComponent implements OnInit {
+export class AlertFamilyTabComponent implements OnInit, OnChanges {
   @Input() set supportAlerts(value: SupportAlert[]) {
     this._supportAlerts = value || [];
   }
@@ -52,6 +61,7 @@ export class AlertFamilyTabComponent implements OnInit {
   private _supportAlerts: SupportAlert[] = [];
 
   @Input() selectedSupportAlertIds: Set<string> = new Set();
+  @Input() refreshToken: number = 0;
   @Output() alertSelectionChange = new EventEmitter<{
     alertId: string;
     selected: boolean;
@@ -79,6 +89,13 @@ export class AlertFamilyTabComponent implements OnInit {
     }
   }
 
+  async ngOnChanges(changes: SimpleChanges): Promise<void> {
+    if (changes['refreshToken'] && !changes['refreshToken'].firstChange) {
+      this.employees = await this.employeeService.getAllEmployees();
+      await this.loadSupportAlerts(true);
+    }
+  }
+
   private getJSTDate(): Date {
     const now = new Date();
     const jstOffset = 9 * 60;
@@ -86,7 +103,7 @@ export class AlertFamilyTabComponent implements OnInit {
     return new Date(utc + jstOffset * 60000);
   }
 
-  async loadSupportAlerts(): Promise<void> {
+  async loadSupportAlerts(force: boolean = false): Promise<void> {
     const alerts: SupportAlert[] = [];
     const today = this.getJSTDate();
     today.setHours(0, 0, 0, 0);
@@ -110,6 +127,10 @@ export class AlertFamilyTabComponent implements OnInit {
           birthDate.setHours(0, 0, 0, 0);
           const age = this.familyMemberService.calculateAge(member.birthDate);
           const relationship = member.relationship || '';
+          const income =
+            member.expectedIncome !== null && member.expectedIncome !== undefined
+              ? member.expectedIncome
+              : null;
 
           console.log(
             `[alert-family-tab] 家族チェック: 従業員=${emp.name}, 家族=${member.name}, 続柄=${relationship}, 生年月日=${member.birthDate}, 現在年齢=${age}`
@@ -278,6 +299,42 @@ export class AlertFamilyTabComponent implements OnInit {
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
                 details: `配偶者が75歳になります。後期高齢者医療制度へ移行するため、健康保険被扶養者異動届（削除）が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ⑥ 第3号取得（配偶者が第3号となった場合）※見込年収<1,060,000かつ20-59歳
+            if (
+              member.isThirdCategory &&
+              income !== null &&
+              income !== undefined &&
+              income < 1060000 &&
+              age >= 20 &&
+              age < 60
+            ) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_third_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者第3号取得',
+                notificationName: '国民年金第3号被保険者関係届',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者が第3号に該当しました（見込年収${income.toLocaleString(
+                  'ja-JP'
+                )}円）。国民年金第3号被保険者関係届を14日以内に提出してください（期限: ${this.formatDate(
                   submitDeadline
                 )}）。`,
               });
@@ -511,8 +568,8 @@ export class AlertFamilyTabComponent implements OnInit {
         return b.alertDate.getTime() - a.alertDate.getTime();
       });
 
-      // @Input()で渡されていない場合、自分で設定
-      if (!this._supportAlerts || this._supportAlerts.length === 0) {
+      // 常に最新で上書き（force）、または初回のみセット
+      if (force || !this._supportAlerts || this._supportAlerts.length === 0) {
         this._supportAlerts = alerts;
       }
 

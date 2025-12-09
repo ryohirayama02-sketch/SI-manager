@@ -195,6 +195,7 @@
       [hidden]="state.activeTab !== 'family'"
       [supportAlerts]="state.supportAlerts"
       [selectedSupportAlertIds]="state.selectedSupportAlertIds"
+      [refreshToken]="familyRefreshToken"
       (alertSelectionChange)="onSupportAlertSelectionChange($event)"
       (selectAllChange)="onSupportSelectAllChange($event)"
       (deleteSelected)="deleteSelectedSupportAlerts()"

@@ -59,6 +59,34 @@ export class EmployeeFamilyInfoComponent implements OnInit {
     inputEl.value = num.toLocaleString();
   }
 
+  /**
+   * 第3号区分の表示（配偶者のみ判定）
+   */
+  getThirdCategoryDisplay(member: FamilyMember): string {
+    const income = member.expectedIncome;
+    const age = this.getFamilyMemberAge(member.birthDate);
+    const isSpouse =
+      member.relationship === '配偶者' ||
+      member.relationship === '妻' ||
+      member.relationship === '夫';
+
+    if (!isSpouse) return member.isThirdCategory ? '第3号' : '-';
+
+    // 20歳未満または60歳以上は常にハイフン
+    if (age < 20 || age >= 60) return '-';
+
+    // 20-59歳かつ見込年収<1,060,000で第3号、その他はハイフン
+    if (
+      income !== null &&
+      income !== undefined &&
+      income < 1060000 &&
+      member.isThirdCategory
+    ) {
+      return '第3号';
+    }
+    return '-';
+  }
+
   async ngOnInit(): Promise<void> {
     await this.loadFamilyMembers();
   }
@@ -122,6 +150,20 @@ export class EmployeeFamilyInfoComponent implements OnInit {
 
     try {
       const value = this.familyForm.value;
+      const incomeNum =
+        value.expectedIncome === null || value.expectedIncome === undefined
+          ? null
+          : Number(value.expectedIncome);
+      const age = this.getFamilyMemberAge(value.birthDate);
+      const isSpouse = value.relationship === '配偶者';
+      const isThirdAuto =
+        isSpouse &&
+        incomeNum !== null &&
+        incomeNum !== undefined &&
+        incomeNum < 1060000 &&
+        age >= 20 &&
+        age < 60;
+
       const familyMember: FamilyMember = {
         id: this.editingFamilyMember?.id,
         employeeId: this.employeeId,
@@ -130,16 +172,9 @@ export class EmployeeFamilyInfoComponent implements OnInit {
         relationship: value.relationship,
         livingTogether: value.livingTogether,
         expectedIncome:
-          value.expectedIncome === null || value.expectedIncome === undefined
-            ? undefined
-            : Number(value.expectedIncome),
-        // 年収見込みが 1,060,000 未満なら第3号を自動でON、それ以外はフォーム値を尊重
-        isThirdCategory:
-          value.expectedIncome !== null &&
-          value.expectedIncome !== undefined &&
-          Number(value.expectedIncome) < 1060000
-            ? true
-            : value.isThirdCategory,
+          incomeNum === null || incomeNum === undefined ? undefined : incomeNum,
+        // 配偶者のみ自動判定: 20-59歳かつ見込年収<1,060,000で第3号、それ以外はハイフン扱い
+        isThirdCategory: isSpouse ? isThirdAuto : value.isThirdCategory,
         supportStartDate: value.supportStartDate || undefined,
         supportEndDate: value.supportEndDate || undefined,
         changeDate: value.changeDate || undefined

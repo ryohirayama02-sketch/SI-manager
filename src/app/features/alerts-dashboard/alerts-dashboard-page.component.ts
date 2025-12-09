@@ -99,6 +99,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   bonusesByEmployeeId: { [employeeId: string]: Bonus[] } = {};
   gradeTable: any[] = [];
   isLoadingTeijiKettei: boolean = false;
+  familyRefreshToken = 0;
 
   constructor(
     private suijiService: SuijiService,
@@ -614,6 +615,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       await this.loadMaternityChildcareAlerts();
     } else if (tab === 'bonus') {
       await this.loadBonusReportAlerts();
+    } else if (tab === 'family') {
+      this.familyRefreshToken++;
     }
     // スケジュールデータを再読み込み
     await this.loadScheduleData();
