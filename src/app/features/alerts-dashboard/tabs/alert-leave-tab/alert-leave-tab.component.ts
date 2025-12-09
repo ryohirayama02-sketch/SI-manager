@@ -22,9 +22,7 @@ export interface MaternityChildcareAlert {
   employeeName: string;
   alertType:
     | '産前産後休業取得者申出書'
-    | '産前産後休業取得者変更（終了）届'
     | '育児休業等取得者申出書'
-    | '育児休業等取得者終了届'
     | '傷病手当金支給申請書の記入依頼'
     | '育児休業関係の事業主証明書の記入依頼'
     | '出産手当金支給申請書の記入依頼'
@@ -126,29 +124,6 @@ export class AlertLeaveTabComponent implements OnInit {
           });
         }
 
-        // 産前産後休業取得者変更（終了）届
-        if (emp.maternityLeaveEnd) {
-          const endDate = normalizeDate(new Date(emp.maternityLeaveEnd));
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() + 1);
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `maternity_end_${emp.id}_${emp.maternityLeaveEnd}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '産前産後休業取得者変更（終了）届',
-            notificationName: '産前産後休業取得者変更（終了）届',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `産休終了日: ${formatDate(endDate)}`,
-          });
-        }
-
         // 育児休業等取得者申出書
         if (emp.childcareLeaveStart) {
           const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
@@ -170,28 +145,7 @@ export class AlertLeaveTabComponent implements OnInit {
           });
         }
 
-        // 育児休業等取得者終了届
-        if (emp.childcareLeaveEnd) {
-          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() + 1);
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `childcare_end_${emp.id}_${emp.childcareLeaveEnd}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業等取得者終了届',
-            notificationName: '育児休業等取得者終了届',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `育休終了日: ${formatDate(endDate)}`,
-          });
-        }
+        // 終了届の管理は対象外とするため生成しない
       }
 
       alerts.sort((a, b) => {
@@ -267,7 +221,7 @@ export class AlertLeaveTabComponent implements OnInit {
   }
 
   /**
-   * CSV出力（産前産後休業取得者申出書 / 産前産後休業取得者変更（終了）届 / 育児休業等取得者申出書 / 育児休業等取得者終了届 / 傷病手当金支給申請書の記入依頼）
+   * CSV出力（産前産後休業取得者申出書 / 育児休業等取得者申出書 / 傷病手当金支給申請書の記入依頼）
    */
   async exportToCsv(alert: MaternityChildcareAlert): Promise<void> {
     try {
@@ -290,15 +244,9 @@ export class AlertLeaveTabComponent implements OnInit {
         emp = employee;
       }
 
-      if (
-        alert.alertType === '産前産後休業取得者申出書' ||
-        alert.alertType === '産前産後休業取得者変更（終了）届'
-      ) {
+      if (alert.alertType === '産前産後休業取得者申出書') {
         await this.generateCsvForMaternityLeave(alert, emp);
-      } else if (
-        alert.alertType === '育児休業等取得者申出書' ||
-        alert.alertType === '育児休業等取得者終了届'
-      ) {
+      } else if (alert.alertType === '育児休業等取得者申出書') {
         await this.generateCsvForChildcareLeave(alert, emp);
       } else if (alert.alertType === '傷病手当金支給申請書の記入依頼') {
         await this.generateCsvForSickPayApplication(alert, emp);
@@ -725,7 +673,7 @@ export class AlertLeaveTabComponent implements OnInit {
     // CSVデータを生成
     const csvRows: string[] = [];
 
-    csvRows.push('育児休業等取得者申出書(新規・延長)/終了届');
+    csvRows.push('育児休業等取得者申出書(新規・延長)');
     csvRows.push('');
     csvRows.push(`事業所整理記号,${office?.officeCode || ''}`);
     csvRows.push(`事業所番号,${office?.officeNumber || ''}`);

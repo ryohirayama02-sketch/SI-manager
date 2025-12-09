@@ -379,27 +379,7 @@ export class AlertGenerationService {
           });
         }
 
-        if (emp.maternityLeaveEnd) {
-          const endDate = normalizeDate(new Date(emp.maternityLeaveEnd));
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() + 1);
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `maternity_end_${emp.id}_${emp.maternityLeaveEnd}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '産前産後休業取得者変更（終了）届',
-            notificationName: '産前産後休業取得者変更（終了）届',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `産休終了日: ${formatDate(endDate)}`,
-          });
-        }
+        // 終了届は管理対象外とする
 
         if (emp.childcareLeaveStart) {
           const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
@@ -421,27 +401,7 @@ export class AlertGenerationService {
           });
         }
 
-        if (emp.childcareLeaveEnd) {
-          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
-          const startDate = new Date(endDate);
-          startDate.setDate(startDate.getDate() + 1);
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `childcare_end_${emp.id}_${emp.childcareLeaveEnd}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業等取得者終了届',
-            notificationName: '育児休業等取得者終了届',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `育休終了日: ${formatDate(endDate)}`,
-          });
-        }
+        // 終了届は管理対象外とする
       }
 
       maternityChildcareAlerts.sort((a, b) => {
