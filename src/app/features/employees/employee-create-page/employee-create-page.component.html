@@ -440,6 +440,13 @@
       >
         登録
       </button>
+      <div
+        *ngIf="isSubmitted && form.invalid && missingRequiredFields.length > 0"
+        class="info-label"
+        style="margin-top: 0.5rem"
+      >
+        未入力の項目: {{ missingRequiredFields.join('、') }}
+      </div>
     </form>
   </div>
 

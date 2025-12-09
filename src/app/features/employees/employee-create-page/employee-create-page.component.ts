@@ -33,6 +33,7 @@ export class EmployeeCreatePageComponent implements OnInit {
   errorMessages: string[] = [];
   warningMessages: string[] = [];
   isSubmitting = false;
+  isSubmitted = false;
 
   // 自動判定結果の表示用
   eligibilityStatus: string = '';
@@ -368,6 +369,7 @@ export class EmployeeCreatePageComponent implements OnInit {
   }
 
   async onSubmit(): Promise<void> {
+    this.isSubmitted = true;
     if (this.isSubmitting) {
       return;
     }
@@ -493,6 +495,27 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     this.router.navigate(['/employees']);
     this.isSubmitting = false;
+  }
+
+  get missingRequiredFields(): string[] {
+    const fields: { key: string; label: string }[] = [
+      { key: 'gender', label: '性別' },
+      { key: 'address', label: '住民票住所' },
+      { key: 'weeklyWorkHoursCategory', label: '勤務区分' },
+      { key: 'monthlyWage', label: '月額賃金' },
+      { key: 'expectedEmploymentMonths', label: '予定雇用月数' },
+      { key: 'officeNumber', label: '事業所' },
+      { key: 'name', label: '氏名（漢字）' },
+      { key: 'birthDate', label: '生年月日' },
+      { key: 'joinDate', label: '入社日' },
+    ];
+    return fields
+      .filter(({ key }) => {
+        const ctrl = this.form.get(key);
+        const val = ctrl?.value;
+        return !ctrl || ctrl.invalid || val === null || val === '';
+      })
+      .map(({ label }) => label);
   }
 
   ngOnDestroy(): void {
