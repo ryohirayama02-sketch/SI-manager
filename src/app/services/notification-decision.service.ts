@@ -215,15 +215,12 @@ export class NotificationDecisionService {
     // 上記の例外に該当しない場合は提出要
     reasons.push('賞与支給があるため、賞与支払届の提出が必要');
 
-    // 提出期限：支給日の翌月10日
-    const submitDate = new Date(
-      payDate.getFullYear(),
-      payDate.getMonth() + 1,
-      10
-    );
+    // 提出期限：支給日の5日後
+    const submitDate = new Date(payDate);
+    submitDate.setDate(submitDate.getDate() + 5);
     const submitUntil = submitDate.toISOString().split('T')[0];
 
-    reasons.push(`提出期限：${submitUntil}（支給日の翌月10日）`);
+    reasons.push(`提出期限：${submitUntil}（支給日から5日以内）`);
 
     return {
       type: 'bonus',
