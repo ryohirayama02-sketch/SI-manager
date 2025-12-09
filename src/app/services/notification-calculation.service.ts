@@ -84,7 +84,9 @@ export class NotificationCalculationService {
         employee.id,
         salaries,
         gradeTable,
-        currentStandard
+        year,
+        currentStandard,
+        employee
       );
 
       if (teijiResult.grade > 0) {
@@ -201,7 +203,9 @@ export class NotificationCalculationService {
       employee.id,
       salaries,
       gradeTable,
-      currentStandard
+      year,
+      currentStandard,
+      employee
     );
 
     if (teijiResult.grade > 0) {

@@ -146,7 +146,9 @@ export class MonthlyPremiumCalculationService {
               emp.id,
               empSalaries,
               gradeTable,
-              year
+              year,
+              emp.currentStandardMonthlyRemuneration ?? undefined,
+              emp
             );
 
           if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
@@ -407,7 +409,9 @@ export class MonthlyPremiumCalculationService {
               emp.id,
               empSalaries,
               gradeTable,
-              year
+              year,
+              emp.currentStandardMonthlyRemuneration ?? undefined,
+              emp
             );
 
           if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {

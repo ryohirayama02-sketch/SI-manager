@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { SalaryData, TeijiKetteiResult } from './salary-calculation.service';
+import { Employee } from '../models/employee.model';
 import { SalaryAggregationService } from './salary-aggregation.service';
 import { GradeDeterminationService } from './grade-determination.service';
 
@@ -132,8 +133,39 @@ export class TeijiCalculationService {
     salaries: { [key: string]: SalaryData },
     gradeTable: any[],
     year: number,
-    currentStandardMonthlyRemuneration?: number
+    currentStandardMonthlyRemuneration?: number,
+    employee?: Employee
   ): TeijiKetteiResult {
+    // 入退社日による定時決定対象外判定（算定基礎）
+    if (employee) {
+      const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
+      const retireDate = employee.retireDate ? new Date(employee.retireDate) : null;
+      const june1 = new Date(year, 5, 1); // 6月1日
+      const june30 = new Date(year, 5, 30); // 6月30日
+      const reasons: string[] = [];
+
+      if (joinDate && joinDate >= june1 && joinDate.getFullYear() === year) {
+        reasons.push('6/1以降に資格取得（入社/加入）のため算定基礎の定時決定対象外');
+      }
+      if (retireDate && retireDate <= june30 && retireDate.getFullYear() === year) {
+        reasons.push('6/30以前に退職のため算定基礎の定時決定対象外');
+      }
+
+      if (reasons.length > 0) {
+        const startApplyYearMonth = { year, month: 9 };
+        return {
+          averageSalary: 0,
+          excludedMonths: [4, 5, 6],
+          usedMonths: [],
+          grade: 0,
+          standardMonthlyRemuneration: currentStandardMonthlyRemuneration ?? 0,
+          reasons,
+          average46: 0,
+          startApplyYearMonth,
+        };
+      }
+    }
+
     const values = this.getAprilToJuneValues(employeeId, salaries);
     const exclusionResult = this.getExcludedMonths(
       employeeId,

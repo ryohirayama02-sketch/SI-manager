@@ -199,14 +199,16 @@ export class SalaryCalculationService {
     salaries: { [key: string]: SalaryData },
     gradeTable: any[],
     year: number,
-    currentStandardMonthlyRemuneration?: number
+    currentStandardMonthlyRemuneration?: number,
+    employee?: Employee
   ): TeijiKetteiResult {
     return this.teijiCalculationService.calculateTeijiKetteiCore(
       employeeId,
       salaries,
       gradeTable,
       year,
-      currentStandardMonthlyRemuneration
+      currentStandardMonthlyRemuneration,
+      employee
     );
   }
 

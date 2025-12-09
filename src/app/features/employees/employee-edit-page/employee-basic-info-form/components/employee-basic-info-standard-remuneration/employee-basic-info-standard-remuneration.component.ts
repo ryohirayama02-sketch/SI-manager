@@ -180,7 +180,8 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         salaries,
         gradeTable,
         currentYear,
-        currentStandard || undefined
+        currentStandard || undefined,
+        employee || undefined
       );
 
       // 随時改定アラートを取得（複数年度を考慮）

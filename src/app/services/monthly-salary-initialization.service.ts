@@ -79,7 +79,9 @@ export class MonthlySalaryInitializationService {
         emp.id,
         loadedData.salaries,
         gradeTable,
-        year
+        year,
+        emp.currentStandardMonthlyRemuneration ?? undefined,
+        emp
       );
     }
     this.state.setResults(results);

@@ -97,7 +97,8 @@ export class SalaryEditHandlerService {
         employeeId,
         newSalaries,
         gradeTable,
-        year
+        year,
+        employees.find((e) => e.id === employeeId)
       );
       newResults[employeeId] = result;
       needsRecalculation = true;
@@ -205,13 +206,16 @@ export class SalaryEditHandlerService {
     employeeId: string,
     salaries: { [key: string]: { total: number; fixed: number; variable: number } },
     gradeTable: any[],
-    year: number
+    year: number,
+    employee?: Employee
   ): TeijiKetteiResult {
     return this.salaryCalculationService.calculateTeijiKettei(
       employeeId,
       salaries,
       gradeTable,
-      year
+      year,
+      undefined,
+      employee
     );
   }
 

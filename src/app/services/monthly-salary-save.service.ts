@@ -361,7 +361,9 @@ export class MonthlySalarySaveService {
             emp.id,
             empSalaries,
             gradeTable,
-            year
+            year,
+            currentStandard || undefined,
+            employee || emp
           );
 
         if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {

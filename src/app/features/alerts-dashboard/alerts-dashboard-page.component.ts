@@ -494,7 +494,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           salaries,
           this.gradeTable,
           targetYear,
-          emp.currentStandardMonthlyRemuneration ?? undefined
+          emp.currentStandardMonthlyRemuneration ?? undefined,
+          emp
         );
 
         // 平均額との差が10%以上の月を検出
