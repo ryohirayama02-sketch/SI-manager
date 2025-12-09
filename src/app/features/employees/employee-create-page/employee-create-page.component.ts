@@ -94,8 +94,6 @@ export class EmployeeCreatePageComponent implements OnInit {
       retireDate: [''],
       healthInsuranceAcquisitionDate: [''],
       pensionAcquisitionDate: [''],
-      healthInsuranceLossDate: [''],
-      pensionLossDate: [''],
       // 休職・産休・育休
       isShortTime: [false],
       leaveOfAbsenceStart: [''],
@@ -412,14 +410,6 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.officeNumber) employee.officeNumber = value.officeNumber;
     if (value.department) employee.department = value.department;
     if (value.retireDate) employee.retireDate = value.retireDate;
-    if (value.healthInsuranceAcquisitionDate)
-      employee.healthInsuranceAcquisitionDate =
-        value.healthInsuranceAcquisitionDate;
-    if (value.pensionAcquisitionDate)
-      employee.pensionAcquisitionDate = value.pensionAcquisitionDate;
-    if (value.healthInsuranceLossDate)
-      employee.healthInsuranceLossDate = value.healthInsuranceLossDate;
-    if (value.pensionLossDate) employee.pensionLossDate = value.pensionLossDate;
     if (value.weeklyWorkHoursCategory)
       employee.weeklyWorkHoursCategory = value.weeklyWorkHoursCategory;
     if (value.monthlyWage) employee.monthlyWage = value.monthlyWage;

@@ -33,12 +33,6 @@ export interface Employee {
   joinDate: string;
   retireDate?: string | null;
 
-  // --- 資格取得・喪失 ---
-  healthInsuranceAcquisitionDate?: string | null;
-  pensionAcquisitionDate?: string | null;
-  healthInsuranceLossDate?: string | null;
-  pensionLossDate?: string | null;
-
   // --- 標準報酬（月額） ---
   currentStandardMonthlyRemuneration?: number | null;
   determinationReason?: '' | 'teiji' | 'suiji' | 'shikaku' | 'other';

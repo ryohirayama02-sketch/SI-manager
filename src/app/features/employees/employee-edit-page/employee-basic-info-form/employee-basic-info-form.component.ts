@@ -89,10 +89,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       department: [''],
       joinDate: ['', Validators.required],
       retireDate: [''],
-      healthInsuranceAcquisitionDate: [''],
-      pensionAcquisitionDate: [''],
-      healthInsuranceLossDate: [''],
-      pensionLossDate: [''],
       currentStandardMonthlyRemuneration: [null],
       determinationReason: [''],
       lastTeijiKetteiYear: [null],
@@ -172,11 +168,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         department: (data as any).department || '',
         joinDate: data.joinDate || (data as any).hireDate || '',
         retireDate: data.retireDate || '',
-        healthInsuranceAcquisitionDate:
-          (data as any).healthInsuranceAcquisitionDate || '',
-        pensionAcquisitionDate: (data as any).pensionAcquisitionDate || '',
-        healthInsuranceLossDate: (data as any).healthInsuranceLossDate || '',
-        pensionLossDate: (data as any).pensionLossDate || '',
         currentStandardMonthlyRemuneration:
           (data as any).currentStandardMonthlyRemuneration ||
           (data as any).standardMonthlyRemuneration ||
@@ -313,16 +304,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     // 日付フィールド（空の場合はnullを保存）
     if (value.retireDate !== undefined)
       updateData.retireDate = value.retireDate || null;
-    if (value.healthInsuranceAcquisitionDate !== undefined)
-      updateData.healthInsuranceAcquisitionDate =
-        value.healthInsuranceAcquisitionDate || null;
-    if (value.pensionAcquisitionDate !== undefined)
-      updateData.pensionAcquisitionDate = value.pensionAcquisitionDate || null;
-    if (value.healthInsuranceLossDate !== undefined)
-      updateData.healthInsuranceLossDate =
-        value.healthInsuranceLossDate || null;
-    if (value.pensionLossDate !== undefined)
-      updateData.pensionLossDate = value.pensionLossDate || null;
     if (value.determinationReason !== undefined)
       updateData.determinationReason = value.determinationReason || '';
     if (value.lastTeijiKetteiYear !== undefined)
