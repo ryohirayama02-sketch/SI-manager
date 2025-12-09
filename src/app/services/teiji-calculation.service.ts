@@ -144,8 +144,8 @@ export class TeijiCalculationService {
     const exclusionReasons = exclusionResult.reasons;
 
     const averageResult = this.calculateAverage(values, excludedMonths);
-    // 標準報酬月額の四捨五入処理（1000円未満四捨五入）
-    const averageSalary = Math.round(averageResult.averageSalary / 1000) * 1000;
+    // 標準報酬月額の千円未満切り捨て
+    const averageSalary = Math.floor(averageResult.averageSalary / 1000) * 1000;
     const usedMonths = averageResult.usedMonths;
     const calculationReasons = averageResult.reasons;
 

@@ -830,7 +830,7 @@ describe('SalaryCalculationService', () => {
     });
   });
 
-  describe('TC-12: 標準報酬の四捨五入確認（1000円未満四捨五入）', () => {
+  describe('TC-12: 標準報酬の端数処理確認（1000円未満処理）', () => {
     it('資格取得時決定で1000円未満が四捨五入される', async () => {
       const employee: Employee = {
         id: 'test-employee-17',
@@ -859,7 +859,7 @@ describe('SalaryCalculationService', () => {
       }
     });
 
-    it('定時決定で1000円未満が四捨五入される', async () => {
+    it('定時決定で1000円未満が切り捨てられる', async () => {
       const employeeId = 'test-employee-18';
       const salaries: { [key: string]: SalaryData } = {
         [`${employeeId}_4`]: { total: 350499, fixed: 300000, variable: 50499 },
