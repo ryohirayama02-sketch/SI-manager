@@ -225,6 +225,32 @@ export class TeijiCalculationService {
     // 定時決定の適用開始月（原則9月支給分から適用）
     const startApplyYearMonth = { year, month: 9 };
 
+    // 現行等級との乖離が2等級以上かつ4-6月の算定結果であれば、随時改定（7月月額変更届）優先で定時決定対象外とする
+    if (currentStandardMonthlyRemuneration && currentStandardMonthlyRemuneration > 0 && gradeResult) {
+      const currentGradeResult = this.gradeDeterminationService.findGrade(
+        gradeTable,
+        currentStandardMonthlyRemuneration
+      );
+      const currentGrade = currentGradeResult?.grade || 0;
+      const diff = currentGrade > 0 ? Math.abs(gradeResult.grade - currentGrade) : 0;
+      const usesAprToJun = usedMonths.some((m) => [4, 5, 6].includes(m));
+      if (diff >= 2 && usesAprToJun) {
+        allReasons.push(
+          `4〜6月平均と現行等級の乖離が${diff}等級（2等級以上）のため、7月月額変更届（随時改定）優先で定時決定の算定基礎対象外`
+        );
+        return {
+          averageSalary,
+          excludedMonths,
+          usedMonths,
+          grade: 0,
+          standardMonthlyRemuneration: currentStandardMonthlyRemuneration,
+          reasons: allReasons,
+          average46: averageSalary, // 後方互換性
+          startApplyYearMonth,
+        };
+      }
+    }
+
     if (gradeResult) {
       return {
         averageSalary,
