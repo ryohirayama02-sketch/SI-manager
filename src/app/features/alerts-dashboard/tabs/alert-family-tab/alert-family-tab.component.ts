@@ -168,7 +168,7 @@ export class AlertFamilyTabComponent implements OnInit {
             age60AlertStart.setMonth(age60AlertStart.getMonth() - 1);
             if (today >= age60AlertStart && age >= 59 && age < 61) {
               const submitDeadline = new Date(age60Date);
-              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
               const daysUntilDeadline = Math.ceil(
                 (submitDeadline.getTime() - today.getTime()) /
                   (1000 * 60 * 60 * 24)
@@ -274,11 +274,11 @@ export class AlertFamilyTabComponent implements OnInit {
                 familyMemberName: member.name,
                 relationship: relationship,
                 alertType: '配偶者75歳到達',
-                notificationName: '被扶養者（異動）削除届',
+                notificationName: '健康保険被扶養者異動届',
                 alertDate: age75Date,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
-                details: `配偶者が75歳になります。後期高齢者医療制度へ移行するため、健康保険の扶養から削除が必要です（提出期限: ${this.formatDate(
+                details: `配偶者が75歳になります。後期高齢者医療制度へ移行するため、健康保険被扶養者異動届（削除）が必要です（提出期限: ${this.formatDate(
                   submitDeadline
                 )}）。`,
               });
