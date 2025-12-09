@@ -48,10 +48,12 @@ export class AlertAggregationService {
     uncollectedPremiums: UncollectedPremium[] = []
   ): ScheduleData {
     const scheduleData: ScheduleData = {};
+    const yearsForFixedEvents = new Set<number>();
 
     // 賞与支払届アラート
     for (const alert of bonusAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
+      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
@@ -67,6 +69,7 @@ export class AlertAggregationService {
         const deadline = this.getSuijiReportDeadlineDate(alert);
         if (deadline) {
           const dateKey = this.formatDateKey(deadline);
+          yearsForFixedEvents.add(deadline.getFullYear());
           if (!scheduleData[dateKey]) {
             scheduleData[dateKey] = {};
           }
@@ -82,6 +85,7 @@ export class AlertAggregationService {
     const currentYear = getJSTDate().getFullYear();
     const teijiDeadline = new Date(currentYear, 6, 10); // 7月10日
     const teijiDateKey = this.formatDateKey(teijiDeadline);
+    yearsForFixedEvents.add(teijiDeadline.getFullYear());
     if (!scheduleData[teijiDateKey]) {
       scheduleData[teijiDateKey] = {};
     }
@@ -93,6 +97,7 @@ export class AlertAggregationService {
     // 年齢到達アラート
     for (const alert of ageAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
+      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
@@ -105,6 +110,7 @@ export class AlertAggregationService {
     // 資格変更アラート
     for (const alert of qualificationChangeAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
+      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
@@ -117,6 +123,7 @@ export class AlertAggregationService {
     // 産休・育休・休職アラート
     for (const alert of maternityChildcareAlerts) {
       const dateKey = this.formatDateKey(alert.submitDeadline);
+      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
@@ -130,6 +137,7 @@ export class AlertAggregationService {
     for (const alert of supportAlerts) {
       if (alert.submitDeadline) {
         const dateKey = this.formatDateKey(alert.submitDeadline);
+        yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
         if (!scheduleData[dateKey]) {
           scheduleData[dateKey] = {};
         }
@@ -160,26 +168,30 @@ export class AlertAggregationService {
     for (const [monthKey, count] of uncollectedByMonth.entries()) {
       const [year, month] = monthKey.split('-').map(Number);
       const dateKey = this.formatDateKey(new Date(year, month - 1, 1)); // 毎月1日
+      yearsForFixedEvents.add(year);
       if (!scheduleData[dateKey]) {
         scheduleData[dateKey] = {};
       }
       scheduleData[dateKey]['徴収不能'] = count;
     }
 
-    // 前月分の社会保険料納付期限（毎月末日）
-    const now = getJSTDate();
-    const paymentYear = now.getFullYear();
-    for (let month = 1; month <= 12; month++) {
-      // 月末日を取得（翌月0日）
-      const lastDay = new Date(paymentYear, month, 0);
-      const dateKey = this.formatDateKey(lastDay);
-      if (!scheduleData[dateKey]) {
-        scheduleData[dateKey] = {};
+    // 前月分の社会保険料納付期限（毎月末日）- 対象年を広げて反映
+    if (yearsForFixedEvents.size === 0) {
+      yearsForFixedEvents.add(currentYear);
+    }
+    for (const year of yearsForFixedEvents) {
+      for (let month = 1; month <= 12; month++) {
+        // 月末日を取得（翌月0日）
+        const lastDay = new Date(year, month, 0);
+        const dateKey = this.formatDateKey(lastDay);
+        if (!scheduleData[dateKey]) {
+          scheduleData[dateKey] = {};
+        }
+        if (!scheduleData[dateKey]['前月分の社会保険料納付期限']) {
+          scheduleData[dateKey]['前月分の社会保険料納付期限'] = 0;
+        }
+        scheduleData[dateKey]['前月分の社会保険料納付期限']++;
       }
-      if (!scheduleData[dateKey]['前月分の社会保険料納付期限']) {
-        scheduleData[dateKey]['前月分の社会保険料納付期限'] = 0;
-      }
-      scheduleData[dateKey]['前月分の社会保険料納付期限']++;
     }
 
     return scheduleData;

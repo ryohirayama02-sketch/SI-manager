@@ -32,6 +32,7 @@
               <div *ngFor="let item of getScheduleItemsForDate(date)" 
                    class="schedule-item"
                    [style.backgroundColor]="item.color"
+                   [style.cursor]="item.tabId === 'payment' ? 'default' : 'pointer'"
                    (click)="onScheduleDateClick(item.tabId)"
                    [title]="item.tabName + ' ' + item.count + '件'">
                 {{ item.tabName }} {{ item.count }}件

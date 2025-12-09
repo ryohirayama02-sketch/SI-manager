@@ -111,6 +111,10 @@ export class AlertScheduleTabComponent {
    * カレンダーの日付をクリックしたときの処理
    */
   onScheduleDateClick(tabId: string): void {
+    // 「前月分の社会保険料納付期限」は表示のみ（クリック無効）
+    if (tabId === 'payment') {
+      return;
+    }
     this.dateClick.emit(tabId);
   }
 
