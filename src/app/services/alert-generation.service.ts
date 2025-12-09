@@ -349,6 +349,57 @@ export class AlertGenerationService {
         error
       );
     }
+
+    // 従業員の新規資格取得（健康保険・厚生年金）を追加でチェック
+    try {
+      const today = normalizeDate(getJSTDate());
+      for (const emp of employees) {
+        if (!emp.joinDate) continue;
+        const joinDate = normalizeDate(new Date(emp.joinDate));
+        const diffMs = today.getTime() - joinDate.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        // 入社日から5日以内のみ対象（過去分は表示しない設計に合わせる）
+        if (diffDays < 0 || diffDays > 5) continue;
+
+        const alertId = `acquisition_${emp.id}_${emp.joinDate}`;
+        if (
+          qualificationChangeAlerts.find((a) => a.id === alertId) ||
+          (await this.qualificationChangeAlertService
+            .getDeletedAlertIds()
+            .then((set) => set.has(alertId)))
+        ) {
+          continue;
+        }
+
+        const submitDeadline = calculateSubmitDeadline(joinDate);
+        const daysUntilDeadline = calculateDaysUntilDeadline(
+          submitDeadline,
+          today
+        );
+
+        qualificationChangeAlerts.push({
+          id: alertId,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          changeType: '資格取得',
+          notificationNames: ['健康保険・厚生年金保険被保険者資格取得届'],
+          changeDate: joinDate,
+          submitDeadline: submitDeadline,
+          daysUntilDeadline: daysUntilDeadline,
+          details: `入社日: ${emp.joinDate}`,
+        });
+      }
+
+      qualificationChangeAlerts.sort((a, b) => {
+        return b.changeDate.getTime() - a.changeDate.getTime();
+      });
+    } catch (error) {
+      console.error(
+        '[alerts-dashboard] 資格取得アラート生成エラー:',
+        error
+      );
+    }
+
     return qualificationChangeAlerts;
   }
 

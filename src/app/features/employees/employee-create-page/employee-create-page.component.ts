@@ -19,6 +19,7 @@ import { Employee } from '../../../models/employee.model';
 import { FamilyMember } from '../../../models/family-member.model';
 import { Office } from '../../../models/office.model';
 import { RoomIdService } from '../../../services/room-id.service';
+import { EmployeeChangeHistoryService } from '../../../services/employee-change-history.service';
 
 @Component({
   selector: 'app-employee-create-page',
@@ -68,6 +69,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     private familyMemberService: FamilyMemberService,
     private officeService: OfficeService,
     private roomIdService: RoomIdService,
+    private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private router: Router
   ) {
     this.form = this.fb.group({
@@ -472,6 +474,21 @@ export class EmployeeCreatePageComponent implements OnInit {
       roomId,
       employee as Employee
     );
+
+    // 資格取得の変更履歴を保存（入社日ベース、提出期限はアラート生成側で計算）
+    if (newEmployeeId && employee.joinDate) {
+      const joinDateStr = new Date(employee.joinDate)
+        .toISOString()
+        .split('T')[0];
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: newEmployeeId,
+        changeType: '資格取得',
+        changeDate: joinDateStr,
+        oldValue: '(未登録)',
+        newValue: employee.joinDate,
+        notificationNames: ['健康保険・厚生年金保険被保険者資格取得届'],
+      });
+    }
 
     // 家族情報を保存（登録済みの家族情報がある場合）
     if (this.familyMembers.length > 0 && newEmployeeId) {
