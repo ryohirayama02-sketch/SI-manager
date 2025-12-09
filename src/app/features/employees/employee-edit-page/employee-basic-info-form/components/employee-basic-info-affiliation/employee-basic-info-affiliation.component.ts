@@ -113,6 +113,13 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
     const selectedOffice = this.offices.find(office => office.id === officeId);
     
     if (selectedOffice) {
+      console.log('[employee-basic-info-affiliation] office selected', {
+        officeId,
+        officeCode: selectedOffice.officeCode,
+        officeNumber: selectedOffice.officeNumber,
+        prefecture: selectedOffice.prefecture,
+        address: selectedOffice.address
+      });
       // 事業所を選択したら、都道府県と事業所番号を自動設定
       this.form.patchValue({
         prefecture: selectedOffice.prefecture || 'tokyo',

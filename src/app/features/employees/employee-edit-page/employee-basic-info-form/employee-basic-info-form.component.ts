@@ -466,12 +466,20 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     const oldOfficeNumber = oldData.officeNumber || '';
     const newOfficeNumber = newData.officeNumber || '';
+    const oldPrefecture = oldData.prefecture || '';
+    const newPrefecture = newData.prefecture || '';
     if (
-      oldOfficeNumber !== newOfficeNumber &&
-      (oldOfficeNumber || newOfficeNumber)
+      (oldOfficeNumber !== newOfficeNumber ||
+        oldPrefecture !== newPrefecture) &&
+      (oldOfficeNumber || newOfficeNumber || oldPrefecture || newPrefecture)
     ) {
-      const oldPrefecture = oldData.prefecture || '';
-      const newPrefecture = newData.prefecture || '';
+      console.log('[employee-basic-info-form] detect office change', {
+        employeeId: this.employeeId,
+        oldOfficeNumber,
+        newOfficeNumber,
+        oldPrefecture,
+        newPrefecture,
+      });
       const oldOfficeInfo = oldOfficeNumber
         ? `${oldOfficeNumber}${oldPrefecture ? ` (${oldPrefecture})` : ''}`
         : '(未設定)';
@@ -493,8 +501,33 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     const oldIsShortTime = oldData.isShortTime || false;
     const newIsShortTime = newData.isShortTime || false;
+    const oldWeeklyCategory = oldData.weeklyWorkHoursCategory || '';
+    const newWeeklyCategory = newData.weeklyWorkHoursCategory || '';
 
-    if (oldIsShortTime !== newIsShortTime) {
+    // 週所定労働時間カテゴリの変化があれば履歴を残す（勤務区分変更）
+    if (oldWeeklyCategory !== newWeeklyCategory) {
+      console.log('[employee-basic-info-form] detect work category change (weeklyWorkHoursCategory)', {
+        employeeId: this.employeeId,
+        oldWeeklyWorkHoursCategory: oldWeeklyCategory,
+        newWeeklyWorkHoursCategory: newWeeklyCategory,
+      });
+
+      await this.employeeChangeHistoryService.saveChangeHistory({
+        employeeId: this.employeeId,
+        changeType: '適用区分変更',
+        changeDate: today,
+        oldValue: this.convertWorkCategoryLabel(oldWeeklyCategory, oldIsShortTime),
+        newValue: this.convertWorkCategoryLabel(newWeeklyCategory, newIsShortTime),
+        notificationNames: ['資格取得届'],
+      });
+    } else if (oldIsShortTime !== newIsShortTime) {
+      console.log('[employee-basic-info-form] detect work category change', {
+        employeeId: this.employeeId,
+        oldIsShortTime,
+        newIsShortTime,
+        oldWeeklyWorkHoursCategory: oldData.weeklyWorkHoursCategory || '',
+        newWeeklyWorkHoursCategory: newData.weeklyWorkHoursCategory || '',
+      });
       const oldStatus = oldIsShortTime ? '短時間労働者' : '通常加入';
       const newStatus = newIsShortTime ? '短時間労働者' : '通常加入';
       await this.employeeChangeHistoryService.saveChangeHistory({
@@ -505,6 +538,30 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         newValue: newStatus,
         notificationNames: ['資格取得届'],
       });
+    }
+  }
+
+  /**
+   * 週所定労働時間カテゴリを表示用ラベルに変換
+   */
+  private convertWorkCategoryLabel(
+    category: string,
+    isShortTime: boolean
+  ): string {
+    // カテゴリが空の場合は isShortTime で推定ラベル
+    if (!category) {
+      return isShortTime ? '短時間労働者' : '通常加入';
+    }
+
+    switch (category) {
+      case '30hours-or-more':
+        return 'フルタイム（週30時間以上）';
+      case '20-30hours':
+        return '短時間労働者（週20〜30時間）';
+      case 'less-than-20hours':
+        return '社会保険非加入（週20時間未満）';
+      default:
+        return isShortTime ? '短時間労働者' : '通常加入';
     }
   }
 

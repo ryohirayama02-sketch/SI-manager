@@ -617,6 +617,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       await this.loadBonusReportAlerts();
     } else if (tab === 'family') {
       this.familyRefreshToken++;
+    } else if (tab === 'age') {
+      // 従業員データを最新にしてから年齢・資格変更アラートを再読込
+      this.employees = await this.employeeService.getAllEmployees();
+      await this.loadAgeAlerts();
+      await this.loadQualificationChangeAlerts();
     }
     // スケジュールデータを再読み込み
     await this.loadScheduleData();

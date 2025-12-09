@@ -15,12 +15,15 @@ import { RoomIdService } from './services/room-id.service';
 export class AppComponent implements OnInit {
   title = 'si-manager';
 
-  // NOTE: 一時的なメンテ実行用。実行後に削除してください。
+  // NOTE: 一時的なメンテ実行用。通常起動では呼ばない。
   firestore = inject(Firestore);
   roomIdService = inject(RoomIdService);
 
   async ngOnInit(): Promise<void> {
-    const roomId = this.roomIdService.requireRoomId();
-    await cleanupMissingRoomId(this.firestore, roomId);
+    // cleanupMissingRoomId を自動実行すると employeeChangeHistory が削除され
+    // 資格変更アラートの元データが消えるため、通常起動では実行しない。
+    // 必要なときだけ手動で呼び出してください。
+    // const roomId = this.roomIdService.requireRoomId();
+    // await cleanupMissingRoomId(this.firestore, roomId);
   }
 }

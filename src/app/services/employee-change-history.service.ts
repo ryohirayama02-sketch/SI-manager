@@ -56,7 +56,15 @@ export class EmployeeChangeHistoryService {
     console.log(
       `[employee-change-history] 新しい変更履歴を保存: ${history.employeeId}, ${history.changeType}, ${history.changeDate}, ${history.oldValue} → ${history.newValue}`
     );
-    await addDoc(col, { ...history, createdAt: new Date(), roomId });
+    const payload = { ...history, createdAt: new Date(), roomId };
+    // 個別従業員配下に保存
+    await addDoc(col, payload);
+    // 集約用コレクションにも保存（一覧取得で使用）
+    const roomCol = collection(
+      this.firestore,
+      `rooms/${roomId}/employeeChangeHistory`
+    );
+    await addDoc(roomCol, payload);
     console.log(`[employee-change-history] 変更履歴の保存が完了しました`);
   }
 

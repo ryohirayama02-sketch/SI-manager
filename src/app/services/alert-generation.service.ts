@@ -249,6 +249,11 @@ export class AlertGenerationService {
       console.log(
         `[alerts-dashboard] 取得した変更履歴数: ${changeHistories.length}`
       );
+      changeHistories.forEach((h, idx) => {
+        console.log(
+          `[alerts-dashboard] 履歴${idx + 1}: emp=${h.employeeId}, type=${h.changeType}, date=${h.changeDate}, old=${h.oldValue}, new=${h.newValue}`
+        );
+      });
 
       for (const history of changeHistories) {
         const alertId =

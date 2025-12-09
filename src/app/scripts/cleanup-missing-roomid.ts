@@ -34,15 +34,17 @@ export async function cleanupMissingRoomId(
     }
   };
 
-  // 1) employeeChangeHistory (collectionGroup) - room 限定で削除
-  const historyByRoom = query(
-    collectionGroup(firestore, 'employeeChangeHistory'),
-    where('roomId', '==', roomId)
-  );
-  await deleteByQuery(
-    `employeeChangeHistory (roomId == ${roomId})`,
-    historyByRoom
-  );
+  // 1) employeeChangeHistory (collectionGroup)
+  // 資格変更アラートなどの元データになるため、通常は削除しない。
+  // どうしても削除が必要な場合のみ、明示的に呼び出すこと。
+  // const historyByRoom = query(
+  //   collectionGroup(firestore, 'employeeChangeHistory'),
+  //   where('roomId', '==', roomId)
+  // );
+  // await deleteByQuery(
+  //   `employeeChangeHistory (roomId == ${roomId})`,
+  //   historyByRoom
+  // );
 
   // helper: migrate or delete a single doc from old path to new room path
   const migrateDoc = async (
