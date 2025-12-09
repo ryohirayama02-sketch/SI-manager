@@ -5,13 +5,15 @@ import { AgeAlert, QualificationChangeAlert } from '../features/alerts-dashboard
 import { MaternityChildcareAlert } from '../features/alerts-dashboard/tabs/alert-leave-tab/alert-leave-tab.component';
 import { BonusReportAlert } from '../features/alerts-dashboard/tabs/alert-bonus-tab/alert-bonus-tab.component';
 import { AlertGenerationService, AlertItem } from './alert-generation.service';
+import { AlertsDashboardStateService } from './alerts-dashboard-state.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AlertsDashboardUiService {
   constructor(
-    private alertGenerationService: AlertGenerationService
+    private alertGenerationService: AlertGenerationService,
+    private state: AlertsDashboardStateService
   ) {}
 
 
@@ -27,11 +29,17 @@ export class AlertsDashboardUiService {
     loadBonusReportAlerts: () => Promise<void>
   ): Promise<void> {
     await loadSuijiAlerts();
+    this.state.updateScheduleData();
     await loadNotificationAlerts();
+    this.state.updateScheduleData();
     await loadAgeAlerts();
+    this.state.updateScheduleData();
     await loadQualificationChangeAlerts();
+    this.state.updateScheduleData();
     await loadMaternityChildcareAlerts();
+    this.state.updateScheduleData();
     await loadBonusReportAlerts();
+    this.state.updateScheduleData();
   }
 
   async loadSuijiAlerts(

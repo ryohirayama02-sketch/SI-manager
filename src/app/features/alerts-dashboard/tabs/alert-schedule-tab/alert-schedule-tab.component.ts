@@ -29,6 +29,11 @@ export class AlertScheduleTabComponent {
     private state: AlertsDashboardStateService
   ) {}
 
+  ngOnInit(): void {
+    // 直近の状態で即時カレンダーを描画
+    this.state.updateScheduleData();
+  }
+
   /**
    * 日付をYYYY-MM-DD形式のキーに変換
    */
