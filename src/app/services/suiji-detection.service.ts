@@ -171,19 +171,37 @@ export class SuijiDetectionService {
 
     // 3ヶ月分の給与データを取得（総支給額：固定＋非固定）
     const totalSalaryValues: number[] = [];
+    const workingDaysList: number[] = [];
     for (const targetMonth of targetMonths) {
       const key = this.getSalaryKey(employeeId, targetMonth);
       const salaryData = salaries[key];
       const total =
         this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総支給）
       totalSalaryValues.push(total);
+      const workingDays = salaryData?.workingDays;
+      workingDaysList.push(workingDays ?? 0);
+    }
+
+    // 支払基礎日数17日未満が1つでもあれば随時改定無効
+    const invalidByWorkingDays = workingDaysList.some((wd) => wd > 0 && wd < 17);
+    if (invalidByWorkingDays) {
+      reasons.push('支払基礎日数17日未満の月が含まれるため随時改定対象外');
+      return {
+        employeeId,
+        changeMonth: month,
+        averageSalary: 0,
+        currentGrade: 0,
+        newGrade: 0,
+        diff: 0,
+        applyStartMonth: 0,
+        reasons,
+        isEligible: false,
+      };
     }
 
     // 3ヶ月平均を計算（総支給額で平均）
     const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
-    const rawAverage = Math.round(total / totalSalaryValues.length);
-    // 標準報酬月額の四捨五入処理（1000円未満四捨五入）
-    const averageSalary = Math.round(rawAverage / 1000) * 1000;
+    const averageSalary = Math.round(total / totalSalaryValues.length); // 千円未満の丸めなし
     reasons.push(
       `${targetMonths.join(
         '・'

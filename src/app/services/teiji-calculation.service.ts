@@ -176,8 +176,8 @@ export class TeijiCalculationService {
     const exclusionReasons = exclusionResult.reasons;
 
     const averageResult = this.calculateAverage(values, excludedMonths);
-    // 標準報酬月額の千円未満切り捨て
-    const averageSalary = Math.floor(averageResult.averageSalary / 1000) * 1000;
+    // 平均報酬をそのまま等級判定に使用（千円未満の丸めなし）
+    const averageSalary = averageResult.averageSalary;
     const usedMonths = averageResult.usedMonths;
     const calculationReasons = averageResult.reasons;
 

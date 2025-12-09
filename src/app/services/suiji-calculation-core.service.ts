@@ -54,35 +54,15 @@ export class SuijiCalculationCoreService {
   ): number[] {
     const excluded: number[] = [];
 
-    for (let i = 0; i < months.length; i++) {
-      const month = months[i];
+    for (const month of months) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const fixed = this.salaryAggregationService.getFixedSalaryPublic(salaryData); // fixedSalary を優先
-      const total = this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先
+      const workingDays = salaryData?.workingDays;
 
-      // 1. 無給月（total 0）
-      if (total === 0) {
+      // 支払基礎日数が17日未満なら除外
+      if (workingDays !== undefined && workingDays < 17) {
         excluded.push(month);
-        continue;
       }
-
-      // 2. 欠勤控除：前月比20%以上低下
-      if (i > 0) {
-        const prevMonth = months[i - 1];
-        const prevKey = this.getSalaryKey(employeeId, prevMonth);
-        const prevSalaryData = salaries[prevKey];
-        const prevFixed = this.salaryAggregationService.getFixedSalaryPublic(prevSalaryData); // fixedSalary を優先
-
-        if (prevFixed > 0 && fixed < prevFixed * 0.8) {
-          excluded.push(month);
-          continue;
-        }
-      }
-
-      // 3. 産前産後休業月（実装簡略化：totalが0の場合は既に除外）
-      // 4. 育児休業月（実装簡略化：totalが0の場合は既に除外）
-      // 5. 休職月（実装簡略化：totalが0の場合は既に除外）
     }
 
     return excluded;

@@ -830,8 +830,8 @@ describe('SalaryCalculationService', () => {
     });
   });
 
-  describe('TC-12: 標準報酬の端数処理確認（1000円未満処理）', () => {
-    it('資格取得時決定で1000円未満が四捨五入される', async () => {
+describe('TC-12: 標準報酬の端数処理確認（丸めなし）', () => {
+  it('資格取得時決定で千円未満の丸めを行わない', async () => {
       const employee: Employee = {
         id: 'test-employee-17',
         name: 'テスト従業員17',
@@ -853,13 +853,12 @@ describe('SalaryCalculationService', () => {
 
       if (result) {
         expect(result.baseSalary).toBe(350000);
-        expect(
-          result.reasons.some((r) => r.includes('1000円単位に四捨五入'))
-        ).toBe(true);
+        // 丸めずそのまま
+        expect(result.baseSalary).toBe(350499);
       }
     });
 
-    it('定時決定で1000円未満が切り捨てられる', async () => {
+    it('定時決定で千円未満の丸めを行わない', async () => {
       const employeeId = 'test-employee-18';
       const salaries: { [key: string]: SalaryData } = {
         [`${employeeId}_4`]: { total: 350499, fixed: 300000, variable: 50499 },
@@ -875,10 +874,10 @@ describe('SalaryCalculationService', () => {
         year
       );
 
-      expect(result.averageSalary % 1000).toBe(0);
+      expect(result.averageSalary).toBe(350499);
     });
 
-    it('随時改定で1000円未満が四捨五入される', () => {
+    it('随時改定で千円未満の丸めを行わない', () => {
       const employeeId = 'test-employee-19';
       const salaries: { [key: string]: SalaryData } = {
         [`${employeeId}_4`]: { total: 350499, fixed: 300000, variable: 50499 },
@@ -895,7 +894,7 @@ describe('SalaryCalculationService', () => {
         currentGrade
       );
 
-      expect(result.averageSalary % 1000).toBe(0);
+      expect(result.averageSalary).toBe(350499);
     });
   });
 
