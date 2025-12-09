@@ -5,7 +5,7 @@ export interface StandardRemunerationHistory {
   applyStartMonth: number; // 適用開始月（1-12）
   grade: number; // 標準報酬等級
   standardMonthlyRemuneration: number; // 標準報酬月額
-  determinationReason: 'acquisition' | 'teiji' | 'suiji'; // 決定理由（資格取得/定時決定/随時改定）
+  determinationReason: 'acquisition' | 'teiji' | 'suiji' | 'other'; // 決定理由（資格取得/定時決定/随時改定/その他）
   memo?: string; // メモ
   createdAt?: Date; // 作成日時
   updatedAt?: Date; // 更新日時

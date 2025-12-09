@@ -172,10 +172,11 @@ export class EmployeeBasicInfoStandardRemunerationComponent
       const employee = await this.employeeService.getEmployeeById(
         this.employeeId
       );
-      const currentStandard =
-        employee?.standardMonthlyRemuneration ||
-        employee?.acquisitionStandard ||
-        null;
+    const currentStandard =
+      (employee as any)?.currentStandardMonthlyRemuneration ||
+      (employee as any)?.standardMonthlyRemuneration ||
+      (employee as any)?.acquisitionStandard ||
+      null;
 
       // 定時決定を計算
       this.teijiResult = this.salaryCalculationService.calculateTeijiKettei(

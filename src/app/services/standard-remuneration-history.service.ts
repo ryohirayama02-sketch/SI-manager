@@ -75,6 +75,15 @@ export class StandardRemunerationHistoryService {
     }
 
     await setDoc(ref, data, { merge: true });
+    console.log('[std-history] history saved', {
+      employeeId: history.employeeId,
+      applyStartYear: history.applyStartYear,
+      applyStartMonth: history.applyStartMonth,
+      grade: history.grade,
+      standard: history.standardMonthlyRemuneration,
+      reason: history.determinationReason,
+      docId,
+    });
   }
 
   /**
@@ -167,6 +176,97 @@ export class StandardRemunerationHistoryService {
       currentYear + 1,
     ]; // 過去2年から将来1年まで
 
+    // 資格取得時決定（入社時）の履歴を先に登録
+    const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
+    const acquisitionStandard =
+      (employee as any).currentStandardMonthlyRemuneration ||
+      (employee as any).acquisitionStandard ||
+      null;
+    let effectiveAcquisitionStandard = acquisitionStandard;
+    // currentStandardMonthlyRemunerationが無い場合、月額賃金から算定して補完
+    if (
+      (!effectiveAcquisitionStandard ||
+        effectiveAcquisitionStandard === 0 ||
+        Number.isNaN(effectiveAcquisitionStandard)) &&
+      (employee as any).monthlyWage
+    ) {
+      const wage = Number((employee as any).monthlyWage);
+      if (!Number.isNaN(wage) && wage > 0 && joinDate) {
+        const table = await this.settingsService.getStandardTable(
+          joinDate.getFullYear()
+        );
+        const res = this.salaryCalculationService.getStandardMonthlyRemuneration(
+          wage,
+          table || []
+        );
+        effectiveAcquisitionStandard = res?.standard ?? wage;
+      }
+    }
+
+    console.log('[std-history] acquisition check', {
+      employeeId,
+      joinDate,
+      acquisitionStandard,
+      effectiveAcquisitionStandard,
+    });
+
+    if (joinDate && effectiveAcquisitionStandard && effectiveAcquisitionStandard > 0) {
+      const acquisitionYear = joinDate.getFullYear();
+      const acquisitionMonth = joinDate.getMonth() + 1;
+      const gradeTable = await this.settingsService.getStandardTable(
+        acquisitionYear
+      );
+      console.log('[std-history] acquisition gradeTable', {
+        acquisitionYear,
+        gradeTableLength: gradeTable?.length ?? 0,
+      });
+      const result =
+        this.salaryCalculationService.getStandardMonthlyRemuneration(
+          effectiveAcquisitionStandard,
+          gradeTable
+        );
+      const grade = result?.rank || 0;
+      const existingHistories = await this.getStandardRemunerationHistories(
+        employeeId
+      );
+      const existingAcquisition = existingHistories.find(
+        (h) =>
+          h.determinationReason === 'acquisition' &&
+          h.applyStartYear === acquisitionYear &&
+          h.applyStartMonth === acquisitionMonth
+      );
+      console.log('[std-history] acquisition save?', {
+        grade,
+        existing: existingAcquisition?.id,
+        standard: effectiveAcquisitionStandard,
+      });
+      if (
+        !existingAcquisition ||
+        existingAcquisition.standardMonthlyRemuneration !==
+          effectiveAcquisitionStandard ||
+        existingAcquisition.grade !== grade
+      ) {
+        await this.saveStandardRemunerationHistory({
+          id: existingAcquisition?.id,
+          employeeId,
+          applyStartYear: acquisitionYear,
+          applyStartMonth: acquisitionMonth,
+          grade: grade,
+          standardMonthlyRemuneration: effectiveAcquisitionStandard,
+          determinationReason: 'acquisition',
+          memo: '資格取得時決定（入社時）',
+          createdAt: existingAcquisition?.createdAt,
+        });
+        console.log('[std-history] acquisition saved', {
+          employeeId,
+          acquisitionYear,
+          acquisitionMonth,
+          grade,
+          standard: acquisitionStandard,
+        });
+      }
+    }
+
     for (const year of years) {
       const roomId =
         (employee as any).roomId || this.roomIdService.requireRoomId();
@@ -222,6 +322,12 @@ export class StandardRemunerationHistoryService {
       );
 
       if (teijiResult.standardMonthlyRemuneration > 0) {
+        console.log('[std-history] teiji result', {
+          employeeId,
+          year,
+          standard: teijiResult.standardMonthlyRemuneration,
+          grade: teijiResult.grade,
+        });
         // 既存の履歴を確認
         const existingHistories = await this.getStandardRemunerationHistories(
           employeeId
@@ -251,6 +357,12 @@ export class StandardRemunerationHistoryService {
             determinationReason: 'teiji',
             memo: `定時決定（${year}年4〜6月平均）`,
             createdAt: existingHistory?.createdAt, // 既存の履歴がある場合は元の作成日時を保持
+          });
+          console.log('[std-history] teiji saved', {
+            employeeId,
+            year,
+            grade: teijiResult.grade,
+            standard: teijiResult.standardMonthlyRemuneration,
           });
         }
       }
