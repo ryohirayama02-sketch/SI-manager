@@ -69,34 +69,6 @@ export class SuijiCalculationCoreService {
   }
 
   /**
-   * 随時改定用の平均を計算（特例対応）
-   */
-  calculateAverageForSuiji(
-    fixedValues: number[],
-    excludedMonths: number[],
-    months: number[]
-  ): number | null {
-    const validValues: number[] = [];
-
-    for (let i = 0; i < fixedValues.length; i++) {
-      const month = months[i];
-      if (!excludedMonths.includes(month) && fixedValues[i] > 0) {
-        validValues.push(fixedValues[i]);
-      }
-    }
-
-    // 特例対応
-    if (validValues.length === 0) return null;
-    if (validValues.length === 1) return validValues[0];
-    if (validValues.length === 2) {
-      return Math.round((validValues[0] + validValues[1]) / 2);
-    }
-    // 3ヶ月揃えば平均
-    const total = validValues.reduce((sum, v) => sum + v, 0);
-    return Math.round(total / validValues.length);
-  }
-
-  /**
    * 随時改定（固定的賃金の変動）を判定する
    */
   calculateFixedSalaryChangeSuiji(

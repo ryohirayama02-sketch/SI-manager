@@ -61,17 +61,6 @@ export class SuijiCalculationService {
   }
 
   /**
-   * 随時改定用の平均を計算（特例対応）
-   */
-  calculateAverageForSuiji(
-    fixedValues: number[],
-    excludedMonths: number[],
-    months: number[]
-  ): number | null {
-    return this.suijiCalculationCoreService.calculateAverageForSuiji(fixedValues, excludedMonths, months);
-  }
-
-  /**
    * 随時改定（固定的賃金の変動）を判定する
    */
   calculateFixedSalaryChangeSuiji(

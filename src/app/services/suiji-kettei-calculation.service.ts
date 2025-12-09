@@ -9,6 +9,7 @@ import {
 import { GradeDeterminationService } from './grade-determination.service';
 import { SuijiDetectionService } from './suiji-detection.service';
 import { SuijiCalculationCoreService } from './suiji-calculation-core.service';
+import { SalaryAggregationService } from './salary-aggregation.service';
 
 /**
  * SuijiKetteiCalculationService
@@ -21,7 +22,8 @@ export class SuijiKetteiCalculationService {
   constructor(
     private gradeDeterminationService: GradeDeterminationService,
     private suijiDetectionService: SuijiDetectionService,
-    private suijiCalculationCoreService: SuijiCalculationCoreService
+    private suijiCalculationCoreService: SuijiCalculationCoreService,
+    private salaryAggregationService: SalaryAggregationService
   ) {}
 
   /**
@@ -61,24 +63,25 @@ export class SuijiKetteiCalculationService {
       };
     }
 
-    // ② 変動月を含む3ヶ月のfixedを取得
-    const fixedValues = this.suijiCalculationCoreService.getFixed3Months(
-      employeeId,
-      changedMonth,
-      salaries
-    );
-    const months = [];
+    // ② 変動月を含む3ヶ月の総支給（欠勤控除差引後）を取得
+    const months: number[] = [];
+    const totalValues: number[] = [];
     for (let i = 0; i < 3; i++) {
       const month = changedMonth + i;
       if (month > 12) break;
       months.push(month);
+      const key = `${employeeId}_${month}`;
+      const total = this.salaryAggregationService.getTotalSalaryPublic(
+        salaries[key]
+      );
+      totalValues.push(total);
     }
 
-    if (fixedValues.length === 0) {
+    if (totalValues.length === 0) {
       return { candidate: null, excludedReason: null };
     }
 
-    // ③ 除外月判定
+    // ③ 除外月判定（支払基礎日数17日未満）
     const excludedMonths =
       this.suijiCalculationCoreService.getExcludedMonthsForSuiji(
         employeeId,
@@ -86,15 +89,21 @@ export class SuijiKetteiCalculationService {
         salaries
       );
 
-    // ④ 平均計算（特例対応）
-    const avgFixed = this.suijiCalculationCoreService.calculateAverageForSuiji(
-      fixedValues,
-      excludedMonths,
-      months
-    );
-    if (avgFixed === null || avgFixed === 0) {
+    // ④ 平均計算（総支給ベース、除外月を除く）
+    const validTotals: number[] = [];
+    const usedMonths: number[] = [];
+    for (let i = 0; i < totalValues.length; i++) {
+      const m = months[i];
+      if (!excludedMonths.includes(m) && totalValues[i] > 0) {
+        validTotals.push(totalValues[i]);
+        usedMonths.push(m);
+      }
+    }
+    if (validTotals.length === 0) {
       return { candidate: null, excludedReason: null };
     }
+    const averageSalary =
+      validTotals.reduce((sum, v) => sum + v, 0) / validTotals.length;
 
     // ⑤ 現行等級と新等級の比較
     const currentResult = currentResults[employeeId];
@@ -102,7 +111,7 @@ export class SuijiKetteiCalculationService {
 
     const newGradeResult = this.gradeDeterminationService.findGrade(
       gradeTable,
-      avgFixed
+      averageSalary
     );
     if (!newGradeResult) {
       return { candidate: null, excludedReason: null };
@@ -127,13 +136,13 @@ export class SuijiKetteiCalculationService {
           employeeId,
           name,
           changedMonth,
-          avgFixed,
+          avgFixed: averageSalary, // フィールド名は既存のまま利用
           currentGrade,
           newGrade,
           gradeDiff,
           applyMonth,
           excludedMonths,
-          fixedValues,
+          fixedValues: totalValues, // フィールド名は既存のまま利用
         },
         excludedReason: null,
       };
