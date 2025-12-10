@@ -461,55 +461,69 @@ export class AlertGenerationService {
     try {
       const today = normalizeDate(getJSTDate());
       const roomId = this.roomIdService.requireRoomId();
-      const year = today.getFullYear();
-      const month = today.getMonth() + 1;
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth() + 1;
+
+      // 過去3ヶ月分をチェック（現在の月を含む）
+      const monthsToCheck: { year: number; month: number }[] = [];
+      for (let i = 0; i < 3; i++) {
+        const checkDate = new Date(currentYear, currentMonth - 1 - i, 1);
+        monthsToCheck.push({
+          year: checkDate.getFullYear(),
+          month: checkDate.getMonth() + 1,
+        });
+      }
 
       for (const emp of employees) {
         // 社会保険未加入のみ対象
         if (!this.employeeWorkCategoryService.isNonInsured(emp)) continue;
 
-        const monthData = await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          emp.id,
-          year,
-          month
-        );
-        if (!monthData) continue;
+        // 過去3ヶ月分をチェック
+        for (const { year, month } of monthsToCheck) {
+          const monthData = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            emp.id,
+            year,
+            month
+          );
+          if (!monthData) continue;
 
-        const total =
-          monthData.totalSalary ??
-          monthData.total ??
-          (monthData.fixedSalary ?? monthData.fixed ?? 0) +
-            (monthData.variableSalary ?? monthData.variable ?? 0);
+          const total =
+            monthData.totalSalary ??
+            monthData.total ??
+            (monthData.fixedSalary ?? monthData.fixed ?? 0) +
+              (monthData.variableSalary ?? monthData.variable ?? 0);
 
-        if (total <= 88000) continue;
+          if (total <= 88000) continue;
 
-        const alertId = `noninsured_income_${emp.id}_${year}_${month}`;
-        if (
-          qualificationChangeAlerts.find((a) => a.id === alertId) ||
-          deletedAlertIds.has(alertId)
-        ) {
-          continue;
+          const alertId = `noninsured_income_${emp.id}_${year}_${month}`;
+          if (
+            qualificationChangeAlerts.find((a) => a.id === alertId) ||
+            deletedAlertIds.has(alertId)
+          ) {
+            continue;
+          }
+
+          // その月の1日をchangeDateとして使用
+          const changeDate = normalizeDate(new Date(year, month - 1, 1));
+          const submitDeadline = calculateSubmitDeadline(changeDate);
+          const daysUntilDeadline = calculateDaysUntilDeadline(
+            submitDeadline,
+            today
+          );
+
+          qualificationChangeAlerts.push({
+            id: alertId,
+            employeeId: emp.id,
+            employeeName: emp.name,
+            changeType: '加入状況確認',
+            notificationNames: ['加入状況の見直し'],
+            changeDate,
+            submitDeadline,
+            daysUntilDeadline,
+            details: `${year}年${month}月の月次収入が88000円を超えたので加入状況を確認してください。`,
+          });
         }
-
-        const changeDate = today;
-        const submitDeadline = calculateSubmitDeadline(changeDate);
-        const daysUntilDeadline = calculateDaysUntilDeadline(
-          submitDeadline,
-          today
-        );
-
-        qualificationChangeAlerts.push({
-          id: alertId,
-          employeeId: emp.id,
-          employeeName: emp.name,
-          changeType: '加入状況確認',
-          notificationNames: ['加入状況の見直し'],
-          changeDate,
-          submitDeadline,
-          daysUntilDeadline,
-          details: '月次収入が88000円を超えたので加入状況を確認してください。',
-        });
       }
 
       qualificationChangeAlerts.sort((a, b) => {
