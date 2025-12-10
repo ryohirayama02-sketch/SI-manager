@@ -73,9 +73,6 @@
         <th>介護保険<br />加入状況</th>
         <th>厚生年金<br />加入状況</th>
         <th>標準報酬</th>
-        <th>健康保険（本人）</th>
-        <th>介護保険（本人）</th>
-        <th>厚生年金（本人）</th>
         <th>備考</th>
       </tr>
     </thead>
@@ -96,33 +93,6 @@
         <td>{{ getCareInsuranceStatus(info) }}</td>
         <td>{{ getPensionStatus(info) }}</td>
         <td>{{ getStandardMonthlyRemunerationDisplay(info) }}</td>
-        <td>
-          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{
-              monthlyPremiumSummary[info.employee.id].healthEmployee
-                | number : "1.0-0"
-            }}
-          </span>
-          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
-        </td>
-        <td>
-          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{
-              monthlyPremiumSummary[info.employee.id].careEmployee
-                | number : "1.0-0"
-            }}
-          </span>
-          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
-        </td>
-        <td>
-          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{
-              monthlyPremiumSummary[info.employee.id].pensionEmployee
-                | number : "1.0-0"
-            }}
-          </span>
-          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
-        </td>
         <td>
           <span *ngFor="let note of info.notes; let last = last">
             {{ note }}<span *ngIf="!last">、</span>
