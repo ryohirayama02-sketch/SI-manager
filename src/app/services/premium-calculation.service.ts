@@ -93,6 +93,10 @@ export class PremiumCalculationService {
       // 厚生年金の処理は後続のロジックで処理される
     }
 
+    // 勤務区分（社会保険非加入かどうか）
+    const isNonInsured =
+      this.employeeWorkCategoryService.isNonInsured(employee);
+
     // ② 産休・育休免除判定（月単位：1日でも含まれれば免除）
     // フルタイムのみ産休を取得可能
     const isMaternityLeavePeriod =
@@ -157,6 +161,20 @@ export class PremiumCalculationService {
       this.employeeWorkCategoryService.isNonInsured(employee)
     ) {
       reasons.push('保険未加入者のため、産休・育休期間中でも社会保険料は0円');
+      return {
+        health_employee: 0,
+        health_employer: 0,
+        care_employee: 0,
+        care_employer: 0,
+        pension_employee: 0,
+        pension_employer: 0,
+        reasons,
+      };
+    }
+
+    // 勤務区分が社会保険未加入の場合は全保険料を0円にする
+    if (isNonInsured) {
+      reasons.push('勤務区分が「社会保険未加入」のため保険料は0円');
       return {
         health_employee: 0,
         health_employer: 0,
