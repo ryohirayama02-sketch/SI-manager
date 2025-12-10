@@ -9,6 +9,7 @@ import { QualificationChangeAlertService } from './qualification-change-alert.se
 import { NotificationFormatService } from './notification-format.service';
 import { OfficeService } from './office.service';
 import { RoomIdService } from './room-id.service';
+import { EmployeeWorkCategoryService } from './employee-work-category.service';
 import { Employee } from '../models/employee.model';
 import { Bonus } from '../models/bonus.model';
 import { SuijiKouhoResultWithDiff } from '../features/alerts-dashboard/tabs/alert-suiji-tab/alert-suiji-tab.component';
@@ -50,7 +51,8 @@ export class AlertGenerationService {
     private qualificationChangeAlertService: QualificationChangeAlertService,
     private notificationFormatService: NotificationFormatService,
     private officeService: OfficeService,
-    private roomIdService: RoomIdService
+    private roomIdService: RoomIdService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService
   ) {}
 
   async generateSuijiAlerts(
@@ -280,6 +282,18 @@ export class AlertGenerationService {
         const employee = employees.find((emp) => emp.id === history.employeeId);
         const employeeName = employee?.name || '不明';
 
+        // 資格取得の変更履歴で、社会保険非加入（weeklyWorkHoursCategoryが'less-than-20hours'）の場合はアラートを出さない
+        if (
+          history.changeType === '資格取得' &&
+          employee &&
+          employee.weeklyWorkHoursCategory === 'less-than-20hours'
+        ) {
+          console.log(
+            `[alerts-dashboard] 社会保険非加入のため資格取得アラートをスキップ: ${alertId}, 従業員=${employeeName}`
+          );
+          continue;
+        }
+
         let details = '';
         if (history.changeType === '氏名変更') {
           details = `${history.oldValue} → ${history.newValue}`;
@@ -360,6 +374,8 @@ export class AlertGenerationService {
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         // 入社日から5日以内のみ対象（過去分は表示しない設計に合わせる）
         if (diffDays < 0 || diffDays > 5) continue;
+        // 社会保険非加入（weeklyWorkHoursCategoryが'less-than-20hours'）の場合は資格取得アラートを出さない
+        if (emp.weeklyWorkHoursCategory === 'less-than-20hours') continue;
 
         const alertId = `acquisition_${emp.id}_${emp.joinDate}`;
         if (
@@ -437,6 +453,71 @@ export class AlertGenerationService {
     } catch (error) {
       console.error(
         '[alerts-dashboard] 資格喪失アラート生成エラー:',
+        error
+      );
+    }
+
+    // 非加入者の収入超過アラート（固定+非固定が88,000円超）
+    try {
+      const today = normalizeDate(getJSTDate());
+      const roomId = this.roomIdService.requireRoomId();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+
+      for (const emp of employees) {
+        // 社会保険未加入のみ対象
+        if (!this.employeeWorkCategoryService.isNonInsured(emp)) continue;
+
+        const monthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          emp.id,
+          year,
+          month
+        );
+        if (!monthData) continue;
+
+        const total =
+          monthData.totalSalary ??
+          monthData.total ??
+          (monthData.fixedSalary ?? monthData.fixed ?? 0) +
+            (monthData.variableSalary ?? monthData.variable ?? 0);
+
+        if (total <= 88000) continue;
+
+        const alertId = `noninsured_income_${emp.id}_${year}_${month}`;
+        if (
+          qualificationChangeAlerts.find((a) => a.id === alertId) ||
+          deletedAlertIds.has(alertId)
+        ) {
+          continue;
+        }
+
+        const changeDate = today;
+        const submitDeadline = calculateSubmitDeadline(changeDate);
+        const daysUntilDeadline = calculateDaysUntilDeadline(
+          submitDeadline,
+          today
+        );
+
+        qualificationChangeAlerts.push({
+          id: alertId,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          changeType: '加入状況確認',
+          notificationNames: ['加入状況の見直し'],
+          changeDate,
+          submitDeadline,
+          daysUntilDeadline,
+          details: '月次収入が88000円を超えたので加入状況を確認してください。',
+        });
+      }
+
+      qualificationChangeAlerts.sort((a, b) => {
+        return b.changeDate.getTime() - a.changeDate.getTime();
+      });
+    } catch (error) {
+      console.error(
+        '[alerts-dashboard] 非加入者収入超過アラート生成エラー:',
         error
       );
     }

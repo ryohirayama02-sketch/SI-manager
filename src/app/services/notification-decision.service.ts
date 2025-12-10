@@ -245,6 +245,15 @@ export class NotificationDecisionService {
       return null;
     }
 
+    // 社会保険非加入（weeklyWorkHoursCategoryが'less-than-20hours'）の場合は提出不要
+    if (emp.weeklyWorkHoursCategory === 'less-than-20hours') {
+      return {
+        required: false,
+        deadline: '',
+        reason: '社会保険非加入のため資格取得届は不要',
+      };
+    }
+
     // 資格取得時決定が行われていない場合は判定不可
     if (!shikakuResult || shikakuResult.grade === 0) {
       return null;

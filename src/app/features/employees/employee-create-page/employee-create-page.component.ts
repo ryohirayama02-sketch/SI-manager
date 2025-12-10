@@ -539,7 +539,12 @@ export class EmployeeCreatePageComponent implements OnInit {
     );
 
     // 資格取得の変更履歴を保存（入社日ベース、提出期限はアラート生成側で計算）
-    if (newEmployeeId && employee.joinDate) {
+    // 社会保険非加入（weeklyWorkHoursCategoryが'less-than-20hours'）の場合は変更履歴を保存しない
+    if (
+      newEmployeeId &&
+      employee.joinDate &&
+      employee.weeklyWorkHoursCategory !== 'less-than-20hours'
+    ) {
       const joinDateStr = new Date(employee.joinDate)
         .toISOString()
         .split('T')[0];

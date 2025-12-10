@@ -27,7 +27,8 @@ export interface QualificationChangeAlert {
     | '所属事業所変更'
     | '適用区分変更'
     | '資格取得'
-    | '退職（資格喪失）';
+    | '退職（資格喪失）'
+    | '加入状況確認';
   notificationNames: string[]; // 届出名前のリスト
   changeDate: Date; // 変更があった日
   submitDeadline: Date; // 提出期限（変更があった日から5日後）
