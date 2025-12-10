@@ -234,6 +234,16 @@
         </tr>
       </tbody>
     </table>
+    <div
+      style="
+        text-align: right;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: #666;
+      "
+    >
+      ※会社負担の保険料は参考値
+    </div>
   </div>
   <div
     *ngIf="
@@ -423,6 +433,17 @@
             </tbody>
           </table>
 
+          <div
+            style="
+              text-align: right;
+              margin-top: 0.5rem;
+              font-size: 0.9rem;
+              color: #666;
+            "
+          >
+            ※会社負担の保険料は参考値
+          </div>
+
           <!-- 賞与保険料（該当年度の賞与一覧） -->
           <div
             *ngIf="getYearBonuses(emp.id).length > 0"
@@ -484,6 +505,17 @@
                 </tr>
               </tbody>
             </table>
+
+            <div
+              style="
+                text-align: right;
+                margin-top: 0.5rem;
+                font-size: 0.9rem;
+                color: #666;
+              "
+            >
+              ※会社負担の保険料は参考値
+            </div>
           </div>
         </ng-container>
       </div>
