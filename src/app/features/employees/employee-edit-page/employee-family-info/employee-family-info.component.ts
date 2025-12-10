@@ -1,6 +1,11 @@
 import { Component, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import {
+  ReactiveFormsModule,
+  FormBuilder,
+  FormGroup,
+  Validators,
+} from '@angular/forms';
 import { FamilyMemberService } from '../../../../services/family-member.service';
 import { FamilyMember } from '../../../../models/family-member.model';
 
@@ -9,7 +14,7 @@ import { FamilyMember } from '../../../../models/family-member.model';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './employee-family-info.component.html',
-  styleUrl: './employee-family-info.component.css'
+  styleUrl: './employee-family-info.component.css',
 })
 export class EmployeeFamilyInfoComponent implements OnInit {
   @Input() employeeId: string | null = null;
@@ -33,7 +38,6 @@ export class EmployeeFamilyInfoComponent implements OnInit {
       isThirdCategory: [false],
       supportStartDate: [''],
       supportEndDate: [''],
-      changeDate: ['']
     });
   }
 
@@ -44,14 +48,18 @@ export class EmployeeFamilyInfoComponent implements OnInit {
     const inputEl = event.target as HTMLInputElement;
     const raw = inputEl.value.replace(/,/g, '').trim();
     if (raw === '') {
-      this.familyForm.get('expectedIncome')?.setValue(null, { emitEvent: false });
+      this.familyForm
+        .get('expectedIncome')
+        ?.setValue(null, { emitEvent: false });
       inputEl.value = '';
       return;
     }
     const num = Number(raw);
     if (Number.isNaN(num)) {
       // 不正入力はクリア
-      this.familyForm.get('expectedIncome')?.setValue(null, { emitEvent: false });
+      this.familyForm
+        .get('expectedIncome')
+        ?.setValue(null, { emitEvent: false });
       inputEl.value = '';
       return;
     }
@@ -93,8 +101,13 @@ export class EmployeeFamilyInfoComponent implements OnInit {
 
   async loadFamilyMembers(): Promise<void> {
     if (!this.employeeId) return;
-    this.familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(this.employeeId);
-    this.supportReviewAlerts = this.familyMemberService.getSupportReviewAlerts(this.familyMembers);
+    this.familyMembers =
+      await this.familyMemberService.getFamilyMembersByEmployeeId(
+        this.employeeId
+      );
+    this.supportReviewAlerts = this.familyMemberService.getSupportReviewAlerts(
+      this.familyMembers
+    );
   }
 
   showAddFamilyForm(event?: Event): void {
@@ -105,7 +118,7 @@ export class EmployeeFamilyInfoComponent implements OnInit {
     this.editingFamilyMember = null;
     this.familyForm.reset({
       livingTogether: true,
-      isThirdCategory: false
+      isThirdCategory: false,
     });
     this.showFamilyForm = true;
   }
@@ -125,7 +138,6 @@ export class EmployeeFamilyInfoComponent implements OnInit {
       isThirdCategory: member.isThirdCategory,
       supportStartDate: member.supportStartDate || '',
       supportEndDate: member.supportEndDate || '',
-      changeDate: member.changeDate || ''
     });
     this.showFamilyForm = true;
   }
@@ -177,23 +189,12 @@ export class EmployeeFamilyInfoComponent implements OnInit {
         isThirdCategory: isSpouse ? isThirdAuto : value.isThirdCategory,
         supportStartDate: value.supportStartDate || undefined,
         supportEndDate: value.supportEndDate || undefined,
-        changeDate: value.changeDate || undefined
       };
 
-      const savedId = await this.familyMemberService.saveFamilyMember(familyMember);
+      const savedId = await this.familyMemberService.saveFamilyMember(
+        familyMember
+      );
       familyMember.id = savedId;
-      
-      // 履歴を保存
-      if (value.changeDate) {
-        await this.familyMemberService.saveFamilyMemberHistory({
-          familyMemberId: savedId,
-          employeeId: this.employeeId,
-          changeDate: value.changeDate,
-          changeType: this.editingFamilyMember ? 'update' : 'start',
-          newValue: familyMember,
-          createdAt: new Date()
-        });
-      }
 
       await this.loadFamilyMembers();
       this.cancelFamilyForm();
@@ -253,12 +254,3 @@ export class EmployeeFamilyInfoComponent implements OnInit {
     return `${age22Year}-03-31`;
   }
 }
-
-
-
-
-
-
-
-
-

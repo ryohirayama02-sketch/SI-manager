@@ -256,7 +256,10 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     const rawNumber = Number(wage);
     if (Number.isNaN(rawNumber) || rawNumber <= 0) {
-      console.log('[employee-create] standard calc skipped: wage invalid', wage);
+      console.log(
+        '[employee-create] standard calc skipped: wage invalid',
+        wage
+      );
       this.form.patchValue(
         { currentStandardMonthlyRemuneration: null },
         { emitEvent: false }
@@ -311,7 +314,6 @@ export class EmployeeCreatePageComponent implements OnInit {
       isThirdCategory: [false],
       supportStartDate: [''],
       supportEndDate: [''],
-      changeDate: [''],
     });
   }
 
@@ -543,8 +545,8 @@ export class EmployeeCreatePageComponent implements OnInit {
         .split('T')[0];
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: newEmployeeId,
-        changeType: '資格取得',
         changeDate: joinDateStr,
+        changeType: '資格取得',
         oldValue: '(未登録)',
         newValue: employee.joinDate,
         notificationNames: ['健康保険・厚生年金保険被保険者資格取得届'],
@@ -637,7 +639,6 @@ export class EmployeeCreatePageComponent implements OnInit {
       isThirdCategory: member.isThirdCategory,
       supportStartDate: member.supportStartDate || '',
       supportEndDate: member.supportEndDate || '',
-      changeDate: member.changeDate || '',
     });
     this.showFamilyForm = true;
   }
@@ -671,7 +672,6 @@ export class EmployeeCreatePageComponent implements OnInit {
         isThirdCategory: value.isThirdCategory,
         supportStartDate: value.supportStartDate || undefined,
         supportEndDate: value.supportEndDate || undefined,
-        changeDate: value.changeDate || undefined,
       };
 
       // 従業員がまだ登録されていない場合は、一時的に配列に保存
@@ -699,18 +699,6 @@ export class EmployeeCreatePageComponent implements OnInit {
         familyMember
       );
       familyMember.id = savedId;
-
-      // 履歴を保存
-      if (value.changeDate) {
-        await this.familyMemberService.saveFamilyMemberHistory({
-          familyMemberId: savedId,
-          employeeId: this.employeeId,
-          changeDate: value.changeDate,
-          changeType: this.editingFamilyMember ? 'update' : 'start',
-          newValue: familyMember,
-          createdAt: new Date(),
-        });
-      }
 
       await this.loadFamilyMembers();
       this.cancelFamilyForm();
