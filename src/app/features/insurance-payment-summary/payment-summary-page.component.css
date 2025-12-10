@@ -9,6 +9,44 @@
   overflow-x: auto;
 }
 
+/* タブスタイル（給与・賞与画面と同等） */
+.tabs-container {
+  margin-bottom: 1rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid #ddd;
+}
+
+.tab-button {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #666;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  color: #333;
+  background-color: #f5f5f5;
+}
+
+.tab-button.active {
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+  font-weight: bold;
+}
+
+.tabs-underline {
+  height: 1px;
+  background: transparent;
+}
+
 .payment-table {
   width: 100%;
   border-collapse: collapse;
@@ -54,7 +92,7 @@
 
 .amount-cell {
   text-align: right;
-  font-family: "Courier New", monospace;
+  font-family: inherit;
   color: #333;
   width: 20%;
 }

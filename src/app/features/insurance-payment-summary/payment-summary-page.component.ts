@@ -18,7 +18,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 
 /**
  * PaymentSummaryPageComponent
- * 
+ *
  * 保険料サマリー画面のコンポーネント
  * UI制御のみを担当し、状態管理とデータロードはサービスに委譲
  */
@@ -45,6 +45,11 @@ export class PaymentSummaryPageComponent implements OnInit {
     return this.stateService;
   }
 
+  activeTab: 'summary' | 'notice' = 'summary';
+  noticeMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  noticeAmounts: { [month: number]: number } = {};
+  noticeSaveMessage = '';
+
   constructor(
     private stateService: PaymentSummaryStateService,
     private dataService: PaymentSummaryDataService,
@@ -58,11 +63,13 @@ export class PaymentSummaryPageComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.dataService.loadInitialData();
+    this.loadNoticeAmounts(this.state.year);
     this.cdr.markForCheck();
   }
 
   async onYearChange(): Promise<void> {
     await this.dataService.onYearChange();
+    this.loadNoticeAmounts(this.state.year);
     this.cdr.markForCheck();
   }
 
@@ -111,10 +118,62 @@ export class PaymentSummaryPageComponent implements OnInit {
     window.print();
   }
 
+  setTab(tab: 'summary' | 'notice'): void {
+    this.activeTab = tab;
+    this.cdr.markForCheck();
+  }
+
+  private getSelectedMonthNumber(): number | null {
+    if (this.state.selectedMonth === 'all') return null;
+    const num = Number(this.state.selectedMonth);
+    return isNaN(num) ? null : num;
+  }
+
+  getNoticeAmountForSelectedMonth(): number {
+    const month = this.getSelectedMonthNumber();
+    if (!month) return 0;
+    return this.noticeAmounts[month] ?? 0;
+  }
+
+  getNoticeAmountForMonth(month: number): number {
+    return this.noticeAmounts[month] ?? 0;
+  }
+
+  private getNoticeStorageKey(year: number | string): string {
+    return `noticeAmounts_${year}`;
+  }
+
+  loadNoticeAmounts(year: number | string): void {
+    const key = this.getNoticeStorageKey(year);
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        this.noticeAmounts = JSON.parse(stored);
+      } else {
+        this.noticeAmounts = {};
+        this.noticeMonths.forEach((m) => (this.noticeAmounts[m] = 0));
+      }
+    } catch {
+      this.noticeAmounts = {};
+      this.noticeMonths.forEach((m) => (this.noticeAmounts[m] = 0));
+    }
+    this.noticeSaveMessage = '';
+  }
+
+  saveNoticeAmounts(): void {
+    const key = this.getNoticeStorageKey(this.state.year);
+    localStorage.setItem(key, JSON.stringify(this.noticeAmounts));
+    this.noticeSaveMessage = '保存しました';
+    this.cdr.markForCheck();
+  }
+
   /**
    * 指定月の月次報酬分の集計を取得
    */
-  getMonthlyTotals(year: number, month: number | 'all' | string): {
+  getMonthlyTotals(
+    year: number,
+    month: number | 'all' | string
+  ): {
     healthEmployee: number;
     healthEmployer: number;
     careEmployee: number;
@@ -131,7 +190,10 @@ export class PaymentSummaryPageComponent implements OnInit {
   /**
    * 指定月の賞与保険料の集計を取得
    */
-  getBonusTotals(year: number, month: number | 'all' | string): {
+  getBonusTotals(
+    year: number,
+    month: number | 'all' | string
+  ): {
     healthEmployee: number;
     healthEmployer: number;
     careEmployee: number;
