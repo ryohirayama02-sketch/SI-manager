@@ -78,22 +78,27 @@ export class PaymentSummaryDataService {
   private async loadBonuses(): Promise<Bonus[]> {
     const roomId = this.roomIdService.requireRoomId();
     const bonuses: Bonus[] = [];
-    for (const emp of this.state.employees) {
+
+    // 従業員ごとに並列取得
+    const bonusPromises = this.state.employees.map(async (emp) => {
       const employeeBonuses = await this.bonusService.listBonuses(
         roomId,
         emp.id,
         this.state.year
       );
       bonuses.push(...employeeBonuses);
-      console.log(
-        `[payment-summary] 賞与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, 賞与件数=${employeeBonuses.length}`,
-        employeeBonuses
-      );
-    }
-    console.log(
-      `[payment-summary] 全賞与データ: 年度=${this.state.year}, 総件数=${bonuses.length}`,
-      bonuses
-    );
+      // console.log(
+      //   `[payment-summary] 賞与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, 賞与件数=${employeeBonuses.length}`,
+      //   employeeBonuses
+      // );
+    });
+
+    await Promise.all(bonusPromises);
+
+    // console.log(
+    //   `[payment-summary] 全賞与データ: 年度=${this.state.year}, 総件数=${bonuses.length}`,
+    //   bonuses
+    // );
     return bonuses;
   }
 
@@ -103,25 +108,31 @@ export class PaymentSummaryDataService {
   private async loadSalaryData(): Promise<{ [employeeId: string]: any }> {
     const salaryDataByEmployeeId: { [employeeId: string]: any } = {};
     const roomId = this.roomIdService.requireRoomId();
-    for (const emp of this.state.employees) {
-      const monthMap: any = {};
-      for (let month = 1; month <= 12; month++) {
-        const monthData = await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          emp.id,
-          this.state.year,
-          month
-        );
-        if (monthData) {
-          monthMap[month.toString()] = monthData;
+    // 従業員ごとに並列
+    await Promise.all(
+      this.state.employees.map(async (emp) => {
+        const monthMap: any = {};
+        // 月ごとに並列
+        const monthPromises = [];
+        for (let month = 1; month <= 12; month++) {
+          monthPromises.push(
+            this.monthlySalaryService
+              .getEmployeeSalary(roomId, emp.id, this.state.year, month)
+              .then((monthData) => {
+                if (monthData) {
+                  monthMap[month.toString()] = monthData;
+                }
+              })
+          );
         }
-      }
-      salaryDataByEmployeeId[emp.id] = monthMap;
-      console.log(
-        `[payment-summary] 給与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, データ=`,
-        monthMap
-      );
-    }
+        await Promise.all(monthPromises);
+        salaryDataByEmployeeId[emp.id] = monthMap;
+        // console.log(
+        //   `[payment-summary] 給与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, データ=`,
+        //   monthMap
+        // );
+      })
+    );
     return salaryDataByEmployeeId;
   }
 

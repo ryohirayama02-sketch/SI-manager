@@ -40,14 +40,14 @@ export class MonthlySalaryDataService {
       prefecture
     );
     const gradeTable = await this.settingsService.getStandardTable(year);
-    console.log(
-      `[monthly-salaries] 年度=${year}, 標準報酬等級表の件数=${gradeTable.length}`
-    );
+// // console.log(
+//       `[monthly-salaries] 年度=${year}, 標準報酬等級表の件数=${gradeTable.length}`
+//     );
     if (gradeTable.length > 0) {
-      console.log(
-        `[monthly-salaries] 標準報酬等級表のサンプル:`,
-        gradeTable.slice(0, 3)
-      );
+// // console.log(
+//         `[monthly-salaries] 標準報酬等級表のサンプル:`,
+//         gradeTable.slice(0, 3)
+//       );
     }
     return { rates, gradeTable };
   }
