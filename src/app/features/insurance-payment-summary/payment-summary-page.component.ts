@@ -6,7 +6,6 @@ import { PaymentSummaryDataService } from '../../services/payment-summary-data.s
 import { PaymentSummaryOrchestratorService } from '../../services/payment-summary-orchestrator.service';
 import { PaymentSummaryFormatService } from '../../services/payment-summary-format.service';
 import { NotificationFormatService } from '../../services/notification-format.service';
-import { PaymentSummaryCsvService } from '../../services/payment-summary-csv.service';
 import { PaymentSummaryAggregationUiService } from '../../services/payment-summary-aggregation-ui.service';
 import { AnnualWarningPanelComponent } from './components/annual-warning-panel/annual-warning-panel.component';
 import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-total-table/company-monthly-total-table.component';
@@ -56,7 +55,6 @@ export class PaymentSummaryPageComponent implements OnInit {
     private paymentSummaryOrchestratorService: PaymentSummaryOrchestratorService,
     private paymentSummaryFormatService: PaymentSummaryFormatService,
     private notificationFormatService: NotificationFormatService,
-    private csvService: PaymentSummaryCsvService,
     private aggregationService: PaymentSummaryAggregationUiService,
     private cdr: ChangeDetectorRef
   ) {}
@@ -105,10 +103,52 @@ export class PaymentSummaryPageComponent implements OnInit {
   }
 
   /**
-   * CSV出力メソッド
+   * 年間振込額一覧（テーブル表示と同じ内容）をCSV出力する
    */
-  exportCsv(): void {
-    this.csvService.exportCsv();
+  exportAnnualTableCsv(): void {
+    const headers = [
+      '月',
+      '従業員負担分',
+      '会社負担分',
+      '振込合計（納入告知額）',
+    ];
+    const rows: string[] = [headers.join(',')];
+
+    for (let month = 1; month <= 12; month++) {
+      const monthlyTotals = this.getMonthlyTotals(this.state.year, month);
+      const bonusTotals = this.getBonusTotals(this.state.year, month);
+
+      const employee =
+        (monthlyTotals.totalEmployee || 0) + (bonusTotals.totalEmployee || 0);
+      const notice = this.getNoticeAmountForMonth(month) || 0;
+      const company = notice - employee;
+
+      rows.push([
+        `${month}月`,
+        employee.toString(),
+        company.toString(),
+        notice.toString(),
+      ].join(','));
+    }
+
+    const csvContent = rows.join('\n');
+    this.downloadCsv(csvContent, `社会保険料振込額一覧_${this.state.year}年度.csv`);
+  }
+
+  private downloadCsv(content: string, filename: string): void {
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + content], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   /**
