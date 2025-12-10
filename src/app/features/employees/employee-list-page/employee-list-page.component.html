@@ -66,17 +66,16 @@
   >
     <thead>
       <tr>
-        <th>名前</th>
+        <th>氏名</th>
         <th>年齢</th>
         <th>加入判定</th>
         <th>健康保険<br />加入状況</th>
         <th>介護保険<br />加入状況</th>
         <th>厚生年金<br />加入状況</th>
         <th>標準報酬</th>
-        <th>健康保険 本人/会社</th>
-        <th>介護保険 本人/会社</th>
-        <th>厚生年金 本人/会社</th>
-        <th>合計</th>
+        <th>健康保険（本人）</th>
+        <th>介護保険（本人）</th>
+        <th>厚生年金（本人）</th>
         <th>備考</th>
       </tr>
     </thead>
@@ -103,11 +102,6 @@
               monthlyPremiumSummary[info.employee.id].healthEmployee
                 | number : "1.0-0"
             }}
-            /
-            {{
-              monthlyPremiumSummary[info.employee.id].healthEmployer
-                | number : "1.0-0"
-            }}
           </span>
           <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
         </td>
@@ -115,11 +109,6 @@
           <span *ngIf="monthlyPremiumSummary[info.employee.id]">
             {{
               monthlyPremiumSummary[info.employee.id].careEmployee
-                | number : "1.0-0"
-            }}
-            /
-            {{
-              monthlyPremiumSummary[info.employee.id].careEmployer
                 | number : "1.0-0"
             }}
           </span>
@@ -130,19 +119,6 @@
             {{
               monthlyPremiumSummary[info.employee.id].pensionEmployee
                 | number : "1.0-0"
-            }}
-            /
-            {{
-              monthlyPremiumSummary[info.employee.id].pensionEmployer
-                | number : "1.0-0"
-            }}
-          </span>
-          <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
-        </td>
-        <td>
-          <span *ngIf="monthlyPremiumSummary[info.employee.id]">
-            {{
-              monthlyPremiumSummary[info.employee.id].total | number : "1.0-0"
             }}
           </span>
           <span *ngIf="!monthlyPremiumSummary[info.employee.id]">-</span>
@@ -165,7 +141,7 @@
   >
     <thead>
       <tr>
-        <th>名前</th>
+        <th>氏名</th>
         <th>休業ステータス</th>
         <th>産前産後休業<br />開始日</th>
         <th>産前産後休業<br />終了予定日</th>
