@@ -58,9 +58,9 @@ export class BonusPremiumCalculationCoreService {
     const targetYear = payDate.getFullYear();
     const existingBonuses = await this.bonusService.listBonuses(
       roomId,
-        employeeId,
+      employeeId,
       targetYear
-      );
+    );
     const existingTotal = existingBonuses.reduce((sum, bonus) => {
       const bonusAmount = bonus.amount || 0;
       const existingStandard = Math.floor(bonusAmount / 1000) * 1000;
