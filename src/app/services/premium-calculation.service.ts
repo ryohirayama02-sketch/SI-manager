@@ -679,38 +679,34 @@ export class PremiumCalculationService {
     const care_employee = this.roundWith50SenRule(careHalf);
     const care_employer = this.roundWith50SenRule(careHalf);
 
-    // 厚生年金（70歳以上は0円、資格取得月の翌月から発生）
-    // 資格取得月の場合は0円、資格取得月の翌月以降は標準報酬月額を使用
-    // 厚生年金では標準報酬月額の下限・上限を補正する
+    // 厚生年金（70歳以上は0円）も月末在籍ルールに合わせる
+    // 同月得喪でも月末在籍があれば当月発生させる
     let pensionBase = 0;
-    // yearを数値に変換（文字列の場合があるため）
     const yearNumForPension =
       typeof year === 'string' ? parseInt(year, 10) : year;
-    if (employee.joinDate) {
+
+    if (!isLastDayEligible) {
+      // 月末在籍なし → 厚生年金も0円
+      pensionBase = 0;
+    } else if (employee.joinDate) {
       const joinDate = new Date(employee.joinDate);
       const joinYear = this.monthHelper.getPayYear(joinDate);
       const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
-      // 資格取得月の場合は0円（月単位加入のため）
-      if (joinYear === yearNumForPension && joinMonth === month) {
-        pensionBase = 0;
-      }
-      // 資格取得月の翌月以降の場合のみ標準報酬月額を使用
-      else if (
+      // 資格取得月以降（同月得喪も含む）であれば発生させる
+      if (
         joinYear < yearNumForPension ||
-        (joinYear === yearNumForPension && joinMonth < month)
+        (joinYear === yearNumForPension && joinMonth <= month)
       ) {
         if (ageFlags.isNoPension) {
           pensionBase = 0;
         } else {
-          // 厚生年金用の標準報酬月額を補正
           pensionBase = this.adjustPensionStandardMonthlyRemuneration(
             standardMonthlyRemuneration
           );
         }
-      }
-      // 資格取得月より前の場合は0円
-      else {
+      } else {
+        // 資格取得月より前
         pensionBase = 0;
       }
     } else {
@@ -718,7 +714,6 @@ export class PremiumCalculationService {
       if (ageFlags.isNoPension) {
         pensionBase = 0;
       } else {
-        // 厚生年金用の標準報酬月額を補正
         pensionBase = this.adjustPensionStandardMonthlyRemuneration(
           standardMonthlyRemuneration
         );
