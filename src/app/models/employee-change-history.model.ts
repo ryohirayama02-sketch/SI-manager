@@ -8,7 +8,8 @@ export interface EmployeeChangeHistory {
     | '性別変更'
     | '所属事業所変更'
     | '適用区分変更'
-    | '資格取得';
+    | '資格取得'
+    | '退職（資格喪失）';
   changeDate: string; // 変更があった日（YYYY-MM-DD）
   oldValue: string; // 変更前の値
   newValue: string; // 変更後の値

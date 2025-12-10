@@ -236,10 +236,10 @@ export class AlertGenerationService {
   ): Promise<QualificationChangeAlert[]> {
     const qualificationChangeAlerts: QualificationChangeAlert[] = [];
     const today = normalizeDate(getJSTDate());
+    const deletedAlertIds =
+      await this.qualificationChangeAlertService.getDeletedAlertIds();
 
     try {
-      const deletedAlertIds =
-        await this.qualificationChangeAlertService.getDeletedAlertIds();
       console.log(
         `[alerts-dashboard] 削除済みアラートID数: ${deletedAlertIds.size}`
       );
@@ -364,9 +364,7 @@ export class AlertGenerationService {
         const alertId = `acquisition_${emp.id}_${emp.joinDate}`;
         if (
           qualificationChangeAlerts.find((a) => a.id === alertId) ||
-          (await this.qualificationChangeAlertService
-            .getDeletedAlertIds()
-            .then((set) => set.has(alertId)))
+          deletedAlertIds.has(alertId)
         ) {
           continue;
         }
@@ -396,6 +394,49 @@ export class AlertGenerationService {
     } catch (error) {
       console.error(
         '[alerts-dashboard] 資格取得アラート生成エラー:',
+        error
+      );
+    }
+
+    // 退職（資格喪失）アラートを生成（退職日から5日以内が期限）
+    try {
+      for (const emp of employees) {
+        if (!emp.retireDate) continue;
+        const retireDate = normalizeDate(new Date(emp.retireDate));
+        const alertId = `retire_${emp.id}_${emp.retireDate}`;
+
+        if (
+          qualificationChangeAlerts.find((a) => a.id === alertId) ||
+          deletedAlertIds.has(alertId)
+        ) {
+          continue;
+        }
+
+        const submitDeadline = calculateSubmitDeadline(retireDate);
+        const daysUntilDeadline = calculateDaysUntilDeadline(
+          submitDeadline,
+          today
+        );
+
+        qualificationChangeAlerts.push({
+          id: alertId,
+          employeeId: emp.id,
+          employeeName: emp.name,
+          changeType: '退職（資格喪失）',
+          notificationNames: ['健康保険・厚生年金保険被保険者資格喪失届'],
+          changeDate: retireDate,
+          submitDeadline,
+          daysUntilDeadline,
+          details: `退職日: ${emp.retireDate}`,
+        });
+      }
+
+      qualificationChangeAlerts.sort((a, b) => {
+        return b.changeDate.getTime() - a.changeDate.getTime();
+      });
+    } catch (error) {
+      console.error(
+        '[alerts-dashboard] 資格喪失アラート生成エラー:',
         error
       );
     }
