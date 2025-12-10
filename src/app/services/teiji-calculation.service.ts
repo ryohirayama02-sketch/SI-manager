@@ -27,9 +27,12 @@ export class TeijiCalculationService {
     for (const month of [4, 5, 6]) {
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      const fixed = this.salaryAggregationService.getFixedSalaryPublic(salaryData);
-      const variable = this.salaryAggregationService.getVariableSalaryPublic(salaryData);
-      const total = this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先、なければ fixed + variable
+      const fixed =
+        this.salaryAggregationService.getFixedSalaryPublic(salaryData);
+      const variable =
+        this.salaryAggregationService.getVariableSalaryPublic(salaryData);
+      const total =
+        this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先、なければ fixed + variable
       values.push({ total, fixed, variable });
     }
     return values;
@@ -49,10 +52,10 @@ export class TeijiCalculationService {
       const month = months[i];
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
-      
+
       // 支払基礎日数を取得（workingDaysフィールドから）
       const workingDays = salaryData?.workingDays;
-      
+
       // 支払基礎日数が17日未満の場合は算定除外
       if (workingDays !== undefined && workingDays < 17) {
         excluded.push(month);
@@ -61,15 +64,17 @@ export class TeijiCalculationService {
         );
         continue; // 既に除外されているので、次のチェックはスキップ
       }
-      
+
       // 固定的賃金の15%超の欠勤控除がある場合は算定除外
       const fixed = values[i].fixed;
       const absenceDeduction = salaryData?.deductionTotal ?? 0;
-      
+
       if (fixed > 0 && absenceDeduction > fixed * 0.15) {
         excluded.push(month);
         reasons.push(
-          `${month}月: 欠勤控除${absenceDeduction.toLocaleString()}円が固定的賃金${fixed.toLocaleString()}円の15%超（${Math.round(absenceDeduction / fixed * 100)}%）のため算定除外`
+          `${month}月: 欠勤控除${absenceDeduction.toLocaleString()}円が固定的賃金${fixed.toLocaleString()}円の15%超（${Math.round(
+            (absenceDeduction / fixed) * 100
+          )}%）のため算定除外`
         );
       }
     }
@@ -100,18 +105,18 @@ export class TeijiCalculationService {
       return { averageSalary: 0, usedMonths: [], reasons };
     }
 
-    // 除外なし → 3ヶ月平均
+    // 除外なし → 3ヶ月平均（円未満切り捨て）
     if (validValues.length === 3) {
       const total = validValues.reduce((sum, v) => sum + v, 0);
-      const average = Math.round(total / validValues.length);
+      const average = Math.floor(total / validValues.length);
       reasons.push('4〜6月の3ヶ月平均で算定');
       return { averageSalary: average, usedMonths, reasons };
     }
 
-    // 除外1ヶ月 → 残り2ヶ月平均
+    // 除外1ヶ月 → 残り2ヶ月平均（円未満切り捨て）
     if (validValues.length === 2) {
       const total = validValues.reduce((sum, v) => sum + v, 0);
-      const average = Math.round(total / validValues.length);
+      const average = Math.floor(total / validValues.length);
       reasons.push(`${usedMonths.join('・')}月の2ヶ月平均で算定`);
       return { averageSalary: average, usedMonths, reasons };
     }
@@ -122,9 +127,9 @@ export class TeijiCalculationService {
       return { averageSalary: validValues[0], usedMonths, reasons };
     }
 
-    // フォールバック（通常は到達しない）
+    // フォールバック（通常は到達しない、円未満切り捨て）
     const total = validValues.reduce((sum, v) => sum + v, 0);
-    const average = Math.round(total / validValues.length);
+    const average = Math.floor(total / validValues.length);
     return { averageSalary: average, usedMonths, reasons };
   }
 
@@ -139,15 +144,23 @@ export class TeijiCalculationService {
     // 入退社日による定時決定対象外判定（算定基礎）
     if (employee) {
       const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
-      const retireDate = employee.retireDate ? new Date(employee.retireDate) : null;
+      const retireDate = employee.retireDate
+        ? new Date(employee.retireDate)
+        : null;
       const june1 = new Date(year, 5, 1); // 6月1日
       const june30 = new Date(year, 5, 30); // 6月30日
       const reasons: string[] = [];
 
       if (joinDate && joinDate >= june1 && joinDate.getFullYear() === year) {
-        reasons.push('6/1以降に資格取得（入社/加入）のため算定基礎の定時決定対象外');
+        reasons.push(
+          '6/1以降に資格取得（入社/加入）のため算定基礎の定時決定対象外'
+        );
       }
-      if (retireDate && retireDate <= june30 && retireDate.getFullYear() === year) {
+      if (
+        retireDate &&
+        retireDate <= june30 &&
+        retireDate.getFullYear() === year
+      ) {
         reasons.push('6/30以前に退職のため算定基礎の定時決定対象外');
       }
 
@@ -219,20 +232,28 @@ export class TeijiCalculationService {
     }
 
     // 通常の等級判定
-    const gradeResult = this.gradeDeterminationService.findGrade(gradeTable, averageSalary);
+    const gradeResult = this.gradeDeterminationService.findGrade(
+      gradeTable,
+      averageSalary
+    );
     const allReasons = [...exclusionReasons, ...calculationReasons];
 
     // 定時決定の適用開始月（原則9月支給分から適用）
     const startApplyYearMonth = { year, month: 9 };
 
     // 現行等級との乖離が2等級以上かつ4-6月の算定結果であれば、随時改定（7月月額変更届）優先で定時決定対象外とする
-    if (currentStandardMonthlyRemuneration && currentStandardMonthlyRemuneration > 0 && gradeResult) {
+    if (
+      currentStandardMonthlyRemuneration &&
+      currentStandardMonthlyRemuneration > 0 &&
+      gradeResult
+    ) {
       const currentGradeResult = this.gradeDeterminationService.findGrade(
         gradeTable,
         currentStandardMonthlyRemuneration
       );
       const currentGrade = currentGradeResult?.grade || 0;
-      const diff = currentGrade > 0 ? Math.abs(gradeResult.grade - currentGrade) : 0;
+      const diff =
+        currentGrade > 0 ? Math.abs(gradeResult.grade - currentGrade) : 0;
       const usesAprToJun = usedMonths.some((m) => [4, 5, 6].includes(m));
       if (diff >= 2 && usesAprToJun) {
         allReasons.push(
@@ -277,5 +298,3 @@ export class TeijiCalculationService {
     }
   }
 }
-
-

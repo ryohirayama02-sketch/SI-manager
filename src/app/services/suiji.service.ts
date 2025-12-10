@@ -158,8 +158,10 @@ export class SuijiService {
       return null;
     }
 
-    // 3か月平均を計算
-    const average = (remuneration1 + remuneration2 + remuneration3) / 3;
+    // 3か月平均を計算（円未満切り捨て）
+    const average = Math.floor(
+      (remuneration1 + remuneration2 + remuneration3) / 3
+    );
     return average;
   }
 

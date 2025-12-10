@@ -87,7 +87,8 @@ export class SuijiFixedSalaryChangeService {
 
     // 平均報酬を計算（総支給額で平均）
     const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
-    const averageSalary = Math.round(total / totalSalaryValues.length); // 千円未満の丸めなし
+    // 円未満は切り捨て
+    const averageSalary = Math.floor(total / totalSalaryValues.length);
     reasons.push(
       `${targetMonths.join(
         '・'

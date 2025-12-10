@@ -183,7 +183,9 @@ export class SuijiDetectionService {
     }
 
     // 支払基礎日数17日未満が1つでもあれば随時改定無効
-    const invalidByWorkingDays = workingDaysList.some((wd) => wd > 0 && wd < 17);
+    const invalidByWorkingDays = workingDaysList.some(
+      (wd) => wd > 0 && wd < 17
+    );
     if (invalidByWorkingDays) {
       reasons.push('支払基礎日数17日未満の月が含まれるため随時改定対象外');
       return {
@@ -201,7 +203,8 @@ export class SuijiDetectionService {
 
     // 3ヶ月平均を計算（総支給額で平均）
     const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
-    const averageSalary = Math.round(total / totalSalaryValues.length); // 千円未満の丸めなし
+    // 円未満は切り捨て
+    const averageSalary = Math.floor(total / totalSalaryValues.length);
     reasons.push(
       `${targetMonths.join(
         '・'
