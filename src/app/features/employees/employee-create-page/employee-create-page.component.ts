@@ -84,6 +84,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       address: ['', Validators.required],
       myNumber: [''],
       basicPensionNumber: [''],
+      insuredNumber: [''],
       weeklyWorkHoursCategory: ['', Validators.required],
       monthlyWage: [null, Validators.required],
       expectedEmploymentMonths: ['', Validators.required],
@@ -478,6 +479,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.myNumber) employee.myNumber = value.myNumber;
     if (value.basicPensionNumber)
       employee.basicPensionNumber = value.basicPensionNumber;
+    if (value.insuredNumber) employee.insuredNumber = value.insuredNumber;
     if (value.officeNumber) employee.officeNumber = value.officeNumber;
     if (value.department) employee.department = value.department;
     if (value.retireDate) employee.retireDate = value.retireDate;
