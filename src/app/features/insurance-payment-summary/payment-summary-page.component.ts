@@ -13,7 +13,6 @@ import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-
 import { PaymentSummaryHeaderComponent } from './components/payment-summary-header/payment-summary-header.component';
 import { ErrorPanelComponent } from './components/error-panel/error-panel.component';
 import { LoadingIndicatorComponent } from './components/loading-indicator/loading-indicator.component';
-import { ScrollToTopComponent } from './components/scroll-to-top/scroll-to-top.component';
 import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 
 /**
@@ -33,7 +32,6 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
     PaymentSummaryHeaderComponent,
     ErrorPanelComponent,
     LoadingIndicatorComponent,
-    ScrollToTopComponent,
   ],
   templateUrl: './payment-summary-page.component.html',
   styleUrl: './payment-summary-page.component.css',
@@ -48,7 +46,9 @@ export class PaymentSummaryPageComponent implements OnInit {
   activeTab: 'summary' | 'notice' = 'summary';
   noticeMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   noticeAmounts: { [month: number]: number } = {};
-  noticeSaveMessage = '';
+  noticeAmountInputs: { [month: number]: string } = {};
+  private readonly numberFormatter = new Intl.NumberFormat('ja-JP');
+  isSavingNotice = false;
 
   constructor(
     private stateService: PaymentSummaryStateService,
@@ -181,6 +181,27 @@ export class PaymentSummaryPageComponent implements OnInit {
     return this.noticeAmounts[month] ?? 0;
   }
 
+  onNoticeAmountInput(month: number, rawValue: string): void {
+    const numeric = rawValue.replace(/,/g, '');
+    const parsed = Number(numeric);
+    if (isNaN(parsed) || parsed < 0) {
+      this.noticeAmounts[month] = 0;
+      this.noticeAmountInputs[month] = '';
+      return;
+    }
+    this.noticeAmounts[month] = parsed;
+    this.noticeAmountInputs[month] = this.numberFormatter.format(parsed);
+  }
+
+  private initializeNoticeAmountInputs(): void {
+    this.noticeAmountInputs = {};
+    this.noticeMonths.forEach((month) => {
+      const amount = this.noticeAmounts[month] ?? 0;
+      this.noticeAmountInputs[month] =
+        amount === 0 ? '' : this.numberFormatter.format(amount);
+    });
+  }
+
   private getNoticeStorageKey(year: number | string): string {
     const roomId = this.getRoomIdSafe();
     return roomId ? `noticeAmounts_${roomId}_${year}` : `noticeAmounts_${year}`;
@@ -200,14 +221,25 @@ export class PaymentSummaryPageComponent implements OnInit {
       this.noticeAmounts = {};
       this.noticeMonths.forEach((m) => (this.noticeAmounts[m] = 0));
     }
-    this.noticeSaveMessage = '';
+    this.initializeNoticeAmountInputs();
   }
 
-  saveNoticeAmounts(): void {
-    const key = this.getNoticeStorageKey(this.state.year);
-    localStorage.setItem(key, JSON.stringify(this.noticeAmounts));
-    this.noticeSaveMessage = '保存しました';
+  async saveNoticeAmounts(): Promise<void> {
+    if (this.isSavingNotice) {
+      return;
+    }
+    this.isSavingNotice = true;
     this.cdr.markForCheck();
+
+    try {
+      const key = this.getNoticeStorageKey(this.state.year);
+      localStorage.setItem(key, JSON.stringify(this.noticeAmounts));
+      // UI上の保存中インジケータが視認できるよう、ごく短い遅延を挿入
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    } finally {
+      this.isSavingNotice = false;
+      this.cdr.markForCheck();
+    }
   }
 
   /**

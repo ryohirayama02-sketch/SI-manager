@@ -4,9 +4,6 @@
   message="集計中..."
 ></app-loading-indicator>
 
-<!-- スクロールトップボタン -->
-<app-scroll-to-top></app-scroll-to-top>
-
 <!-- ヘッダー -->
 <app-payment-summary-header [year]="state.year"></app-payment-summary-header>
 
@@ -35,7 +32,7 @@
 </div>
 
 <!-- 年度選択（位置をタブの直下に配置） -->
-<div class="card" style="margin-bottom: 1rem">
+<div class="card" style="margin-bottom: 1rem; max-width: 600px">
   <div style="display: flex; gap: 1rem; align-items: center">
     <div class="form-group" style="margin-bottom: 0">
       <label>年度：</label>
@@ -132,43 +129,69 @@
 
 <!-- 納入告知額タブ -->
 <ng-container *ngIf="activeTab === 'notice'">
-  <div class="card" style="margin-bottom: 1rem">
+  <div class="card" style="margin-bottom: 1rem; max-width: 600px">
     <h3>納入告知額（{{ state.year }}年度）</h3>
-    <p style="margin: 0.25rem 0 1rem; color: #666">単位：円</p>
-
-    <table class="premium-table" style="width: 100%; border-collapse: collapse">
-      <thead>
-        <tr>
-          <th style="width: 20%">月</th>
-          <th style="width: 80%">納入告知額</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let m of noticeMonths">
-          <td class="month-cell">{{ m }}月</td>
-          <td class="amount-cell">
-            <input
-              type="number"
-              class="form-control"
-              style="width: 200px; text-align: right"
-              [(ngModel)]="noticeAmounts[m]"
-              [ngModelOptions]="{ standalone: true }"
-              min="0"
-            />
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div
+      style="
+        position: relative;
+        width: 360px;
+        max-width: 100%;
+        margin: 0 auto 1rem;
+      "
+    >
+      <p
+        style="
+          position: absolute;
+          right: 0;
+          top: -1.5rem;
+          margin: 0;
+          color: #666;
+          font-size: 0.9rem;
+        "
+      >
+        単位：円
+      </p>
+      <table
+        class="premium-table"
+        style="width: 100%; border-collapse: collapse"
+      >
+        <thead>
+          <tr>
+            <th style="width: 20%">月</th>
+            <th style="width: 80%">納入告知額</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of noticeMonths">
+            <td class="month-cell">{{ m }}月</td>
+            <td class="amount-cell">
+              <input
+                type="text"
+                inputmode="numeric"
+                #noticeInput
+                class="form-control"
+                style="width: 200px; text-align: right"
+                [value]="noticeAmountInputs[m]"
+                (input)="onNoticeAmountInput(m, noticeInput.value)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <div
       style="margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center"
     >
-      <button type="button" class="btn-primary" (click)="saveNoticeAmounts()">
-        保存
+      <button
+        type="button"
+        class="btn-primary"
+        [ngClass]="{ 'btn-saving': isSavingNotice }"
+        [disabled]="isSavingNotice"
+        (click)="saveNoticeAmounts()"
+      >
+        {{ isSavingNotice ? "保存中..." : "保存" }}
       </button>
-      <span *ngIf="noticeSaveMessage" style="color: #007bff">
-        {{ noticeSaveMessage }}
-      </span>
     </div>
   </div>
 </ng-container>
