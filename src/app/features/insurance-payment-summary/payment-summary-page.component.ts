@@ -7,6 +7,7 @@ import { PaymentSummaryOrchestratorService } from '../../services/payment-summar
 import { PaymentSummaryFormatService } from '../../services/payment-summary-format.service';
 import { NotificationFormatService } from '../../services/notification-format.service';
 import { PaymentSummaryAggregationUiService } from '../../services/payment-summary-aggregation-ui.service';
+import { RoomIdService } from '../../services/room-id.service';
 import { AnnualWarningPanelComponent } from './components/annual-warning-panel/annual-warning-panel.component';
 import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-total-table/company-monthly-total-table.component';
 import { PaymentSummaryHeaderComponent } from './components/payment-summary-header/payment-summary-header.component';
@@ -56,7 +57,8 @@ export class PaymentSummaryPageComponent implements OnInit {
     private paymentSummaryFormatService: PaymentSummaryFormatService,
     private notificationFormatService: NotificationFormatService,
     private aggregationService: PaymentSummaryAggregationUiService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private roomIdService: RoomIdService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -180,7 +182,8 @@ export class PaymentSummaryPageComponent implements OnInit {
   }
 
   private getNoticeStorageKey(year: number | string): string {
-    return `noticeAmounts_${year}`;
+    const roomId = this.getRoomIdSafe();
+    return roomId ? `noticeAmounts_${roomId}_${year}` : `noticeAmounts_${year}`;
   }
 
   loadNoticeAmounts(year: number | string): void {
@@ -263,5 +266,13 @@ export class PaymentSummaryPageComponent implements OnInit {
    */
   getFilteredEmployees() {
     return this.stateService.getFilteredEmployees();
+  }
+
+  private getRoomIdSafe(): string | null {
+    try {
+      return this.roomIdService.requireRoomId();
+    } catch {
+      return null;
+    }
   }
 }

@@ -197,6 +197,8 @@ export class RoomEnterPageComponent implements OnInit {
       // 所属登録＋自動入室
       await this.roomService.ensureUserRoomMembership(currentUser.uid, roomId);
       this.roomIdService.setRoomId(roomId);
+      // 新規ルーム初回入室フラグ（オンボーディング表示用）
+      localStorage.setItem(`room_onboarding_${roomId}`, '1');
       this.successMessage = 'ルームを作成しました。入室しています...';
       setTimeout(() => {
         this.router.navigate(['/alerts']);

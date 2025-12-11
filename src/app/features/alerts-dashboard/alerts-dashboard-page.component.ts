@@ -123,6 +123,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit(): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
+    this.showFirstEntryGuideIfNeeded(roomId);
+
     this.employees = await this.employeeService.getAllEmployees();
 
     // 年度選択肢を生成（現在年度から過去5年分）
@@ -812,6 +815,25 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
   onQualificationChangeSelectAllChange(checked: boolean): void {
     this.state.onQualificationChangeSelectAllChange(checked);
+  }
+
+  /**
+   * 新規作成ルームの初回入室時に案内を表示
+   */
+  private showFirstEntryGuideIfNeeded(roomId: string): void {
+    const key = `room_onboarding_${roomId}`;
+    const flag = localStorage.getItem(key);
+    if (flag === '1') {
+      // ページ内モーダルで案内を表示し、閉じるとフラグを削除
+      this.showOnboardingGuide = true;
+      localStorage.removeItem(key);
+    }
+  }
+
+  showOnboardingGuide = false;
+
+  closeOnboardingGuide(): void {
+    this.showOnboardingGuide = false;
   }
 
   async deleteSelectedQualificationChangeAlerts(): Promise<void> {

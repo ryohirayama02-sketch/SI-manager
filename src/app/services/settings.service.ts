@@ -422,6 +422,14 @@ export class SettingsService {
     // 既存のデータをすべて削除（重複を防ぐため、roomIdでフィルタ）
     const existingRef = collection(this.firestore, basePath);
     const existingSnap = await getDocs(existingRef);
+    const existingRows = existingSnap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        rank: data['grade'] || data['rank'],
+        standard: data['remuneration'] || data['standard'],
+      };
+    });
     const deletePromises = existingSnap.docs.map((d) => deleteDoc(d.ref));
     await Promise.all(deletePromises);
 
@@ -440,13 +448,43 @@ export class SettingsService {
       });
     }
 
+    // 変更点を差分としてまとめる（標準報酬月額の変更のみを抽出）
+    const existingMap = new Map<number, number>();
+    existingRows.forEach((r) => {
+      if (r.rank !== undefined && r.rank !== null) {
+        existingMap.set(r.rank, r.standard ?? null);
+      }
+    });
+
+    const changes: string[] = [];
+    for (const row of rows) {
+      const rank = row.rank;
+      const newStd = row.standard;
+      if (rank === undefined || rank === null) continue;
+      const oldStd = existingMap.has(rank) ? existingMap.get(rank) : null;
+      if (oldStd === undefined) continue;
+      if (oldStd !== newStd) {
+        changes.push(`等級${rank}: ${oldStd ?? '-'}→${newStd ?? '-'}`);
+      }
+    }
+
+    const maxShow = 5;
+    let changesText = '変更なし';
+    if (changes.length > 0) {
+      const head = changes.slice(0, maxShow).join(', ');
+      const rest = changes.length > maxShow ? ` ...ほか${changes.length - maxShow}件` : '';
+      changesText = head + rest;
+    }
+
     // 編集ログを記録
     await this.editLogService.logEdit(
       'update',
       'settings',
       `${year}_standardTable`,
       `${year}年度 標準報酬等級表`,
-      `${year}年度の標準報酬等級表を更新しました（${rows.length}件）`
+      `${year}年度の標準報酬等級表を更新しました（${rows.length}件）: ${changesText}`,
+      `旧件数:${existingRows.length}`,
+      `新件数:${rows.length}`
     );
   }
 
