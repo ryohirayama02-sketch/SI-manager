@@ -45,10 +45,12 @@ export class AlertAggregationService {
     maternityChildcareAlerts: MaternityChildcareAlert[],
     supportAlerts: SupportAlert[],
     teijiKetteiResults: TeijiKetteiResultData[],
-    uncollectedPremiums: UncollectedPremium[] = []
+    uncollectedPremiums: UncollectedPremium[] = [],
+    targetYears: number[] = []
   ): ScheduleData {
     const scheduleData: ScheduleData = {};
     const yearsForFixedEvents = new Set<number>();
+    targetYears.forEach((y) => yearsForFixedEvents.add(y));
 
     // 賞与支払届アラート
     for (const alert of bonusAlerts) {

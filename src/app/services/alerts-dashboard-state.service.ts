@@ -109,7 +109,8 @@ export class AlertsDashboardStateService {
       this.maternityChildcareAlerts,
       this.supportAlerts,
       this.teijiKetteiResults,
-      this.uncollectedPremiums
+      this.uncollectedPremiums,
+      [this.scheduleYear]
     );
   }
 
@@ -386,5 +387,6 @@ export class AlertsDashboardStateService {
 
   onScheduleYearChange(year: number): void {
     this.scheduleYear = year;
+    this.updateScheduleData();
   }
 }
