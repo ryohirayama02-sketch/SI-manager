@@ -146,11 +146,14 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       () => this.loadBonusReportAlerts()
     );
 
+    // 定時決定データも初期ロード時に取得し、スケジュールへ反映する
+    await this.loadTeijiKetteiData();
+    await this.loadScheduleData();
+
     // 扶養アラートコンポーネントの初期化を待つ（ngOnInitが実行されるまで少し待つ）
     // [hidden]を使うことでコンポーネントは常に初期化されるが、ngOnInitは非同期で実行される
     await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // 届出スケジュールデータを読み込み
+    // ここまでで全データが揃った状態でスケジュールを再計算
     await this.loadScheduleData();
 
     // 加入区分の変更を購読
