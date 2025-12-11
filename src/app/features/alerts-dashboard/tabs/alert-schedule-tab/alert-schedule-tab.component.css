@@ -77,8 +77,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: opacity 0.2s;
-  background: #b2d7ff; /* 視認性の高い淡いブルー（他タブと被りにくい） */
-  border: 1px solid #7fb2f0;
+  background: #ede4fa; /* かなり薄い紫 */
+  border: 1px solid #cbb7f2;
 }
 
 .schedule-item:hover {

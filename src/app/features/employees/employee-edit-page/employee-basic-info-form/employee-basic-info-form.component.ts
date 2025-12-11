@@ -145,6 +145,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         officeNumber: (data as any).officeNumber || '',
         prefecture: data.prefecture || 'tokyo',
         isShortTime: data.isShortTime || (data as any).shortTimeWorker || false,
+        weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
       };
 
       const officeNumber = (data as any).officeNumber || '';

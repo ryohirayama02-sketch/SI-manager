@@ -172,11 +172,11 @@ export class EmployeeBasicInfoStandardRemunerationComponent
       const employee = await this.employeeService.getEmployeeById(
         this.employeeId
       );
-    const currentStandard =
-      (employee as any)?.currentStandardMonthlyRemuneration ||
-      (employee as any)?.standardMonthlyRemuneration ||
-      (employee as any)?.acquisitionStandard ||
-      null;
+      const currentStandard =
+        (employee as any)?.currentStandardMonthlyRemuneration ||
+        (employee as any)?.standardMonthlyRemuneration ||
+        (employee as any)?.acquisitionStandard ||
+        null;
 
       // 定時決定を計算
       this.teijiResult = this.salaryCalculationService.calculateTeijiKettei(
@@ -276,7 +276,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
       }
     }
 
-    // 随時改定の適用開始月（変動月+4ヶ月後）
+    // 随時改定の適用開始月（変動月+3ヶ月後）
     for (const suiji of this.suijiResults) {
       if (suiji.newGrade && suiji.averageSalary > 0) {
         // 随時改定の年度を取得（アラートに含まれる年度情報を使用）
@@ -287,18 +287,13 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         const gradeRow = gradeTable.find((r: any) => r.rank === suiji.newGrade);
 
         if (gradeRow) {
-          // 適用開始月を計算（変動月+4ヶ月後）
-          // suiji.applyStartMonthは既に正規化されている（1-12）
+          // 適用開始月を計算（変動月+3ヶ月後）。保存済みのapplyStartMonthに依存せず再計算する。
+          const rawApplyMonth = suiji.changeMonth + 3;
           let suijiApplyYear = suijiYear;
-          let suijiApplyMonth = suiji.applyStartMonth;
-
-          // 変動月+4が12を超える場合は翌年
-          // ただし、suiji.applyStartMonthは既に正規化されているので、
-          // 変動月から直接計算する
-          const rawApplyMonth = suiji.changeMonth + 4;
+          let suijiApplyMonth =
+            rawApplyMonth > 12 ? rawApplyMonth - 12 : rawApplyMonth;
           if (rawApplyMonth > 12) {
             suijiApplyYear = suijiYear + 1;
-            // suiji.applyStartMonthは既に正規化されているので、そのまま使用
           }
 
           // 適用開始日を計算
@@ -383,25 +378,27 @@ export class EmployeeBasicInfoStandardRemunerationComponent
 
     for (const suiji of suijiAlerts) {
       const suijiYear = suiji.year || currentYear;
-      const applyStartMonth =
-        suiji.applyStartMonth ||
-        (suiji.changeMonth + 4 > 12
-          ? suiji.changeMonth + 4 - 12
-          : suiji.changeMonth + 4);
+      // 保存済みのapplyStartMonthに依存せず、変動月+3ヶ月後で再計算
+      const rawApplyMonth = suiji.changeMonth + 3;
+      const normalizedApplyMonth =
+        rawApplyMonth > 12 ? rawApplyMonth - 12 : rawApplyMonth;
 
-      // 変動月+4が12を超える場合は翌年
+      // 変動月+3が12を超える場合は翌年
       let applyYear = suijiYear;
-      const rawApplyMonth = suiji.changeMonth + 4;
       if (rawApplyMonth > 12) {
         applyYear = suijiYear + 1;
       }
 
-      const applyDate = new Date(applyYear, applyStartMonth - 1, 1);
+      const applyDate = new Date(applyYear, normalizedApplyMonth - 1, 1);
 
       // 現在の日付より過去または現在の場合は適用対象
       if (applyDate <= now) {
         if (!latestDate || applyDate > latestDate) {
-          latest = suiji;
+          latest = {
+            ...suiji,
+            applyStartMonth: normalizedApplyMonth,
+            applyStartYear: applyYear,
+          };
           latestDate = applyDate;
         }
       }
@@ -434,7 +431,10 @@ export class EmployeeBasicInfoStandardRemunerationComponent
 
     const rawWage = Number(wageVal);
     if (Number.isNaN(rawWage) || rawWage <= 0) {
-      console.log('[std-remuneration] skip auto-set: monthlyWage invalid', wageVal);
+      console.log(
+        '[std-remuneration] skip auto-set: monthlyWage invalid',
+        wageVal
+      );
       return;
     }
 
@@ -461,7 +461,8 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     this.form.patchValue(
       {
         currentStandardMonthlyRemuneration: standard,
-        determinationReason: this.form.get('determinationReason')?.value || 'shikaku',
+        determinationReason:
+          this.form.get('determinationReason')?.value || 'shikaku',
       },
       { emitEvent: false }
     );

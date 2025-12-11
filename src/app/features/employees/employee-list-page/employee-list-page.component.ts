@@ -380,8 +380,8 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     // 履歴の最新等級・月額を最優先で表示
     const latest = info.latestStandardRemuneration;
     if (latest?.amount && latest.amount > 0) {
-      const gradeText = latest.grade ? `${latest.grade}等級　` : '';
-      return `${gradeText}${latest.amount.toLocaleString('ja-JP')}円`;
+      const gradeText = latest.grade ? `（${latest.grade}等級）` : '';
+      return `${latest.amount.toLocaleString('ja-JP')}円${gradeText}`;
     }
 
     // 月次給与データから計算した標準報酬月額を優先表示
