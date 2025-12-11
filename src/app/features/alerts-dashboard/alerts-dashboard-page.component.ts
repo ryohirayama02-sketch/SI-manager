@@ -364,7 +364,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     try {
       this.isLoadingTeijiKettei = true;
       const targetYear = this.state.teijiYear;
-      this.gradeTable = await this.settingsService.getStandardTable(targetYear);
+      // 3月始まりの年度に合わせ、4月の月で標準報酬等級表を取得
+      this.gradeTable = await this.settingsService.getStandardTableForMonth(
+        targetYear,
+        4
+      );
       const roomId = this.roomIdService.requireRoomId();
 
       // 配列をクリア（重複を防ぐ）

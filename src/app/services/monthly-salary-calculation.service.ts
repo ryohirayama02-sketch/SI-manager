@@ -1,9 +1,14 @@
 import { Injectable } from '@angular/core';
-import { SalaryCalculationService, TeijiKetteiResult, SuijiKouhoResult } from './salary-calculation.service';
+import {
+  SalaryCalculationService,
+  TeijiKetteiResult,
+  SuijiKouhoResult,
+} from './salary-calculation.service';
 import { ValidationService } from './validation.service';
 import { MonthlySalaryStateService } from './monthly-salary-state.service';
 import { Employee } from '../models/employee.model';
 import { SuijiService } from './suiji.service';
+import { SettingsService } from './settings.service';
 
 /**
  * MonthlySalaryCalculationService
@@ -17,7 +22,8 @@ export class MonthlySalaryCalculationService {
     private salaryCalculationService: SalaryCalculationService,
     private validationService: ValidationService,
     private state: MonthlySalaryStateService,
-    private suijiService: SuijiService
+    private suijiService: SuijiService,
+    private settingsService: SettingsService
   ) {}
 
   /**
@@ -52,7 +58,7 @@ export class MonthlySalaryCalculationService {
     employees: Employee[],
     salaries: { [key: string]: { total: number; fixed: number; variable: number } },
     months: number[],
-    gradeTable: any[],
+    gradeTable: any[], // 互換性維持のため残す（未使用）
     year: number
   ): Promise<{
     infoByEmployee: {
@@ -83,11 +89,19 @@ export class MonthlySalaryCalculationService {
     const warningMessages: { [employeeId: string]: string[] } = {};
 
     for (const emp of employees) {
+      // 月ごとに3月始まり年度の等級表を取得（キャッシュ利用）
+      const gradeTableByMonth: { [month: number]: any[] } = {};
+      for (const m of months) {
+        gradeTableByMonth[m] =
+          gradeTableByMonth[m] ||
+          (await this.settingsService.getStandardTableForMonth(year, m));
+      }
+
       const { errors, warnings } = await this.updateCalculatedInfo(
         emp,
         salaries,
         months,
-        gradeTable,
+        gradeTableByMonth,
         year,
         infoByEmployee,
         suijiAlerts
@@ -113,7 +127,7 @@ export class MonthlySalaryCalculationService {
     emp: Employee,
     salaries: { [key: string]: { total: number; fixed: number; variable: number } },
     months: number[],
-    gradeTable: any[],
+    gradeTableByMonth: { [month: number]: any[] },
     year: number,
     infoByEmployee: {
       [employeeId: string]: {
@@ -126,8 +140,11 @@ export class MonthlySalaryCalculationService {
     suijiAlerts: SuijiKouhoResult[]
   ): Promise<{ errors: string[]; warnings: string[] }> {
     const avg = this.getAverageForAprToJun(emp.id, salaries);
+    const gradeTableApr = gradeTableByMonth[4] || gradeTableByMonth[months[0]];
     const stdResult =
-      avg !== null ? this.getStandardMonthlyRemuneration(avg, gradeTable) : null;
+      avg !== null && gradeTableApr
+        ? this.getStandardMonthlyRemuneration(avg, gradeTableApr)
+        : null;
     const standard = stdResult ? stdResult.standard : null;
     const rank = stdResult ? stdResult.rank : null;
 
@@ -139,14 +156,14 @@ export class MonthlySalaryCalculationService {
     const variableSalary = aprilSalary?.variable || 0;
 
     const premiums =
-      standard !== null
+      standard !== null && gradeTableApr
         ? await this.salaryCalculationService.calculateMonthlyPremiums(
             emp,
             year,
             4,
             fixedSalary,
             variableSalary,
-            gradeTable,
+            gradeTableApr,
             suijiAlerts
           )
         : null;

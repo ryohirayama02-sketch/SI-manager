@@ -18,8 +18,18 @@ import { SalaryItem } from '../models/salary-item.model';
 import { RoomIdService } from './room-id.service';
 import { EditLogService } from './edit-log.service';
 
+/**
+ * 3月開始の年度（3月〜翌2月）を計算
+ */
+function getFiscalYearByMonth(year: number, month: number): number {
+  // month: 1-12
+  return month >= 3 ? year : year - 1;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
+  // 標準報酬テーブルの簡易キャッシュ（roomId + fiscalYear）
+  private gradeTableCache: Map<string, any[]> = new Map();
   constructor(
     private firestore: Firestore,
     private roomIdService: RoomIdService,
@@ -381,6 +391,28 @@ export class SettingsService {
     return Array.from(rankMap.values()).sort(
       (a, b) => (a.rank || 0) - (b.rank || 0)
     );
+  }
+
+  /**
+   * 3月開始の年度に基づいて標準報酬等級表を取得（キャッシュ付き）
+   * @param year 暦年（例: 2025）
+   * @param month 月（1-12）※3月〜翌2月で年度判定
+   */
+  async getStandardTableForMonth(
+    year: number,
+    month: number
+  ): Promise<any[]> {
+    const roomId = this.roomIdService.requireRoomId();
+    const fiscalYear = getFiscalYearByMonth(year, month);
+    const cacheKey = `${roomId}_${fiscalYear}`;
+    const cached = this.gradeTableCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const table = await this.getStandardTable(fiscalYear);
+    this.gradeTableCache.set(cacheKey, table);
+    return table;
   }
 
   async saveStandardTable(year: number, rows: any[]): Promise<void> {

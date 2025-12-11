@@ -258,8 +258,18 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     this.isLoadingInsuranceData = true;
 
     try {
-      // 標準報酬月額テーブルを取得
-      const gradeTable = await this.settingsService.getStandardTable(this.year);
+      // 対象月ごとに標準報酬月額テーブルを取得（3月始まりの年度判定）
+      const monthsToCalc =
+        this.selectedMonth === 'all'
+          ? Array.from({ length: 12 }, (_, i) => i + 1)
+          : [this.selectedMonth as number];
+      const gradeTableByMonth: { [month: number]: any[] } = {};
+      for (const m of monthsToCalc) {
+        gradeTableByMonth[m] = await this.settingsService.getStandardTableForMonth(
+          this.year,
+          m
+        );
+      }
 
       // 選択された従業員だけを取得
       const selectedEmployees = this.sortedEmployees.filter((emp) =>
@@ -273,7 +283,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
         // バッチ内の従業員を並列処理
         await Promise.all(
-          batch.map((emp) => this.processEmployeeInsuranceData(emp, gradeTable))
+          batch.map((emp) =>
+            this.processEmployeeInsuranceData(emp, gradeTableByMonth)
+          )
         );
 
         // UIの更新を許可するために少し待機
@@ -430,7 +442,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
    */
   private async processEmployeeInsuranceData(
     emp: Employee,
-    gradeTable: any[]
+    gradeTableByMonth: { [month: number]: any[] }
   ): Promise<void> {
     try {
       const roomId = this.roomIdService.requireRoomId();
@@ -497,15 +509,16 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           console.log(
             `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ✅ 保険料計算を実行`
           );
-          const premiumResult =
-            await this.salaryCalculationService.calculateMonthlyPremiums(
-              emp,
-              this.year,
-              month,
-              fixedSalary,
-              variableSalary,
-              gradeTable
-            );
+        const gradeTable = gradeTableByMonth[month];
+        const premiumResult =
+          await this.salaryCalculationService.calculateMonthlyPremiums(
+            emp,
+            this.year,
+            month,
+            fixedSalary,
+            variableSalary,
+            gradeTable
+          );
 
           // 標準報酬等級を取得（gradeTableから直接検索）
           const totalSalary = fixedSalary + variableSalary;
@@ -513,7 +526,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           let standardMonthlyRemuneration = 0;
 
           // 給与がある場合はgradeTableから等級を検索
-          if (totalSalary > 0) {
+          if (totalSalary > 0 && gradeTable) {
             const gradeRow = gradeTable.find(
               (r: any) => totalSalary >= r.lower && totalSalary < r.upper
             );
@@ -521,7 +534,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               grade = gradeRow.rank;
               standardMonthlyRemuneration = gradeRow.standard;
             }
-          } else if (hasStandardRemuneration) {
+          } else if (hasStandardRemuneration && gradeTable) {
             // 給与が0円でも標準報酬月額が確定している場合は、標準報酬月額から等級を逆引き
             const standard = emp.currentStandardMonthlyRemuneration || 0;
             const gradeRow = gradeTable.find(
