@@ -184,6 +184,7 @@ export class SettingsPageComponent implements OnInit {
     private cdr: ChangeDetectorRef
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
+    // 3月〜翌2月の年度で扱うため、基準年は「3月を含む年」
     const currentYear = new Date().getFullYear();
     this.availableYears = [
       currentYear - 2,
@@ -203,7 +204,7 @@ export class SettingsPageComponent implements OnInit {
     ];
     this.form = this.fb.group({
       prefecture: [this.prefecture, Validators.required],
-      effectiveFrom: [`${this.year}-04`, Validators.required],
+      effectiveFrom: [`${this.year}-03`, Validators.required],
       health_employee: [0, Validators.required],
       health_employer: [0, Validators.required],
       care_employee: [0, Validators.required],
@@ -215,7 +216,7 @@ export class SettingsPageComponent implements OnInit {
     this.settingsForm = this.fb.group({});
     this.rateVersionForm = this.fb.group({
       applyFromMonth: [
-        4,
+        3,
         [Validators.required, Validators.min(1), Validators.max(12)],
       ],
     });

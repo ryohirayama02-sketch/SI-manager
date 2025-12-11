@@ -77,7 +77,7 @@
             [ngModelOptions]="{ standalone: true }"
           >
             <option *ngFor="let y of availableYears" [value]="y.toString()">
-              {{ y }}年
+              {{ y }}年3月-{{ y + 1 }}年2月
             </option>
           </select>
         </div>

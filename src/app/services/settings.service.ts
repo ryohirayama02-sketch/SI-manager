@@ -90,8 +90,8 @@ export class SettingsService {
         `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
       return { applyFromMonth, versionId };
     }
-    // データがない場合はデフォルト値（4月）を返す
-    return { applyFromMonth: 4, versionId: `v${year}-04` };
+    // データがない場合はデフォルト値（3月）を返す
+    return { applyFromMonth: 3, versionId: `v${year}-03` };
   }
 
   /**
@@ -124,14 +124,25 @@ export class SettingsService {
   ): Promise<any | null> {
     const roomId = this.roomIdService.requireRoomId();
 
+    // 月から適用年度（3月始まり）を判定
+    const baseYear = parseInt(year, 10);
+    const monthNum = payMonth ? parseInt(payMonth, 10) : NaN;
+    // 3月〜12月はその年、1〜2月は前年の年度を使う
+    const targetYear =
+      !isNaN(monthNum) && monthNum > 0
+        ? monthNum >= 3
+          ? baseYear
+          : baseYear - 1
+        : baseYear;
+
     // バージョン情報を取得
-    const versionInfo = await this.getRateVersionInfo(year);
+    const versionInfo = await this.getRateVersionInfo(targetYear.toString());
     const versionId = versionInfo.versionId;
 
-    // 新しい構造から取得: rooms/{roomId}/rates/{year}/versions/{versionId}/prefectures/{prefecture}
+    // 新しい構造から取得: rooms/{roomId}/rates/{targetYear}/versions/{versionId}/prefectures/{prefecture}
     const ref = doc(
       this.firestore,
-      `rooms/${roomId}/rates/${year}/versions/${versionId}/prefectures/${prefecture}`
+      `rooms/${roomId}/rates/${targetYear}/versions/${versionId}/prefectures/${prefecture}`
     );
     const snap = await getDoc(ref);
     if (snap.exists()) {
@@ -153,7 +164,7 @@ export class SettingsService {
     // 既存の単一ドキュメント構造との互換性チェック（後方互換性のため）
     const legacyRef = doc(
       this.firestore,
-      `rooms/${roomId}/rates/${year}/prefectures/${prefecture}`
+      `rooms/${roomId}/rates/${targetYear}/prefectures/${prefecture}`
     );
     const legacySnap = await getDoc(legacyRef);
     if (legacySnap.exists()) {
@@ -167,7 +178,7 @@ export class SettingsService {
     // 新しいサブコレクション構造から取得（後方互換性のため）
     const versionsRef = collection(
       this.firestore,
-      `rooms/${roomId}/rates/${year}/prefectures/${prefecture}/versions`
+      `rooms/${roomId}/rates/${targetYear}/prefectures/${prefecture}/versions`
     );
 
     if (payMonth) {
