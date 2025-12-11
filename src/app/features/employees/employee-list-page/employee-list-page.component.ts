@@ -13,6 +13,7 @@ import { MonthlySalaryService } from '../../../services/monthly-salary.service';
 import { SettingsService } from '../../../services/settings.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
 import { EmployeeLifecycleService } from '../../../services/employee-lifecycle.service';
+import { StandardRemunerationHistoryService } from '../../../services/standard-remuneration-history.service';
 import { Employee } from '../../../models/employee.model';
 import { RoomIdService } from '../../../services/room-id.service';
 
@@ -31,6 +32,10 @@ interface EmployeeDisplayInfo {
   notes: string[]; // 備考欄用
   standardMonthlyRemuneration: number | null; // 標準報酬月額（月次給与データから計算）
   grade: number | null; // 等級
+  latestStandardRemuneration?: {
+    grade: number | null;
+    amount: number | null;
+  };
   leaveStatus?: {
     status: 'maternity' | 'childcare' | 'leave' | 'none';
     startDate: string | null;
@@ -93,6 +98,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeWorkCategoryService: EmployeeWorkCategoryService,
     private roomIdService: RoomIdService,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private router: Router
   ) {
     // 先月の年月を計算
@@ -303,6 +309,27 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       const hasCollectionImpossibleAlert =
         await this.hasCollectionImpossibleAlert(emp);
 
+      // 標準報酬履歴の最新データを取得（降順の先頭を採用）
+      let latestStandardRemuneration: { grade: number | null; amount: number | null } = {
+        grade: null,
+        amount: null,
+      };
+      try {
+        const histories =
+          await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+            emp.id
+          );
+        if (histories && histories.length > 0) {
+          const latest = histories[0];
+          latestStandardRemuneration = {
+            grade: latest.grade ?? null,
+            amount: latest.standardMonthlyRemuneration ?? null,
+          };
+        }
+      } catch (error) {
+        console.error('標準報酬履歴の取得に失敗しました', error);
+      }
+
       this.employeeDisplayInfos.push({
         employee: emp,
         eligibility,
@@ -312,6 +339,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         grade,
         leaveStatus,
         hasCollectionImpossibleAlert,
+        latestStandardRemuneration,
       });
     }
   }
@@ -349,6 +377,13 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
   }
 
   getStandardMonthlyRemunerationDisplay(info: EmployeeDisplayInfo): string {
+    // 履歴の最新等級・月額を最優先で表示
+    const latest = info.latestStandardRemuneration;
+    if (latest?.amount && latest.amount > 0) {
+      const gradeText = latest.grade ? `${latest.grade}等級　` : '';
+      return `${gradeText}${latest.amount.toLocaleString('ja-JP')}円`;
+    }
+
     // 月次給与データから計算した標準報酬月額を優先表示
     if (
       info.standardMonthlyRemuneration &&

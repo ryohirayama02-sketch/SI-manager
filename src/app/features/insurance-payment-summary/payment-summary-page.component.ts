@@ -236,6 +236,7 @@ export class PaymentSummaryPageComponent implements OnInit {
       localStorage.setItem(key, JSON.stringify(this.noticeAmounts));
       // UI上の保存中インジケータが視認できるよう、ごく短い遅延を挿入
       await new Promise((resolve) => setTimeout(resolve, 150));
+      alert('保存しました');
     } finally {
       this.isSavingNotice = false;
       this.cdr.markForCheck();

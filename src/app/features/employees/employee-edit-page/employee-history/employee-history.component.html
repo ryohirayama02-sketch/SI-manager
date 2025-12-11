@@ -26,7 +26,7 @@
   <tbody>
     <tr *ngFor="let history of standardRemunerationHistories">
       <td>{{ history.applyStartYear }}年{{ history.applyStartMonth }}月</td>
-      <td>{{ history.grade }}等級</td>
+      <td>{{ getGradeDisplay(history) }}</td>
       <td>{{ history.standardMonthlyRemuneration | number : "1.0-0" }}円</td>
       <td>{{ getDeterminationReasonLabel(history.determinationReason) }}</td>
       <td>{{ history.memo || "-" }}</td>

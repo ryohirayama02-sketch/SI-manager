@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { EmployeeService } from '../../../../services/employee.service';
 import { StandardRemunerationHistoryService } from '../../../../services/standard-remuneration-history.service';
+import { SettingsService } from '../../../../services/settings.service';
+import { GradeDeterminationService } from '../../../../services/grade-determination.service';
 import {
   StandardRemunerationHistory,
   InsuranceStatusHistory,
@@ -25,10 +27,13 @@ export class EmployeeHistoryComponent implements OnInit {
   joinDate?: string;
   joinYear?: number | null;
   joinMonth?: number | null;
+  computedGrades: { [key: string]: number | null } = {};
 
   constructor(
     private employeeService: EmployeeService,
-    private standardRemunerationHistoryService: StandardRemunerationHistoryService
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
+    private settingsService: SettingsService,
+    private gradeDeterminationService: GradeDeterminationService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -69,6 +74,7 @@ export class EmployeeHistoryComponent implements OnInit {
         await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
           this.employeeId
         );
+      await this.computeGradesFromHistories();
 
       // 社保加入履歴を読み込み
       this.insuranceStatusHistories =
@@ -227,5 +233,40 @@ export class EmployeeHistoryComponent implements OnInit {
       }
       return b.month - a.month;
     });
+  }
+
+  getGradeDisplay(history: StandardRemunerationHistory): string {
+    const key = this.getHistoryKey(history);
+    const computed = this.computedGrades[key];
+    const grade = computed ?? history.grade ?? null;
+    return grade ? `${grade}等級` : '-';
+  }
+
+  private async computeGradesFromHistories(): Promise<void> {
+    const cache = new Map<number, any[]>();
+    this.computedGrades = {};
+
+    for (const history of this.standardRemunerationHistories) {
+      const year = history.applyStartYear;
+      if (!cache.has(year)) {
+        const table = (await this.settingsService.getStandardTable(year)) || [];
+        cache.set(year, table);
+      }
+
+      const table = cache.get(year) || [];
+      const result = this.gradeDeterminationService.findGrade(
+        table,
+        history.standardMonthlyRemuneration
+      );
+      const key = this.getHistoryKey(history);
+      this.computedGrades[key] = result ? result.grade : null;
+    }
+  }
+
+  private getHistoryKey(history: StandardRemunerationHistory): string {
+    return (
+      history.id ||
+      `${history.applyStartYear}-${history.applyStartMonth}-${history.standardMonthlyRemuneration}`
+    );
   }
 }
