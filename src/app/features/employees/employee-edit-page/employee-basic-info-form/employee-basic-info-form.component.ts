@@ -114,6 +114,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       sickPayApplicationRequest: [false],
       childcareEmployerCertificateRequest: [false],
       maternityAllowanceApplicationRequest: [false],
+      sickPayApplicationRequestDate: [null],
+      childcareEmployerCertificateRequestDate: [null],
+      maternityAllowanceApplicationRequestDate: [null],
     });
   }
 
@@ -202,6 +205,12 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
           data.childcareEmployerCertificateRequest || false,
         maternityAllowanceApplicationRequest:
           data.maternityAllowanceApplicationRequest || false,
+        sickPayApplicationRequestDate:
+          (data as any).sickPayApplicationRequestDate || null,
+        childcareEmployerCertificateRequestDate:
+          (data as any).childcareEmployerCertificateRequestDate || null,
+        maternityAllowanceApplicationRequestDate:
+          (data as any).maternityAllowanceApplicationRequestDate || null,
       });
     }
 
@@ -351,6 +360,15 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     if (value.maternityAllowanceApplicationRequest !== undefined)
       updateData.maternityAllowanceApplicationRequest =
         value.maternityAllowanceApplicationRequest;
+    if (value.sickPayApplicationRequestDate !== undefined)
+      updateData.sickPayApplicationRequestDate =
+        value.sickPayApplicationRequestDate || null;
+    if (value.childcareEmployerCertificateRequestDate !== undefined)
+      updateData.childcareEmployerCertificateRequestDate =
+        value.childcareEmployerCertificateRequestDate || null;
+    if (value.maternityAllowanceApplicationRequestDate !== undefined)
+      updateData.maternityAllowanceApplicationRequestDate =
+        value.maternityAllowanceApplicationRequestDate || null;
 
     console.log('[employee-basic-info-form] 保存データ:', {
       officeNumber: updateData.officeNumber,
@@ -487,18 +505,27 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     // 週所定労働時間カテゴリの変化があれば履歴を残す（勤務区分変更）
     if (oldWeeklyCategory !== newWeeklyCategory) {
-      console.log('[employee-basic-info-form] detect work category change (weeklyWorkHoursCategory)', {
-        employeeId: this.employeeId,
-        oldWeeklyWorkHoursCategory: oldWeeklyCategory,
-        newWeeklyWorkHoursCategory: newWeeklyCategory,
-      });
+      console.log(
+        '[employee-basic-info-form] detect work category change (weeklyWorkHoursCategory)',
+        {
+          employeeId: this.employeeId,
+          oldWeeklyWorkHoursCategory: oldWeeklyCategory,
+          newWeeklyWorkHoursCategory: newWeeklyCategory,
+        }
+      );
 
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
         changeType: '適用区分変更',
         changeDate: today,
-        oldValue: this.convertWorkCategoryLabel(oldWeeklyCategory, oldIsShortTime),
-        newValue: this.convertWorkCategoryLabel(newWeeklyCategory, newIsShortTime),
+        oldValue: this.convertWorkCategoryLabel(
+          oldWeeklyCategory,
+          oldIsShortTime
+        ),
+        newValue: this.convertWorkCategoryLabel(
+          newWeeklyCategory,
+          newIsShortTime
+        ),
         notificationNames: ['資格取得届'],
       });
     } else if (oldIsShortTime !== newIsShortTime) {

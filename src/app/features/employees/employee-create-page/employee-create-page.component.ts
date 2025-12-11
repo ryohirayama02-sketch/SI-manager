@@ -117,6 +117,9 @@ export class EmployeeCreatePageComponent implements OnInit {
       sickPayApplicationRequest: [false],
       childcareEmployerCertificateRequest: [false],
       maternityAllowanceApplicationRequest: [false],
+      sickPayApplicationRequestDate: [null],
+      childcareEmployerCertificateRequestDate: [null],
+      maternityAllowanceApplicationRequestDate: [null],
       currentStandardMonthlyRemuneration: [{ value: null, disabled: true }],
     });
 
@@ -517,6 +520,15 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.maternityAllowanceApplicationRequest !== undefined)
       employee.maternityAllowanceApplicationRequest =
         value.maternityAllowanceApplicationRequest;
+    if (value.sickPayApplicationRequestDate !== undefined)
+      employee.sickPayApplicationRequestDate =
+        value.sickPayApplicationRequestDate || null;
+    if (value.childcareEmployerCertificateRequestDate !== undefined)
+      employee.childcareEmployerCertificateRequestDate =
+        value.childcareEmployerCertificateRequestDate || null;
+    if (value.maternityAllowanceApplicationRequestDate !== undefined)
+      employee.maternityAllowanceApplicationRequestDate =
+        value.maternityAllowanceApplicationRequestDate || null;
     if (value.currentStandardMonthlyRemuneration !== undefined) {
       employee.currentStandardMonthlyRemuneration =
         value.currentStandardMonthlyRemuneration;

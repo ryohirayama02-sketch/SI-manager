@@ -66,6 +66,9 @@ export interface Employee {
 
   // --- 申請書記入依頼 ---
   sickPayApplicationRequest?: boolean;
+  sickPayApplicationRequestDate?: string | null;
   childcareEmployerCertificateRequest?: boolean;
+  childcareEmployerCertificateRequestDate?: string | null;
   maternityAllowanceApplicationRequest?: boolean;
+  maternityAllowanceApplicationRequestDate?: string | null;
 }
