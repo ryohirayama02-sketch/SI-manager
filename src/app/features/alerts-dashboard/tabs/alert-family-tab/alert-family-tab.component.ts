@@ -652,9 +652,6 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
       const selectedIds = Array.from(this.selectedSupportAlertIds);
       if (selectedIds.length === 0) return;
 
-      const confirmMessage = `選択した${selectedIds.length}件の扶養アラートを削除しますか？`;
-      if (!confirm(confirmMessage)) return;
-
       this._supportAlerts = this._supportAlerts.filter(
         (alert) => !selectedIds.includes(alert.id)
       );

@@ -311,11 +311,6 @@ export class AlertsDashboardStateService {
       return;
     }
 
-    const confirmMessage = `選択した${selectedIds.length}件の資格変更アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
     this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
       (alert) => !selectedIds.includes(alert.id)
     );

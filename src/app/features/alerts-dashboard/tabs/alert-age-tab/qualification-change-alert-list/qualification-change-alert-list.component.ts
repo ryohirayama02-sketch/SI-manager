@@ -64,10 +64,7 @@ export class QualificationChangeAlertListComponent {
     if (this.selectedQualificationChangeAlertIds.size === 0) {
       return;
     }
-    const count = this.selectedQualificationChangeAlertIds.size;
-    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
-      return;
-    }
+    // 確認ダイアログは親側（stateハンドラ）で行うよう統一し、ここではイベントのみ発火
     this.deleteSelected.emit();
   }
 

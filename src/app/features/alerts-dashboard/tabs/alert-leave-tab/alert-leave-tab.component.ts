@@ -260,11 +260,6 @@ export class AlertLeaveTabComponent implements OnInit {
     if (this.selectedMaternityChildcareAlertIds.size === 0) {
       return;
     }
-    const count = this.selectedMaternityChildcareAlertIds.size;
-    if (!confirm(`選択した${count}件のアラートを削除（非表示）しますか？`)) {
-      return;
-    }
-
     // @Input()でmaternityChildcareAlertsが渡されている場合は親に委譲
     // そうでない場合は自分で削除処理を行う
     if (
