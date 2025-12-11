@@ -84,6 +84,7 @@ export class AlertGenerationService {
           alert.year || 2025
         ),
         id: alert.id || getSuijiAlertId(alert),
+        currentStandard: alert.currentStandard ?? alert.currentRemuneration ?? null,
       }));
   }
 

@@ -1,4 +1,11 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import {
+  Component,
+  Input,
+  Output,
+  EventEmitter,
+  OnChanges,
+  SimpleChanges,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SuijiKouhoResult } from '../../../../services/salary-calculation.service';
 import { SuijiAlertUiService } from '../../../../services/suiji-alert-ui.service';
@@ -17,6 +24,7 @@ export interface SuijiKouhoResultWithDiff extends SuijiKouhoResult {
   diffPrev?: number | null;
   id?: string; // FirestoreのドキュメントID
   year?: number; // 年度情報
+  currentStandard?: number | null; // 現行標準報酬月額
 }
 
 @Component({
@@ -45,6 +53,31 @@ export class AlertSuijiTabComponent {
     private settingsService: SettingsService,
     private roomIdService: RoomIdService
   ) {}
+
+  // 年度ごとの標準報酬等級表キャッシュ
+  private gradeTables: Map<number, any[]> = new Map();
+
+  async ngOnChanges(changes: SimpleChanges): Promise<void> {
+    if (changes['suijiAlerts'] && this.suijiAlerts) {
+      const years = Array.from(
+        new Set(
+          this.suijiAlerts
+            .map((a) => a.year)
+            .filter((y): y is number => typeof y === 'number')
+        )
+      );
+      // 年度情報が無い場合は現在年をプリロード
+      if (years.length === 0) {
+        years.push(new Date().getFullYear());
+      }
+      for (const y of years) {
+        if (!this.gradeTables.has(y)) {
+          const table = await this.settingsService.getStandardTable(y);
+          this.gradeTables.set(y, table);
+        }
+      }
+    }
+  }
 
   getEmployeeName(employeeId: string): string {
     const emp = this.employees.find((e: any) => e.id === employeeId);
@@ -86,6 +119,17 @@ export class AlertSuijiTabComponent {
 
   getSuijiAlertId(alert: SuijiKouhoResultWithDiff): string {
     return this.suijiAlertUiService.getSuijiAlertId(alert);
+  }
+
+  getCurrentStandard(alert: SuijiKouhoResultWithDiff): number | null {
+    if (alert.currentStandard !== undefined && alert.currentStandard !== null) {
+      return alert.currentStandard;
+    }
+    const year = alert.year || new Date().getFullYear();
+    const table = this.gradeTables.get(year);
+    if (!table) return null;
+    const row = table.find((r: any) => r.rank === alert.currentGrade);
+    return row ? row.standard ?? null : null;
   }
 
   formatDate(date: Date): string {

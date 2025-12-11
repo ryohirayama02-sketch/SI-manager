@@ -38,7 +38,7 @@
         <th>従業員</th>
         <th>年度</th>
         <th>変動月</th>
-        <th>前月比</th>
+        <th>現行標準報酬月額</th>
         <th>3ヶ月平均</th>
         <th>現行等級</th>
         <th>新等級候補</th>
@@ -71,10 +71,10 @@
         <td>{{ alert.year || "-" }}年</td>
         <td>{{ alert.changeMonth }}月</td>
         <td>
-          <span *ngIf="alert.diffPrev != null">
-            {{ alert.diffPrev | number : "1.0-0" }}円
+          <span *ngIf="getCurrentStandard(alert) != null">
+            {{ getCurrentStandard(alert) | number : "1.0-0" }}円
           </span>
-          <span *ngIf="alert.diffPrev == null">-</span>
+          <span *ngIf="getCurrentStandard(alert) == null">-</span>
         </td>
         <td>{{ alert.averageSalary | number : "1.0-0" }}円</td>
         <td>{{ alert.currentGrade }}</td>
