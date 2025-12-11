@@ -434,9 +434,43 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
     startDate: string | null;
     endDate: string | null;
   } {
+    // 産前産後休業中（employeeLifecycleServiceの月判定ロジックに合わせる）
+    const isMaternity = this.employeeLifecycleService.isMaternityLeave(
+      employee,
+      year,
+      month
+    );
+    if (isMaternity) {
+      return {
+        status: 'maternity',
+        startDate: employee.maternityLeaveStart || null,
+        endDate:
+          employee.maternityLeaveEnd ||
+          employee.maternityLeaveEndExpected ||
+          null,
+      };
+    }
+
+    // 育児休業中（employeeLifecycleServiceの月判定ロジックに合わせる）
+    const isChildcare = this.employeeLifecycleService.isChildcareLeave(
+      employee,
+      year,
+      month
+    );
+    if (isChildcare) {
+      return {
+        status: 'childcare',
+        startDate: employee.childcareLeaveStart || null,
+        endDate:
+          employee.childcareLeaveEnd ||
+          employee.childcareLeaveEndExpected ||
+          null,
+      };
+    }
+
+    // 無給休職中（終了日未入力でも継続扱い）
     const targetDate = new Date(year, month - 1, 1);
     const targetEndDate = new Date(year, month, 0); // その月の最終日
-
     const within = (
       startStr?: string | null,
       endStr?: string | null,
@@ -450,43 +484,6 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       return targetDate <= end && targetEndDate >= start;
     };
 
-    // 産前産後休業中（終了日未入力でも継続扱い）
-    if (
-      within(
-        employee.maternityLeaveStart,
-        employee.maternityLeaveEnd,
-        employee.maternityLeaveEndExpected
-      )
-    ) {
-      return {
-        status: 'maternity',
-        startDate: employee.maternityLeaveStart || null,
-        endDate:
-          employee.maternityLeaveEnd ||
-          employee.maternityLeaveEndExpected ||
-          null,
-      };
-    }
-
-    // 育児休業中（終了日未入力でも継続扱い）
-    if (
-      within(
-        employee.childcareLeaveStart,
-        employee.childcareLeaveEnd,
-        employee.childcareLeaveEndExpected
-      )
-    ) {
-      return {
-        status: 'childcare',
-        startDate: employee.childcareLeaveStart || null,
-        endDate:
-          employee.childcareLeaveEnd ||
-          employee.childcareLeaveEndExpected ||
-          null,
-      };
-    }
-
-    // 無給休職中（終了日未入力でも継続扱い）
     if (
       within(
         employee.leaveOfAbsenceStart,

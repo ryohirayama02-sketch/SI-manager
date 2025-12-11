@@ -1,11 +1,13 @@
 import { Injectable } from '@angular/core';
 import { Employee } from '../models/employee.model';
 import { MaternityLeaveService } from './maternity-leave.service';
+import { EmployeeLifecycleService } from './employee-lifecycle.service';
 
 @Injectable({ providedIn: 'root' })
 export class ExemptionDeterminationService {
   constructor(
-    private maternityLeaveService: MaternityLeaveService
+    private maternityLeaveService: MaternityLeaveService,
+    private employeeLifecycleService: EmployeeLifecycleService
   ) {}
 
   /**
@@ -121,12 +123,18 @@ export class ExemptionDeterminationService {
    * @returns 免除月の場合true、それ以外false
    */
   isExemptMonth(emp: Employee, year: number, month: number): boolean {
-    const exemptResult = this.maternityLeaveService.isExemptForSalary(
+    // 月単位の免除判定はEmployeeLifecycleServiceの月判定ロジックに統一
+    const isMaternity = this.employeeLifecycleService.isMaternityLeave(
+      emp,
       year,
-      month,
-      emp
+      month
     );
-    return exemptResult.exempt === true;
+    const isChildcare = this.employeeLifecycleService.isChildcareLeave(
+      emp,
+      year,
+      month
+    );
+    return isMaternity || isChildcare;
   }
 
   /**
@@ -137,7 +145,31 @@ export class ExemptionDeterminationService {
    * @returns 免除結果（理由を含む）
    */
   getExemptReasonForMonth(emp: Employee, year: number, month: number): { exempt: boolean; reason: string } {
-    return this.maternityLeaveService.isExemptForSalary(year, month, emp);
+    const isMaternity = this.employeeLifecycleService.isMaternityLeave(
+      emp,
+      year,
+      month
+    );
+    if (isMaternity) {
+      return {
+        exempt: true,
+        reason: '産前産後休業中（健康保険・厚生年金本人分免除）',
+      };
+    }
+
+    const isChildcare = this.employeeLifecycleService.isChildcareLeave(
+      emp,
+      year,
+      month
+    );
+    if (isChildcare) {
+      return {
+        exempt: true,
+        reason: '育児休業中（健康保険・厚生年金本人分免除）',
+      };
+    }
+
+    return { exempt: false, reason: '' };
   }
 }
 

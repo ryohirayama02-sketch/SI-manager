@@ -58,7 +58,7 @@
   <div *ngIf="activeTab === 'rate'" class="tab-pane">
     <div class="card">
       <div class="info-label">
-        年度ごとに使用する社会保険料率（健保・介護・厚年）を登録してください。
+        対象期間ごとに使用する社会保険料率（健保・介護・厚年）を登録してください。
       </div>
       <div
         style="
@@ -69,7 +69,7 @@
         "
       >
         <div class="form-group" style="margin-bottom: 0">
-          <label>年度：</label>
+          <label>対象期間：</label>
           <select
             [(ngModel)]="year"
             (change)="onYearChange()"

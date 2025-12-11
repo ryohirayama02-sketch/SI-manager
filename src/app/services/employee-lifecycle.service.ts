@@ -36,9 +36,12 @@ export class EmployeeLifecycleService {
    * @returns 産休期間中の場合true
    */
   isMaternityLeave(emp: Employee, year: number, month: number): boolean {
-    // 終了日が未設定の場合は終了予定日で判定する
+    // 終了日と終了予定日が両方ある場合は終了日を優先
     const startValue = emp.maternityLeaveStart;
-    const endValue = emp.maternityLeaveEnd ?? emp.maternityLeaveEndExpected;
+    const endValue =
+      emp.maternityLeaveEnd !== undefined && emp.maternityLeaveEnd !== null && emp.maternityLeaveEnd !== ''
+        ? emp.maternityLeaveEnd
+        : emp.maternityLeaveEndExpected;
 
     if (!startValue || !endValue) {
       return false;
@@ -46,11 +49,32 @@ export class EmployeeLifecycleService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
-    const targetDate = new Date(year, month - 1, 1); // 月初日
-    const targetEndDate = new Date(year, month, 0); // 月末日
+    const targetMonthKey = year * 12 + (month - 1);
+    const startMonthKey = startDate.getFullYear() * 12 + startDate.getMonth();
+    const endMonthKey = endDate.getFullYear() * 12 + endDate.getMonth();
 
-    // 対象月が産休期間と重複しているか判定
-    return targetDate <= endDate && targetEndDate >= startDate;
+    // 対象月が開始月より前、または終了月より後なら対象外
+    if (targetMonthKey < startMonthKey || targetMonthKey > endMonthKey) {
+      return false;
+    }
+
+    // 開始月は必ず免除対象
+    if (targetMonthKey === startMonthKey) {
+      return true;
+    }
+
+    // 終了月は、終了日が月末の場合のみ免除対象
+    if (targetMonthKey === endMonthKey) {
+      const endOfEndMonth = new Date(
+        endDate.getFullYear(),
+        endDate.getMonth() + 1,
+        0
+      );
+      return endDate.getDate() === endOfEndMonth.getDate();
+    }
+
+    // それ以外（開始月と終了月の間）は免除対象
+    return true;
   }
 
   /**
@@ -61,9 +85,14 @@ export class EmployeeLifecycleService {
    * @returns 育休期間中の場合true
    */
   isChildcareLeave(emp: Employee, year: number, month: number): boolean {
-    // 終了日が未設定の場合は終了予定日で判定する
+    // 終了日と終了予定日が両方ある場合は終了日を優先
     const startValue = emp.childcareLeaveStart;
-    const endValue = emp.childcareLeaveEnd ?? emp.childcareLeaveEndExpected;
+    const endValue =
+      emp.childcareLeaveEnd !== undefined &&
+      emp.childcareLeaveEnd !== null &&
+      emp.childcareLeaveEnd !== ''
+        ? emp.childcareLeaveEnd
+        : emp.childcareLeaveEndExpected;
 
     if (!startValue || !endValue) {
       return false;
@@ -71,11 +100,28 @@ export class EmployeeLifecycleService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
-    const targetDate = new Date(year, month - 1, 1); // 月初日
-    const targetEndDate = new Date(year, month, 0); // 月末日
+    const targetMonthKey = year * 12 + (month - 1);
+    const startMonthKey = startDate.getFullYear() * 12 + startDate.getMonth();
+    const endMonthKey = endDate.getFullYear() * 12 + endDate.getMonth();
 
-    // 対象月が育休期間と重複しているか判定
-    return targetDate <= endDate && targetEndDate >= startDate;
+    if (targetMonthKey < startMonthKey || targetMonthKey > endMonthKey) {
+      return false;
+    }
+
+    if (targetMonthKey === startMonthKey) {
+      return true;
+    }
+
+    if (targetMonthKey === endMonthKey) {
+      const endOfEndMonth = new Date(
+        endDate.getFullYear(),
+        endDate.getMonth() + 1,
+        0
+      );
+      return endDate.getDate() === endOfEndMonth.getDate();
+    }
+
+    return true;
   }
 
   /**
