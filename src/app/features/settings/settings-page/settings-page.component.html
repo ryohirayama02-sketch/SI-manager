@@ -405,7 +405,7 @@
         "
       >
         <div class="form-group" style="margin-bottom: 0">
-          <label>年度：</label>
+          <label>対象期間：</label>
           <select
             [(ngModel)]="gradeYear"
             (change)="onGradeYearChange()"
@@ -416,7 +416,7 @@
               *ngFor="let y of availableGradeYears"
               [value]="y.toString()"
             >
-              {{ y }}年
+              {{ y }}年3月-{{ y + 1 }}年2月
             </option>
           </select>
         </div>
