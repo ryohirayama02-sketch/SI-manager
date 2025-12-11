@@ -46,6 +46,7 @@ import { EmployeeChangeHistoryService } from '../../services/employee-change-his
 import { QualificationChangeAlertService } from '../../services/qualification-change-alert.service';
 import { AlertAggregationService } from '../../services/alert-aggregation.service';
 import { AlertsDashboardUiService } from '../../services/alerts-dashboard-ui.service';
+import { AlertDeletionService } from '../../services/alert-deletion.service';
 import { AlertsDashboardStateService } from '../../services/alerts-dashboard-state.service';
 import { UncollectedPremiumService } from '../../services/uncollected-premium.service';
 import { Employee } from '../../models/employee.model';
@@ -117,6 +118,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private alertsDashboardUiService: AlertsDashboardUiService,
     private uncollectedPremiumService: UncollectedPremiumService,
     private roomIdService: RoomIdService,
+    private alertDeletionService: AlertDeletionService,
     public state: AlertsDashboardStateService
   ) {}
 
@@ -215,6 +217,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async loadSuijiAlerts(): Promise<void> {
+    const deletedIds = await this.alertDeletionService.getDeletedIds('suiji');
     const result = await this.alertsDashboardUiService.loadSuijiAlerts(
       this.employees,
       this.salariesByYear,
@@ -224,7 +227,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         this.getPrevMonthDiff(employeeId, month, year),
       (alert: SuijiKouhoResultWithDiff) => this.getSuijiAlertId(alert)
     );
-    this.state.suijiAlerts = result;
+    this.state.suijiAlerts = result.filter(
+      (a) => !deletedIds.has(this.getSuijiAlertId(a))
+    );
   }
 
   getPrevMonthDiff(
@@ -289,10 +294,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 年齢到達アラートを読み込む
    */
   async loadAgeAlerts(): Promise<void> {
+    const deletedIds = await this.alertDeletionService.getDeletedIds('age');
     const result = await this.alertsDashboardUiService.loadAgeAlerts(
       this.employees
     );
-    this.state.ageAlerts = result;
+    this.state.ageAlerts = result.filter((a) => !deletedIds.has(a.id));
   }
 
   /**
@@ -300,33 +306,44 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 従業員データの変更履歴を確認してアラートを生成
    */
   async loadQualificationChangeAlerts(): Promise<void> {
+    const deletedIds = await this.alertDeletionService.getDeletedIds(
+      'qualification'
+    );
     const result =
       await this.alertsDashboardUiService.loadQualificationChangeAlerts(
         this.employees
       );
-    this.state.qualificationChangeAlerts = result;
+    this.state.qualificationChangeAlerts = result.filter(
+      (a) => !deletedIds.has(a.id)
+    );
   }
 
   /**
    * 産休育休アラートを読み込む
    */
   async loadMaternityChildcareAlerts(): Promise<void> {
+    const deletedIds = await this.alertDeletionService.getDeletedIds('leave');
     const result =
       await this.alertsDashboardUiService.loadMaternityChildcareAlerts(
         this.employees,
         (date: Date) => this.formatDate(date)
       );
-    this.state.maternityChildcareAlerts = result;
+    this.state.maternityChildcareAlerts = result.filter(
+      (a) => !deletedIds.has(a.id)
+    );
   }
 
   /**
    * 賞与支払届アラートを読み込む
    */
   async loadBonusReportAlerts(): Promise<void> {
+    const deletedIds = await this.alertDeletionService.getDeletedIds('bonus');
     const result = await this.alertsDashboardUiService.loadBonusReportAlerts(
       this.employees
     );
-    this.state.bonusReportAlerts = result;
+    this.state.bonusReportAlerts = result.filter(
+      (a) => !deletedIds.has(a.id)
+    );
   }
 
   /**
@@ -774,6 +791,23 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   deleteSelectedMaternityChildcareAlerts(): void {
+    const selectedIds = Array.from(
+      this.state.selectedMaternityChildcareAlertIds
+    );
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の産休・育休・休職アラートを削除（非表示）しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // 永続削除フラグを保存
+    selectedIds.forEach((id) =>
+      this.alertDeletionService.markAsDeleted('leave', id)
+    );
+
     this.state.deleteSelectedMaternityChildcareAlerts();
     this.loadScheduleData();
   }

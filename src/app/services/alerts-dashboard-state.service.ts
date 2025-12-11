@@ -270,12 +270,6 @@ export class AlertsDashboardStateService {
     if (selectedIds.length === 0) {
       return;
     }
-
-    const confirmMessage = `選択した${selectedIds.length}件の年齢到達アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
     this.ageAlerts = this.ageAlerts.filter(
       (alert) => !selectedIds.includes(alert.id)
     );
@@ -310,7 +304,6 @@ export class AlertsDashboardStateService {
     if (selectedIds.length === 0) {
       return;
     }
-
     this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
       (alert) => !selectedIds.includes(alert.id)
     );
@@ -345,12 +338,6 @@ export class AlertsDashboardStateService {
     if (selectedIds.length === 0) {
       return;
     }
-
-    const confirmMessage = `選択した${selectedIds.length}件の産休育休アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
     this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
       (alert) => !selectedIds.includes(alert.id)
     );
