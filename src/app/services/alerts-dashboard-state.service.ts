@@ -140,12 +140,6 @@ export class AlertsDashboardStateService {
     if (selectedIds.length === 0) {
       return;
     }
-
-    const confirmMessage = `選択した${selectedIds.length}件の賞与支払届アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
     this.bonusReportAlerts = this.bonusReportAlerts.filter(
       (alert) => !selectedIds.includes(alert.id)
     );

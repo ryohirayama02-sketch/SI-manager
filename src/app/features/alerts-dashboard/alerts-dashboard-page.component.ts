@@ -559,8 +559,11 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
         });
       }
 
-      // 従業員ID単位で重複を排除した結果を反映
-      this.state.teijiKetteiResults = Array.from(teijiResultsMap.values());
+      // 従業員ID単位で重複を排除した結果を反映（削除済みIDは除外）
+      const deletedIds = await this.alertDeletionService.getDeletedIds('teiji');
+      this.state.teijiKetteiResults = Array.from(teijiResultsMap.values()).filter(
+        (r) => !deletedIds.has(r.employeeId)
+      );
 
       console.log(
         `[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.state.teijiKetteiResults.length}`
@@ -656,6 +659,20 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   deleteSelectedBonusReportAlerts(): void {
+    const selectedIds = Array.from(this.state.selectedBonusReportAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の賞与支払届アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    selectedIds.forEach((id) =>
+      this.alertDeletionService.markAsDeleted('bonus', id)
+    );
+
     this.state.deleteSelectedBonusReportAlerts();
     this.loadScheduleData();
   }
@@ -699,6 +716,10 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       }
     }
 
+    for (const alertId of selectedIds) {
+      await this.alertDeletionService.markAsDeleted('suiji', alertId);
+    }
+
     await this.loadSuijiAlerts();
     this.state.deleteSelectedSuijiAlerts((alert: SuijiKouhoResultWithDiff) =>
       this.getSuijiAlertId(alert)
@@ -727,6 +748,20 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   deleteSelectedTeijiAlerts(): void {
+    const selectedIds = Array.from(this.state.selectedTeijiAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の算定基礎届アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    selectedIds.forEach((id) =>
+      this.alertDeletionService.markAsDeleted('teiji', id)
+    );
+
     this.state.deleteSelectedTeijiAlerts();
     this.loadScheduleData();
   }
@@ -743,6 +778,20 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   deleteSelectedAgeAlerts(): void {
+    const selectedIds = Array.from(this.state.selectedAgeAlertIds);
+    if (selectedIds.length === 0) {
+      return;
+    }
+
+    const confirmMessage = `選択した${selectedIds.length}件の年齢到達アラートを削除しますか？`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    selectedIds.forEach((id) =>
+      this.alertDeletionService.markAsDeleted('age', id)
+    );
+
     this.state.deleteSelectedAgeAlerts();
     this.loadScheduleData();
   }
@@ -773,6 +822,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
     for (const alertId of selectedIds) {
       await this.qualificationChangeAlertService.markAsDeleted(alertId);
+      await this.alertDeletionService.markAsDeleted('qualification', alertId);
     }
 
     this.state.deleteSelectedQualificationChangeAlerts();
@@ -790,7 +840,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     this.state.onMaternityChildcareSelectAllChange(checked);
   }
 
-  deleteSelectedMaternityChildcareAlerts(): void {
+  async deleteSelectedMaternityChildcareAlerts(): Promise<void> {
     const selectedIds = Array.from(
       this.state.selectedMaternityChildcareAlertIds
     );
@@ -804,9 +854,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     }
 
     // 永続削除フラグを保存
-    selectedIds.forEach((id) =>
-      this.alertDeletionService.markAsDeleted('leave', id)
-    );
+    for (const id of selectedIds) {
+      await this.alertDeletionService.markAsDeleted('leave', id);
+    }
 
     this.state.deleteSelectedMaternityChildcareAlerts();
     this.loadScheduleData();

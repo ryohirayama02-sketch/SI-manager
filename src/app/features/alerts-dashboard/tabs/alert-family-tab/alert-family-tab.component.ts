@@ -12,6 +12,7 @@ import { FamilyAlertUiService } from '../../../../services/family-alert-ui.servi
 import { EmployeeService } from '../../../../services/employee.service';
 import { FamilyMemberService } from '../../../../services/family-member.service';
 import { AlertsDashboardStateService } from '../../../../services/alerts-dashboard-state.service';
+import { AlertDeletionService } from '../../../../services/alert-deletion.service';
 import { Employee } from '../../../../models/employee.model';
 
 export interface SupportAlert {
@@ -76,7 +77,8 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
     private familyAlertUiService: FamilyAlertUiService,
     private employeeService: EmployeeService,
     private familyMemberService: FamilyMemberService,
-    private state: AlertsDashboardStateService
+    private state: AlertsDashboardStateService,
+    private alertDeletionService: AlertDeletionService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -108,6 +110,7 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
     const alerts: SupportAlert[] = [];
     const today = this.getJSTDate();
     today.setHours(0, 0, 0, 0);
+    const deletedIds = await this.alertDeletionService.getDeletedIds('family');
 
     console.log(
       `[alert-family-tab] loadSupportAlerts開始: 今日=${this.formatDate(
@@ -601,13 +604,15 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
         return b.alertDate.getTime() - a.alertDate.getTime();
       });
 
+      const filteredAlerts = alerts.filter((a) => !deletedIds.has(a.id));
+
       // 常に最新で上書き（force）、または初回のみセット
       if (force || !this._supportAlerts || this._supportAlerts.length === 0) {
-        this._supportAlerts = alerts;
+        this._supportAlerts = filteredAlerts;
       }
 
       // state.supportAlertsも更新（届出スケジュールで使用されるため）
-      this.state.supportAlerts = alerts;
+      this.state.supportAlerts = filteredAlerts;
       this.state.updateScheduleData();
     } catch (error) {
       console.error('[alert-family-tab] loadSupportAlertsエラー:', error);
@@ -637,7 +642,7 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
   }
 
   // 扶養アラートの削除
-  deleteSelectedSupportAlerts(): void {
+  async deleteSelectedSupportAlerts(): Promise<void> {
     // @Input()でsupportAlertsが渡されている場合は親に委譲
     // そうでない場合は自分で削除処理を行う
     if (
@@ -651,6 +656,10 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
       // 自分でロードしたアラートを削除
       const selectedIds = Array.from(this.selectedSupportAlertIds);
       if (selectedIds.length === 0) return;
+
+      for (const id of selectedIds) {
+        await this.alertDeletionService.markAsDeleted('family', id);
+      }
 
       this._supportAlerts = this._supportAlerts.filter(
         (alert) => !selectedIds.includes(alert.id)
