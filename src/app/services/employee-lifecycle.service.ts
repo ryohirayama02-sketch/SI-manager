@@ -63,14 +63,18 @@ export class EmployeeLifecycleService {
       return true;
     }
 
-    // 終了月は、終了日が月末の場合のみ免除対象
+    // 終了月の処理
     if (targetMonthKey === endMonthKey) {
       const endOfEndMonth = new Date(
         endDate.getFullYear(),
         endDate.getMonth() + 1,
         0
       );
-      return endDate.getDate() === endOfEndMonth.getDate();
+      const lastDayOfEndMonth = endOfEndMonth.getDate();
+      
+      // 終了日が月末（31日など）の場合、免除対象（保険料ゼロ）
+      // 終了日が1-30日の場合、免除対象外（保険料発生）
+      return endDate.getDate() === lastDayOfEndMonth;
     }
 
     // それ以外（開始月と終了月の間）は免除対象
@@ -108,19 +112,26 @@ export class EmployeeLifecycleService {
       return false;
     }
 
+    // 開始月は必ず免除対象
     if (targetMonthKey === startMonthKey) {
       return true;
     }
 
+    // 終了月の処理
     if (targetMonthKey === endMonthKey) {
       const endOfEndMonth = new Date(
         endDate.getFullYear(),
         endDate.getMonth() + 1,
         0
       );
-      return endDate.getDate() === endOfEndMonth.getDate();
+      const lastDayOfEndMonth = endOfEndMonth.getDate();
+      
+      // 終了日が月末（31日など）の場合、免除対象（保険料ゼロ）
+      // 終了日が1-30日の場合、免除対象外（保険料発生）
+      return endDate.getDate() === lastDayOfEndMonth;
     }
 
+    // それ以外（開始月と終了月の間）は免除対象
     return true;
   }
 
@@ -162,13 +173,36 @@ export class EmployeeLifecycleService {
     const retireDay = retireDate.getDate();
     const lastDayOfMonth = new Date(year, month, 0).getDate();
 
-    // 退職月で、退職日が月末より前の場合、月末在籍なし（false）
-    // 退職日が月末の場合、月末在籍あり（true）
-    if (retireYear === year && retireMonth === month) {
-      return retireDay >= lastDayOfMonth; // 月末在籍ありの場合はtrue
+    // 退職月でない場合は月末在籍あり
+    if (retireYear !== year || retireMonth !== month) {
+      return true;
     }
 
-    return true; // 退職月でない場合は月末在籍あり
+    // 退職日が月末（31日など）の場合、月末在籍あり
+    if (retireDay >= lastDayOfMonth) {
+      return true;
+    }
+
+    // 退職日が月末より前の場合、同月得喪かどうかを確認
+    if (emp.joinDate) {
+      const joinDate = new Date(emp.joinDate);
+      const joinYear = joinDate.getFullYear();
+      const joinMonth = joinDate.getMonth() + 1;
+
+      // 同月得喪（入社月と退職月が同じ）の場合、保険料発生
+      if (joinYear === retireYear && joinMonth === retireMonth) {
+        return true; // 同月得喪の場合は月末在籍ありとして扱う
+      }
+
+      // 入社が前年以前で退職日が1/1-1/30の場合、保険料ゼロ
+      // 例：2024年12月以前入社で2025年1月1-30日退職 → 保険料ゼロ
+      if (joinYear < retireYear || (joinYear === retireYear && joinMonth < retireMonth)) {
+        return false; // 月末在籍なし
+      }
+    }
+
+    // その他の場合（退職日が月末より前で、同月得喪でない場合）
+    return false; // 月末在籍なし
   }
 
   /**
