@@ -511,12 +511,27 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           0;
 
         // 標準報酬月額を従業員データと履歴から取得（給与0でも計算するため）
+        // this.yearを数値に変換（文字列の場合に備えて）
+        const selectedYearNum =
+          typeof this.year === 'string' ? parseInt(this.year, 10) : this.year;
+
         let standardFromHistory =
           (await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
             emp.id,
-            this.year,
+            selectedYearNum,
             month
           )) || 0;
+
+        console.log(
+          `[insurance-result-page] ${emp.name} (${this.year}年${month}月): getStandardRemunerationForMonth呼び出し後`,
+          {
+            selectedYearNum,
+            month,
+            standardFromHistory,
+            yearType: typeof this.year,
+            yearValue: this.year,
+          }
+        );
 
         // 標準報酬履歴から取得できない場合、資格取得時決定の履歴を確認
         if (!standardFromHistory || standardFromHistory === 0) {
@@ -666,13 +681,22 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             employeeCurrentStandardMonthlyRemuneration:
               emp.currentStandardMonthlyRemuneration,
             joinDate: emp.joinDate,
+            // 標準報酬履歴から取得した値を優先する（定時改定・随時改定を反映）
+            willUseHistoryValue: standardFromHistory > 0,
           }
         );
+
+        // 標準報酬履歴から取得した値を優先する
+        // これにより、定時改定や随時改定で標準報酬月額が変わった場合も正しく反映される
+        // emp.currentStandardMonthlyRemunerationは従業員データの現在値であり、
+        // 過去の月では定時改定・随時改定前の値のままの可能性があるため、履歴を優先する
         const effectiveStandard =
-          emp.currentStandardMonthlyRemuneration &&
-          emp.currentStandardMonthlyRemuneration > 0
+          standardFromHistory > 0
+            ? standardFromHistory
+            : emp.currentStandardMonthlyRemuneration &&
+              emp.currentStandardMonthlyRemuneration > 0
             ? emp.currentStandardMonthlyRemuneration
-            : standardFromHistory;
+            : 0;
         const hasStandardRemuneration = effectiveStandard > 0;
 
         console.log(

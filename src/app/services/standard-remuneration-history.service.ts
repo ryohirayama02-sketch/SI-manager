@@ -16,6 +16,8 @@ import { MonthlySalaryService } from './monthly-salary.service';
 import { SalaryCalculationService } from './salary-calculation.service';
 import { SettingsService } from './settings.service';
 import { RoomIdService } from './room-id.service';
+import { SuijiService } from './suiji.service';
+import { SuijiKouhoResult } from './salary-calculation.service';
 
 @Injectable({ providedIn: 'root' })
 export class StandardRemunerationHistoryService {
@@ -24,7 +26,8 @@ export class StandardRemunerationHistoryService {
     private monthlySalaryService: MonthlySalaryService,
     private salaryCalculationService: SalaryCalculationService,
     private settingsService: SettingsService,
-    private roomIdService: RoomIdService
+    private roomIdService: RoomIdService,
+    private suijiService: SuijiService
   ) {}
 
   /**
@@ -149,15 +152,56 @@ export class StandardRemunerationHistoryService {
 
     // 指定された年月以前で最も新しい履歴を取得
     // 履歴は降順ソートされているので、最初に見つかったものが該当する
+    console.log(
+      `[StandardRemunerationHistoryService] getStandardRemunerationForMonth: ${employeeId} (${year}年${month}月)`,
+      {
+        historiesCount: histories.length,
+        histories: histories.map((h) => ({
+          applyStartYear: h.applyStartYear,
+          applyStartMonth: h.applyStartMonth,
+          standardMonthlyRemuneration: h.standardMonthlyRemuneration,
+          determinationReason: h.determinationReason,
+        })),
+        targetYear: year,
+        targetMonth: month,
+      }
+    );
+
     for (const history of histories) {
-      if (
+      const isApplicable =
         history.applyStartYear < year ||
-        (history.applyStartYear === year && history.applyStartMonth <= month)
-      ) {
+        (history.applyStartYear === year && history.applyStartMonth <= month);
+      
+      console.log(
+        `[StandardRemunerationHistoryService] 履歴チェック: ${history.applyStartYear}年${history.applyStartMonth}月 → 適用可能: ${isApplicable}`,
+        {
+          applyStartYear: history.applyStartYear,
+          applyStartMonth: history.applyStartMonth,
+          targetYear: year,
+          targetMonth: month,
+          condition1: history.applyStartYear < year,
+          condition2: history.applyStartYear === year && history.applyStartMonth <= month,
+          isApplicable,
+          standardMonthlyRemuneration: history.standardMonthlyRemuneration,
+        }
+      );
+
+      if (isApplicable) {
+        console.log(
+          `[StandardRemunerationHistoryService] 標準報酬月額を取得: ${history.standardMonthlyRemuneration}円`,
+          {
+            applyStartYear: history.applyStartYear,
+            applyStartMonth: history.applyStartMonth,
+            determinationReason: history.determinationReason,
+          }
+        );
         return history.standardMonthlyRemuneration;
       }
     }
 
+    console.log(
+      `[StandardRemunerationHistoryService] 該当する履歴が見つかりませんでした`
+    );
     return null;
   }
 
@@ -364,6 +408,68 @@ export class StandardRemunerationHistoryService {
 //             grade: teijiResult.grade,
 //             standard: teijiResult.standardMonthlyRemuneration,
 //           });
+        }
+      }
+
+      // 随時改定の履歴を生成
+      // 変動月+3か月目が適用開始月（変動月が10月なら、適用開始月は1月）
+      const suijiAlerts = await this.suijiService.loadAlerts(year);
+      const employeeSuijiAlerts = suijiAlerts.filter(
+        (alert) => alert.employeeId === employeeId && alert.isEligible
+      );
+
+      for (const suijiAlert of employeeSuijiAlerts) {
+        const changeMonth = suijiAlert.changeMonth;
+        const applyStartMonthRaw = changeMonth + 3;
+        // 適用開始月の年度を計算（変動月+3が12を超える場合は翌年）
+        let applyStartYear = year;
+        let applyStartMonth = applyStartMonthRaw;
+        if (applyStartMonthRaw > 12) {
+          applyStartMonth = applyStartMonthRaw - 12;
+          applyStartYear = year + 1;
+        }
+
+        // 標準報酬等級表から新しい等級に対応する標準報酬月額を取得
+        const applyStartYearGradeTable = await this.settingsService.getStandardTable(
+          applyStartYear
+        );
+        const newGradeRow = applyStartYearGradeTable.find(
+          (r: any) => r.rank === suijiAlert.newGrade
+        );
+
+        if (newGradeRow && newGradeRow.standard) {
+          const suijiStandard = newGradeRow.standard;
+
+          // 既存の履歴を確認
+          const existingHistories = await this.getStandardRemunerationHistories(
+            employeeId
+          );
+          const existingSuijiHistory = existingHistories.find(
+            (h) =>
+              h.applyStartYear === applyStartYear &&
+              h.applyStartMonth === applyStartMonth &&
+              h.determinationReason === 'suiji' &&
+              (h as any).changeMonth === changeMonth
+          );
+
+          // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
+          if (
+            !existingSuijiHistory ||
+            existingSuijiHistory.standardMonthlyRemuneration !== suijiStandard ||
+            existingSuijiHistory.grade !== suijiAlert.newGrade
+          ) {
+            await this.saveStandardRemunerationHistory({
+              id: existingSuijiHistory?.id,
+              employeeId,
+              applyStartYear: applyStartYear,
+              applyStartMonth: applyStartMonth,
+              grade: suijiAlert.newGrade,
+              standardMonthlyRemuneration: suijiStandard,
+              determinationReason: 'suiji',
+              memo: `随時改定（変動月: ${year}年${changeMonth}月、適用開始: ${applyStartYear}年${applyStartMonth}月）`,
+              createdAt: existingSuijiHistory?.createdAt,
+            });
+          }
         }
       }
     }
