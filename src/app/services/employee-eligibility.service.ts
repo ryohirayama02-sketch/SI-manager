@@ -3,6 +3,7 @@ import { Observable, BehaviorSubject } from 'rxjs';
 import { Employee } from '../models/employee.model';
 import { EmployeeService } from './employee.service';
 import { EmployeeWorkCategoryService } from './employee-work-category.service';
+import { RoomIdService } from './room-id.service';
 
 export type AgeCategory =
   | 'normal'
@@ -32,30 +33,74 @@ export class EmployeeEligibilityService {
   private eligibilitySubject = new BehaviorSubject<{
     [employeeId: string]: EmployeeEligibilityResult;
   }>({});
+  private subscriptionInitialized = false;
 
   constructor(
     private employeeService: EmployeeService,
-    private employeeWorkCategoryService: EmployeeWorkCategoryService
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
+    private roomIdService: RoomIdService
   ) {
-    // 従業員情報の変更を監視してeligibilityを再計算
-    this.employeeService.observeEmployees().subscribe(async () => {
-      await this.recalculateAllEligibility();
-    });
+    // 循環依存を避けるため、setTimeoutで遅延させる
+    // DIの初期化が完了してから購読を開始することで、循環依存エラーを回避
+    setTimeout(() => {
+      this.initializeSubscription();
+    }, 0);
+  }
+
+  /**
+   * 購読を初期化（ルームIDが設定されている場合のみ）
+   * RoomGuardでルームIDのチェックが行われるため、ここでは設定されている前提で処理
+   */
+  private initializeSubscription(): void {
+    if (this.subscriptionInitialized) {
+      return;
+    }
+
+    // ルームIDが設定されているかチェック
+    // RoomGuardで既にチェックされているが、念のため確認
+    if (!this.roomIdService.hasRoomId()) {
+      // ルームIDが設定されていない場合は購読をスキップ
+      // RoomGuardがリダイレクトを処理するため、ここでは何もしない
+      return;
+    }
+
+    this.subscriptionInitialized = true;
+
+    try {
+      // 従業員情報の変更を監視してeligibilityを再計算
+      this.employeeService.observeEmployees().subscribe(async () => {
+        await this.recalculateAllEligibility();
+      });
+    } catch (error) {
+      // エラーが発生した場合は購読をスキップ
+      console.warn('[EmployeeEligibilityService] 購読の初期化に失敗しました:', error);
+      this.subscriptionInitialized = false;
+    }
   }
 
   /**
    * 全従業員の加入区分を再計算
    */
   private async recalculateAllEligibility(): Promise<void> {
-    const employees = await this.employeeService.getAllEmployees();
-    const eligibilityMap: { [employeeId: string]: EmployeeEligibilityResult } =
-      {};
-
-    for (const emp of employees) {
-      eligibilityMap[emp.id] = this.checkEligibility(emp);
+    // ルームIDが設定されているかチェック
+    if (!this.roomIdService.hasRoomId()) {
+      return;
     }
 
-    this.eligibilitySubject.next(eligibilityMap);
+    try {
+      const employees = await this.employeeService.getAllEmployees();
+      const eligibilityMap: { [employeeId: string]: EmployeeEligibilityResult } =
+        {};
+
+      for (const emp of employees) {
+        eligibilityMap[emp.id] = this.checkEligibility(emp);
+      }
+
+      this.eligibilitySubject.next(eligibilityMap);
+    } catch (error) {
+      // ルームIDが設定されていない場合など、エラーが発生した場合はスキップ
+      console.warn('[EmployeeEligibilityService] 加入区分の再計算に失敗しました:', error);
+    }
   }
 
   /**
@@ -65,8 +110,15 @@ export class EmployeeEligibilityService {
   observeEligibility(): Observable<{
     [employeeId: string]: EmployeeEligibilityResult;
   }> {
-    // 初回読み込み時に計算を実行
-    this.recalculateAllEligibility();
+    // 購読が初期化されていない場合は初期化を試みる
+    if (!this.subscriptionInitialized) {
+      this.initializeSubscription();
+    }
+
+    // 初回読み込み時に計算を実行（ルームIDが設定されている場合のみ）
+    if (this.roomIdService.hasRoomId()) {
+      this.recalculateAllEligibility();
+    }
     return this.eligibilitySubject.asObservable();
   }
 
