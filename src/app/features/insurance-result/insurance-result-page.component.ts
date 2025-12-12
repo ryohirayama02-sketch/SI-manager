@@ -454,6 +454,29 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       this.errorMessages[emp.id] = [];
       this.warningMessages[emp.id] = [];
 
+      // 標準報酬履歴を生成（選択年度の履歴が確実に存在するように）
+      await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+        emp.id,
+        emp
+      );
+
+      // 標準報酬履歴を確認（デバッグ用）
+      const allHistories =
+        await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+          emp.id
+        );
+      console.log(
+        `[insurance-result-page] ${emp.name} (${this.year}年): 標準報酬履歴生成後`,
+        {
+          employeeId: emp.id,
+          year: this.year,
+          historiesCount: allHistories.length,
+          histories: allHistories,
+          employeeCurrentStandardMonthlyRemuneration:
+            emp.currentStandardMonthlyRemuneration,
+        }
+      );
+
       // 月次給与の保険料を計算
       const monthlyPremiums: MonthlyPremiumData[] = [];
       let monthlyTotal = {
@@ -488,12 +511,163 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           0;
 
         // 標準報酬月額を従業員データと履歴から取得（給与0でも計算するため）
-        const standardFromHistory =
+        let standardFromHistory =
           (await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
             emp.id,
             this.year,
             month
           )) || 0;
+
+        // 標準報酬履歴から取得できない場合、資格取得時決定の履歴を確認
+        if (!standardFromHistory || standardFromHistory === 0) {
+          const allHistories =
+            await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+              emp.id
+            );
+
+          console.log(
+            `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 標準報酬履歴一覧`,
+            {
+              historiesCount: allHistories.length,
+              histories: allHistories,
+              joinDate: emp.joinDate,
+              monthlyWage: (emp as any).monthlyWage,
+            }
+          );
+
+          // 資格取得時決定の履歴を探す（入社年月以前で最も新しいもの）
+          if (emp.joinDate) {
+            const joinDate = new Date(emp.joinDate);
+            const joinYear = joinDate.getFullYear();
+            const joinMonth = joinDate.getMonth() + 1;
+
+            console.log(
+              `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の履歴を検索`,
+              {
+                joinYear,
+                joinMonth,
+                selectedYear: this.year,
+                selectedMonth: month,
+                isAfterJoin:
+                  this.year > joinYear ||
+                  (this.year === joinYear && month >= joinMonth),
+              }
+            );
+
+            // 選択年度が入社年以降の場合、資格取得時決定の履歴を使用
+            // this.yearを数値に変換（文字列の場合に備えて）
+            const selectedYearNum =
+              typeof this.year === 'string'
+                ? parseInt(this.year, 10)
+                : this.year;
+
+            if (selectedYearNum >= joinYear) {
+              const acquisitionHistory = allHistories.find(
+                (h) =>
+                  h.determinationReason === 'acquisition' &&
+                  h.applyStartYear === joinYear &&
+                  h.applyStartMonth === joinMonth
+              );
+
+              console.log(
+                `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の履歴検索結果`,
+                {
+                  acquisitionHistory,
+                  found: !!acquisitionHistory,
+                  standardMonthlyRemuneration:
+                    acquisitionHistory?.standardMonthlyRemuneration,
+                  selectedYearNum,
+                  joinYear,
+                  joinMonth,
+                  month,
+                }
+              );
+
+              if (acquisitionHistory) {
+                // 選択年度の該当月が入社月以降の場合、資格取得時決定の標準報酬月額を使用
+                const isAfterJoinMonth =
+                  selectedYearNum > joinYear ||
+                  (selectedYearNum === joinYear && month >= joinMonth);
+
+                console.log(
+                  `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 入社月以降チェック`,
+                  {
+                    selectedYearNum,
+                    joinYear,
+                    month,
+                    joinMonth,
+                    isAfterJoinMonth,
+                  }
+                );
+
+                if (isAfterJoinMonth) {
+                  standardFromHistory =
+                    acquisitionHistory.standardMonthlyRemuneration;
+                  console.log(
+                    `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の標準報酬月額を使用`,
+                    {
+                      standardFromHistory,
+                    }
+                  );
+                } else {
+                  console.log(
+                    `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 入社月以前のため、資格取得時決定の標準報酬月額を使用しない`,
+                    {
+                      selectedYearNum,
+                      joinYear,
+                      month,
+                      joinMonth,
+                    }
+                  );
+                }
+              } else {
+                // 資格取得時決定の履歴が見つからない場合、月額賃金から直接計算
+                const monthlyWage = (emp as any).monthlyWage;
+                if (monthlyWage && monthlyWage > 0) {
+                  console.log(
+                    `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の履歴が見つからないため、月額賃金から計算`,
+                    {
+                      monthlyWage,
+                      joinYear,
+                      joinMonth,
+                    }
+                  );
+                  // 入社年の標準報酬等級表を取得
+                  const gradeTable =
+                    await this.settingsService.getStandardTable(joinYear);
+                  if (gradeTable && gradeTable.length > 0) {
+                    const result =
+                      this.salaryCalculationService.getStandardMonthlyRemuneration(
+                        monthlyWage,
+                        gradeTable
+                      );
+                    if (result && result.standard > 0) {
+                      standardFromHistory = result.standard;
+                      console.log(
+                        `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 月額賃金から標準報酬月額を計算`,
+                        {
+                          monthlyWage,
+                          standardFromHistory,
+                          grade: result.rank,
+                        }
+                      );
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        console.log(
+          `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 標準報酬月額取得`,
+          {
+            standardFromHistory,
+            employeeCurrentStandardMonthlyRemuneration:
+              emp.currentStandardMonthlyRemuneration,
+            joinDate: emp.joinDate,
+          }
+        );
         const effectiveStandard =
           emp.currentStandardMonthlyRemuneration &&
           emp.currentStandardMonthlyRemuneration > 0
