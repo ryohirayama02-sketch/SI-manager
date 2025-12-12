@@ -5,6 +5,8 @@ import { EmployeeService } from '../../../../services/employee.service';
 import { StandardRemunerationHistoryService } from '../../../../services/standard-remuneration-history.service';
 import { SettingsService } from '../../../../services/settings.service';
 import { GradeDeterminationService } from '../../../../services/grade-determination.service';
+import { EmployeeLifecycleService } from '../../../../services/employee-lifecycle.service';
+import { Employee } from '../../../../models/employee.model';
 import {
   StandardRemunerationHistory,
   InsuranceStatusHistory,
@@ -28,12 +30,14 @@ export class EmployeeHistoryComponent implements OnInit {
   joinYear?: number | null;
   joinMonth?: number | null;
   computedGrades: { [key: string]: number | null } = {};
+  employee: Employee | null = null;
 
   constructor(
     private employeeService: EmployeeService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private settingsService: SettingsService,
-    private gradeDeterminationService: GradeDeterminationService
+    private gradeDeterminationService: GradeDeterminationService,
+    private employeeLifecycleService: EmployeeLifecycleService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -51,6 +55,7 @@ export class EmployeeHistoryComponent implements OnInit {
         this.employeeId
       );
       if (!employee) return;
+      this.employee = employee;
       this.joinDate = employee.joinDate;
       this.joinYear = this.joinDate
         ? new Date(this.joinDate).getFullYear()
@@ -152,11 +157,13 @@ export class EmployeeHistoryComponent implements OnInit {
   }
 
   async onHistoryYearChange(): Promise<void> {
+    if (!this.employeeId) return;
+
     // 選択年度の履歴が存在しない場合は自動生成
     const filtered = this.insuranceStatusHistories.filter(
       (h) => h.year === this.selectedHistoryYear
     );
-    if (filtered.length === 0 && this.employeeId) {
+    if (filtered.length === 0) {
       this.isLoadingHistories = true;
       try {
         const employee = await this.employeeService.getEmployeeById(
@@ -169,11 +176,21 @@ export class EmployeeHistoryComponent implements OnInit {
             employee,
             [this.selectedHistoryYear]
           );
+          // 標準報酬履歴も再生成（年度変更時）
+          await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+            this.employeeId,
+            employee
+          );
           // 履歴を再読み込み
           this.insuranceStatusHistories =
             await this.standardRemunerationHistoryService.getInsuranceStatusHistories(
               this.employeeId
             );
+          this.standardRemunerationHistories =
+            await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+              this.employeeId
+            );
+          await this.computeGradesFromHistories();
         }
       } finally {
         this.isLoadingHistories = false;
@@ -268,5 +285,125 @@ export class EmployeeHistoryComponent implements OnInit {
       history.id ||
       `${history.applyStartYear}-${history.applyStartMonth}-${history.standardMonthlyRemuneration}`
     );
+  }
+
+  /**
+   * 統合された履歴データを取得（年月、年齢、標準報酬等級、標準報酬月額、決定理由、健康保険、介護保険、厚生年金）
+   */
+  getMergedHistories(): Array<{
+    year: number;
+    month: number;
+    age: number | null;
+    grade: number | null;
+    standardMonthlyRemuneration: number | null;
+    determinationReason: string | null;
+    healthInsurance: string;
+    careInsurance: string;
+    pensionInsurance: string;
+  }> {
+    if (!this.employee) return [];
+
+    const insuranceHistories = this.getFilteredInsuranceHistories();
+    const result: Array<{
+      year: number;
+      month: number;
+      age: number | null;
+      grade: number | null;
+      standardMonthlyRemuneration: number | null;
+      determinationReason: string | null;
+      healthInsurance: string;
+      careInsurance: string;
+      pensionInsurance: string;
+    }> = [];
+
+    // 選択年度の12ヶ月分のデータを作成
+    for (let month = 12; month >= 1; month--) {
+      // 入社月より前の月は除外（入社年のみ）
+      const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
+      const hasJoinMonth = this.joinMonth !== null && this.joinMonth !== undefined;
+      if (
+        hasJoinYear &&
+        hasJoinMonth &&
+        this.selectedHistoryYear === (this.joinYear as number) &&
+        month < (this.joinMonth as number)
+      ) {
+        continue;
+      }
+
+      // 社保加入履歴から該当月のデータを取得
+      const insuranceHistory = insuranceHistories.find(
+        (h) => h.year === this.selectedHistoryYear && h.month === month
+      );
+
+      // 標準報酬履歴から該当月に適用される履歴を取得
+      // 適用開始年月がその月以前で、かつ最も新しいものを取得
+      const applicableStandardHistory = this.standardRemunerationHistories
+        .filter((h) => {
+          if (h.applyStartYear < this.selectedHistoryYear) return true;
+          if (
+            h.applyStartYear === this.selectedHistoryYear &&
+            h.applyStartMonth <= month
+          )
+            return true;
+          return false;
+        })
+        .sort((a, b) => {
+          if (a.applyStartYear !== b.applyStartYear) {
+            return b.applyStartYear - a.applyStartYear;
+          }
+          return b.applyStartMonth - a.applyStartMonth;
+        })[0];
+
+      // 年齢を計算
+      const age = this.employee.birthDate
+        ? this.employeeLifecycleService.getAgeAtMonth(
+            this.employee.birthDate,
+            this.selectedHistoryYear,
+            month
+          )
+        : null;
+
+      // 標準報酬等級を取得
+      let grade: number | null = null;
+      if (applicableStandardHistory) {
+        const key = this.getHistoryKey(applicableStandardHistory);
+        grade = this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
+      }
+
+      result.push({
+        year: this.selectedHistoryYear,
+        month,
+        age,
+        grade,
+        standardMonthlyRemuneration: applicableStandardHistory
+          ? applicableStandardHistory.standardMonthlyRemuneration
+          : null,
+        determinationReason: applicableStandardHistory
+          ? this.getDeterminationReasonLabel(
+              applicableStandardHistory.determinationReason
+            )
+          : null,
+        healthInsurance: insuranceHistory
+          ? this.getInsuranceStatusLabel(
+              insuranceHistory.healthInsuranceStatus,
+              'health'
+            )
+          : '-',
+        careInsurance: insuranceHistory
+          ? this.getInsuranceStatusLabel(
+              insuranceHistory.careInsuranceStatus,
+              'care'
+            )
+          : '-',
+        pensionInsurance: insuranceHistory
+          ? this.getInsuranceStatusLabel(
+              insuranceHistory.pensionInsuranceStatus,
+              'pension'
+            )
+          : '-',
+      });
+    }
+
+    return result;
   }
 }

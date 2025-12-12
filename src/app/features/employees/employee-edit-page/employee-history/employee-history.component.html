@@ -6,42 +6,6 @@
   ※ 履歴は自動的に生成・更新されます
 </small>
 
-<!-- 標準報酬履歴 -->
-<h4>標準報酬履歴</h4>
-<p *ngIf="isLoadingHistories" class="info-text">読み込み中...</p>
-<table
-  class="table"
-  *ngIf="!isLoadingHistories && standardRemunerationHistories.length > 0"
-  style="margin-bottom: 2rem"
->
-  <thead>
-    <tr>
-      <th>適用開始年月</th>
-      <th>標準報酬等級</th>
-      <th>標準報酬月額</th>
-      <th>決定理由</th>
-      <th>メモ</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr *ngFor="let history of standardRemunerationHistories">
-      <td>{{ history.applyStartYear }}年{{ history.applyStartMonth }}月</td>
-      <td>{{ getGradeDisplay(history) }}</td>
-      <td>{{ history.standardMonthlyRemuneration | number : "1.0-0" }}円</td>
-      <td>{{ getDeterminationReasonLabel(history.determinationReason) }}</td>
-      <td>{{ history.memo || "-" }}</td>
-    </tr>
-  </tbody>
-</table>
-<p
-  *ngIf="!isLoadingHistories && standardRemunerationHistories.length === 0"
-  class="info-text"
->
-  標準報酬履歴が登録されていません。履歴は自動的に生成されます。
-</p>
-
-<!-- 社保加入履歴 -->
-<h4 style="margin-top: 2rem">社保加入履歴</h4>
 <div style="margin-bottom: 1rem">
   <label for="historyYear">表示年度:</label>
   <select
@@ -62,34 +26,38 @@
   class="table"
   *ngIf="
     !isLoadingHistories &&
-    getFilteredInsuranceHistories().length > 0 &&
+    getMergedHistories().length > 0 &&
     !(joinYear !== null && joinYear !== undefined && selectedHistoryYear < joinYear)
   "
 >
   <thead>
     <tr>
       <th>年月</th>
+      <th>標準報酬等級</th>
+      <th>標準報酬月額</th>
+      <th>決定理由</th>
+      <th>年齢</th>
       <th>健康保険</th>
       <th>介護保険</th>
       <th>厚生年金</th>
-      <th>年齢到達</th>
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let history of getFilteredInsuranceHistories()">
-      <td>{{ history.year }}年{{ history.month }}月</td>
+    <tr *ngFor="let item of getMergedHistories()">
+      <td>{{ item.year }}年{{ item.month }}月</td>
+      <td>{{ item.grade !== null ? item.grade + "等級" : "-" }}</td>
       <td>
-        {{ getInsuranceStatusLabel(history.healthInsuranceStatus, "health") }}
+        {{
+          item.standardMonthlyRemuneration !== null
+            ? (item.standardMonthlyRemuneration | number : "1.0-0") + "円"
+            : "-"
+        }}
       </td>
-      <td>
-        {{ getInsuranceStatusLabel(history.careInsuranceStatus, "care") }}
-      </td>
-      <td>
-        {{ getInsuranceStatusLabel(history.pensionInsuranceStatus, "pension") }}
-      </td>
-      <td>
-        {{ history.ageMilestone ? history.ageMilestone + "歳到達" : "-" }}
-      </td>
+      <td>{{ item.determinationReason || "-" }}</td>
+      <td>{{ item.age !== null ? item.age + "歳" : "-" }}</td>
+      <td>{{ item.healthInsurance }}</td>
+      <td>{{ item.careInsurance }}</td>
+      <td>{{ item.pensionInsurance }}</td>
     </tr>
   </tbody>
 </table>
@@ -103,14 +71,14 @@
   class="info-text"
 >
   入社前です。
- </p>
+</p>
 <p
   *ngIf="
     !isLoadingHistories &&
-    getFilteredInsuranceHistories().length === 0 &&
+    getMergedHistories().length === 0 &&
     !(joinYear !== null && joinYear !== undefined && selectedHistoryYear < joinYear)
   "
   class="info-text"
 >
-  社保加入履歴が登録されていません。履歴は自動的に生成されます。
+  履歴が登録されていません。履歴は自動的に生成されます。
 </p>
