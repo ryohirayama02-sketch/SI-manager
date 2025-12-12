@@ -181,7 +181,8 @@
 /* 月次報酬保険料テーブルの列幅 */
 .monthly-premium-table th:nth-child(1),
 .monthly-premium-table td:nth-child(1) {
-  width: 8%;
+  width: 6%;
+  min-width: 60px;
 }
 
 .monthly-premium-table th:nth-child(2),
@@ -190,12 +191,25 @@
 .monthly-premium-table td:nth-child(3),
 .monthly-premium-table th:nth-child(4),
 .monthly-premium-table td:nth-child(4) {
-  width: 23%;
+  width: 15%;
+  min-width: 130px;
 }
 
 .monthly-premium-table th:nth-child(5),
 .monthly-premium-table td:nth-child(5) {
-  width: 23%;
+  width: 15%;
+  min-width: 130px;
+}
+
+/* 賞与列がある場合の列幅調整 */
+.monthly-premium-table th:nth-child(6),
+.monthly-premium-table td:nth-child(6),
+.monthly-premium-table th:nth-child(7),
+.monthly-premium-table td:nth-child(7),
+.monthly-premium-table th:nth-child(8),
+.monthly-premium-table td:nth-child(8) {
+  width: 13%;
+  min-width: 120px;
 }
 
 /* 賞与保険料テーブルの列幅 */

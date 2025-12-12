@@ -314,12 +314,26 @@ export class AnnualWarningService {
 
       bonusTotalsByEmployee[bonus.employeeId].healthCare += cappedHealth;
       bonusTotalsByEmployee[bonus.employeeId].pension += cappedPension;
+
+      // 厚生年金の上限チェック：1回の賞与が150万円を超えているか
+      // 厚生年金の上限は「1回150万円」なので、各賞与ごとにチェック
+      if (standardBonus > 1500000) {
+        const emp = employees.find((e) => e.id === bonus.employeeId);
+        const msg = `従業員「${
+          emp?.name || bonus.employeeId
+        }」の賞与が厚生年金の上限額（1回150万円）を超えています。`;
+        if (!warningSet.has(msg)) {
+          warningSet.add(msg);
+          warnings.push(msg);
+        }
+      }
     }
 
     for (const employeeId in bonusTotalsByEmployee) {
       const emp = employees.find((e) => e.id === employeeId);
       const totals = bonusTotalsByEmployee[employeeId];
 
+      // 健保・介保の上限チェック：年度累計が573万円を超えているか
       if (totals.healthCare > 5730000) {
         const msg = `従業員「${
           emp?.name || employeeId
@@ -329,15 +343,7 @@ export class AnnualWarningService {
           warnings.push(msg);
         }
       }
-      if (totals.pension > 1500000) {
-        const msg = `従業員「${
-          emp?.name || employeeId
-        }」の賞与が厚生年金の上限額（1回150万円）を超えています。`;
-        if (!warningSet.has(msg)) {
-          warningSet.add(msg);
-          warnings.push(msg);
-        }
-      }
+      // 厚生年金の年度累計チェックは削除（1回あたりの上限のみチェック）
     }
 
     // 5. 随時改定候補（suijiAlerts）がある場合

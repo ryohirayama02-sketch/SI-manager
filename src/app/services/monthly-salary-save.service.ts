@@ -424,6 +424,21 @@ export class MonthlySalarySaveService {
           // 報酬月額が変動した月について随時改定を判定
           // 変動月を含む3ヶ月（変動月、変動月+1、変動月+2）のデータがあれば判定可能
           for (const month of changedMonths) {
+            // 支払基礎日数17日未満のチェック（変動月を含む3ヶ月）
+            const targetMonths = [month, month + 1, month + 2];
+            const hasInvalidWorkingDays = targetMonths.some((targetMonth) => {
+              if (targetMonth > 12) return false; // 12月を超える場合はスキップ
+              const workingDaysKey = this.state.getWorkingDaysKey(emp.id, targetMonth);
+              const workingDays = workingDaysData[workingDaysKey];
+              // 支払基礎日数が17日未満（0より大きく17未満）の場合は無効
+              return workingDays !== undefined && workingDays > 0 && workingDays < 17;
+            });
+
+            // 支払基礎日数17日未満の月が1つでもあれば随時改定をスキップ
+            if (hasInvalidWorkingDays) {
+              continue;
+            }
+
             // 変動前の標準報酬を取得（変動月の前月時点の標準報酬）
             // 変動月が2月の場合、1月時点の標準報酬を基準にする
             let prevStandard = currentStandard;

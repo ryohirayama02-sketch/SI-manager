@@ -367,6 +367,10 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   private clearInsuranceData(): void {
     this.insuranceData = {};
     this.bonusData = {};
+    // キャッシュもクリア
+    this.cachedTableRows = [];
+    this.cachedSelectedEmployees = [];
+    this.cachedHasBonus = false;
     this.errorMessages = {};
     this.warningMessages = {};
     this.cachedTableRows = [];
@@ -411,7 +415,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       return bonuses.length > 0
         ? bonuses.sort(
             (a, b) =>
-              new Date(b.payDate).getTime() - new Date(a.payDate).getTime()
+              new Date(b.payDate || '').getTime() -
+              new Date(a.payDate || '').getTime()
           )[0]
         : null;
     }
@@ -420,14 +425,31 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       typeof this.selectedMonth === 'string'
         ? Number(this.selectedMonth)
         : this.selectedMonth;
+    // this.yearを数値に変換（文字列の場合に備えて）
+    const selectedYearNum =
+      typeof this.year === 'string' ? parseInt(this.year, 10) : this.year;
+
     const filtered = bonuses.filter((b) => {
       if (!b.payDate) return false;
       // 支給日から年と月を抽出
       const payDateObj = new Date(b.payDate);
       const payYear = payDateObj.getFullYear();
       const payMonth = payDateObj.getMonth() + 1; // getMonth()は0-11なので+1
+
+      console.log(
+        `[insurance-result-page] getFilteredBonus: ${employeeId} (${selectedYearNum}年${month}月)`,
+        {
+          bonusPayDate: b.payDate,
+          payYear,
+          payMonth,
+          selectedYearNum,
+          month,
+          matches: payYear === selectedYearNum && payMonth === month,
+        }
+      );
+
       // selectedYearとselectedMonthに完全一致する賞与のみ
-      return payYear === this.year && payMonth === month;
+      return payYear === selectedYearNum && payMonth === month;
     });
     return filtered.length > 0 ? filtered[0] : null;
   }
@@ -1112,42 +1134,67 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       }
 
       // 賞与合計
-      // 賞与が免除扱いの場合は表示/計算とも0円で扱う
-      const isBonusExempt = !!bonusPremium?.isExempted;
-      const bonusTotal = bonusPremium
-        ? {
-            healthEmployee: isBonusExempt
-              ? 0
-              : bonusPremium.healthEmployee || 0,
-            healthEmployer: isBonusExempt
-              ? 0
-              : bonusPremium.healthEmployer || 0,
-            careEmployee: isBonusExempt ? 0 : bonusPremium.careEmployee || 0,
-            careEmployer: isBonusExempt ? 0 : bonusPremium.careEmployer || 0,
-            pensionEmployee: isBonusExempt
-              ? 0
-              : bonusPremium.pensionEmployee || 0,
-            pensionEmployer: isBonusExempt
-              ? 0
-              : bonusPremium.pensionEmployer || 0,
-            total: isBonusExempt
-              ? 0
-              : (bonusPremium.healthEmployee || 0) +
-                (bonusPremium.healthEmployer || 0) +
-                (bonusPremium.careEmployee || 0) +
-                (bonusPremium.careEmployer || 0) +
-                (bonusPremium.pensionEmployee || 0) +
-                (bonusPremium.pensionEmployer || 0),
-          }
-        : {
-            healthEmployee: 0,
-            healthEmployer: 0,
-            careEmployee: 0,
-            careEmployer: 0,
-            pensionEmployee: 0,
-            pensionEmployer: 0,
-            total: 0,
-          };
+      // 全月選択時は年度内の全賞与の合計を使用、月次選択時は選択月の賞与を使用
+      let bonusTotal = {
+        healthEmployee: 0,
+        healthEmployer: 0,
+        careEmployee: 0,
+        careEmployer: 0,
+        pensionEmployee: 0,
+        pensionEmployer: 0,
+        total: 0,
+      };
+
+      if (this.selectedMonth === 'all') {
+        // 全月選択時は年度内の全賞与の合計を使用
+        bonusTotal = {
+          healthEmployee: data.bonusTotal.healthEmployee || 0,
+          healthEmployer: data.bonusTotal.healthEmployer || 0,
+          careEmployee: data.bonusTotal.careEmployee || 0,
+          careEmployer: data.bonusTotal.careEmployer || 0,
+          pensionEmployee: data.bonusTotal.pensionEmployee || 0,
+          pensionEmployer: data.bonusTotal.pensionEmployer || 0,
+          total: data.bonusTotal.total || 0,
+        };
+      } else {
+        // 月次選択時は選択月の賞与を使用
+        // 賞与が免除扱いの場合は表示/計算とも0円で扱う
+        const isBonusExempt = !!bonusPremium?.isExempted;
+        bonusTotal = bonusPremium
+          ? {
+              healthEmployee: isBonusExempt
+                ? 0
+                : bonusPremium.healthEmployee || 0,
+              healthEmployer: isBonusExempt
+                ? 0
+                : bonusPremium.healthEmployer || 0,
+              careEmployee: isBonusExempt ? 0 : bonusPremium.careEmployee || 0,
+              careEmployer: isBonusExempt ? 0 : bonusPremium.careEmployer || 0,
+              pensionEmployee: isBonusExempt
+                ? 0
+                : bonusPremium.pensionEmployee || 0,
+              pensionEmployer: isBonusExempt
+                ? 0
+                : bonusPremium.pensionEmployer || 0,
+              total: isBonusExempt
+                ? 0
+                : (bonusPremium.healthEmployee || 0) +
+                  (bonusPremium.healthEmployer || 0) +
+                  (bonusPremium.careEmployee || 0) +
+                  (bonusPremium.careEmployer || 0) +
+                  (bonusPremium.pensionEmployee || 0) +
+                  (bonusPremium.pensionEmployer || 0),
+            }
+          : {
+              healthEmployee: 0,
+              healthEmployer: 0,
+              careEmployee: 0,
+              careEmployer: 0,
+              pensionEmployee: 0,
+              pensionEmployer: 0,
+              total: 0,
+            };
+      }
 
       rows.push({
         employee: emp,
@@ -1161,7 +1208,33 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     return rows;
   }
 
+  /**
+   * 指定された月の賞与を取得（全月選択時の月次テーブル用）
+   */
+  getMonthBonus(employeeId: string, month: number): Bonus | null {
+    const bonuses = this.bonusData[employeeId] || [];
+    // this.yearを数値に変換（文字列の場合に備えて）
+    const selectedYearNum =
+      typeof this.year === 'string' ? parseInt(this.year, 10) : this.year;
+
+    const filtered = bonuses.filter((b) => {
+      if (!b.payDate) return false;
+      // 支給日から年と月を抽出
+      const payDateObj = new Date(b.payDate);
+      const payYear = payDateObj.getFullYear();
+      const payMonth = payDateObj.getMonth() + 1; // getMonth()は0-11なので+1
+      // selectedYearとselectedMonthに完全一致する賞与のみ
+      return payYear === selectedYearNum && payMonth === month;
+    });
+    return filtered.length > 0 ? filtered[0] : null;
+  }
+
   hasBonusColumn(): boolean {
+    // 月次選択時（selectedMonth !== 'all'）は、選択された月に賞与があるかチェック
+    if (this.selectedMonth !== 'all') {
+      return this.cachedHasBonus;
+    }
+    // 全月選択時は、年度内に賞与があるかチェック
     return this.cachedHasBonus;
   }
 
@@ -1169,10 +1242,96 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
    * 賞与列の有無を計算
    */
   private calculateHasBonus(): boolean {
-    return this.employees.some((emp) => {
-      const bonus = this.getFilteredBonus(emp.id);
-      return bonus !== null;
+    // 月次選択時（selectedMonth !== 'all'）は、選択された月に賞与があるかチェック
+    if (this.selectedMonth !== 'all') {
+      const month =
+        typeof this.selectedMonth === 'string'
+          ? Number(this.selectedMonth)
+          : this.selectedMonth;
+      // this.yearを数値に変換（文字列の場合に備えて）
+      const selectedYearNum =
+        typeof this.year === 'string' ? parseInt(this.year, 10) : this.year;
+
+      const hasBonus = this.employees.some((emp) => {
+        const bonus = this.getFilteredBonus(emp.id);
+        // 賞与が存在し、かつ保険料が計算されているかチェック
+        const isValid =
+          bonus !== null &&
+          bonus.amount > 0 &&
+          !bonus.isExempted &&
+          !bonus.isSalaryInsteadOfBonus &&
+          (bonus.healthEmployee !== undefined ||
+            bonus.careEmployee !== undefined ||
+            bonus.pensionEmployee !== undefined);
+
+        console.log(
+          `[insurance-result-page] calculateHasBonus: ${emp.name} (${selectedYearNum}年${month}月)`,
+          {
+            bonusExists: bonus !== null,
+            bonusAmount: bonus?.amount,
+            isExempted: bonus?.isExempted,
+            isSalaryInsteadOfBonus: bonus?.isSalaryInsteadOfBonus,
+            hasInsurancePremiums: bonus
+              ? bonus.healthEmployee !== undefined ||
+                bonus.careEmployee !== undefined ||
+                bonus.pensionEmployee !== undefined
+              : false,
+            isValid,
+          }
+        );
+
+        return isValid;
+      });
+
+      console.log(
+        `[insurance-result-page] calculateHasBonus結果: ${selectedYearNum}年${month}月`,
+        {
+          hasBonus,
+          employeesCount: this.employees.length,
+        }
+      );
+
+      return hasBonus;
+    }
+    // 全月選択時は、年度内に賞与があるかチェック（保険料が計算されているもの）
+    // this.yearを数値に変換（文字列の場合に備えて）
+    const selectedYearNum =
+      typeof this.year === 'string' ? parseInt(this.year, 10) : this.year;
+
+    const hasBonus = this.employees.some((emp) => {
+      const data = this.getInsuranceData(emp.id);
+      if (!data) return false;
+
+      // 年度内の全賞与の合計が0より大きい場合、賞与があるとみなす
+      const hasBonusTotal =
+        (data.bonusTotal.healthEmployee || 0) +
+          (data.bonusTotal.healthEmployer || 0) +
+          (data.bonusTotal.careEmployee || 0) +
+          (data.bonusTotal.careEmployer || 0) +
+          (data.bonusTotal.pensionEmployee || 0) +
+          (data.bonusTotal.pensionEmployer || 0) >
+        0;
+
+      console.log(
+        `[insurance-result-page] calculateHasBonus (全月): ${emp.name} (${selectedYearNum}年)`,
+        {
+          bonusTotal: data.bonusTotal,
+          hasBonusTotal,
+        }
+      );
+
+      return hasBonusTotal;
     });
+
+    console.log(
+      `[insurance-result-page] calculateHasBonus結果 (全月): ${selectedYearNum}年`,
+      {
+        hasBonus,
+        employeesCount: this.employees.length,
+      }
+    );
+
+    return hasBonus;
   }
 
   getYearBonuses(employeeId: string): Bonus[] {

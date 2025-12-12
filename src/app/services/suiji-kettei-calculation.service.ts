@@ -89,6 +89,20 @@ export class SuijiKetteiCalculationService {
         salaries
       );
 
+    // 支払基礎日数17日未満の月が1つでもあれば随時改定を実施しない
+    if (excludedMonths.length > 0) {
+      const emp = employees.find((e) => e.id === employeeId);
+      const name = emp?.name || '';
+      return {
+        candidate: null,
+        excludedReason: {
+          employeeId,
+          name,
+          reason: `支払基礎日数17日未満の月（${excludedMonths.join('、')}月）が含まれるため随時改定対象外`,
+        },
+      };
+    }
+
     // ④ 平均計算（総支給ベース、除外月を除く）
     const validTotals: number[] = [];
     const usedMonths: number[] = [];
