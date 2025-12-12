@@ -450,27 +450,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
             return bPayDate.getTime() === payDate.getTime();
           });
 
-          // 保存前チェック：過去12か月の賞与件数が4回目になるかどうか
-          // 新規保存の場合のみチェック（既存の賞与を更新する場合はチェックしない）
-          if (
-            !existingBonus &&
-            (amount > 0 || this.isBonusExempt(emp.id, column.payDate))
-          ) {
-            const isFourthBonus =
-              await this.bonusNotificationService.isFourthBonusInLast12Months(
-                emp.id,
-                payDate
-              );
-
-            if (isFourthBonus) {
-              alert(
-                `${emp.name}の賞与が年4回目です。4回目以降は月次給与として入力してください。`
-              );
-              this.isSaving = false;
-              return;
-            }
-          }
-
           // 賞与額が0より大きい場合、または免除月で0として保存する場合
           if (amount > 0 || this.isBonusExempt(emp.id, column.payDate)) {
             const employee = this.employees.find((e) => e.id === emp.id);
