@@ -80,6 +80,8 @@ export class FamilyMemberService {
 
   /**
    * 従業員の家族情報一覧を取得
+   * 注意: このメソッドはemployeeIdでフィルタリングするのみで、roomIdでのフィルタリングは行いません。
+   * 呼び出し側で、取得した家族情報が現在のルームの従業員に属しているかを確認してください。
    */
   async getFamilyMembersByEmployeeId(
     employeeId: string

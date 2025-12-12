@@ -83,10 +83,9 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
 
   async ngOnInit(): Promise<void> {
     // @Input()でsupportAlertsが渡されていない場合、自分でロードする
-    // ただし、state.supportAlertsが既に設定されている場合はそれを使用
-    if (this.state.supportAlerts && this.state.supportAlerts.length > 0) {
-      this._supportAlerts = this.state.supportAlerts;
-    } else if (!this._supportAlerts || this._supportAlerts.length === 0) {
+    // state.supportAlertsは常に最新のルームのデータを使用するため、常に再読み込みする
+    // （前のルームのデータが残っている可能性があるため）
+    if (!this._supportAlerts || this._supportAlerts.length === 0) {
       this.employees = await this.employeeService.getAllEmployees();
       await this.loadSupportAlerts();
     }
@@ -112,6 +111,11 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
     today.setHours(0, 0, 0, 0);
     const deletedIds = await this.alertDeletionService.getDeletedIds('family');
 
+    // 現在のルームの従業員IDセットを作成（他のルームのデータを除外するため）
+    const currentRoomEmployeeIds = new Set(
+      this.employees.map((emp) => emp.id).filter((id) => id)
+    );
+
     console.log(
       `[alert-family-tab] loadSupportAlerts開始: 今日=${this.formatDate(
         today
@@ -120,13 +124,27 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
 
     try {
       for (const emp of this.employees) {
+        // 従業員IDが有効でない場合はスキップ
+        if (!emp.id) {
+          continue;
+        }
+
         const familyMembers =
           await this.familyMemberService.getFamilyMembersByEmployeeId(emp.id);
-        console.log(
-          `[alert-family-tab] 従業員=${emp.name}, 家族数=${familyMembers.length}`
+
+        // 取得した家族情報が現在のルームの従業員に属しているかを確認
+        // （念のため、二重チェック）
+        const validFamilyMembers = familyMembers.filter(
+          (member) =>
+            member.employeeId === emp.id &&
+            currentRoomEmployeeIds.has(member.employeeId)
         );
 
-        for (const member of familyMembers) {
+        console.log(
+          `[alert-family-tab] 従業員=${emp.name}, 家族数=${familyMembers.length}, 有効な家族数=${validFamilyMembers.length}`
+        );
+
+        for (const member of validFamilyMembers) {
           const birthDate = new Date(member.birthDate);
           birthDate.setHours(0, 0, 0, 0);
           const age = this.familyMemberService.calculateAge(member.birthDate);

@@ -26,7 +26,10 @@ import {
   AlertLeaveTabComponent,
   MaternityChildcareAlert,
 } from './tabs/alert-leave-tab/alert-leave-tab.component';
-import { AlertFamilyTabComponent } from './tabs/alert-family-tab/alert-family-tab.component';
+import {
+  AlertFamilyTabComponent,
+  SupportAlert,
+} from './tabs/alert-family-tab/alert-family-tab.component';
 import { AlertUncollectedTabComponent } from './tabs/alert-uncollected-tab/alert-uncollected-tab.component';
 import { SuijiService } from '../../services/suiji.service';
 import { EmployeeService } from '../../services/employee.service';
@@ -49,6 +52,7 @@ import { AlertsDashboardUiService } from '../../services/alerts-dashboard-ui.ser
 import { AlertDeletionService } from '../../services/alert-deletion.service';
 import { AlertsDashboardStateService } from '../../services/alerts-dashboard-state.service';
 import { UncollectedPremiumService } from '../../services/uncollected-premium.service';
+import { FamilyMemberService } from '../../services/family-member.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { RoomIdService } from '../../services/room-id.service';
@@ -119,12 +123,17 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private uncollectedPremiumService: UncollectedPremiumService,
     private roomIdService: RoomIdService,
     private alertDeletionService: AlertDeletionService,
+    private familyMemberService: FamilyMemberService,
     public state: AlertsDashboardStateService
   ) {}
 
   async ngOnInit(): Promise<void> {
     const roomId = this.roomIdService.requireRoomId();
     this.showFirstEntryGuideIfNeeded(roomId);
+
+    // ルームIDが変更された場合、前のルームのアラートデータをクリア
+    // シングルトンサービスのため、前のルームのデータが残っている可能性がある
+    this.state.supportAlerts = [];
 
     this.employees = await this.employeeService.getAllEmployees();
 
@@ -148,6 +157,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       () => this.loadMaternityChildcareAlerts(),
       () => this.loadBonusReportAlerts()
     );
+
+    // 扶養アラートを読み込み
+    await this.loadSupportAlerts();
 
     // 定時決定データも初期ロード時に取得し、スケジュールへ反映する
     await this.loadTeijiKetteiData();
@@ -177,6 +189,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     await this.loadNotificationAlerts();
     await this.loadAgeAlerts();
     await this.loadQualificationChangeAlerts();
+    await this.loadSupportAlerts(); // 扶養アラートも再読み込み
     // 算定決定データはタブがアクティブな場合のみ読み込む
     if (this.state.activeTab === 'teiji') {
       await this.loadTeijiKetteiData();
@@ -350,6 +363,520 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     this.state.bonusReportAlerts = result.filter(
       (a) => !deletedIds.has(a.id)
     );
+  }
+
+  /**
+   * 扶養情報変更アラートを読み込む
+   */
+  async loadSupportAlerts(): Promise<void> {
+    const alerts: SupportAlert[] = [];
+    const today = this.getJSTDate();
+    today.setHours(0, 0, 0, 0);
+    const deletedIds = await this.alertDeletionService.getDeletedIds('family');
+
+    // 現在のルームの従業員IDセットを作成（他のルームのデータを除外するため）
+    const currentRoomEmployeeIds = new Set(
+      this.employees.map((emp) => emp.id).filter((id) => id)
+    );
+
+    try {
+      for (const emp of this.employees) {
+        // 従業員IDが有効でない場合はスキップ
+        if (!emp.id) {
+          continue;
+        }
+
+        const familyMembers =
+          await this.familyMemberService.getFamilyMembersByEmployeeId(emp.id);
+
+        // 取得した家族情報が現在のルームの従業員に属しているかを確認
+        // （念のため、二重チェック）
+        const validFamilyMembers = familyMembers.filter(
+          (member) =>
+            member.employeeId === emp.id &&
+            currentRoomEmployeeIds.has(member.employeeId)
+        );
+
+        for (const member of validFamilyMembers) {
+          const birthDate = new Date(member.birthDate);
+          birthDate.setHours(0, 0, 0, 0);
+          const age = this.familyMemberService.calculateAge(member.birthDate);
+          const relationship = member.relationship || '';
+          const income =
+            member.expectedIncome !== null && member.expectedIncome !== undefined
+              ? member.expectedIncome
+              : null;
+
+          // 【1】配偶者に関するアラート
+          if (
+            relationship === '配偶者' ||
+            relationship === '妻' ||
+            relationship === '夫'
+          ) {
+            // ① 20歳到達（年金加入開始）
+            const age20Date = new Date(
+              birthDate.getFullYear() + 20,
+              birthDate.getMonth(),
+              birthDate.getDate()
+            );
+            age20Date.setHours(0, 0, 0, 0);
+            const age20AlertStart = new Date(age20Date);
+            age20AlertStart.setMonth(age20AlertStart.getMonth() - 1);
+            if (today >= age20AlertStart && age >= 19 && age < 21) {
+              const submitDeadline = new Date(age20Date);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_20_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者20歳到達',
+                notificationName: '国民年金第3号被保険者関係届',
+                alertDate: age20Date,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者が20歳になります。国民年金第3号被保険者関係届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ② 60歳到達（第3号の終了）
+            const age60Date = new Date(
+              birthDate.getFullYear() + 60,
+              birthDate.getMonth(),
+              birthDate.getDate()
+            );
+            age60Date.setHours(0, 0, 0, 0);
+            const age60AlertStart = new Date(age60Date);
+            age60AlertStart.setMonth(age60AlertStart.getMonth() - 1);
+            if (today >= age60AlertStart && age >= 59 && age < 61) {
+              const submitDeadline = new Date(age60Date);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_60_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者60歳到達',
+                notificationName: '国民年金第3号被保険者資格喪失届の確認',
+                alertDate: age60Date,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者が60歳に到達します。国民年金第3号被保険者資格喪失届の確認が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ③ 収入増加（130万円超または月108,333円超）
+            if (member.expectedIncome && member.expectedIncome > 1300000) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_income_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者収入増加',
+                notificationName:
+                  '被扶養者（異動）削除届・国民年金第3号資格喪失届',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者の収入が扶養基準を超える可能性があります（収入見込: ${member.expectedIncome.toLocaleString(
+                  'ja-JP'
+                )}円）。被扶養者（異動）削除届および国民年金第3号資格喪失届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ④ 同居⇒別居の変更
+            if (!member.livingTogether) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_separate_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者別居',
+                notificationName: '被扶養者（異動）の仕送り状況確認',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者が別居予定です。別居扶養の要件（仕送り証明）の確認が必要です。扶養継続不可と判断される場合は被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ⑤ 75歳到達（後期高齢者医療／扶養不可）
+            const age75Date = new Date(
+              birthDate.getFullYear() + 75,
+              birthDate.getMonth(),
+              birthDate.getDate()
+            );
+            age75Date.setHours(0, 0, 0, 0);
+            const age75AlertStart = new Date(age75Date);
+            age75AlertStart.setMonth(age75AlertStart.getMonth() - 1);
+            if (today >= age75AlertStart && age >= 74 && age < 76) {
+              const submitDeadline = new Date(age75Date);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_75_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者75歳到達',
+                notificationName: '健康保険被扶養者異動届',
+                alertDate: age75Date,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者が75歳になります。後期高齢者医療制度へ移行するため、健康保険被扶養者異動届（削除）が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ⑥ 第3号取得（配偶者が第3号となった場合）※見込年収<1,060,000かつ20-59歳
+            if (
+              member.isThirdCategory &&
+              income !== null &&
+              income !== undefined &&
+              income < 1060000 &&
+              age >= 20 &&
+              age < 60
+            ) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 14);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `spouse_third_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '配偶者第3号取得',
+                notificationName: '国民年金第3号被保険者関係届',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `配偶者が第3号に該当しました（見込年収${income.toLocaleString(
+                  'ja-JP'
+                )}円）。国民年金第3号被保険者関係届を14日以内に提出してください（期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+          }
+
+          // 【2】子どもに関するアラート
+          if (
+            relationship === '子' ||
+            relationship === '長男' ||
+            relationship === '長女' ||
+            relationship === '次男' ||
+            relationship === '次女' ||
+            relationship.includes('子')
+          ) {
+            // 0) 扶養追加（健康保険被扶養者（異動）届）: 75歳未満かつ見込年収106万円未満のみ
+            if (
+              age < 75 &&
+              income !== null &&
+              income !== undefined &&
+              income < 1060000
+            ) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `child_new_dependent_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '子扶養追加',
+                notificationName: '健康保険被扶養者異動届',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子が扶養条件（75歳未満・見込年収106万円未満）に該当しました。健康保険被扶養者異動届（扶養追加）を提出してください（期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ① 18歳到達（高校卒業）
+            const age18Year = birthDate.getFullYear() + 18;
+            const age18GraduationDate = new Date(age18Year, 2, 31);
+            age18GraduationDate.setHours(0, 0, 0, 0);
+            const age18AlertStart = new Date(age18Year, 2, 1);
+            if (today >= age18AlertStart && age >= 17 && age < 19) {
+              const submitDeadline = new Date(age18GraduationDate);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `child_18_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '子18歳到達',
+                notificationName: '扶養見直し（届出不要）',
+                alertDate: age18GraduationDate,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子が18歳に到達します（高校卒業予定: ${age18Year}年3月31日）。進学・就労有無による扶養見直しが必要です（届出不要）。提出期限: ${this.formatDate(
+                  submitDeadline
+                )}。`,
+              });
+            }
+
+            // ② 22歳到達（大学卒業＋収入増の可能性）
+            const age22Year = birthDate.getFullYear() + 22;
+            const age22GraduationDate = new Date(age22Year, 2, 31);
+            age22GraduationDate.setHours(0, 0, 0, 0);
+            const age22AlertStart = new Date(age22Year, 2, 1);
+            if (today >= age22AlertStart && age >= 21 && age < 23) {
+              const submitDeadline = new Date(age22GraduationDate);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `child_22_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '子22歳到達',
+                notificationName: '子の就職状況・収入を確認',
+                alertDate: age22GraduationDate,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子が22歳に到達します（大学卒業予定: ${age22Year}年3月31日）。就職して厚生年金加入する場合、扶養外れるため被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ④ 同居→別居（実家・一人暮らし）
+            if (!member.livingTogether) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `child_separate_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '子別居',
+                notificationName: '被扶養者（異動）削除届（仕送りがない場合）',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子が別居します。別居扶養の要件（仕送り）が必要です。仕送りがない場合は被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ⑤ アルバイト収入の増減（130万円基準）
+            if (member.expectedIncome && member.expectedIncome > 1300000) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `child_income_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '子収入増加',
+                notificationName: '被扶養者（異動）削除届',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子の収入が扶養基準を超過する可能性があります（収入見込: ${member.expectedIncome.toLocaleString(
+                  'ja-JP'
+                )}円）。被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+          }
+
+          // 【3】自分の両親（高齢者扶養）に関するアラート
+          if (
+            relationship === '父' ||
+            relationship === '母' ||
+            relationship === '父母' ||
+            relationship.includes('父') ||
+            relationship.includes('母')
+          ) {
+            // ① 60歳以上の親の所得増減
+            if (age >= 60) {
+              if (member.expectedIncome && member.expectedIncome > 1800000) {
+                alerts.push({
+                  id: `parent_income_${emp.id}_${member.id}`,
+                  employeeId: emp.id,
+                  employeeName: emp.name,
+                  familyMemberId: member.id || '',
+                  familyMemberName: member.name,
+                  relationship: relationship,
+                  alertType: '親収入見直し',
+                  notificationName: '扶養基準確認',
+                  alertDate: today,
+                  details: `親の収入見直しが必要です（収入見込: ${member.expectedIncome.toLocaleString(
+                    'ja-JP'
+                  )}円）。扶養基準に該当するか確認してください。`,
+                });
+              }
+            }
+
+            // ② 同居→別居
+            if (!member.livingTogether) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `parent_separate_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '親別居',
+                notificationName: '被扶養者（異動）の仕送り状況確認',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `親が別居します。別居扶養の条件（仕送り）が必要です。仕送りがない場合は被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+
+            // ③ 75歳到達（後期高齢者医療へ切替）
+            const age75Date = new Date(
+              birthDate.getFullYear() + 75,
+              birthDate.getMonth(),
+              birthDate.getDate()
+            );
+            age75Date.setHours(0, 0, 0, 0);
+            const age75AlertStart = new Date(age75Date);
+            age75AlertStart.setMonth(age75AlertStart.getMonth() - 1);
+            if (today >= age75AlertStart && age >= 74 && age < 76) {
+              const submitDeadline = new Date(age75Date);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
+
+              alerts.push({
+                id: `parent_75_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '親75歳到達',
+                notificationName: '被扶養者（異動）削除届',
+                alertDate: age75Date,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `親が75歳になります。後期高齢者医療制度へ移行します。被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
+          }
+        }
+      }
+
+      alerts.sort((a, b) => {
+        return b.alertDate.getTime() - a.alertDate.getTime();
+      });
+
+      const filteredAlerts = alerts.filter((a) => !deletedIds.has(a.id));
+
+      // state.supportAlertsを更新（届出スケジュールで使用されるため）
+      this.state.supportAlerts = filteredAlerts;
+    } catch (error) {
+      console.error('[alerts-dashboard-page] loadSupportAlertsエラー:', error);
+      this.state.supportAlerts = [];
+    }
   }
 
   /**
@@ -646,6 +1173,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     } else if (tab === 'bonus') {
       await this.loadBonusReportAlerts();
     } else if (tab === 'family') {
+      // 扶養アラートタブが選択された場合、扶養アラートを再読み込み
+      await this.loadSupportAlerts();
       this.familyRefreshToken++;
     } else if (tab === 'age') {
       // 従業員データを最新にしてから年齢・資格変更アラートを再読込
