@@ -10,8 +10,8 @@
   <label for="historyYear">表示年度:</label>
   <select
     id="historyYear"
-    [(ngModel)]="selectedHistoryYear"
-    (change)="onHistoryYearChange()"
+    [ngModel]="selectedHistoryYear"
+    (ngModelChange)="onHistoryYearChange($event)"
     class="form-control"
     style="display: inline-block; width: auto; margin-left: 0.5rem"
   >
@@ -26,7 +26,7 @@
   class="table"
   *ngIf="
     !isLoadingHistories &&
-    getMergedHistories().length > 0 &&
+    mergedHistories.length > 0 &&
     !(joinYear !== null && joinYear !== undefined && selectedHistoryYear < joinYear)
   "
 >
@@ -43,7 +43,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let item of getMergedHistories()">
+    <tr *ngFor="let item of mergedHistories">
       <td>{{ item.year }}年{{ item.month }}月</td>
       <td>{{ item.grade !== null ? item.grade + "等級" : "-" }}</td>
       <td>
@@ -75,7 +75,7 @@
 <p
   *ngIf="
     !isLoadingHistories &&
-    getMergedHistories().length === 0 &&
+    mergedHistories.length === 0 &&
     !(joinYear !== null && joinYear !== undefined && selectedHistoryYear < joinYear)
   "
   class="info-text"
