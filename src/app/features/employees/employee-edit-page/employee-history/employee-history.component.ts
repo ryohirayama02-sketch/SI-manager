@@ -443,19 +443,29 @@ export class EmployeeHistoryComponent implements OnInit {
           )
         : null;
 
-      // 標準報酬等級を取得
-      let grade: number | null = null;
-      let standardMonthlyRemuneration: number | null = null;
-      let determinationReason: string | null = null;
+            // 標準報酬等級を取得
+            let grade: number | null = null;
+            let standardMonthlyRemuneration: number | null = null;
+            let determinationReason: string | null = null;
 
-      if (applicableStandardHistory) {
-        const key = this.getHistoryKey(applicableStandardHistory);
-        grade = this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
-        standardMonthlyRemuneration = applicableStandardHistory.standardMonthlyRemuneration;
-        determinationReason = this.getDeterminationReasonLabel(
-          applicableStandardHistory.determinationReason
-        );
-      } else {
+            if (applicableStandardHistory) {
+              const key = this.getHistoryKey(applicableStandardHistory);
+              grade = this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
+              standardMonthlyRemuneration = applicableStandardHistory.standardMonthlyRemuneration;
+              
+              // 決定理由は、標準報酬履歴の適用開始月と一致する場合のみ設定
+              // それ以外の月はハイフン（-）を表示
+              if (
+                applicableStandardHistory.applyStartYear === selectedYear &&
+                applicableStandardHistory.applyStartMonth === month
+              ) {
+                determinationReason = this.getDeterminationReasonLabel(
+                  applicableStandardHistory.determinationReason
+                );
+              } else {
+                determinationReason = null; // ハイフンを表示
+              }
+            } else {
         // 標準報酬履歴が見つからない場合、従業員情報から月額賃金を使って計算
         // 入社年月が選択年度の該当月以前の場合のみ
         const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
@@ -514,6 +524,9 @@ export class EmployeeHistoryComponent implements OnInit {
                   month === (this.joinMonth as number)
                 ) {
                   determinationReason = '資格取得時決定';
+                } else {
+                  // 入社月以外の場合は決定理由を設定しない（ハイフンを表示）
+                  determinationReason = null;
                 }
               }
             }

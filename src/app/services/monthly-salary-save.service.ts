@@ -429,13 +429,32 @@ export class MonthlySalarySaveService {
             const hasInvalidWorkingDays = targetMonths.some((targetMonth) => {
               if (targetMonth > 12) return false; // 12月を超える場合はスキップ
               const workingDaysKey = this.state.getWorkingDaysKey(emp.id, targetMonth);
-              const workingDays = workingDaysData[workingDaysKey];
+              let workingDays = workingDaysData[workingDaysKey];
+              
+              // workingDaysDataに値がない場合、その月の日数をデフォルトとして使用
+              // （saveAllSalariesの80-84行目と同じロジック）
+              if (workingDays === undefined) {
+                workingDays = new Date(year, targetMonth, 0).getDate();
+              }
+              
               // 支払基礎日数が17日未満（0より大きく17未満）の場合は無効
-              return workingDays !== undefined && workingDays > 0 && workingDays < 17;
+              return workingDays > 0 && workingDays < 17;
             });
 
             // 支払基礎日数17日未満の月が1つでもあれば随時改定をスキップ
             if (hasInvalidWorkingDays) {
+              console.log(
+                `[monthly-salary-save] ${emp.name} (${year}年${month}月): 支払基礎日数17日未満の月が含まれるため随時改定をスキップ`,
+                {
+                  targetMonths,
+                  workingDays: targetMonths.map((m) => {
+                    if (m > 12) return null;
+                    const key = this.state.getWorkingDaysKey(emp.id, m);
+                    const wd = workingDaysData[key];
+                    return wd !== undefined ? wd : new Date(year, m, 0).getDate();
+                  }),
+                }
+              );
               continue;
             }
 
