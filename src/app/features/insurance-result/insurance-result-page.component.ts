@@ -558,7 +558,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             }
           } else if (hasStandardRemuneration && gradeTable) {
             // 給与が0円でも標準報酬月額が確定している場合は、標準報酬月額から等級を逆引き
-            const standard = emp.currentStandardMonthlyRemuneration || 0;
+            // effectiveStandardを使用（従業員データと履歴から取得した値）
+            const standard = effectiveStandard || 0;
             const gradeRow = gradeTable.find(
               (r: any) => r.standard === standard
             );

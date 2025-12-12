@@ -1209,6 +1209,11 @@ export class SettingsPageComponent implements OnInit {
 
   importStandardTableFromCsvText(csvText: string): void {
     try {
+      // 現在選択されている年度を standardTableYear に同期
+      // これにより、インポート時に選択されている年度が確実に反映される
+      const yearNum = parseInt(this.gradeYear, 10);
+      this.standardTableYear = yearNum;
+
       const lines = csvText.split('\n').filter((line) => line.trim());
       if (lines.length < 2) {
         this.standardTableImportResult = {
