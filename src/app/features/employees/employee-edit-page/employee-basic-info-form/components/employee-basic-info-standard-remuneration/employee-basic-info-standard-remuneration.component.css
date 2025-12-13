@@ -1,1 +1,7 @@
 /* employee-basic-info-standard-remuneration component styles */
+
+/* 読み取り専用フィールドのスタイル */
+input[readonly] {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}

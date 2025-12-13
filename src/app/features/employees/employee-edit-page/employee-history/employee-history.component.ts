@@ -366,6 +366,11 @@ export class EmployeeHistoryComponent implements OnInit {
       ? parseInt(this.selectedHistoryYear, 10) 
       : this.selectedHistoryYear;
 
+    // 現在の年月を取得
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
     const insuranceHistories = this.getFilteredInsuranceHistories();
     const result: Array<{
       year: number;
@@ -381,6 +386,11 @@ export class EmployeeHistoryComponent implements OnInit {
 
     // 選択年度の12ヶ月分のデータを作成
     for (let month = 12; month >= 1; month--) {
+      // 現在の年月より未来の場合はスキップ
+      if (selectedYear > currentYear || (selectedYear === currentYear && month > currentMonth)) {
+        continue;
+      }
+
       // 入社月より前の月は除外（入社年のみ）
       const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
       const hasJoinMonth = this.joinMonth !== null && this.joinMonth !== undefined;

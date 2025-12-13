@@ -138,57 +138,65 @@
     </select>
   </div>
 
-  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">最終決定情報</h4>
+  <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">最新の決定情報</h4>
 
   <div class="form-group">
-    <label for="lastTeijiKetteiYear">最終定時決定年</label>
-    <input
-      id="lastTeijiKetteiYear"
-      type="number"
-      formControlName="lastTeijiKetteiYear"
-      class="form-control"
-      min="2000"
-      max="2100"
-      placeholder="例: 2025"
-    />
-  </div>
-
-  <div class="form-group">
-    <label for="lastTeijiKetteiMonth">最終定時決定月</label>
-    <input
-      id="lastTeijiKetteiMonth"
-      type="number"
-      formControlName="lastTeijiKetteiMonth"
-      class="form-control"
-      min="1"
-      max="12"
-      placeholder="1-12"
-    />
-  </div>
-
-  <div class="form-group">
-    <label for="lastSuijiKetteiYear">最終随時改定年</label>
-    <input
-      id="lastSuijiKetteiYear"
-      type="number"
-      formControlName="lastSuijiKetteiYear"
-      class="form-control"
-      min="2000"
-      max="2100"
-      placeholder="例: 2025"
-    />
+    <label for="lastTeijiKetteiMonth">最新の定時決定適応月</label>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <input
+        id="lastTeijiKetteiYear"
+        type="number"
+        formControlName="lastTeijiKetteiYear"
+        class="form-control"
+        min="2000"
+        max="2100"
+        placeholder="年"
+        style="width: 100px;"
+        readonly
+      />
+      <span>年</span>
+      <input
+        id="lastTeijiKetteiMonth"
+        type="number"
+        formControlName="lastTeijiKetteiMonth"
+        class="form-control"
+        min="1"
+        max="12"
+        placeholder="月"
+        style="width: 80px;"
+        readonly
+      />
+      <span>月</span>
+    </div>
   </div>
 
   <div class="form-group">
     <label for="lastSuijiKetteiMonth">最新の随時改定適応月</label>
-    <input
-      id="lastSuijiKetteiMonth"
-      type="number"
-      formControlName="lastSuijiKetteiMonth"
-      class="form-control"
-      min="1"
-      max="12"
-      placeholder="1-12"
-    />
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <input
+        id="lastSuijiKetteiYear"
+        type="number"
+        formControlName="lastSuijiKetteiYear"
+        class="form-control"
+        min="2000"
+        max="2100"
+        placeholder="年"
+        style="width: 100px;"
+        readonly
+      />
+      <span>年</span>
+      <input
+        id="lastSuijiKetteiMonth"
+        type="number"
+        formControlName="lastSuijiKetteiMonth"
+        class="form-control"
+        min="1"
+        max="12"
+        placeholder="月"
+        style="width: 80px;"
+        readonly
+      />
+      <span>月</span>
+    </div>
   </div>
 </div>
