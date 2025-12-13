@@ -687,14 +687,22 @@ export class AlertGenerationService {
     const today = normalizeDate(getJSTDate());
     const roomId = this.roomIdService.requireRoomId();
 
-    for (const emp of employees) {
-      const bonuses = await this.bonusService.listBonuses(
-        roomId,
-        emp.id,
-        currentYear
-      );
+    // 過去2年から将来1年までの賞与を取得（賞与支払届の提出期限は支給日の翌月10日なので、過去の賞与も対象になる可能性がある）
+    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
 
-      for (const bonus of bonuses) {
+    for (const emp of employees) {
+      // 複数年度の賞与を取得
+      const allBonuses: any[] = [];
+      for (const year of years) {
+        const bonuses = await this.bonusService.listBonuses(
+          roomId,
+          emp.id,
+          year
+        );
+        allBonuses.push(...bonuses);
+      }
+
+      for (const bonus of allBonuses) {
         if (!bonus.amount || bonus.amount === 0) {
           continue;
         }
