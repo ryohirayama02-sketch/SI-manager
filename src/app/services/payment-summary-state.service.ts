@@ -297,6 +297,32 @@ export class PaymentSummaryStateService {
   clearCache(): void {
     this.salaryDataByEmployeeId = {};
     this.bonusesByEmployeeId = {};
+    this.monthlyPremiumsByEmployee = {};
+    this.currentYearBonuses = [];
+    this.bonusByMonth = {};
+    this.monthlyTotals = {};
+    this.companyMonthlyTotals = [];
+    this.bonusAnnualTotals = {
+      healthEmployee: 0,
+      healthEmployer: 0,
+      careEmployee: 0,
+      careEmployer: 0,
+      pensionEmployee: 0,
+      pensionEmployer: 0,
+      totalEmployee: 0,
+      totalEmployer: 0,
+      total: 0,
+    };
+    this.annualTotals = {
+      health: 0,
+      care: 0,
+      pension: 0,
+      total: 0,
+    };
+    this.errorMessages = {};
+    this.warningMessages = {};
+    this.warnings = [];
+    this.notificationsByEmployee = {};
   }
 
   /**

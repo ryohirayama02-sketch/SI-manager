@@ -10,6 +10,8 @@ import { SettingsService } from '../../../../services/settings.service';
 import { GradeDeterminationService } from '../../../../services/grade-determination.service';
 import { EmployeeLifecycleService } from '../../../../services/employee-lifecycle.service';
 import { SalaryCalculationService } from '../../../../services/salary-calculation.service';
+import { MonthlySalaryService } from '../../../../services/monthly-salary.service';
+import { RoomIdService } from '../../../../services/room-id.service';
 import { Employee } from '../../../../models/employee.model';
 import {
   StandardRemunerationHistory,
@@ -55,6 +57,8 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     private gradeDeterminationService: GradeDeterminationService,
     private employeeLifecycleService: EmployeeLifecycleService,
     private salaryCalculationService: SalaryCalculationService,
+    private monthlySalaryService: MonthlySalaryService,
+    private roomIdService: RoomIdService,
     private router: Router
   ) {}
 
@@ -477,6 +481,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             let standardMonthlyRemuneration: number | null = null;
             let determinationReason: string | null = null;
 
+            // 標準報酬履歴を優先表示（その年月に適用されていた標準報酬月額）
             if (applicableStandardHistory) {
               const key = this.getHistoryKey(applicableStandardHistory);
               grade = this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
@@ -494,7 +499,46 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
               } else {
                 determinationReason = null; // ハイフンを表示
               }
-            } else {
+            }
+
+            // 標準報酬履歴がない場合のみ、最新の月次給与データから計算
+            if (standardMonthlyRemuneration === null) {
+              // 最新の月次給与データを取得
+              const roomId = (this.employee as any).roomId || this.roomIdService.requireRoomId();
+              const monthSalaryData = await this.monthlySalaryService.getEmployeeSalary(
+                roomId,
+                this.employeeId!,
+                selectedYear,
+                month
+              );
+
+              // 最新の月次給与データがある場合は、その月の給与データから標準報酬月額を計算
+              if (monthSalaryData) {
+                const fixedSalary = monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0;
+                const variableSalary = monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0;
+                const totalSalary = monthSalaryData.totalSalary ?? monthSalaryData.total ?? (fixedSalary + variableSalary);
+
+                // 給与データが存在する場合（0円でない場合）は、その月の給与データから標準報酬月額を計算
+                if (totalSalary > 0) {
+                  const gradeTable = await this.settingsService.getStandardTable(selectedYear);
+                  if (gradeTable && gradeTable.length > 0) {
+                    const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
+                      totalSalary,
+                      gradeTable
+                    );
+                    if (result) {
+                      standardMonthlyRemuneration = result.standard;
+                      grade = result.rank || null;
+                      // 標準報酬履歴がない場合は決定理由を設定しない（ハイフンを表示）
+                      determinationReason = null;
+                    }
+                  }
+                }
+              }
+            }
+
+            // 標準報酬履歴も最新の月次給与データもない場合
+            if (standardMonthlyRemuneration === null) {
         // 標準報酬履歴が見つからない場合、従業員情報から月額賃金を使って計算
         // 入社年月が選択年度の該当月以前の場合のみ
         const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;

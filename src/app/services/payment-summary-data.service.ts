@@ -36,6 +36,8 @@ export class PaymentSummaryDataService {
   async loadInitialData(): Promise<void> {
     this.state.setIsLoading(true);
     try {
+      // 前のルームのデータをクリア
+      this.state.clearCache();
       const employeesData = await this.employeeService.getAllEmployees();
       this.state.setEmployees(employeesData);
       await this.loadData();

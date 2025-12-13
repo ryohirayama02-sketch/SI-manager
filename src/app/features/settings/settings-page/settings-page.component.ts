@@ -877,15 +877,15 @@ export class SettingsPageComponent implements OnInit {
     if (input.files && input.files.length > 0) {
       const file = input.files[0];
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const text = e.target?.result as string;
-        this.importFromCsvText(text);
+        await this.importFromCsvText(text);
       };
       reader.readAsText(file, 'UTF-8');
     }
   }
 
-  importFromText(): void {
+  async importFromText(): Promise<void> {
     if (!this.csvImportText.trim()) {
       this.importResult = {
         type: 'error',
@@ -893,10 +893,10 @@ export class SettingsPageComponent implements OnInit {
       };
       return;
     }
-    this.importFromCsvText(this.csvImportText);
+    await this.importFromCsvText(this.csvImportText);
   }
 
-  importFromCsvText(csvText: string): void {
+  async importFromCsvText(csvText: string): Promise<void> {
     try {
       const lines = csvText.split('\n').filter((line) => line.trim());
       if (lines.length < 2) {
@@ -992,14 +992,21 @@ export class SettingsPageComponent implements OnInit {
 
       // 結果メッセージ
       if (errorCount === 0) {
+        // Firestoreに保存（現在選択されている年度に対して）
+        for (const [prefectureCode, rates] of ratesToAdd) {
+          await this.savePrefectureRate(prefectureCode);
+        }
+        
+        // 画面表示を更新するためにloadAllRates()を呼び出す
+        await this.loadAllRates();
+        this.cdr.detectChanges();
+        
         this.importResult = {
           type: 'success',
           message: `${successCount}件の料率をインポートしました`,
         };
         this.showImportDialog = false;
         this.csvImportText = '';
-        // 画面表示を更新するために変更検知をトリガー
-        this.cdr.detectChanges();
       } else {
         const errorMsg = errors.slice(0, 5).join('\n');
         const moreErrors =
@@ -1190,15 +1197,15 @@ export class SettingsPageComponent implements OnInit {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const text = e.target?.result as string;
       this.standardTableCsvImportText = text;
-      this.importStandardTableFromCsvText(text);
+      await this.importStandardTableFromCsvText(text);
     };
     reader.readAsText(file);
   }
 
-  importStandardTableFromText(): void {
+  async importStandardTableFromText(): Promise<void> {
     if (!this.standardTableCsvImportText.trim()) {
       this.standardTableImportResult = {
         type: 'error',
@@ -1206,10 +1213,10 @@ export class SettingsPageComponent implements OnInit {
       };
       return;
     }
-    this.importStandardTableFromCsvText(this.standardTableCsvImportText);
+    await this.importStandardTableFromCsvText(this.standardTableCsvImportText);
   }
 
-  importStandardTableFromCsvText(csvText: string): void {
+  async importStandardTableFromCsvText(csvText: string): Promise<void> {
     try {
       // 現在選択されている年度を standardTableYear に同期
       // これにより、インポート時に選択されている年度が確実に反映される
@@ -1308,8 +1315,14 @@ export class SettingsPageComponent implements OnInit {
       // バリデーション実行
       this.validateStandardTable();
 
-      // 変更検知を確実にする
-      this.cdr.detectChanges();
+      // エラーがある場合は保存しない
+      if (this.errorMessages.length > 0) {
+        this.standardTableImportResult = {
+          type: 'error',
+          message: `バリデーションエラーがあります。修正してください。${errors.length > 0 ? '\n' + errors.slice(0, 5).join(' / ') : ''}`,
+        };
+        return;
+      }
 
       // 結果メッセージ
       if (errorCount > 0) {
@@ -1320,12 +1333,30 @@ export class SettingsPageComponent implements OnInit {
             .join(' / ')}${errors.length > 5 ? ' ...' : ''}`,
         };
       } else {
-        this.standardTableImportResult = {
-          type: 'success',
-          message: `${successCount}件のデータをインポートしました`,
-        };
-        this.showStandardTableImportDialog = false;
-        this.standardTableCsvImportText = '';
+        // Firestoreに保存（現在選択されている年度に対して）
+        try {
+          await this.settingsService.saveStandardTable(
+            this.standardTableYear,
+            this.standardTable.value
+          );
+          
+          // 画面表示を更新するためにloadStandardTable()を呼び出す
+          await this.loadStandardTable();
+          this.cdr.detectChanges();
+          
+          this.standardTableImportResult = {
+            type: 'success',
+            message: `${successCount}件のデータをインポートしました`,
+          };
+          this.showStandardTableImportDialog = false;
+          this.standardTableCsvImportText = '';
+        } catch (saveError) {
+          console.error('標準報酬月額テーブルの保存エラー:', saveError);
+          this.standardTableImportResult = {
+            type: 'error',
+            message: `インポートは成功しましたが、保存に失敗しました: ${saveError}`,
+          };
+        }
       }
     } catch (error) {
       console.error('CSVインポートエラー:', error);
