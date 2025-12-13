@@ -6,6 +6,7 @@ import {
   setDoc,
   getDoc,
   getDocs,
+  deleteDoc,
 } from '@angular/fire/firestore';
 import {
   StandardRemunerationHistory,
@@ -87,6 +88,18 @@ export class StandardRemunerationHistoryService {
 //       reason: history.determinationReason,
 //       docId,
 //     });
+  }
+
+  /**
+   * 標準報酬履歴を削除
+   */
+  async deleteStandardRemunerationHistory(historyId: string, employeeId: string): Promise<void> {
+    const roomId = this.roomIdService.requireRoomId();
+    const ref = doc(
+      this.firestore,
+      `rooms/${roomId}/employees/${employeeId}/standardRemunerationHistory/${historyId}`
+    );
+    await deleteDoc(ref);
   }
 
   /**
@@ -357,6 +370,31 @@ export class StandardRemunerationHistoryService {
       // 標準報酬等級表を取得
       const gradeTable = await this.settingsService.getStandardTable(year);
 
+      // 7月、8月、9月に随時改定の適用開始があるかチェック
+      const suijiAlerts = await this.suijiService.loadAlerts(year);
+      const employeeSuijiAlerts = suijiAlerts.filter(
+        (alert) => alert.employeeId === employeeId && alert.isEligible
+      );
+
+      // 随時改定の適用開始月が7月、8月、9月のいずれかであるかをチェック
+      let hasSuijiIn789 = false;
+      for (const suijiAlert of employeeSuijiAlerts) {
+        const changeMonth = suijiAlert.changeMonth;
+        const applyStartMonthRaw = changeMonth + 3;
+        let applyStartYear = year;
+        let applyStartMonth = applyStartMonthRaw;
+        if (applyStartMonthRaw > 12) {
+          applyStartMonth = applyStartMonthRaw - 12;
+          applyStartYear = year + 1;
+        }
+        
+        // 適用開始月が7月、8月、9月のいずれかで、かつ適用開始年がその年度の場合
+        if (applyStartYear === year && (applyStartMonth === 7 || applyStartMonth === 8 || applyStartMonth === 9)) {
+          hasSuijiIn789 = true;
+          break;
+        }
+      }
+
       // 定時決定を計算
       const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
         employeeId,
@@ -365,33 +403,40 @@ export class StandardRemunerationHistoryService {
         year
       );
 
-      if (teijiResult.standardMonthlyRemuneration > 0) {
+      // 既存の履歴を確認
+      const existingHistories = await this.getStandardRemunerationHistories(
+        employeeId
+      );
+      const existingTeijiHistory = existingHistories.find(
+        (h) =>
+          h.applyStartYear === year &&
+          h.applyStartMonth === 9 &&
+          h.determinationReason === 'teiji'
+      );
+
+      // 7月、8月、9月に随時改定の適用開始がある場合、定時決定を保存しない（既存の履歴があれば削除）
+      if (hasSuijiIn789) {
+        if (existingTeijiHistory) {
+          // 既存の定時決定履歴を削除
+          await this.deleteStandardRemunerationHistory(existingTeijiHistory.id!, employeeId);
+        }
+      } else if (teijiResult.standardMonthlyRemuneration > 0) {
+        // 7月、8月、9月に随時改定がない場合のみ定時決定を保存
 // // console.log('[std-history] teiji result', {
 //           employeeId,
 //           year,
 //           standard: teijiResult.standardMonthlyRemuneration,
 //           grade: teijiResult.grade,
 //         });
-        // 既存の履歴を確認
-        const existingHistories = await this.getStandardRemunerationHistories(
-          employeeId
-        );
-        const existingHistory = existingHistories.find(
-          (h) =>
-            h.applyStartYear === year &&
-            h.applyStartMonth === 9 &&
-            h.determinationReason === 'teiji'
-        );
-
         // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
         if (
-          !existingHistory ||
-          existingHistory.standardMonthlyRemuneration !==
+          !existingTeijiHistory ||
+          existingTeijiHistory.standardMonthlyRemuneration !==
             teijiResult.standardMonthlyRemuneration ||
-          existingHistory.grade !== teijiResult.grade
+          existingTeijiHistory.grade !== teijiResult.grade
         ) {
           await this.saveStandardRemunerationHistory({
-            id: existingHistory?.id, // 既存のIDがあれば使用（更新）、なければ新規作成
+            id: existingTeijiHistory?.id, // 既存のIDがあれば使用（更新）、なければ新規作成
             employeeId,
             applyStartYear: year,
             applyStartMonth: 9,
@@ -400,7 +445,7 @@ export class StandardRemunerationHistoryService {
               teijiResult.standardMonthlyRemuneration,
             determinationReason: 'teiji',
             memo: `定時決定（${year}年4〜6月平均）`,
-            createdAt: existingHistory?.createdAt, // 既存の履歴がある場合は元の作成日時を保持
+            createdAt: existingTeijiHistory?.createdAt, // 既存の履歴がある場合は元の作成日時を保持
           });
 // // console.log('[std-history] teiji saved', {
 //             employeeId,
@@ -413,12 +458,12 @@ export class StandardRemunerationHistoryService {
 
       // 随時改定の履歴を生成
       // 変動月+3か月目が適用開始月（変動月が10月なら、適用開始月は1月）
-      const suijiAlerts = await this.suijiService.loadAlerts(year);
-      const employeeSuijiAlerts = suijiAlerts.filter(
+      // 注意: suijiAlertsは上で既に取得済み
+      const employeeSuijiAlertsForHistory = suijiAlerts.filter(
         (alert) => alert.employeeId === employeeId && alert.isEligible
       );
 
-      for (const suijiAlert of employeeSuijiAlerts) {
+      for (const suijiAlert of employeeSuijiAlertsForHistory) {
         const changeMonth = suijiAlert.changeMonth;
         const applyStartMonthRaw = changeMonth + 3;
         // 適用開始月の年度を計算（変動月+3が12を超える場合は翌年）
