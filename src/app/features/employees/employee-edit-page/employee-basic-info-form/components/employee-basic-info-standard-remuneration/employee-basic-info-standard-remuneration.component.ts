@@ -40,6 +40,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
   latestSuijiResult: any | null = null; // 最新の随時改定結果
   currentYear: number = new Date().getFullYear();
   isLoading: boolean = false;
+  currentLatestResult: { type: 'teiji' | 'suiji' | null; teijiResult?: TeijiKetteiResult | null; suijiResult?: any | null } = { type: null }; // 現在採用されている最新の結果
   private routerSubscription: Subscription | null = null;
   private previousEmployeeId: string | null = null;
 
@@ -62,7 +63,6 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     }
 
     await this.loadCalculationResults();
-    await this.applyLatestResult();
     await this.setStandardFromMonthlyWageIfEmpty();
 
     // ルーターイベントを購読（画面遷移後に再読み込み）
@@ -72,7 +72,6 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         // 従業員編集画面に戻ってきた場合、データを再読み込み
         if (this.employeeId) {
           await this.loadCalculationResults();
-          await this.applyLatestResult();
           await this.setStandardFromMonthlyWageIfEmpty();
         }
       });
@@ -230,6 +229,9 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         currentYear
       );
       this.suijiResults = filteredSuijiAlerts; // 後方互換性のため残す
+
+      // 最新の結果を判定して表示用に設定
+      await this.applyLatestResult();
     } catch (error) {
       console.error(
         '[EmployeeBasicInfoStandardRemuneration] 計算結果の取得エラー:',
@@ -361,6 +363,50 @@ export class EmployeeBasicInfoStandardRemunerationComponent
           }
         }
       }
+    }
+
+    // 最新の結果を保持（表示用）
+    if (latestResult) {
+      if (latestResult.type === 'teiji') {
+        this.currentLatestResult = {
+          type: 'teiji',
+          teijiResult: this.teijiResult,
+          suijiResult: null,
+        };
+      } else if (latestResult.type === 'suiji') {
+        // 該当する随時改定結果を探す
+        const matchingSuiji = this.suijiResults.find(
+          (s) => s.changeMonth === latestResult.suijiChangeMonth
+        );
+        if (matchingSuiji) {
+          // 適用開始月を再計算して設定（変動月+3か月後）
+          const rawApplyMonth = matchingSuiji.changeMonth + 3;
+          const normalizedApplyMonth =
+            rawApplyMonth > 12 ? rawApplyMonth - 12 : rawApplyMonth;
+          const suijiYear = (matchingSuiji as any).year || currentYear;
+          let applyStartYear = suijiYear;
+          if (rawApplyMonth > 12) {
+            applyStartYear = suijiYear + 1;
+          }
+          this.currentLatestResult = {
+            type: 'suiji',
+            teijiResult: null,
+            suijiResult: {
+              ...matchingSuiji,
+              applyStartMonth: normalizedApplyMonth,
+              applyStartYear: applyStartYear,
+            },
+          };
+        } else {
+          this.currentLatestResult = {
+            type: 'suiji',
+            teijiResult: null,
+            suijiResult: null,
+          };
+        }
+      }
+    } else {
+      this.currentLatestResult = { type: null };
     }
 
     // 最新の結果を自動適用
