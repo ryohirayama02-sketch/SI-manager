@@ -1,6 +1,9 @@
-import { Component, OnInit, Input } from '@angular/core';
+import { Component, OnInit, OnDestroy, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 import { EmployeeService } from '../../../../services/employee.service';
 import { StandardRemunerationHistoryService } from '../../../../services/standard-remuneration-history.service';
 import { SettingsService } from '../../../../services/settings.service';
@@ -20,7 +23,7 @@ import {
   templateUrl: './employee-history.component.html',
   styleUrl: './employee-history.component.css',
 })
-export class EmployeeHistoryComponent implements OnInit {
+export class EmployeeHistoryComponent implements OnInit, OnDestroy {
   @Input() employeeId: string | null = null;
 
   standardRemunerationHistories: StandardRemunerationHistory[] = [];
@@ -43,6 +46,7 @@ export class EmployeeHistoryComponent implements OnInit {
     careInsurance: string;
     pensionInsurance: string;
   }> = [];
+  private routerSubscription: Subscription | null = null;
 
   constructor(
     private employeeService: EmployeeService,
@@ -50,11 +54,26 @@ export class EmployeeHistoryComponent implements OnInit {
     private settingsService: SettingsService,
     private gradeDeterminationService: GradeDeterminationService,
     private employeeLifecycleService: EmployeeLifecycleService,
-    private salaryCalculationService: SalaryCalculationService
+    private salaryCalculationService: SalaryCalculationService,
+    private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
     await this.loadHistories();
+
+    // ルーターイベントを購読（画面遷移後に再読み込み）
+    this.routerSubscription = this.router.events
+      .pipe(filter((event) => event instanceof NavigationEnd))
+      .subscribe(async () => {
+        // 従業員編集画面に戻ってきた場合、データを再読み込み
+        if (this.employeeId) {
+          await this.loadHistories();
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.routerSubscription?.unsubscribe();
   }
 
   async loadHistories(): Promise<void> {

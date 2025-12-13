@@ -998,6 +998,8 @@ export class SettingsPageComponent implements OnInit {
         };
         this.showImportDialog = false;
         this.csvImportText = '';
+        // 画面表示を更新するために変更検知をトリガー
+        this.cdr.detectChanges();
       } else {
         const errorMsg = errors.slice(0, 5).join('\n');
         const moreErrors =

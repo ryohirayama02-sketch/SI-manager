@@ -125,17 +125,19 @@
 
   <div class="form-group">
     <label for="determinationReason">決定理由</label>
-    <select
+    <input
       id="determinationReason"
-      formControlName="determinationReason"
+      type="text"
+      [value]="getDeterminationReasonLabel()"
       class="form-control"
-    >
-      <option value="">選択してください</option>
-      <option value="teiji">定時決定</option>
-      <option value="suiji">随時改定</option>
-      <option value="shikaku">資格取得時決定</option>
-      <option value="other">その他</option>
-    </select>
+      readonly
+      style="background-color: #f5f5f5; cursor: not-allowed;"
+    />
+    <!-- フォームの値として保持するため、hidden inputで値を保持 -->
+    <input
+      type="hidden"
+      formControlName="determinationReason"
+    />
   </div>
 
   <h4 style="margin-top: 1.5rem; margin-bottom: 1rem">最新の決定情報</h4>

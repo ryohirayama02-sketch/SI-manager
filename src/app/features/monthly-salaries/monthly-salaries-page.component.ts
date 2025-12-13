@@ -33,6 +33,7 @@ import { MonthlySalarySuijiUiService } from '../../services/monthly-salary-suiji
 import { MonthlySalaryCsvImportUiService } from '../../services/monthly-salary-csv-import-ui.service';
 import { FormsModule } from '@angular/forms';
 import { RoomIdService } from '../../services/room-id.service';
+import { StandardRemunerationHistoryService } from '../../services/standard-remuneration-history.service';
 
 @Component({
   selector: 'app-monthly-salaries-page',
@@ -109,7 +110,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     private suijiUiService: MonthlySalarySuijiUiService,
     private csvImportUiService: MonthlySalaryCsvImportUiService,
     private router: Router,
-    private roomIdService: RoomIdService
+    private roomIdService: RoomIdService,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService
   ) {
     // 年度選択用の年度リストを生成（2023〜2026）
     for (let y = 2023; y <= 2026; y++) {
@@ -417,6 +419,14 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
       this.suijiAlerts = suijiAlerts;
       this.saveMessage = '保存しました';
+
+      // 保存後に標準報酬履歴を再生成（月次給与の変更を反映）
+      for (const emp of this.employees) {
+        await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+          emp.id,
+          emp
+        );
+      }
 
       // 保存後に画面の状態を再読み込み（データベースから最新データを取得）
       await this.reloadData();

@@ -55,6 +55,12 @@ export class EmployeeBasicInfoStandardRemunerationComponent
   ) {}
 
   async ngOnInit(): Promise<void> {
+    // 決定理由はアプリが自動で設定するため、ユーザーが変更できないようにする
+    const determinationReasonControl = this.form.get('determinationReason');
+    if (determinationReasonControl) {
+      determinationReasonControl.disable();
+    }
+
     await this.loadCalculationResults();
     await this.applyLatestResult();
     await this.setStandardFromMonthlyWageIfEmpty();
@@ -74,6 +80,25 @@ export class EmployeeBasicInfoStandardRemunerationComponent
 
   ngOnDestroy(): void {
     this.routerSubscription?.unsubscribe();
+  }
+
+  /**
+   * 決定理由の値を表示用のラベルに変換
+   */
+  getDeterminationReasonLabel(): string {
+    const reason = this.form.get('determinationReason')?.value;
+    switch (reason) {
+      case 'teiji':
+        return '定時決定';
+      case 'suiji':
+        return '随時改定';
+      case 'shikaku':
+        return '資格取得時決定';
+      case 'other':
+        return 'その他';
+      default:
+        return '-';
+    }
   }
 
   async ngOnChanges(changes: SimpleChanges): Promise<void> {
@@ -351,11 +376,12 @@ export class EmployeeBasicInfoStandardRemunerationComponent
         latestResult.type === 'suiji' &&
         latestResult.suijiChangeMonth
       ) {
+        // 適用開始月は変動月+3か月後（latestResult.monthに既に計算済み）
         this.form.patchValue({
           currentStandardMonthlyRemuneration: latestResult.standard,
           determinationReason: 'suiji',
           lastSuijiKetteiYear: latestResult.year,
-          lastSuijiKetteiMonth: latestResult.suijiChangeMonth,
+          lastSuijiKetteiMonth: latestResult.month, // 適用開始月（変動月+3か月後）
         });
       }
     }
