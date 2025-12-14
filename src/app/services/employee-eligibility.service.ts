@@ -230,7 +230,7 @@ export class EmployeeEligibilityService {
       const retireDate = new Date(employee.retireDate);
       if (retireDate <= currentDate) {
         const age = this.calculateAge(employee.birthDate, currentDate);
-        const ageFlags = this.getAgeFlags(age);
+        const ageFlags = this.getAgeFlags(age, employee.birthDate, currentDate);
         const ageCategory = this.getAgeCategory(age);
         reasons.push('退職済みのため加入不可');
         return {
@@ -246,7 +246,7 @@ export class EmployeeEligibilityService {
 
     // STEP2: 年齢フラグ取得
     const age = this.calculateAge(employee.birthDate, currentDate);
-    const ageFlags = this.getAgeFlags(age);
+    const ageFlags = this.getAgeFlags(age, employee.birthDate, currentDate);
     const ageCategory = this.getAgeCategory(age);
     console.log('[EmployeeEligibilityService] 年齢フラグ計算結果', {
       age,
@@ -313,12 +313,54 @@ export class EmployeeEligibilityService {
 
   /**
    * 年齢フラグを取得
+   * @param age 年齢
+   * @param birthDate 生年月日（70歳到達月の判定に使用）
+   * @param currentDate 判定基準日（70歳到達月の判定に使用）
    */
-  private getAgeFlags(age: number): AgeFlags {
+  private getAgeFlags(
+    age: number,
+    birthDate?: string,
+    currentDate?: Date
+  ): AgeFlags {
+    // 70歳到達月の判定（誕生日の前日が属する月から）
+    // 3/1生まれ → 70歳の誕生日は3/1、前日は2/28 → 2月から終了
+    // 3/2生まれ → 70歳の誕生日は3/2、前日は3/1 → 3月から終了
+    let isNoPension = age >= 70;
+    if (birthDate && currentDate && age === 69) {
+      // 69歳の場合、70歳到達月かどうかを判定
+      const birth = new Date(birthDate);
+      const birthYear = birth.getFullYear();
+      const birthMonth = birth.getMonth() + 1;
+      const birthDay = birth.getDate();
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1;
+
+      let isAge70Month: boolean;
+      if (birthDay === 1) {
+        // 誕生日が月の1日の場合、前月から終了
+        if (birthMonth === 1) {
+          // 1月1日生まれの場合、前年12月から終了
+          isAge70Month =
+            (year === birthYear + 69 && month === 12) ||
+            (year === birthYear + 70 && month >= birthMonth);
+        } else {
+          // 2月以降の場合、前月から終了
+          isAge70Month = year === birthYear + 70 && month >= birthMonth - 1;
+        }
+      } else {
+        // 誕生日が月の2日以降の場合、誕生月から終了
+        isAge70Month = year === birthYear + 70 && month >= birthMonth;
+      }
+
+      if (isAge70Month) {
+        isNoPension = true;
+      }
+    }
+
     return {
       isCare2: age >= 40 && age < 65, // 40〜64歳（介護保険第2号被保険者）
       isCare1: age >= 65, // 65歳以上（介護保険第1号被保険者）
-      isNoPension: age >= 70, // 70歳以上（厚生年金停止）
+      isNoPension: isNoPension, // 70歳以上（厚生年金停止）
       isNoHealth: age >= 75, // 75歳以上（健康保険・介護保険停止）
     };
   }

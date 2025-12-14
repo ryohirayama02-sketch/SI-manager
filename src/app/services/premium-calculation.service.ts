@@ -522,10 +522,30 @@ export class PremiumCalculationService {
         (year === birthYear + 65 && month >= birthMonth) ||
         year > birthYear + 65;
     }
-    const isAge70Month =
-      (year === birthYear + 70 && month === birthMonth && 1 >= birthDay) ||
-      (year === birthYear + 70 && month > birthMonth) ||
-      year > birthYear + 70;
+    // 70歳到達月の判定（誕生日の前日が属する月から）
+    // 3/1生まれ → 70歳の誕生日は3/1、前日は2/28 → 2月から終了
+    // 3/2生まれ → 70歳の誕生日は3/2、前日は3/1 → 3月から終了
+    let isAge70Month: boolean;
+    if (birthDay === 1) {
+      // 誕生日が月の1日の場合、前月から終了
+      if (birthMonth === 1) {
+        // 1月1日生まれの場合、前年12月から終了
+        isAge70Month =
+          (year === birthYear + 69 && month === 12) ||
+          (year === birthYear + 70 && month >= birthMonth) ||
+          year > birthYear + 70;
+      } else {
+        // 2月以降の場合、前月から終了
+        isAge70Month =
+          (year === birthYear + 70 && month >= birthMonth - 1) ||
+          year > birthYear + 70;
+      }
+    } else {
+      // 誕生日が月の2日以降の場合、誕生月から終了
+      isAge70Month =
+        (year === birthYear + 70 && month >= birthMonth) ||
+        year > birthYear + 70;
+    }
     const isAge75Month =
       (year === birthYear + 75 && month === birthMonth && 1 >= birthDay) ||
       (year === birthYear + 75 && month > birthMonth) ||
@@ -558,7 +578,7 @@ export class PremiumCalculationService {
       }
     }
     if (isAge70Reached) {
-      if (isAge70Month && month === birthMonth) {
+      if (isAge70Month) {
         reasons.push(
           `${month}月は70歳到達月のため厚生年金は停止（到達月から適用）`
         );
