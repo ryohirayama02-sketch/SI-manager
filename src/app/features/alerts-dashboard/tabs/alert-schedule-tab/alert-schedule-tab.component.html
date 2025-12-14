@@ -1,10 +1,21 @@
 <div class="card">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-    <button (click)="changeScheduleMonth(-1)" class="btn-secondary">← 前月</button>
-    <h3 style="margin: 0;">{{ scheduleYear }}年{{ scheduleMonth }}月</h3>
-    <button (click)="changeScheduleMonth(1)" class="btn-secondary">次月 →</button>
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    "
+  >
+    <button (click)="changeScheduleMonth(-1)" class="btn-secondary">
+      ← 前月
+    </button>
+    <h3 style="margin: 0">{{ scheduleYear }}年{{ scheduleMonth }}月</h3>
+    <button (click)="changeScheduleMonth(1)" class="btn-secondary">
+      次月 →
+    </button>
   </div>
-  
+
   <div class="calendar-wrapper">
     <table class="calendar-table">
       <thead>
@@ -20,22 +31,36 @@
       </thead>
       <tbody>
         <tr *ngFor="let week of getCalendarWeeks()">
-          <td *ngFor="let date of week" 
-              [ngClass]="{
-                'calendar-day': true,
-                'other-month': !isCurrentMonth(date),
-                'today': isToday(date),
-                'has-schedule': getScheduleItemsForDate(date).length > 0
-              }">
+          <td
+            *ngFor="let date of week"
+            [ngClass]="{
+              'calendar-day': true,
+              'other-month': !isCurrentMonth(date),
+              today: isToday(date),
+              'has-schedule': getScheduleItemsForDate(date).length > 0
+            }"
+          >
             <div class="calendar-day-number">{{ date.getDate() }}</div>
             <div class="calendar-schedule-items">
-              <div *ngFor="let item of getScheduleItemsForDate(date)" 
-                   class="schedule-item"
-                   [style.backgroundColor]="item.color"
-                   [style.cursor]="item.tabId === 'payment' ? 'default' : 'pointer'"
-                   (click)="onScheduleDateClick(item.tabId)"
-                   [title]="item.tabName + ' ' + item.count + '件'">
-                {{ item.tabName }} {{ item.count }}件
+              <div
+                *ngFor="let item of getScheduleItemsForDate(date)"
+                class="schedule-item"
+                [style.backgroundColor]="item.color"
+                [style.cursor]="
+                  item.tabId === 'payment' ? 'default' : 'pointer'
+                "
+                (click)="onScheduleDateClick(item.tabId)"
+                [title]="
+                  item.tabId === 'payment'
+                    ? item.tabName
+                    : item.tabName + ' ' + item.count + '件'
+                "
+              >
+                {{
+                  item.tabId === "payment"
+                    ? item.tabName
+                    : item.tabName + " " + item.count + "件"
+                }}
               </div>
             </div>
           </td>
@@ -44,12 +69,3 @@
     </table>
   </div>
 </div>
-
-
-
-
-
-
-
-
-

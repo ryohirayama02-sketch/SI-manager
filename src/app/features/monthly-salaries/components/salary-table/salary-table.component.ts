@@ -8,7 +8,7 @@ import { SalaryItem } from '../../../../models/salary-item.model';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './salary-table.component.html',
-  styleUrl: './salary-table.component.css'
+  styleUrl: './salary-table.component.css',
 })
 export class SalaryTableComponent {
   @Input() employees: Employee[] = [];
@@ -75,9 +75,44 @@ export class SalaryTableComponent {
     const value = input.value;
     const numValue = this.parseAmount(value);
     this.onSalaryItemChange(employeeId, month, itemId, numValue);
-    
+
     // カンマ付きで表示を更新
     input.value = this.formatAmount(numValue);
+  }
+
+  onSalaryItemCompositionStart(event: Event): void {
+    // IME開始時（全角モード）は何もしない
+  }
+
+  onSalaryItemCompositionEnd(
+    employeeId: string,
+    month: number,
+    itemId: string,
+    event: Event
+  ): void {
+    // IME終了時（全角→半角に切り替わったとき）にフォーカスを再設定
+    const input = event.target as HTMLInputElement;
+    // フォーカスを維持するために、一度フォーカスを外してから再度設定
+    setTimeout(() => {
+      input.focus();
+    }, 0);
+  }
+
+  onSalaryItemKeyDown(event: KeyboardEvent): void {
+    // 全角モードで入力しようとした場合、入力を無視
+    // IMEがアクティブな場合は、compositionstartが発火するので、ここでは処理しない
+    // ただし、全角文字が直接入力された場合は防ぐ
+    const input = event.target as HTMLInputElement;
+    if (event.isComposing) {
+      // IME入力中は何もしない
+      return;
+    }
+    // 全角数字や全角文字が入力された場合は無視
+    const key = event.key;
+    if (key && /[０-９]/.test(key)) {
+      event.preventDefault();
+      return;
+    }
   }
 
   onSalaryItemBlur(
@@ -151,6 +186,31 @@ export class SalaryTableComponent {
     this.onWorkingDaysChange(employeeId, month, clampedValue);
   }
 
+  onWorkingDaysCompositionEnd(
+    employeeId: string,
+    month: number,
+    event: Event
+  ): void {
+    // IME終了時（全角→半角に切り替わったとき）にフォーカスを再設定
+    const input = event.target as HTMLInputElement;
+    setTimeout(() => {
+      input.focus();
+    }, 0);
+  }
+
+  onWorkingDaysKeyDown(event: KeyboardEvent): void {
+    // 全角モードで入力しようとした場合、入力を無視
+    if (event.isComposing) {
+      return;
+    }
+    // 全角数字が入力された場合は無視
+    const key = event.key;
+    if (key && /[０-９]/.test(key)) {
+      event.preventDefault();
+      return;
+    }
+  }
+
   onWorkingDaysBlur(employeeId: string, month: number, event: Event): void {
     const input = event.target as HTMLInputElement;
     let value = parseInt(input.value, 10);
@@ -168,12 +228,3 @@ export class SalaryTableComponent {
     this.workingDaysChange.emit({ employeeId, month, value });
   }
 }
-
-
-
-
-
-
-
-
-
