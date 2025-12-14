@@ -498,10 +498,30 @@ export class PremiumCalculationService {
         (year === birthYear + 40 && month >= birthMonth) ||
         year > birthYear + 40;
     }
-    const isAge65Month =
-      (year === birthYear + 65 && month === birthMonth && 1 >= birthDay) ||
-      (year === birthYear + 65 && month > birthMonth) ||
-      year > birthYear + 65;
+    // 65歳到達月の判定（誕生日の前日が属する月から）
+    // 8/1生まれ → 65歳の誕生日は8/1、前日は7/31 → 7月から終了
+    // 8/2生まれ → 65歳の誕生日は8/2、前日は8/1 → 8月から終了
+    let isAge65Month: boolean;
+    if (birthDay === 1) {
+      // 誕生日が月の1日の場合、前月から終了
+      if (birthMonth === 1) {
+        // 1月1日生まれの場合、前年12月から終了
+        isAge65Month =
+          (year === birthYear + 64 && month === 12) ||
+          (year === birthYear + 65 && month >= birthMonth) ||
+          year > birthYear + 65;
+      } else {
+        // 2月以降の場合、前月から終了
+        isAge65Month =
+          (year === birthYear + 65 && month >= birthMonth - 1) ||
+          year > birthYear + 65;
+      }
+    } else {
+      // 誕生日が月の2日以降の場合、誕生月から終了
+      isAge65Month =
+        (year === birthYear + 65 && month >= birthMonth) ||
+        year > birthYear + 65;
+    }
     const isAge70Month =
       (year === birthYear + 70 && month === birthMonth && 1 >= birthDay) ||
       (year === birthYear + 70 && month > birthMonth) ||
@@ -553,7 +573,9 @@ export class PremiumCalculationService {
       month
     );
     if (careType === 'type1') {
-      if (isAge65Month && month === birthMonth) {
+      // 65歳到達月の判定（誕生日の前日が属する月から）
+      // 8/1生まれ → 7月から終了、8/2生まれ → 8月から終了
+      if (isAge65Month) {
         reasons.push(
           `${month}月は65歳到達月のため介護保険は第1号被保険者（健保から除外、到達月から適用）`
         );
