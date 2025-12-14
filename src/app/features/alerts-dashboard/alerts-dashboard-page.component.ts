@@ -360,9 +360,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     const result = await this.alertsDashboardUiService.loadBonusReportAlerts(
       this.employees
     );
-    this.state.bonusReportAlerts = result.filter(
-      (a) => !deletedIds.has(a.id)
-    );
+    this.state.bonusReportAlerts = result.filter((a) => !deletedIds.has(a.id));
   }
 
   /**
@@ -403,7 +401,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           const age = this.familyMemberService.calculateAge(member.birthDate);
           const relationship = member.relationship || '';
           const income =
-            member.expectedIncome !== null && member.expectedIncome !== undefined
+            member.expectedIncome !== null &&
+            member.expectedIncome !== undefined
               ? member.expectedIncome
               : null;
 
@@ -907,6 +906,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       // 重複表示を防ぐため、従業員IDをキーに結果を保持
       const teijiResultsMap = new Map<string, TeijiKetteiResultData>();
 
+      // 7月、8月、9月に随時改定の適用開始があるかチェック
+      const suijiAlerts = await this.suijiService.loadAlerts(targetYear);
+
       console.log(
         `[alerts-dashboard] loadTeijiKetteiData開始: 年度=${targetYear}, 従業員数=${this.employees.length}`
       );
@@ -925,6 +927,47 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           );
           continue;
         }
+
+        // 7月、8月、9月に随時改定の適用開始があるかチェック
+        const employeeSuijiAlerts = suijiAlerts.filter(
+          (alert) => alert.employeeId === emp.id && alert.isEligible
+        );
+
+        // 随時改定の適用開始月が7月、8月、9月のいずれかであるかをチェック
+        let hasSuijiIn789 = false;
+        for (const suijiAlert of employeeSuijiAlerts) {
+          const changeMonth = suijiAlert.changeMonth;
+          const applyStartMonthRaw = changeMonth + 3;
+          let applyStartYear = targetYear;
+          let applyStartMonth = applyStartMonthRaw;
+
+          // 変動月+3が適用開始月（変動月が10月以上なら翌年）
+          if (applyStartMonthRaw > 12) {
+            applyStartMonth = applyStartMonthRaw - 12;
+            applyStartYear = targetYear + 1;
+          }
+
+          // 適用開始月が7月、8月、9月のいずれかで、かつ適用開始年がその年度の場合
+          // 変動月が4、5、6月の場合、適用開始月は7、8、9月（同じ年度）
+          if (
+            applyStartYear === targetYear &&
+            (applyStartMonth === 7 ||
+              applyStartMonth === 8 ||
+              applyStartMonth === 9)
+          ) {
+            hasSuijiIn789 = true;
+            break;
+          }
+        }
+
+        // 7月、8月、9月に随時改定の適用開始がある場合、算定基礎届アラートを生成しない
+        if (hasSuijiIn789) {
+          console.log(
+            `[alerts-dashboard] 従業員${emp.name} (${emp.id})は${targetYear}年の7-9月に随時改定の適用開始があるため、算定基礎届アラートをスキップ`
+          );
+          continue;
+        }
+
         // 4-6月の給与所得と支払基礎日数を取得
         const aprilData = await this.monthlySalaryService.getEmployeeSalary(
           roomId,
@@ -1098,9 +1141,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
       // 従業員ID単位で重複を排除した結果を反映（削除済みIDは除外）
       const deletedIds = await this.alertDeletionService.getDeletedIds('teiji');
-      this.state.teijiKetteiResults = Array.from(teijiResultsMap.values()).filter(
-        (r) => !deletedIds.has(r.employeeId)
-      );
+      this.state.teijiKetteiResults = Array.from(
+        teijiResultsMap.values()
+      ).filter((r) => !deletedIds.has(r.employeeId));
 
       console.log(
         `[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.state.teijiKetteiResults.length}`
