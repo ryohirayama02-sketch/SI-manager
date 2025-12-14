@@ -357,11 +357,33 @@ export class EmployeeEligibilityService {
       }
     }
 
+    // 75歳到達月の判定（誕生日が属する月から）
+    // 3/1に75歳になる → 3月から健康保険ゼロ。2月は健康保険あり
+    // 3/2に75歳になる → 3月から健康保険ゼロ。2月は健康保険あり
+    let isNoHealth = age >= 75;
+    if (birthDate && currentDate && age === 74) {
+      // 74歳の場合、75歳到達月かどうかを判定
+      const birth = new Date(birthDate);
+      const birthYear = birth.getFullYear();
+      const birthMonth = birth.getMonth() + 1;
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth() + 1;
+
+      // 誕生日が属する月から健康保険ゼロ（誕生日の日付に関係なく、誕生月から）
+      const isAge75Month =
+        (year === birthYear + 75 && month >= birthMonth) ||
+        year > birthYear + 75;
+
+      if (isAge75Month) {
+        isNoHealth = true;
+      }
+    }
+
     return {
       isCare2: age >= 40 && age < 65, // 40〜64歳（介護保険第2号被保険者）
       isCare1: age >= 65, // 65歳以上（介護保険第1号被保険者）
       isNoPension: isNoPension, // 70歳以上（厚生年金停止）
-      isNoHealth: age >= 75, // 75歳以上（健康保険・介護保険停止）
+      isNoHealth: isNoHealth, // 75歳以上（健康保険・介護保険停止）
     };
   }
 

@@ -546,10 +546,11 @@ export class PremiumCalculationService {
         (year === birthYear + 70 && month >= birthMonth) ||
         year > birthYear + 70;
     }
+    // 75歳到達月の判定（誕生日が属する月から）
+    // 3/1に75歳になる → 3月から健康保険ゼロ。2月は健康保険あり
+    // 3/2に75歳になる → 3月から健康保険ゼロ。2月は健康保険あり
     const isAge75Month =
-      (year === birthYear + 75 && month === birthMonth && 1 >= birthDay) ||
-      (year === birthYear + 75 && month > birthMonth) ||
-      year > birthYear + 75;
+      (year === birthYear + 75 && month >= birthMonth) || year > birthYear + 75;
 
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,

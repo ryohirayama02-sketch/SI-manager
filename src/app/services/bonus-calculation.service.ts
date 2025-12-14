@@ -5,6 +5,7 @@ import { BonusCalculationPreparationService } from './bonus-calculation-preparat
 import { BonusExemptionCheckService } from './bonus-exemption-check.service';
 import { BonusPremiumCalculationOrchestrationService } from './bonus-premium-calculation-orchestration.service';
 import { BonusCalculationResultBuilderService } from './bonus-calculation-result-builder.service';
+import { EmployeeWorkCategoryService } from './employee-work-category.service';
 import { Employee } from '../models/employee.model';
 
 export interface BonusCalculationResult {
@@ -60,7 +61,8 @@ export class BonusCalculationService {
     private preparationService: BonusCalculationPreparationService,
     private exemptionCheckService: BonusExemptionCheckService,
     private premiumOrchestrationService: BonusPremiumCalculationOrchestrationService,
-    private resultBuilderService: BonusCalculationResultBuilderService
+    private resultBuilderService: BonusCalculationResultBuilderService,
+    private employeeWorkCategoryService: EmployeeWorkCategoryService
   ) {}
 
   async calculateBonus(
@@ -85,6 +87,55 @@ export class BonusCalculationService {
     const payDate = new Date(paymentDate);
     const payYear = payDate.getFullYear();
     const payMonth = payDate.getMonth() + 1;
+
+    // 勤務区分（社会保険非加入かどうか）
+    const isNonInsured =
+      this.employeeWorkCategoryService.isNonInsured(employee);
+
+    // 勤務区分が社会保険未加入の場合は全保険料を0円にする
+    if (isNonInsured) {
+      const reasons: string[] = [
+        '勤務区分が「社会保険未加入」のため保険料は0円',
+      ];
+      return this.resultBuilderService.buildResult(
+        0, // healthEmployee
+        0, // healthEmployer
+        0, // careEmployee
+        0, // careEmployer
+        0, // pensionEmployee
+        0, // pensionEmployer
+        bonusAmount,
+        this.resultBuilderService.calculateDeadline(payDate),
+        0, // standardBonus
+        0, // cappedBonusHealth
+        0, // cappedBonusPension
+        false, // isExempted
+        false, // isRetiredNoLastDay
+        false, // isOverAge70
+        false, // isOverAge75
+        false, // reason_exempt_maternity
+        false, // reason_exempt_childcare
+        false, // reason_not_lastday_retired
+        false, // reason_age70
+        false, // reason_age75
+        false, // reason_bonus_to_salary
+        false, // reason_upper_limit_health
+        false, // reason_upper_limit_pension
+        reasons,
+        false, // requireReport
+        '', // reportReason
+        null, // reportDeadline
+        0, // bonusCountLast12Months
+        false, // isSalaryInsteadOfBonus
+        undefined, // reason_bonus_to_salary_text
+        undefined, // exemptReason
+        [], // exemptReasons
+        [], // salaryInsteadReasons
+        [], // errorMessages
+        [], // warningMessages
+        false // reportRequired
+      );
+    }
 
     // 料率を取得
     const rates = await this.preparationService.getRates(employee, year);
