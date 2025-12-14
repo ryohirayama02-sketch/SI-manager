@@ -473,11 +473,31 @@ export class PremiumCalculationService {
     const isAge75Reached = age >= 75;
 
     // 到達月の判定（誕生日の月・日で判定）
+    // 40歳到達月の判定（誕生日の前日が属する月から）
+    // 8/1生まれ → 40歳の誕生日は8/1、前日は7/31 → 7月から発生
+    // 8/2生まれ → 40歳の誕生日は8/2、前日は8/1 → 8月から発生
     const birthDay = birthDate.getDate();
-    const isAge40Month =
-      (year === birthYear + 40 && month === birthMonth && 1 >= birthDay) ||
-      (year === birthYear + 40 && month > birthMonth) ||
-      year > birthYear + 40;
+    let isAge40Month: boolean;
+    if (birthDay === 1) {
+      // 誕生日が月の1日の場合、前月から発生
+      if (birthMonth === 1) {
+        // 1月1日生まれの場合、前年12月から発生
+        isAge40Month =
+          (year === birthYear + 39 && month === 12) ||
+          (year === birthYear + 40 && month >= birthMonth) ||
+          year > birthYear + 40;
+      } else {
+        // 2月以降の場合、前月から発生
+        isAge40Month =
+          (year === birthYear + 40 && month >= birthMonth - 1) ||
+          year > birthYear + 40;
+      }
+    } else {
+      // 誕生日が月の2日以降の場合、誕生月から発生
+      isAge40Month =
+        (year === birthYear + 40 && month >= birthMonth) ||
+        year > birthYear + 40;
+    }
     const isAge65Month =
       (year === birthYear + 65 && month === birthMonth && 1 >= birthDay) ||
       (year === birthYear + 65 && month > birthMonth) ||

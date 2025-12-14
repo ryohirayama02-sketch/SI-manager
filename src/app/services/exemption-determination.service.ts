@@ -17,11 +17,7 @@ export class ExemptionDeterminationService {
    * @param month 月（1-12）
    * @returns 年齢
    */
-  calculateAgeForMonth(
-    birthDate: string,
-    year: number,
-    month: number
-  ): number {
+  calculateAgeForMonth(birthDate: string, year: number, month: number): number {
     const birth = new Date(birthDate);
     const birthYear = birth.getFullYear();
     const birthMonth = birth.getMonth() + 1;
@@ -75,9 +71,30 @@ export class ExemptionDeterminationService {
     // その月の1日時点の年齢を計算
     const age = this.calculateAgeForMonth(birthDate, year, month);
 
-    // 40歳到達月の判定（誕生日の属する月から）
-    const isAge40Month =
-      (year === birthYear + 40 && month >= birthMonth) || year > birthYear + 40;
+    // 40歳到達月の判定（誕生日の前日が属する月から）
+    // 8/1生まれ → 40歳の誕生日は8/1、前日は7/31 → 7月から発生
+    // 8/2生まれ → 40歳の誕生日は8/2、前日は8/1 → 8月から発生
+    let isAge40Month: boolean;
+    if (birthDay === 1) {
+      // 誕生日が月の1日の場合、前月から発生
+      if (birthMonth === 1) {
+        // 1月1日生まれの場合、前年12月から発生
+        isAge40Month =
+          (year === birthYear + 39 && month === 12) ||
+          (year === birthYear + 40 && month >= birthMonth) ||
+          year > birthYear + 40;
+      } else {
+        // 2月以降の場合、前月から発生
+        isAge40Month =
+          (year === birthYear + 40 && month >= birthMonth - 1) ||
+          year > birthYear + 40;
+      }
+    } else {
+      // 誕生日が月の2日以降の場合、誕生月から発生
+      isAge40Month =
+        (year === birthYear + 40 && month >= birthMonth) ||
+        year > birthYear + 40;
+    }
     // 65歳到達月の判定（誕生日の属する月から）
     const isAge65Month =
       (year === birthYear + 65 && month >= birthMonth) || year > birthYear + 65;
@@ -144,7 +161,11 @@ export class ExemptionDeterminationService {
    * @param month 月（1-12）
    * @returns 免除結果（理由を含む）
    */
-  getExemptReasonForMonth(emp: Employee, year: number, month: number): { exempt: boolean; reason: string } {
+  getExemptReasonForMonth(
+    emp: Employee,
+    year: number,
+    month: number
+  ): { exempt: boolean; reason: string } {
     const isMaternity = this.employeeLifecycleService.isMaternityLeave(
       emp,
       year,
@@ -172,10 +193,3 @@ export class ExemptionDeterminationService {
     return { exempt: false, reason: '' };
   }
 }
-
-
-
-
-
-
-

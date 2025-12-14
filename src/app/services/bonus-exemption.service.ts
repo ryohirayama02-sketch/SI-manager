@@ -5,6 +5,7 @@ import {
   AgeFlags,
 } from './employee-eligibility.service';
 import { EmployeeLifecycleService } from './employee-lifecycle.service';
+import { ExemptionDeterminationService } from './exemption-determination.service';
 import { Employee } from '../models/employee.model';
 
 /**
@@ -18,7 +19,8 @@ export class BonusExemptionService {
   constructor(
     private maternityLeaveService: MaternityLeaveService,
     private employeeEligibilityService: EmployeeEligibilityService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private exemptionDeterminationService: ExemptionDeterminationService
   ) {}
 
   /**
@@ -160,6 +162,7 @@ export class BonusExemptionService {
 
   /**
    * 年齢フラグを取得
+   * 賞与の場合も月次給与と同じように、支給月が40歳到達月かどうかで判定する
    */
   getAgeFlags(employee: Employee, payDate: Date): AgeFlags {
     console.log('[BonusExemptionService] getAgeFlags 開始', {
@@ -168,15 +171,41 @@ export class BonusExemptionService {
       birthDate: employee.birthDate,
       payDate: payDate.toISOString(),
     });
+
+    // 支給月の1日時点の年齢で判定（月次給与と同じロジック）
+    const payYear = payDate.getFullYear();
+    const payMonth = payDate.getMonth() + 1;
+    const payMonthFirstDay = new Date(payYear, payMonth - 1, 1);
+
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
-      payDate
+      payMonthFirstDay
     );
+
+    // 支給月が40歳到達月かどうかを判定（月次給与と同じロジック）
+    const careType = this.exemptionDeterminationService.getCareInsuranceType(
+      employee.birthDate,
+      payYear,
+      payMonth
+    );
+
+    // 介護保険第2号被保険者（40〜64歳）の判定
+    // careTypeが'type2'の場合は、isCare2をtrueにする
+    const ageFlags: AgeFlags = {
+      ...eligibilityResult.ageFlags,
+      isCare2: careType === 'type2',
+    };
+
     console.log('[BonusExemptionService] checkEligibility 結果', {
-      ageFlags: eligibilityResult.ageFlags,
-      isCare2: eligibilityResult.ageFlags.isCare2,
+      payYear,
+      payMonth,
+      careType,
+      originalAgeFlags: eligibilityResult.ageFlags,
+      adjustedAgeFlags: ageFlags,
+      isCare2: ageFlags.isCare2,
       ageCategory: eligibilityResult.ageCategory,
     });
-    return eligibilityResult.ageFlags;
+
+    return ageFlags;
   }
 }
