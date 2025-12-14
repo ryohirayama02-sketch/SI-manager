@@ -140,6 +140,12 @@ export class BonusCalculationService {
     exemptReasons.push(...maternityChildcareExemptReasons);
 
     // 年齢チェック
+    console.log('[BonusCalculationService] 年齢チェック開始', {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      birthDate: employee.birthDate,
+      payDate: payDate.toISOString(),
+    });
     const ageResult = this.exemptionCheckService.checkAge(employee, payDate);
     const {
       age,
@@ -149,6 +155,14 @@ export class BonusCalculationService {
       reason_age75,
       ageFlags,
     } = ageResult;
+    console.log('[BonusCalculationService] 年齢チェック結果', {
+      age,
+      ageFlags,
+      isCare2: ageFlags.isCare2,
+      isCare1: ageFlags.isCare1,
+      isNoPension: ageFlags.isNoPension,
+      isNoHealth: ageFlags.isNoHealth,
+    });
 
     // 賞与→給与扱いチェック
     const salaryResult =
@@ -186,6 +200,17 @@ export class BonusCalculationService {
       );
 
     // 保険料を計算
+    console.log('[BonusCalculationService] 保険料計算開始', {
+      healthBase,
+      pensionBase,
+      age,
+      ageFlags,
+      isCare2: ageFlags.isCare2,
+      rates: {
+        health_employee: rates.health_employee,
+        care_employee: rates.care_employee,
+      },
+    });
     const premiums = this.premiumOrchestrationService.calculatePremiums(
       healthBase,
       pensionBase,
@@ -193,6 +218,10 @@ export class BonusCalculationService {
       ageFlags,
       rates
     );
+    console.log('[BonusCalculationService] 保険料計算結果', {
+      healthEmployee: premiums.healthEmployee,
+      careEmployee: premiums.careEmployee,
+    });
     const {
       healthEmployee,
       healthEmployer,

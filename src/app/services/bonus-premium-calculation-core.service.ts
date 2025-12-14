@@ -105,18 +105,49 @@ export class BonusPremiumCalculationCoreService {
 
     // 介護保険は40〜64歳のみ（ageFlags.isCare2）
     const isCareEligible = ageFlags.isCare2;
+    console.log('[BonusPremiumCalculationCoreService] 介護保険加入判定', {
+      age,
+      ageFlags,
+      isCare2: ageFlags.isCare2,
+      isCareEligible,
+      healthBase,
+    });
 
     // 保険料計算
-    // 健康保険の計算方法変更：
-    // 介護保険に加入していない場合：標準報酬月額×健保保険料率
-    // 介護保険に加入している場合（40歳～64歳）：標準報酬月額×（健康保険料率＋介護保険料率）
+    // 健康保険の計算方法：
+    // 介護保険に加入していない場合（40歳未満・65歳以上）：標準賞与額×健保保険料率
+    // 介護保険に加入している場合（40歳～64歳）：標準賞与額×（健康保険料率＋介護保険料率）
     // 50銭未満切り捨て、50銭超切り上げ
     const healthRateEmployee = isCareEligible
       ? rates.health_employee + rates.care_employee
       : rates.health_employee;
+    console.log('[BonusPremiumCalculationCoreService] 健康保険料率', {
+      isCareEligible,
+      healthRateEmployee,
+      health_employee_rate: rates.health_employee,
+      care_employee_rate: rates.care_employee,
+    });
     const healthRateEmployer = isCareEligible
       ? rates.health_employer + rates.care_employer
       : rates.health_employer;
+
+    // 検証: 65歳以上（isCare2=false）の場合、健康保険料率に介護保険料率が含まれていないことを確認
+    if (age >= 65 && !ageFlags.isCare2) {
+      if (healthRateEmployee !== rates.health_employee) {
+        console.error(
+          '[BonusPremiumCalculationCoreService] 検証エラー: 65歳以上で健康保険料率に介護保険料率が含まれています',
+          {
+            age,
+            ageFlags,
+            isCare2: ageFlags.isCare2,
+            healthRateEmployee,
+            expectedHealthRate: rates.health_employee,
+            care_employee_rate: rates.care_employee,
+          }
+        );
+        // エラーをログに記録するが、計算は続行（本番環境での影響を最小化）
+      }
+    }
 
     // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const healthTotal =
@@ -135,6 +166,56 @@ export class BonusPremiumCalculationCoreService {
     const pensionHalf = pensionTotal / 2;
     const pensionEmployee = this.roundWith50SenRule(pensionHalf);
     const pensionEmployer = pensionTotal - pensionEmployee;
+
+    // 最終検証: 65歳以上の場合、計算結果が正しいことを確認
+    if (age >= 65 && !ageFlags.isCare2 && actualHealthBase > 0) {
+      // 期待される健康保険料（健康保険料率のみ）
+      const expectedHealthTotal =
+        actualHealthBase * (rates.health_employee + rates.health_employer);
+      const expectedHealthHalf = expectedHealthTotal / 2;
+      const expectedHealthEmployee =
+        this.roundWith50SenRule(expectedHealthHalf);
+
+      // 誤った計算（介護保険料率を含む場合）の期待値
+      const incorrectHealthTotal =
+        actualHealthBase *
+        (rates.health_employee +
+          rates.care_employee +
+          rates.health_employer +
+          rates.care_employer);
+      const incorrectHealthHalf = incorrectHealthTotal / 2;
+      const incorrectHealthEmployee =
+        this.roundWith50SenRule(incorrectHealthHalf);
+
+      // 計算結果が誤った値と一致する場合はエラーをログに記録
+      if (Math.abs(healthEmployee - incorrectHealthEmployee) < 1) {
+        console.error(
+          '[BonusPremiumCalculationCoreService] 検証エラー: 65歳以上の健康保険料に介護保険料が含まれている可能性があります',
+          {
+            age,
+            ageFlags,
+            isCare2: ageFlags.isCare2,
+            actualHealthBase,
+            calculatedHealthEmployee: healthEmployee,
+            expectedHealthEmployee,
+            incorrectHealthEmployee,
+            healthRateEmployee,
+            rates: {
+              health_employee: rates.health_employee,
+              care_employee: rates.care_employee,
+            },
+          }
+        );
+      }
+
+      console.log('[BonusPremiumCalculationCoreService] 65歳以上検証結果', {
+        age,
+        isCare2: ageFlags.isCare2,
+        calculatedHealthEmployee: healthEmployee,
+        expectedHealthEmployee,
+        difference: Math.abs(healthEmployee - expectedHealthEmployee),
+      });
+    }
 
     return {
       healthEmployee,

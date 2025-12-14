@@ -248,7 +248,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       );
 
       if (age >= 75) {
-        notes.push('75歳到達により健康保険・介護保険停止');
+        notes.push('75歳到達により健康保険停止');
       } else if (age >= 70) {
         notes.push('70歳到達により厚生年金停止');
       } else if (careType === 'type1') {
@@ -310,7 +310,10 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
         await this.hasCollectionImpossibleAlert(emp);
 
       // 標準報酬履歴の最新データを取得（降順の先頭を採用）
-      let latestStandardRemuneration: { grade: number | null; amount: number | null } = {
+      let latestStandardRemuneration: {
+        grade: number | null;
+        amount: number | null;
+      } = {
         grade: null,
         amount: null,
       };
@@ -424,26 +427,19 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
   getCareInsuranceStatus(info: EmployeeDisplayInfo): string {
     const emp = info.employee;
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
-    const careType = this.salaryCalculationService.getCareInsuranceType(
-      emp.birthDate,
-      currentYear,
-      currentMonth
-    );
 
-    if (careType === 'none') {
-      // 75歳以上または39歳以下
-      if (info.eligibility.ageFlags.isNoHealth) {
-        return '停止（75歳以上）';
-      }
-      return 'なし';
-    } else if (careType === 'type1') {
+    // ageFlagsを優先的に使用して判定
+    // 65歳以上（isCare1がtrue）は、75歳以上も含めて「第1号被保険者」と表示
+    if (info.eligibility.ageFlags.isCare1) {
       return '第1号被保険者';
-    } else if (careType === 'type2') {
+    }
+
+    // 40〜64歳（isCare2がtrue）は「あり（40〜64歳）」と表示
+    if (info.eligibility.ageFlags.isCare2) {
       return 'あり（40〜64歳）';
     }
+
+    // 39歳以下は「なし」と表示
     return 'なし';
   }
 

@@ -73,7 +73,10 @@ export class EmployeeEligibilityService {
       });
     } catch (error) {
       // エラーが発生した場合は購読をスキップ
-      console.warn('[EmployeeEligibilityService] 購読の初期化に失敗しました:', error);
+      console.warn(
+        '[EmployeeEligibilityService] 購読の初期化に失敗しました:',
+        error
+      );
       this.subscriptionInitialized = false;
     }
   }
@@ -89,8 +92,9 @@ export class EmployeeEligibilityService {
 
     try {
       const employees = await this.employeeService.getAllEmployees();
-      const eligibilityMap: { [employeeId: string]: EmployeeEligibilityResult } =
-        {};
+      const eligibilityMap: {
+        [employeeId: string]: EmployeeEligibilityResult;
+      } = {};
 
       for (const emp of employees) {
         eligibilityMap[emp.id] = this.checkEligibility(emp);
@@ -99,7 +103,10 @@ export class EmployeeEligibilityService {
       this.eligibilitySubject.next(eligibilityMap);
     } catch (error) {
       // ルームIDが設定されていない場合など、エラーが発生した場合はスキップ
-      console.warn('[EmployeeEligibilityService] 加入区分の再計算に失敗しました:', error);
+      console.warn(
+        '[EmployeeEligibilityService] 加入区分の再計算に失敗しました:',
+        error
+      );
     }
   }
 
@@ -131,6 +138,13 @@ export class EmployeeEligibilityService {
     employee: Employee,
     currentDate: Date = new Date()
   ): EmployeeEligibilityResult {
+    console.log('[EmployeeEligibilityService] checkEligibility 開始', {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      birthDate: employee.birthDate,
+      currentDate: currentDate.toISOString(),
+      isDefaultDate: currentDate === new Date(),
+    });
     const reasons: string[] = [];
     let healthInsuranceEligible = false;
     let pensionEligible = false;
@@ -159,6 +173,12 @@ export class EmployeeEligibilityService {
     const age = this.calculateAge(employee.birthDate, currentDate);
     const ageFlags = this.getAgeFlags(age);
     const ageCategory = this.getAgeCategory(age);
+    console.log('[EmployeeEligibilityService] 年齢フラグ計算結果', {
+      age,
+      ageFlags,
+      isCare2: ageFlags.isCare2,
+      ageCategory,
+    });
     const isCareInsuranceEligible = this.isCareInsuranceEligible(age);
     const isHealthAndCareStopped = this.isHealthAndCareStopped(age);
     const isPensionStopped = this.isPensionStopped(age);

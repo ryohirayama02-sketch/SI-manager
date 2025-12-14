@@ -162,10 +162,21 @@ export class BonusExemptionService {
    * 年齢フラグを取得
    */
   getAgeFlags(employee: Employee, payDate: Date): AgeFlags {
+    console.log('[BonusExemptionService] getAgeFlags 開始', {
+      employeeId: employee.id,
+      employeeName: employee.name,
+      birthDate: employee.birthDate,
+      payDate: payDate.toISOString(),
+    });
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
       payDate
     );
+    console.log('[BonusExemptionService] checkEligibility 結果', {
+      ageFlags: eligibilityResult.ageFlags,
+      isCare2: eligibilityResult.ageFlags.isCare2,
+      ageCategory: eligibilityResult.ageCategory,
+    });
     return eligibilityResult.ageFlags;
   }
 }

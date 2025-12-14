@@ -649,6 +649,65 @@ describe('BonusCalculationService', () => {
       expect(result.pensionEmployee).toBe(0);
       expect(result.healthEmployee).toBeGreaterThan(0);
     });
+
+    it('65歳以上（isCare2=false）→ 健康保険料に介護保険分の料率が含まれない', () => {
+      const ageFlags: AgeFlags = {
+        isNoHealth: false,
+        isNoPension: false,
+        isCare1: true, // 65歳以上
+        isCare2: false, // 40〜64歳ではない
+      };
+      const result = service.calculatePremiums(
+        1000000,
+        1000000,
+        65,
+        ageFlags,
+        rates
+      );
+
+      // 健康保険料は健康保険料率のみ（介護保険料率を含まない）
+      const expectedHealthEmployee = Math.floor(
+        (1000000 * rates.health_employee) / 2
+      );
+      expect(result.healthEmployee).toBe(expectedHealthEmployee);
+
+      // 介護保険は健康保険に含まれないため、個別の値は0
+      expect(result.careEmployee).toBe(0);
+    });
+
+    it('69歳（isCare2=false）→ 健康保険料に介護保険分の料率が含まれない', () => {
+      const ageFlags: AgeFlags = {
+        isNoHealth: false,
+        isNoPension: false,
+        isCare1: true, // 65歳以上
+        isCare2: false, // 40〜64歳ではない（69歳なのでfalse）
+      };
+      const result = service.calculatePremiums(
+        1000000,
+        1000000,
+        69,
+        ageFlags,
+        rates
+      );
+
+      // 健康保険料は健康保険料率のみ（介護保険料率を含まない）
+      // 標準賞与額 × 健康保険料率 / 2（折半）
+      const expectedHealthEmployee = Math.floor(
+        (1000000 * rates.health_employee) / 2
+      );
+      expect(result.healthEmployee).toBe(expectedHealthEmployee);
+
+      // 介護保険料率を含まないことを確認
+      // もし介護保険料率が含まれていれば、以下の値より大きくなるはず
+      const incorrectHealthEmployee = Math.floor(
+        (1000000 * (rates.health_employee + rates.care_employee)) / 2
+      );
+      expect(result.healthEmployee).not.toBe(incorrectHealthEmployee);
+      expect(result.healthEmployee).toBeLessThan(incorrectHealthEmployee);
+
+      // 介護保険は健康保険に含まれないため、個別の値は0
+      expect(result.careEmployee).toBe(0);
+    });
   });
 
   describe('7. buildReasons / determineReportRequirement / checkReportRequired', () => {
