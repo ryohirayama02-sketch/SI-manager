@@ -346,7 +346,7 @@
                     <span
                       *ngIf="premium.isExempt"
                       style="color: #ff6b00; font-weight: bold"
-                      >免除中</span
+                      >{{ getExemptLabel(premium.exemptReason) }}</span
                     >
                     <span *ngIf="!premium.isExempt">
                       {{
@@ -364,7 +364,7 @@
                     <span
                       *ngIf="premium.isExempt"
                       style="color: #ff6b00; font-weight: bold"
-                      >免除中</span
+                      >{{ getExemptLabel(premium.exemptReason) }}</span
                     >
                     <span *ngIf="!premium.isExempt">
                       {{ premium.pensionEmployee | number : "1.0-0" }} /

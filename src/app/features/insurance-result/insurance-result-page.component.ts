@@ -992,8 +992,10 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
    */
   getExemptLabel(reason?: string | null): string {
     if (!reason) return '免除中';
-    if (reason.includes('産前産後')) return '産休中';
-    if (reason.includes('育児')) return '育休中';
+    // 産休の判定（「産前産後」または「産休」を含む）
+    if (reason.includes('産前産後') || reason.includes('産休')) return '産休中';
+    // 育休の判定（「育児休業」または「育休」を含む）
+    if (reason.includes('育児休業') || reason.includes('育休')) return '育休中';
     return '免除中';
   }
 
