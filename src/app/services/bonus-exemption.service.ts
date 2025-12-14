@@ -4,6 +4,7 @@ import {
   EmployeeEligibilityService,
   AgeFlags,
 } from './employee-eligibility.service';
+import { EmployeeLifecycleService } from './employee-lifecycle.service';
 import { Employee } from '../models/employee.model';
 
 /**
@@ -16,7 +17,8 @@ import { Employee } from '../models/employee.model';
 export class BonusExemptionService {
   constructor(
     private maternityLeaveService: MaternityLeaveService,
-    private employeeEligibilityService: EmployeeEligibilityService
+    private employeeEligibilityService: EmployeeEligibilityService,
+    private employeeLifecycleService: EmployeeLifecycleService
   ) {}
 
   /**
@@ -62,6 +64,8 @@ export class BonusExemptionService {
 
   /**
    * 産休免除チェック
+   * 月ベースの判定を使用（月次給与と同じロジック）
+   * 開始日が含まれる月は保険料ゼロ、終了日の翌日が含まれる月から保険料発生
    */
   checkMaternityExemption(
     employee: Employee,
@@ -70,15 +74,21 @@ export class BonusExemptionService {
     isExempted: boolean;
     exemptReason?: string;
   } {
-    const result = this.maternityLeaveService.isExemptForBonus(
-      payDate,
-      employee
-    );
-    // 産休のみを判定（育休は除外）
-    if (result.exempt && result.reason.includes('産前産後休業')) {
+    const payYear = payDate.getFullYear();
+    const payMonth = payDate.getMonth() + 1;
+
+    // 月ベースの判定を使用（月次給与と同じロジック）
+    const isMaternityLeavePeriod =
+      this.employeeLifecycleService.isMaternityLeave(
+        employee,
+        payYear,
+        payMonth
+      );
+
+    if (isMaternityLeavePeriod) {
       return {
-        isExempted: result.exempt,
-        exemptReason: result.exempt ? result.reason : undefined,
+        isExempted: true,
+        exemptReason: '産前産後休業中（健康保険・厚生年金本人分免除）',
       };
     }
     return { isExempted: false };
@@ -86,6 +96,8 @@ export class BonusExemptionService {
 
   /**
    * 育休免除チェック
+   * 月ベースの判定を使用（月次給与と同じロジック）
+   * 開始日が含まれる月は保険料ゼロ、終了日の翌日が含まれる月から保険料発生
    */
   checkChildcareExemption(
     employee: Employee,
@@ -94,21 +106,27 @@ export class BonusExemptionService {
     isExempted: boolean;
     exemptReason?: string;
   } {
-    const result = this.maternityLeaveService.isExemptForBonus(
-      payDate,
-      employee
-    );
+    const payYear = payDate.getFullYear();
+    const payMonth = payDate.getMonth() + 1;
 
-    // 育休の場合は届出と同居の条件を確認
-    if (result.exempt && result.reason.includes('育児休業')) {
+    // 月ベースの判定を使用（月次給与と同じロジック）
+    const isChildcareLeavePeriod =
+      this.employeeLifecycleService.isChildcareLeave(
+        employee,
+        payYear,
+        payMonth
+      );
+
+    if (isChildcareLeavePeriod) {
+      // 育休の場合は届出と同居の条件を確認
       const isNotificationSubmitted =
         employee.childcareNotificationSubmitted === true;
       const isLivingTogether = employee.childcareLivingTogether === true;
 
       if (isNotificationSubmitted && isLivingTogether) {
         return {
-          isExempted: result.exempt,
-          exemptReason: result.exempt ? result.reason : undefined,
+          isExempted: true,
+          exemptReason: '育児休業中（健康保険・厚生年金本人分免除）',
         };
       } else {
         const reasons: string[] = [];
