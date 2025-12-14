@@ -8,6 +8,7 @@ import {
   FormArray,
   FormGroup,
 } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { SettingsService } from '../../../services/settings.service';
 import { OfficeService } from '../../../services/office.service';
 import { AuthService } from '../../../services/auth.service';
@@ -181,7 +182,9 @@ export class SettingsPageComponent implements OnInit {
     private roomService: RoomService,
     private editLogService: EditLogService,
     private roomIdService: RoomIdService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private route: ActivatedRoute,
+    private router: Router
   ) {
     // 年度選択用のリストを初期化（現在年度±2年）
     // 3月〜翌2月の年度で扱うため、基準年は「3月を含む年」
@@ -392,6 +395,24 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    // クエリパラメータからタブを読み取る
+    this.route.queryParams.subscribe((params) => {
+      const tab = params['tab'];
+      if (
+        tab &&
+        [
+          'rate',
+          'standard',
+          'salaryItems',
+          'office',
+          'editLog',
+          'userRoom',
+        ].includes(tab)
+      ) {
+        this.activeTab = tab;
+      }
+    });
+
     await this.loadAllRates();
 
     // 標準報酬等級表の年度を初期化
@@ -996,11 +1017,11 @@ export class SettingsPageComponent implements OnInit {
         for (const [prefectureCode, rates] of ratesToAdd) {
           await this.savePrefectureRate(prefectureCode);
         }
-        
+
         // 画面表示を更新するためにloadAllRates()を呼び出す
         await this.loadAllRates();
         this.cdr.detectChanges();
-        
+
         this.importResult = {
           type: 'success',
           message: `${successCount}件の料率をインポートしました`,
@@ -1319,7 +1340,9 @@ export class SettingsPageComponent implements OnInit {
       if (this.errorMessages.length > 0) {
         this.standardTableImportResult = {
           type: 'error',
-          message: `バリデーションエラーがあります。修正してください。${errors.length > 0 ? '\n' + errors.slice(0, 5).join(' / ') : ''}`,
+          message: `バリデーションエラーがあります。修正してください。${
+            errors.length > 0 ? '\n' + errors.slice(0, 5).join(' / ') : ''
+          }`,
         };
         return;
       }
@@ -1339,11 +1362,11 @@ export class SettingsPageComponent implements OnInit {
             this.standardTableYear,
             this.standardTable.value
           );
-          
+
           // 画面表示を更新するためにloadStandardTable()を呼び出す
           await this.loadStandardTable();
           this.cdr.detectChanges();
-          
+
           this.standardTableImportResult = {
             type: 'success',
             message: `${successCount}件のデータをインポートしました`,

@@ -1,6 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { Subscription } from 'rxjs';
@@ -38,7 +43,16 @@ export class LoginPageComponent implements OnInit, OnDestroy {
     if (currentUser) {
       const roomId = sessionStorage.getItem('roomId');
       if (roomId) {
-        this.router.navigate(['/alerts']);
+        // 初回入室かどうかをチェック
+        const visitedKey = `room_visited_${roomId}`;
+        const hasVisited = localStorage.getItem(visitedKey);
+        if (!hasVisited) {
+          // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+          this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
+        } else {
+          // 2回目以降: アラート画面の届出スケジュールタブへ
+          this.router.navigate(['/alerts']);
+        }
       } else {
         this.router.navigate(['/room-enter']);
       }
@@ -53,7 +67,18 @@ export class LoginPageComponent implements OnInit, OnDestroy {
           if (user) {
             const roomId = sessionStorage.getItem('roomId');
             if (roomId) {
-              this.router.navigate(['/alerts']);
+              // 初回入室かどうかをチェック
+              const visitedKey = `room_visited_${roomId}`;
+              const hasVisited = localStorage.getItem(visitedKey);
+              if (!hasVisited) {
+                // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+                this.router.navigate(['/settings'], {
+                  queryParams: { tab: 'rate' },
+                });
+              } else {
+                // 2回目以降: アラート画面の届出スケジュールタブへ
+                this.router.navigate(['/alerts']);
+              }
             } else {
               this.router.navigate(['/room-enter']);
             }
@@ -68,25 +93,25 @@ export class LoginPageComponent implements OnInit, OnDestroy {
   }
 
   async onSubmit(): Promise<void> {
-    console.log("LOGIN BUTTON CLICKED");
+    console.log('LOGIN BUTTON CLICKED');
     if (this.loginForm.invalid) {
       return;
     }
 
     const { email, password } = this.loginForm.value;
-    
+
     try {
       this.isLoading = true;
       this.errorMessage = '';
-      
-      console.log("CALLING signInWithEmailAndPassword", email, password);
+
+      console.log('CALLING signInWithEmailAndPassword', email, password);
       await this.authService.signInWithEmailAndPassword(email, password);
-      
+
       // 認証成功時はauthState$のsubscribeで遷移するため、ここでは何もしない
     } catch (error: any) {
       console.error(error?.code, error?.message);
       console.error('[LoginPage] ログインエラー', error);
-      
+
       let errorMsg = 'ログインに失敗しました。';
       if (error?.code === 'auth/user-not-found') {
         errorMsg = 'ユーザーが見つかりません。';
@@ -97,11 +122,12 @@ export class LoginPageComponent implements OnInit, OnDestroy {
       } else if (error?.code === 'auth/invalid-credential') {
         errorMsg = 'メールアドレスまたはパスワードが正しくありません。';
       } else if (error?.code === 'auth/network-request-failed') {
-        errorMsg = 'ネットワークエラーが発生しました。\n\n以下の点を確認してください：\n・インターネット接続を確認してください\n・Firebase Consoleで「localhost」が承認済みドメインに追加されているか確認してください\n・ファイアウォールやプロキシの設定を確認してください';
+        errorMsg =
+          'ネットワークエラーが発生しました。\n\n以下の点を確認してください：\n・インターネット接続を確認してください\n・Firebase Consoleで「localhost」が承認済みドメインに追加されているか確認してください\n・ファイアウォールやプロキシの設定を確認してください';
       } else if (error?.message) {
         errorMsg = error.message;
       }
-      
+
       this.errorMessage = errorMsg;
     } finally {
       this.isLoading = false;

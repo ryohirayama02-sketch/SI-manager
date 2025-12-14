@@ -1,6 +1,13 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, AbstractControl, ValidationErrors } from '@angular/forms';
+import {
+  FormBuilder,
+  FormGroup,
+  Validators,
+  ReactiveFormsModule,
+  AbstractControl,
+  ValidationErrors,
+} from '@angular/forms';
 import { Router } from '@angular/router';
 import { RoomService } from '../../services/room.service';
 import { AuthService } from '../../services/auth.service';
@@ -46,19 +53,29 @@ export class RoomEnterPageComponent implements OnInit {
     });
 
     // 新規作成フォーム
-    this.createRoomForm = this.fb.group({
-      roomId: ['', [Validators.required, Validators.pattern(/^[a-zA-Z0-9_-]+$/)]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', [Validators.required]],
-      companyName: ['', [Validators.required]],
-    }, { validators: this.passwordMatchValidator });
+    this.createRoomForm = this.fb.group(
+      {
+        roomId: [
+          '',
+          [Validators.required, Validators.pattern(/^[a-zA-Z0-9_-]+$/)],
+        ],
+        password: ['', [Validators.required, Validators.minLength(6)]],
+        confirmPassword: ['', [Validators.required]],
+        companyName: ['', [Validators.required]],
+      },
+      { validators: this.passwordMatchValidator }
+    );
   }
 
   passwordMatchValidator(form: AbstractControl): ValidationErrors | null {
     const password = form.get('password');
     const confirmPassword = form.get('confirmPassword');
-    
-    if (password && confirmPassword && password.value !== confirmPassword.value) {
+
+    if (
+      password &&
+      confirmPassword &&
+      password.value !== confirmPassword.value
+    ) {
       confirmPassword.setErrors({ passwordMismatch: true });
       return { passwordMismatch: true };
     }
@@ -103,7 +120,7 @@ export class RoomEnterPageComponent implements OnInit {
     // 所属ルーム一覧を読み込み
     this.loadUserRooms(currentUser.uid);
 
-    // 既にルーム入室済みの場合は従業員一覧へ
+    // 既にルーム入室済みの場合は適切な画面へ遷移
     const roomId = sessionStorage.getItem('roomId');
     console.log(
       '[RoomEnterPage] ngOnInit: roomId確認',
@@ -111,10 +128,20 @@ export class RoomEnterPageComponent implements OnInit {
     );
 
     if (roomId) {
-      console.log(
-        '[RoomEnterPage] ngOnInit: ルーム入室済み → /alerts へ遷移'
-      );
-      this.router.navigate(['/alerts']);
+      // 初回入室かどうかをチェック
+      const visitedKey = `room_visited_${roomId}`;
+      const hasVisited = localStorage.getItem(visitedKey);
+      if (!hasVisited) {
+        // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+        console.log(
+          '[RoomEnterPage] ngOnInit: 初回入室 → /settings?tab=rate へ遷移'
+        );
+        this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
+      } else {
+        // 2回目以降: アラート画面の届出スケジュールタブへ
+        console.log('[RoomEnterPage] ngOnInit: 2回目以降 → /alerts へ遷移');
+        this.router.navigate(['/alerts']);
+      }
       return;
     }
 
@@ -148,22 +175,41 @@ export class RoomEnterPageComponent implements OnInit {
           this.errorMessage = 'ログインが必要です';
           return;
         }
-        await this.roomService.ensureUserRoomMembership(currentUser.uid, roomId);
+        await this.roomService.ensureUserRoomMembership(
+          currentUser.uid,
+          roomId
+        );
         // ルームIDをセッションストレージに保存
         this.roomIdService.setRoomId(roomId);
         console.log(
           '[RoomEnterPage] onSubmit: roomIdをセッションストレージに保存',
           roomId
         );
-        console.log('[RoomEnterPage] onSubmit: /alerts へ遷移');
-        this.router.navigate(['/alerts']);
+
+        // 初回入室かどうかをチェック
+        const visitedKey = `room_visited_${roomId}`;
+        const hasVisited = localStorage.getItem(visitedKey);
+
+        if (!hasVisited) {
+          // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+          console.log(
+            '[RoomEnterPage] onSubmit: 初回入室 → /settings?tab=rate へ遷移'
+          );
+          localStorage.setItem(visitedKey, '1');
+          this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
+        } else {
+          // 2回目以降: アラート画面の届出スケジュールタブへ
+          console.log('[RoomEnterPage] onSubmit: 2回目以降 → /alerts へ遷移');
+          this.router.navigate(['/alerts']);
+        }
       } else {
         console.log('[RoomEnterPage] onSubmit: 認証失敗メッセージを表示');
         this.errorMessage = '企業IDまたはパスワードが正しくありません';
       }
     } catch (error) {
       console.error('[RoomEnterPage] onSubmit: エラー発生', error);
-      this.errorMessage = 'ルーム認証に失敗しました。しばらくしてから再度お試しください。';
+      this.errorMessage =
+        'ルーム認証に失敗しました。しばらくしてから再度お試しください。';
     } finally {
       this.isLoading = false;
       console.log('[RoomEnterPage] onSubmit: 処理完了');
@@ -177,35 +223,46 @@ export class RoomEnterPageComponent implements OnInit {
 
     const { roomId, password, companyName } = this.createRoomForm.value;
     const currentUser = this.authService.getCurrentUser();
-    
+
     if (!currentUser) {
       this.errorMessage = 'ログインが必要です';
       return;
     }
 
-    console.log('[RoomEnterPage] onCreateRoom: ルーム作成開始', { roomId, companyName });
+    console.log('[RoomEnterPage] onCreateRoom: ルーム作成開始', {
+      roomId,
+      companyName,
+    });
 
     try {
       this.isLoading = true;
       this.errorMessage = '';
       this.successMessage = '';
 
-      await this.roomService.createRoom(roomId, password, companyName, currentUser.uid);
+      await this.roomService.createRoom(
+        roomId,
+        password,
+        companyName,
+        currentUser.uid
+      );
 
       console.log('[RoomEnterPage] onCreateRoom: ルーム作成成功');
-      
+
       // 所属登録＋自動入室
       await this.roomService.ensureUserRoomMembership(currentUser.uid, roomId);
       this.roomIdService.setRoomId(roomId);
       // 新規ルーム初回入室フラグ（オンボーディング表示用）
       localStorage.setItem(`room_onboarding_${roomId}`, '1');
+      // 新規ルーム作成時は設定・マスタ画面の保険料率の設定タブへ（room_visitedフラグは設定しない）
       this.successMessage = 'ルームを作成しました。入室しています...';
       setTimeout(() => {
-        this.router.navigate(['/alerts']);
+        this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
       }, 1000);
     } catch (error: any) {
       console.error('[RoomEnterPage] onCreateRoom: エラー発生', error);
-      this.errorMessage = error?.message || 'ルーム作成に失敗しました。しばらくしてから再度お試しください。';
+      this.errorMessage =
+        error?.message ||
+        'ルーム作成に失敗しました。しばらくしてから再度お試しください。';
     } finally {
       this.isLoading = false;
       console.log('[RoomEnterPage] onCreateRoom: 処理完了');
@@ -222,7 +279,19 @@ export class RoomEnterPageComponent implements OnInit {
 
   onSelectRoom(roomId: string): void {
     this.roomIdService.setRoomId(roomId);
-    this.router.navigate(['/alerts']);
+
+    // 初回入室かどうかをチェック
+    const visitedKey = `room_visited_${roomId}`;
+    const hasVisited = localStorage.getItem(visitedKey);
+
+    if (!hasVisited) {
+      // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+      localStorage.setItem(visitedKey, '1');
+      this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
+    } else {
+      // 2回目以降: アラート画面の届出スケジュールタブへ
+      this.router.navigate(['/alerts']);
+    }
     // キャッシュや購読の食い残しを防ぐため暫定リロード
     window.location.reload();
   }

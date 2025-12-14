@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AlertItemListComponent } from './alert-item-list/alert-item-list.component';
 import { AlertScheduleTabComponent } from './tabs/alert-schedule-tab/alert-schedule-tab.component';
@@ -124,10 +124,35 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     private roomIdService: RoomIdService,
     private alertDeletionService: AlertDeletionService,
     private familyMemberService: FamilyMemberService,
-    public state: AlertsDashboardStateService
+    public state: AlertsDashboardStateService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   async ngOnInit(): Promise<void> {
+    // クエリパラメータからタブを読み取る（デフォルトはschedule）
+    this.route.queryParams.subscribe((params) => {
+      const tab = params['tab'];
+      if (
+        tab &&
+        [
+          'schedule',
+          'bonus',
+          'suiji',
+          'teiji',
+          'age',
+          'leave',
+          'family',
+          'uncollected',
+        ].includes(tab)
+      ) {
+        this.state.activeTab = tab;
+      } else {
+        // クエリパラメータがない場合はデフォルトでscheduleタブ
+        this.state.activeTab = 'schedule';
+      }
+    });
+
     const roomId = this.roomIdService.requireRoomId();
     this.showFirstEntryGuideIfNeeded(roomId);
 
