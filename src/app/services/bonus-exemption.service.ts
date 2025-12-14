@@ -177,12 +177,23 @@ export class BonusExemptionService {
     const payMonth = payDate.getMonth() + 1;
     const payMonthFirstDay = new Date(payYear, payMonth - 1, 1);
 
+    console.log('[BonusExemptionService] 支給月情報', {
+      payYear,
+      payMonth,
+      payMonthFirstDay: payMonthFirstDay.toISOString(),
+    });
+
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
       payMonthFirstDay
     );
 
     // 支給月が40歳到達月かどうかを判定（月次給与と同じロジック）
+    console.log('[BonusExemptionService] getCareInsuranceType を呼び出し', {
+      birthDate: employee.birthDate,
+      payYear,
+      payMonth,
+    });
     const careType = this.exemptionDeterminationService.getCareInsuranceType(
       employee.birthDate,
       payYear,
@@ -196,7 +207,7 @@ export class BonusExemptionService {
       isCare2: careType === 'type2',
     };
 
-    console.log('[BonusExemptionService] checkEligibility 結果', {
+    console.log('[BonusExemptionService] getAgeFlags 結果', {
       payYear,
       payMonth,
       careType,
@@ -204,6 +215,7 @@ export class BonusExemptionService {
       adjustedAgeFlags: ageFlags,
       isCare2: ageFlags.isCare2,
       ageCategory: eligibilityResult.ageCategory,
+      birthDate: employee.birthDate,
     });
 
     return ageFlags;

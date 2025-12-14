@@ -63,6 +63,15 @@ export class ExemptionDeterminationService {
     year: number,
     month: number
   ): 'none' | 'type1' | 'type2' {
+    console.log(
+      '[ExemptionDeterminationService] getCareInsuranceType 呼び出し',
+      {
+        birthDate,
+        year,
+        month,
+        callStack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+      }
+    );
     const birth = new Date(birthDate);
     const birthYear = birth.getFullYear();
     const birthMonth = birth.getMonth() + 1;
@@ -95,6 +104,22 @@ export class ExemptionDeterminationService {
         (year === birthYear + 40 && month >= birthMonth) ||
         year > birthYear + 40;
     }
+
+    console.log('[ExemptionDeterminationService] getCareInsuranceType', {
+      birthDate,
+      birthYear,
+      birthMonth,
+      birthDay,
+      year,
+      month,
+      age,
+      isAge40Month,
+      birthYearPlus40: birthYear + 40,
+      monthCondition:
+        birthDay === 1
+          ? `month >= ${birthMonth - 1}`
+          : `month >= ${birthMonth}`,
+    });
     // 65歳到達月の判定（誕生日の属する月から）
     const isAge65Month =
       (year === birthYear + 65 && month >= birthMonth) || year > birthYear + 65;

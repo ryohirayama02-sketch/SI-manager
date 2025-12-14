@@ -35,6 +35,9 @@ export class EmployeeEligibilityService {
   }>({});
   private subscriptionInitialized = false;
 
+  // デバッグ用: 購読者の数を追跡
+  private subscriberCount = 0;
+
   constructor(
     private employeeService: EmployeeService,
     private employeeWorkCategoryService: EmployeeWorkCategoryService,
@@ -69,6 +72,9 @@ export class EmployeeEligibilityService {
     try {
       // 従業員情報の変更を監視してeligibilityを再計算
       this.employeeService.observeEmployees().subscribe(async () => {
+        console.log(
+          '[EmployeeEligibilityService] observeEmployees 発火 - 従業員情報が変更されました'
+        );
         await this.recalculateAllEligibility();
       });
     } catch (error) {
@@ -91,7 +97,14 @@ export class EmployeeEligibilityService {
     }
 
     try {
+      console.log(
+        '[EmployeeEligibilityService] recalculateAllEligibility 開始'
+      );
       const employees = await this.employeeService.getAllEmployees();
+      console.log('[EmployeeEligibilityService] 従業員データを取得', {
+        count: employees?.length || 0,
+      });
+
       const eligibilityMap: {
         [employeeId: string]: EmployeeEligibilityResult;
       } = {};
@@ -100,7 +113,35 @@ export class EmployeeEligibilityService {
         eligibilityMap[emp.id] = this.checkEligibility(emp);
       }
 
+      console.log('[EmployeeEligibilityService] 加入区分の再計算完了', {
+        eligibilityMapSize: Object.keys(eligibilityMap).length,
+        eligibilityMap: eligibilityMap,
+      });
+      // BehaviorSubjectの購読者数を確認（デバッグ用）
+      const observers = (this.eligibilitySubject as any)._observers || [];
+      const observerCount = observers.length;
+
+      console.log(
+        '[EmployeeEligibilityService] eligibilitySubject.next() を呼び出し',
+        {
+          eligibilityMapSize: Object.keys(eligibilityMap).length,
+          subscriberCount: this.subscriberCount,
+          currentObservers: observerCount,
+          hasObservers: observerCount > 0,
+        }
+      );
+
+      // 購読者が存在する場合のみnext()を呼び出す（実際には常に呼び出すが、ログで確認）
       this.eligibilitySubject.next(eligibilityMap);
+
+      console.log(
+        '[EmployeeEligibilityService] eligibilitySubject.next() 完了',
+        {
+          currentValueSize: Object.keys(this.eligibilitySubject.value).length,
+          observerCountAfter:
+            (this.eligibilitySubject as any)._observers?.length || 0,
+        }
+      );
     } catch (error) {
       // ルームIDが設定されていない場合など、エラーが発生した場合はスキップ
       console.warn(
@@ -117,16 +158,50 @@ export class EmployeeEligibilityService {
   observeEligibility(): Observable<{
     [employeeId: string]: EmployeeEligibilityResult;
   }> {
+    console.log('[EmployeeEligibilityService] observeEligibility() 呼び出し', {
+      subscriptionInitialized: this.subscriptionInitialized,
+      hasRoomId: this.roomIdService.hasRoomId(),
+    });
+
     // 購読が初期化されていない場合は初期化を試みる
     if (!this.subscriptionInitialized) {
+      console.log('[EmployeeEligibilityService] 購読を初期化');
       this.initializeSubscription();
     }
 
     // 初回読み込み時に計算を実行（ルームIDが設定されている場合のみ）
+    // 非同期で実行されるが、購読は即座に返す（BehaviorSubjectの現在値が発火する）
     if (this.roomIdService.hasRoomId()) {
-      this.recalculateAllEligibility();
+      console.log('[EmployeeEligibilityService] 初回計算を実行（非同期）');
+      // 非同期で実行するが、完了を待たない（購読は即座に返す）
+      this.recalculateAllEligibility().catch((error) => {
+        console.error('[EmployeeEligibilityService] 初回計算エラー:', error);
+      });
     }
-    return this.eligibilitySubject.asObservable();
+
+    console.log('[EmployeeEligibilityService] asObservable() を返す', {
+      currentValueSize: Object.keys(this.eligibilitySubject.value).length,
+      currentValue: this.eligibilitySubject.value,
+      subscriberCount: this.subscriberCount,
+    });
+
+    // 購読者の数を追跡（デバッグ用）
+    const observable = this.eligibilitySubject.asObservable();
+
+    // 実際の購読が設定されたときにログを出力するために、pipeでtapを使用
+    // ただし、これは実際の購読とは別なので、subscribeの前にログを出力する
+    this.subscriberCount++;
+    console.log(
+      '[EmployeeEligibilityService] asObservable() が呼び出されました',
+      {
+        subscriberCount: this.subscriberCount,
+        currentValueSize: Object.keys(this.eligibilitySubject.value).length,
+      }
+    );
+
+    // 実際の購読が設定されたときにログを出力するために、pipeでtapを使用
+    // ただし、これは実際の購読とは別なので、subscribeの前にログを出力する
+    return observable;
   }
 
   /**

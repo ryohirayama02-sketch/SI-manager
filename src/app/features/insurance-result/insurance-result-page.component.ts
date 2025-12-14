@@ -9,6 +9,7 @@ import { SalaryCalculationService } from '../../services/salary-calculation.serv
 import { SettingsService } from '../../services/settings.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { StandardRemunerationHistoryService } from '../../services/standard-remuneration-history.service';
+import { BonusCalculationService } from '../../services/bonus-calculation.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { RoomIdService } from '../../services/room-id.service';
@@ -83,6 +84,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   warningMessages: { [employeeId: string]: string[] } = {};
   // 加入区分購読用
   eligibilitySubscription: Subscription | null = null;
+  // 従業員情報変更購読用
+  employeeSubscription: Subscription | null = null;
   // 各従業員の展開状態を管理
   expandedEmployees: { [employeeId: string]: boolean } = {};
   // 読み込み状態
@@ -122,8 +125,10 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private settingsService: SettingsService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private roomIdService: RoomIdService,
-    private standardRemunerationHistoryService: StandardRemunerationHistoryService
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
+    private bonusCalculationService: BonusCalculationService
   ) {
+    console.log('[insurance-result-page] constructor 実行');
     // 年度選択用の年度リストを生成（現在年度±2年）
     const currentYear = new Date().getFullYear();
     for (let y = currentYear - 2; y <= currentYear + 2; y++) {
@@ -132,15 +137,96 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // 加入区分の変更を購読（先に設定してUIブロックを防ぐ）
-    this.eligibilitySubscription = this.employeeEligibilityService
-      .observeEligibility()
+    console.log('[insurance-result-page] ngOnInit 開始');
+
+    // 従業員情報の変更を直接購読（observeEmployeesを使用）
+    console.log('[insurance-result-page] observeEmployees の購読を設定');
+    this.employeeSubscription = this.employeeService
+      .observeEmployees()
       .subscribe(() => {
-        // 加入区分変更時は、既に表示されているデータがあれば再読み込み
+        console.log(
+          '[insurance-result-page] observeEmployees 発火 - 従業員情報が変更されました'
+        );
+        // 従業員情報が変更されたときは、既に表示されているデータがあれば再読み込み
+        // loadSelectedEmployeesData内で最新の従業員情報を取得する
         if (this.selectedEmployeeIds.size > 0) {
+          console.log(
+            '[insurance-result-page] 選択された従業員があるため、データを再読み込み',
+            {
+              selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
+            }
+          );
           this.loadSelectedEmployeesData();
+        } else {
+          console.log(
+            '[insurance-result-page] 選択された従業員がないため、スキップ'
+          );
         }
       });
+    console.log('[insurance-result-page] observeEmployees の購読設定完了');
+
+    // 加入区分の変更も購読（既存のロジックを維持）
+    console.log('[insurance-result-page] observeEligibility の購読を設定');
+    const observable = this.employeeEligibilityService.observeEligibility();
+    console.log('[insurance-result-page] observable を取得', {
+      observableType: observable.constructor.name,
+    });
+    console.log('[insurance-result-page] subscribe() を呼び出し');
+    this.eligibilitySubscription = observable.subscribe(
+      (eligibilityMap) => {
+        console.log('[insurance-result-page] observeEligibility 発火', {
+          eligibilityMapSize: Object.keys(eligibilityMap).length,
+          selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
+          eligibilityMapKeys: Object.keys(eligibilityMap),
+          eligibilityMap: eligibilityMap,
+        });
+        // 加入区分変更時は、既に表示されているデータがあれば再読み込み
+        // loadSelectedEmployeesData内で最新の従業員情報を取得する
+        if (this.selectedEmployeeIds.size > 0) {
+          console.log(
+            '[insurance-result-page] 選択された従業員があるため、データを再読み込み',
+            {
+              selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
+            }
+          );
+          this.loadSelectedEmployeesData();
+        } else {
+          console.log(
+            '[insurance-result-page] 選択された従業員がないため、スキップ'
+          );
+        }
+      },
+      (error) => {
+        console.error(
+          '[insurance-result-page] observeEligibility エラー',
+          error
+        );
+      },
+      () => {
+        console.log('[insurance-result-page] observeEligibility 完了');
+      }
+    );
+    console.log('[insurance-result-page] subscribe() 完了', {
+      subscriptionExists: !!this.eligibilitySubscription,
+      subscriptionClosed: this.eligibilitySubscription?.closed,
+    });
+
+    // 購読が正しく設定されているか確認
+    if (!this.eligibilitySubscription || this.eligibilitySubscription.closed) {
+      console.error(
+        '[insurance-result-page] 購読が正しく設定されていません！',
+        {
+          subscriptionExists: !!this.eligibilitySubscription,
+          subscriptionClosed: this.eligibilitySubscription?.closed,
+        }
+      );
+    } else {
+      console.log('[insurance-result-page] 購読が正しく設定されました');
+    }
+    console.log('[insurance-result-page] observeEligibility の購読設定完了', {
+      subscriptionExists: !!this.eligibilitySubscription,
+      subscriptionClosed: this.eligibilitySubscription?.closed,
+    });
 
     // 従業員リストの取得とソートを非同期で実行（UIブロックを防ぐ）
     // Promise.then()を使うことで、ngOnInitがすぐに完了し、UIがブロックされない
@@ -240,26 +326,230 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
   /**
    * 結果表示ボタンクリック時：選択された従業員のデータだけを読み込む
+   * 従業員情報が更新された場合に備えて、賞与の保険料を再計算して保存してから計算する
    */
   async onShowResults(): Promise<void> {
     if (this.selectedEmployeeIds.size === 0) {
       alert('従業員を選択してください');
       return;
     }
+
+    // 従業員情報が更新された場合に備えて、最新の従業員情報を取得
+    await this.refreshEmployeesList();
+
+    // 選択された従業員の賞与を再計算して保存
+    await this.recalculateAndSaveBonuses();
+
+    // 保険料を計算
     await this.loadSelectedEmployeesData();
+  }
+
+  /**
+   * 選択された従業員の賞与を再計算して保存
+   */
+  private async recalculateAndSaveBonuses(): Promise<void> {
+    console.log('[insurance-result-page] 賞与の再計算と保存を開始', {
+      selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
+    });
+
+    const roomId = this.roomIdService.requireRoomId();
+    const selectedEmployees = this.sortedEmployees.filter((emp) =>
+      this.selectedEmployeeIds.has(emp.id)
+    );
+
+    for (const emp of selectedEmployees) {
+      try {
+        // 該当年度の賞与を取得
+        const bonuses = await this.bonusService.listBonuses(
+          roomId,
+          emp.id,
+          this.year
+        );
+
+        if (!bonuses || bonuses.length === 0) {
+          console.log('[insurance-result-page] 賞与が存在しないためスキップ', {
+            employeeId: emp.id,
+            employeeName: emp.name,
+          });
+          continue;
+        }
+
+        console.log('[insurance-result-page] 賞与を再計算して保存', {
+          employeeId: emp.id,
+          employeeName: emp.name,
+          birthDate: emp.birthDate,
+          bonusesCount: bonuses.length,
+        });
+
+        // 各賞与を再計算して保存
+        for (const bonus of bonuses) {
+          if (
+            bonus.amount > 0 &&
+            !bonus.isExempted &&
+            !bonus.isSalaryInsteadOfBonus &&
+            bonus.payDate
+          ) {
+            try {
+              // 最新の従業員情報で賞与を再計算
+              const calculationResult =
+                await this.bonusCalculationService.calculateBonus(
+                  emp,
+                  emp.id,
+                  bonus.amount,
+                  bonus.payDate,
+                  this.year
+                );
+
+              if (calculationResult) {
+                console.log(
+                  '[insurance-result-page] 賞与の再計算完了、保存します',
+                  {
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    bonusPayDate: bonus.payDate,
+                    bonusId: bonus.id,
+                  }
+                );
+
+                // 賞与を保存（計算結果を反映）
+                const bonusId =
+                  bonus.id || `bonus_${bonus.payDate.replace(/-/g, '')}`;
+                const updateData: any = {
+                  roomId: roomId,
+                  employeeId: emp.id,
+                  year: this.year,
+                  amount: bonus.amount,
+                  payDate: bonus.payDate,
+                  isExempt: calculationResult.isExempted || false,
+                  cappedHealth: calculationResult.cappedBonusHealth || 0,
+                  cappedPension: calculationResult.cappedBonusPension || 0,
+                  healthEmployee: calculationResult.healthEmployee,
+                  healthEmployer: calculationResult.healthEmployer,
+                  careEmployee: calculationResult.careEmployee,
+                  careEmployer: calculationResult.careEmployer,
+                  pensionEmployee: calculationResult.pensionEmployee,
+                  pensionEmployer: calculationResult.pensionEmployer,
+                  standardBonusAmount: calculationResult.standardBonus,
+                  cappedBonusHealth: calculationResult.cappedBonusHealth,
+                  cappedBonusPension: calculationResult.cappedBonusPension,
+                  isExempted: calculationResult.isExempted,
+                  isRetiredNoLastDay: calculationResult.isRetiredNoLastDay,
+                  isOverAge70: calculationResult.isOverAge70,
+                  isOverAge75: calculationResult.isOverAge75,
+                  requireReport: calculationResult.requireReport,
+                  isSalaryInsteadOfBonus:
+                    calculationResult.isSalaryInsteadOfBonus,
+                };
+
+                if (calculationResult.reportDeadline) {
+                  updateData.reportDeadline = calculationResult.reportDeadline;
+                }
+                if (calculationResult.exemptReason) {
+                  updateData.exemptReason = calculationResult.exemptReason;
+                }
+
+                await this.bonusService.saveBonus(
+                  roomId,
+                  emp.id,
+                  this.year,
+                  bonusId,
+                  updateData
+                );
+
+                console.log('[insurance-result-page] 賞与の保存完了', {
+                  employeeId: emp.id,
+                  employeeName: emp.name,
+                  bonusPayDate: bonus.payDate,
+                  bonusId: bonusId,
+                });
+              } else {
+                console.warn('[insurance-result-page] 賞与の再計算結果がnull', {
+                  employeeId: emp.id,
+                  employeeName: emp.name,
+                  bonusPayDate: bonus.payDate,
+                });
+              }
+            } catch (error) {
+              console.error(
+                `[insurance-result-page] 賞与の再計算・保存エラー: ${emp.name} (${bonus.payDate})`,
+                error
+              );
+            }
+          }
+        }
+      } catch (error) {
+        console.error(
+          `[insurance-result-page] 賞与の取得エラー: ${emp.name}`,
+          error
+        );
+      }
+    }
+
+    console.log('[insurance-result-page] 賞与の再計算と保存を完了');
+  }
+
+  /**
+   * 従業員リストを最新の情報に更新
+   */
+  private async refreshEmployeesList(): Promise<void> {
+    console.log('[insurance-result-page] refreshEmployeesList 開始');
+    try {
+      const employeesData = await this.employeeService.getAllEmployees();
+      console.log('[insurance-result-page] 従業員データを取得', {
+        count: employeesData?.length || 0,
+        selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
+      });
+
+      // 選択された従業員の誕生日をログ出力
+      if (employeesData && this.selectedEmployeeIds.size > 0) {
+        const selectedEmployees = employeesData.filter((emp) =>
+          this.selectedEmployeeIds.has(emp.id)
+        );
+        selectedEmployees.forEach((emp) => {
+          console.log('[insurance-result-page] 従業員データ', {
+            id: emp.id,
+            name: emp.name,
+            birthDate: emp.birthDate,
+          });
+        });
+      }
+
+      this.employees = employeesData || [];
+      this.sortedEmployees = this.sortEmployeesByName(this.employees);
+      console.log('[insurance-result-page] refreshEmployeesList 完了', {
+        employeesCount: this.employees.length,
+        sortedEmployeesCount: this.sortedEmployees.length,
+      });
+    } catch (error) {
+      console.error(
+        '[insurance-result-page] 従業員データの再取得エラー:',
+        error
+      );
+    }
   }
 
   /**
    * 選択された従業員のデータだけを読み込む
    */
   private async loadSelectedEmployeesData(): Promise<void> {
+    console.log('[insurance-result-page] loadSelectedEmployeesData 開始', {
+      selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
+    });
+
     if (this.selectedEmployeeIds.size === 0) {
+      console.log(
+        '[insurance-result-page] 選択された従業員がないため、スキップ'
+      );
       return;
     }
 
     this.isLoadingInsuranceData = true;
 
     try {
+      // 従業員情報が更新された可能性があるため、最新の情報を取得
+      console.log('[insurance-result-page] 従業員リストを最新の情報に更新');
+      await this.refreshEmployeesList();
+
       // 対象月ごとに標準報酬月額テーブルを取得（3月始まりの年度判定）
       const monthsToCalc =
         this.selectedMonth === 'all'
@@ -271,10 +561,19 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           await this.settingsService.getStandardTableForMonth(this.year, m);
       }
 
-      // 選択された従業員だけを取得
+      // 選択された従業員だけを取得（最新の情報を使用）
       const selectedEmployees = this.sortedEmployees.filter((emp) =>
         this.selectedEmployeeIds.has(emp.id)
       );
+
+      console.log('[insurance-result-page] 選択された従業員を処理', {
+        selectedEmployeesCount: selectedEmployees.length,
+        selectedEmployees: selectedEmployees.map((emp) => ({
+          id: emp.id,
+          name: emp.name,
+          birthDate: emp.birthDate,
+        })),
+      });
 
       // 選択された従業員をバッチ処理（一度に2人ずつ処理してUIの応答性を保つ）
       const batchSize = 2;
@@ -283,13 +582,18 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
         // バッチ内の従業員を並列処理
         await Promise.all(
-          batch.map((emp) =>
-            this.processEmployeeInsuranceData(
+          batch.map((emp) => {
+            console.log('[insurance-result-page] 従業員の保険料データを処理', {
+              id: emp.id,
+              name: emp.name,
+              birthDate: emp.birthDate,
+            });
+            return this.processEmployeeInsuranceData(
               emp,
               gradeTableByMonth,
               monthsToCalc
-            )
-          )
+            );
+          })
         );
 
         // UIの更新を許可するために少し待機
@@ -334,7 +638,15 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    console.log('[insurance-result-page] ngOnDestroy 実行', {
+      eligibilitySubscriptionExists: !!this.eligibilitySubscription,
+      eligibilitySubscriptionClosed: this.eligibilitySubscription?.closed,
+      employeeSubscriptionExists: !!this.employeeSubscription,
+      employeeSubscriptionClosed: this.employeeSubscription?.closed,
+    });
     this.eligibilitySubscription?.unsubscribe();
+    this.employeeSubscription?.unsubscribe();
+    console.log('[insurance-result-page] ngOnDestroy 完了');
   }
 
   async reloadEligibility(): Promise<void> {
@@ -471,6 +783,13 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     gradeTableByMonth: { [month: number]: any[] },
     targetMonths: number[]
   ): Promise<void> {
+    console.log('[insurance-result-page] processEmployeeInsuranceData 開始', {
+      employeeId: emp.id,
+      employeeName: emp.name,
+      birthDate: emp.birthDate,
+      prefecture: emp.prefecture,
+      targetMonths,
+    });
     try {
       const roomId = this.roomIdService.requireRoomId();
       this.errorMessages[emp.id] = [];
@@ -870,11 +1189,28 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         monthlyTotal.pensionEmployer;
 
       // 賞与データを取得
+      console.log('[insurance-result-page] 賞与データを取得', {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        year: this.year,
+      });
       const bonuses = await this.bonusService.listBonuses(
         roomId,
         emp.id,
         this.year
       );
+      console.log('[insurance-result-page] 賞与データ取得完了', {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        bonusesCount: bonuses?.length || 0,
+        bonuses: bonuses?.map((b: Bonus) => ({
+          id: b.id,
+          payDate: b.payDate,
+          amount: b.amount,
+          isExempted: b.isExempted,
+          isSalaryInsteadOfBonus: b.isSalaryInsteadOfBonus,
+        })),
+      });
       this.bonusData[emp.id] = bonuses || [];
       const latestBonus =
         bonuses && bonuses.length > 0
@@ -886,6 +1222,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           : null;
 
       // 賞与の年間合計を計算（賞与額が0のものは除外）
+      // 従業員情報が更新された場合に備えて、賞与の保険料も再計算する
       const bonusTotal = {
         healthEmployee: 0,
         healthEmployer: 0,
@@ -896,19 +1233,107 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         total: 0,
       };
 
+      console.log('[insurance-result-page] 賞与のループ開始', {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        bonusesCount: bonuses?.length || 0,
+      });
       for (const bonus of bonuses || []) {
+        console.log('[insurance-result-page] 賞与を処理', {
+          employeeId: emp.id,
+          employeeName: emp.name,
+          bonusId: bonus.id,
+          bonusPayDate: bonus.payDate,
+          bonusAmount: bonus.amount,
+          isExempted: bonus.isExempted,
+          isSalaryInsteadOfBonus: bonus.isSalaryInsteadOfBonus,
+          condition1: bonus.amount > 0,
+          condition2: !bonus.isExempted,
+          condition3: !bonus.isSalaryInsteadOfBonus,
+          willProcess:
+            bonus.amount > 0 &&
+            !bonus.isExempted &&
+            !bonus.isSalaryInsteadOfBonus,
+        });
         // 賞与額が0の場合は除外（免除中かどうかに関わらず）
         if (
           bonus.amount > 0 &&
           !bonus.isExempted &&
           !bonus.isSalaryInsteadOfBonus
         ) {
-          bonusTotal.healthEmployee += bonus.healthEmployee || 0;
-          bonusTotal.healthEmployer += bonus.healthEmployer || 0;
-          bonusTotal.careEmployee += bonus.careEmployee || 0;
-          bonusTotal.careEmployer += bonus.careEmployer || 0;
-          bonusTotal.pensionEmployee += bonus.pensionEmployee || 0;
-          bonusTotal.pensionEmployer += bonus.pensionEmployer || 0;
+          // 従業員情報が更新された場合に備えて、賞与の保険料を再計算
+          let recalculatedPremiums = {
+            healthEmployee: bonus.healthEmployee || 0,
+            healthEmployer: bonus.healthEmployer || 0,
+            careEmployee: bonus.careEmployee || 0,
+            careEmployer: bonus.careEmployer || 0,
+            pensionEmployee: bonus.pensionEmployee || 0,
+            pensionEmployer: bonus.pensionEmployer || 0,
+          };
+
+          // 賞与の保険料を再計算（従業員情報の更新を反映）
+          if (bonus.payDate) {
+            try {
+              console.log('[insurance-result-page] 賞与の保険料を再計算', {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                birthDate: emp.birthDate,
+                bonusPayDate: bonus.payDate,
+                bonusAmount: bonus.amount,
+                year: this.year,
+              });
+
+              const calculationResult =
+                await this.bonusCalculationService.calculateBonus(
+                  emp,
+                  emp.id,
+                  bonus.amount,
+                  bonus.payDate,
+                  this.year
+                );
+
+              if (calculationResult) {
+                console.log('[insurance-result-page] 賞与の再計算結果', {
+                  employeeId: emp.id,
+                  employeeName: emp.name,
+                  bonusPayDate: bonus.payDate,
+                  careEmployee: calculationResult.careEmployee,
+                  careEmployer: calculationResult.careEmployer,
+                  healthEmployee: calculationResult.healthEmployee,
+                  healthEmployer: calculationResult.healthEmployer,
+                });
+
+                // 再計算した結果を使用
+                recalculatedPremiums = {
+                  healthEmployee: calculationResult.healthEmployee || 0,
+                  healthEmployer: calculationResult.healthEmployer || 0,
+                  careEmployee: calculationResult.careEmployee || 0,
+                  careEmployer: calculationResult.careEmployer || 0,
+                  pensionEmployee: calculationResult.pensionEmployee || 0,
+                  pensionEmployer: calculationResult.pensionEmployer || 0,
+                };
+              } else {
+                console.warn('[insurance-result-page] 賞与の再計算結果がnull', {
+                  employeeId: emp.id,
+                  employeeName: emp.name,
+                  bonusPayDate: bonus.payDate,
+                });
+              }
+            } catch (error) {
+              console.error(
+                `[insurance-result-page] 賞与の再計算エラー: ${emp.name} (${bonus.payDate})`,
+                error
+              );
+              // エラーが発生した場合は、既存の値をそのまま使用
+            }
+          }
+
+          bonusTotal.healthEmployee += recalculatedPremiums.healthEmployee;
+          bonusTotal.healthEmployer += recalculatedPremiums.healthEmployer;
+          bonusTotal.careEmployee += recalculatedPremiums.careEmployee;
+          bonusTotal.careEmployer += recalculatedPremiums.careEmployer;
+          bonusTotal.pensionEmployee += recalculatedPremiums.pensionEmployee;
+          bonusTotal.pensionEmployer += recalculatedPremiums.pensionEmployer;
         }
       }
 

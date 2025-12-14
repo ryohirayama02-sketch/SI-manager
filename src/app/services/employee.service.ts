@@ -73,14 +73,26 @@ export class EmployeeService {
 
   // 全従業員を取得（roomIdでフィルタリング）
   async getAllEmployees(): Promise<any[]> {
+    console.log('[employee.service] getAllEmployees 呼び出し');
     const roomId = this.roomIdService.requireRoomId();
     const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
     const snap = await getDocs(colRef);
 
-    return snap.docs.map((doc) => ({
+    const employees = snap.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
+
+    console.log('[employee.service] getAllEmployees 完了', {
+      count: employees.length,
+      employees: employees.map((emp: any) => ({
+        id: emp.id,
+        name: emp.name,
+        birthDate: emp.birthDate,
+      })),
+    });
+
+    return employees;
   }
 
   // IDで従業員を取得（roomIdで検証）
