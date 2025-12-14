@@ -307,12 +307,16 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async onStandardTableYearChange(): Promise<void> {
+    // 年度を変更した際に、前のインポート結果メッセージをクリア
+    this.standardTableImportResult = null;
     await this.loadStandardTable();
   }
 
   async onGradeYearChange(): Promise<void> {
     const yearNum = parseInt(this.gradeYear, 10);
     this.standardTableYear = yearNum;
+    // 年度を変更した際に、前のインポート結果メッセージをクリア
+    this.standardTableImportResult = null;
     await this.loadStandardTable();
   }
 
@@ -743,6 +747,8 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async onYearChange(): Promise<void> {
+    // 対象期間を変更した際に、前のインポート結果メッセージをクリア
+    this.importResult = null;
     await this.loadAllRates();
   }
 
@@ -919,6 +925,10 @@ export class SettingsPageComponent implements OnInit {
 
   async importFromCsvText(csvText: string): Promise<void> {
     try {
+      // 対象期間が変更された直後の場合に備えて、最新の料率データを読み込む
+      // これにより、this.prefectureRatesが現在の年度のデータで初期化される
+      await this.loadAllRates();
+
       const lines = csvText.split('\n').filter((line) => line.trim());
       if (lines.length < 2) {
         this.importResult = {
