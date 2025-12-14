@@ -45,7 +45,26 @@ export class PremiumStoppingRuleService {
     isPensionStopped: boolean;
     isHealthStopped: boolean;
   } {
-    const retired = this.lifecycle.isRetiredInMonth(emp, year, month);
+    // 退職月以降を判定（退職日が属する月の次の月以降も含む）
+    let retired = false;
+    if (emp.retireDate) {
+      const retireDate = new Date(emp.retireDate);
+      const retireYear = retireDate.getFullYear();
+      const retireMonth = retireDate.getMonth() + 1;
+
+      // 退職日が属する月の次の月以降は退職済みとして扱う
+      const targetMonthKey = year * 12 + (month - 1);
+      const retireMonthKey = retireYear * 12 + (retireMonth - 1);
+
+      // 退職月の次の月以降（退職月より後）は退職済み
+      if (targetMonthKey > retireMonthKey) {
+        retired = true;
+      } else {
+        // 退職月の場合は、isRetiredInMonthで判定（月末在籍なしの場合のみ退職扱い）
+        retired = this.lifecycle.isRetiredInMonth(emp, year, month);
+      }
+    }
+
     const maternityLeave = this.lifecycle.isMaternityLeave(emp, year, month);
     const childcareLeave = this.lifecycle.isChildcareLeave(emp, year, month);
     const pensionStopped = age >= 70;

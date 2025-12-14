@@ -65,7 +65,33 @@ export class PremiumCalculationService {
     //     );
     const reasons: string[] = [];
 
-    // ① 月末在籍の健保判定（最優先）
+    // ① 退職月の次の月以降の判定（最優先）
+    // 退職日が属する月の次の月以降は全保険料を0円にする
+    if (employee.retireDate) {
+      const retireDate = new Date(employee.retireDate);
+      const retireYear = retireDate.getFullYear();
+      const retireMonth = retireDate.getMonth() + 1;
+
+      // 退職日が属する月の次の月以降を判定
+      const targetMonthKey = year * 12 + (month - 1);
+      const retireMonthKey = retireYear * 12 + (retireMonth - 1);
+
+      // 退職月の次の月以降（退職月より後）は全保険料0円
+      if (targetMonthKey > retireMonthKey) {
+        reasons.push(`${month}月は退職月の次の月以降のため、全保険料は0円です`);
+        return {
+          health_employee: 0,
+          health_employer: 0,
+          care_employee: 0,
+          care_employer: 0,
+          pension_employee: 0,
+          pension_employer: 0,
+          reasons,
+        };
+      }
+    }
+
+    // ② 月末在籍の健保判定
     const isLastDayEligible = this.employeeLifecycleService.isLastDayEligible(
       employee,
       year,

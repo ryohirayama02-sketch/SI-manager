@@ -236,70 +236,75 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       // 備考欄の生成
       const notes: string[] = [];
 
-      // 年齢到達による停止・変更（Service統一ロジックを使用）
-      const age = this.salaryCalculationService.calculateAge(emp.birthDate);
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const currentMonth = currentDate.getMonth() + 1;
-      const careType = this.salaryCalculationService.getCareInsuranceType(
-        emp.birthDate,
-        currentYear,
-        currentMonth
-      );
-
-      if (age >= 75) {
-        notes.push('75歳到達により健康保険停止');
-      } else if (age >= 70) {
-        notes.push('70歳到達により厚生年金停止');
-      } else if (careType === 'type1') {
-        notes.push('65歳到達により介護保険第1号被保険者');
-      } else if (careType === 'type2') {
-        notes.push('40歳到達により介護保険第2号被保険者');
-      }
-
-      // 産休・育休中（現時点で期間中かどうかを判定）
-      const now = new Date();
-      const nowYear = now.getFullYear();
-      const nowMonth = now.getMonth() + 1;
-      const currentLeaveStatus = this.getLeaveStatusForMonth(
-        emp,
-        nowYear,
-        nowMonth
-      );
-
-      if (currentLeaveStatus.status === 'maternity') {
-        notes.push('産休中');
-      } else if (currentLeaveStatus.status === 'childcare') {
-        notes.push('育休中');
-      }
-
-      // 退職済み
-      if (emp.retireDate) {
-        const retireDate = new Date(emp.retireDate);
-        if (retireDate <= new Date()) {
-          notes.push('退職済み');
-        }
-      }
-
-      // 休職中の判定（先月の状態をチェック）
-      if (emp.returnFromLeaveDate) {
-        const returnDate = new Date(emp.returnFromLeaveDate);
-        const lastMonthDate = new Date(
-          this.currentYear,
-          this.currentMonth - 1,
-          1
+      // 社会保険非加入の場合は備考を追加しない
+      if (this.employeeWorkCategoryService.isNonInsured(emp)) {
+        // 備考なし
+      } else {
+        // 年齢到達による停止・変更（Service統一ロジックを使用）
+        const age = this.salaryCalculationService.calculateAge(emp.birthDate);
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1;
+        const careType = this.salaryCalculationService.getCareInsuranceType(
+          emp.birthDate,
+          currentYear,
+          currentMonth
         );
-        returnDate.setHours(0, 0, 0, 0);
-        lastMonthDate.setHours(0, 0, 0, 0);
 
-        // 復職日が先月より未来なら休職中
-        if (returnDate > lastMonthDate) {
-          const returnDateStart = new Date(returnDate);
-          returnDateStart.setDate(1); // 復職日の月初日
+        if (age >= 75) {
+          notes.push('75歳到達により健康保険停止');
+        } else if (age >= 70) {
+          notes.push('70歳到達により厚生年金停止');
+        } else if (careType === 'type1') {
+          notes.push('65歳到達により介護保険第1号被保険者');
+        } else if (careType === 'type2') {
+          notes.push('40歳到達により介護保険第2号被保険者');
+        }
+
+        // 産休・育休中（現時点で期間中かどうかを判定）
+        const now = new Date();
+        const nowYear = now.getFullYear();
+        const nowMonth = now.getMonth() + 1;
+        const currentLeaveStatus = this.getLeaveStatusForMonth(
+          emp,
+          nowYear,
+          nowMonth
+        );
+
+        if (currentLeaveStatus.status === 'maternity') {
+          notes.push('産休中');
+        } else if (currentLeaveStatus.status === 'childcare') {
+          notes.push('育休中');
+        }
+
+        // 退職済み
+        if (emp.retireDate) {
+          const retireDate = new Date(emp.retireDate);
+          if (retireDate <= new Date()) {
+            notes.push('退職済み');
+          }
+        }
+
+        // 休職中の判定（先月の状態をチェック）
+        if (emp.returnFromLeaveDate) {
+          const returnDate = new Date(emp.returnFromLeaveDate);
+          const lastMonthDate = new Date(
+            this.currentYear,
+            this.currentMonth - 1,
+            1
+          );
+          returnDate.setHours(0, 0, 0, 0);
+          lastMonthDate.setHours(0, 0, 0, 0);
 
           // 復職日が先月より未来なら休職中
-          if (returnDateStart > lastMonthDate) {
-            notes.push('休職中');
+          if (returnDate > lastMonthDate) {
+            const returnDateStart = new Date(returnDate);
+            returnDateStart.setDate(1); // 復職日の月初日
+
+            // 復職日が先月より未来なら休職中
+            if (returnDateStart > lastMonthDate) {
+              notes.push('休職中');
+            }
           }
         }
       }
@@ -427,6 +432,11 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
 
   getCareInsuranceStatus(info: EmployeeDisplayInfo): string {
     const emp = info.employee;
+
+    // 社会保険非加入の場合は、年齢に関係なく「なし」と表示
+    if (this.employeeWorkCategoryService.isNonInsured(emp)) {
+      return 'なし';
+    }
 
     // ageFlagsを優先的に使用して判定
     // 65歳以上（isCare1がtrue）は、75歳以上も含めて「第1号被保険者」と表示
