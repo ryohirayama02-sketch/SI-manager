@@ -21,6 +21,7 @@ import { RoomIdService } from '../../../services/room-id.service';
 import { EmployeeChangeHistoryService } from '../../../services/employee-change-history.service';
 import { SettingsService } from '../../../services/settings.service';
 import { SalaryCalculationService } from '../../../services/salary-calculation.service';
+import { StandardRemunerationHistoryService } from '../../../services/standard-remuneration-history.service';
 
 @Component({
   selector: 'app-employee-create-page',
@@ -73,6 +74,7 @@ export class EmployeeCreatePageComponent implements OnInit {
     private roomIdService: RoomIdService,
     private employeeChangeHistoryService: EmployeeChangeHistoryService,
     private settingsService: SettingsService,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private router: Router
   ) {
     this.form = this.fb.group({
@@ -580,6 +582,19 @@ export class EmployeeCreatePageComponent implements OnInit {
           employeeId: newEmployeeId,
         };
         await this.familyMemberService.saveFamilyMember(familyMember);
+      }
+    }
+
+    // 標準報酬履歴を自動生成（従業員一覧画面で標準報酬を表示するため）
+    if (newEmployeeId) {
+      try {
+        await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+          newEmployeeId,
+          employee as Employee
+        );
+      } catch (error) {
+        console.error('標準報酬履歴の生成に失敗しました:', error);
+        // エラーが発生しても登録処理は続行する
       }
     }
 

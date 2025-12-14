@@ -398,10 +398,7 @@ export class SettingsService {
    * @param year 暦年（例: 2025）
    * @param month 月（1-12）※3月〜翌2月で年度判定
    */
-  async getStandardTableForMonth(
-    year: number,
-    month: number
-  ): Promise<any[]> {
+  async getStandardTableForMonth(year: number, month: number): Promise<any[]> {
     const roomId = this.roomIdService.requireRoomId();
     const fiscalYear = getFiscalYearByMonth(year, month);
     const cacheKey = `${roomId}_${fiscalYear}`;
@@ -472,20 +469,26 @@ export class SettingsService {
     let changesText = '変更なし';
     if (changes.length > 0) {
       const head = changes.slice(0, maxShow).join(', ');
-      const rest = changes.length > maxShow ? ` ...ほか${changes.length - maxShow}件` : '';
+      const rest =
+        changes.length > maxShow ? ` ...ほか${changes.length - maxShow}件` : '';
       changesText = head + rest;
     }
 
-    // 編集ログを記録
-    await this.editLogService.logEdit(
-      'update',
-      'settings',
-      `${year}_standardTable`,
-      `${year}年度 標準報酬等級表`,
-      `${year}年度の標準報酬等級表を更新しました（${rows.length}件）: ${changesText}`,
-      `旧件数:${existingRows.length}`,
-      `新件数:${rows.length}`
-    );
+    // 変更がない場合は編集ログを記録しない
+    const hasChanges =
+      changes.length > 0 || existingRows.length !== rows.length;
+    if (hasChanges) {
+      // 編集ログを記録
+      await this.editLogService.logEdit(
+        'update',
+        'settings',
+        `${year}_standardTable`,
+        `${year}年度 標準報酬等級表`,
+        `${year}年度の標準報酬等級表を更新しました（${rows.length}件）: ${changesText}`,
+        `旧件数:${existingRows.length}`,
+        `新件数:${rows.length}`
+      );
+    }
   }
 
   /**
