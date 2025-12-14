@@ -119,33 +119,68 @@ export class PaymentSummaryEmployeeCalculationService {
           (monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0) +
             (monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0);
 
-        const employeeTotalPremium =
+        // 月次給与の本人負担保険料
+        let employeeTotalPremium =
           premiumRow.healthEmployee +
           premiumRow.careEmployee +
           premiumRow.pensionEmployee;
 
-// // console.log(
-//           `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]:`,
-//           {
-//             totalSalary,
-//             employeeTotalPremium,
-//             exempt: premiumRow.exempt,
-//             monthSalaryData: monthSalaryData
-//               ? {
-//                   totalSalary: monthSalaryData.totalSalary,
-//                   total: monthSalaryData.total,
-//                   fixed: monthSalaryData.fixed,
-//                   variable: monthSalaryData.variable,
-//                 }
-//               : null,
-//           }
-//         );
+        // その月の賞与の本人負担保険料を加算
+        const monthBonus = employeeBonuses.find((bonus) => {
+          if (!bonus.payDate) return false;
+          const payDateObj = new Date(bonus.payDate);
+          const payYear = payDateObj.getFullYear();
+          const payMonth = payDateObj.getMonth() + 1;
+          return payYear === year && payMonth === month;
+        });
+
+        if (
+          monthBonus &&
+          !monthBonus.isExempted &&
+          !monthBonus.isSalaryInsteadOfBonus
+        ) {
+          // 賞与の本人負担保険料を加算
+          const bonusPremium =
+            (monthBonus.healthEmployee || 0) +
+            (monthBonus.careEmployee || 0) +
+            (monthBonus.pensionEmployee || 0);
+          employeeTotalPremium += bonusPremium;
+          console.log(
+            `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 賞与の保険料を加算`,
+            {
+              bonusAmount: monthBonus.amount,
+              bonusPremium,
+              healthEmployee: monthBonus.healthEmployee || 0,
+              careEmployee: monthBonus.careEmployee || 0,
+              pensionEmployee: monthBonus.pensionEmployee || 0,
+              employeeTotalPremiumBefore: employeeTotalPremium - bonusPremium,
+              employeeTotalPremiumAfter: employeeTotalPremium,
+            }
+          );
+        }
+
+        // // console.log(
+        //           `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]:`,
+        //           {
+        //             totalSalary,
+        //             employeeTotalPremium,
+        //             exempt: premiumRow.exempt,
+        //             monthSalaryData: monthSalaryData
+        //               ? {
+        //                   totalSalary: monthSalaryData.totalSalary,
+        //                   total: monthSalaryData.total,
+        //                   fixed: monthSalaryData.fixed,
+        //                   variable: monthSalaryData.variable,
+        //                 }
+        //               : null,
+        //           }
+        //         );
 
         // 産休・育休中でない場合のみチェック（給与が0円でもチェック）
         if (!premiumRow.exempt) {
-// // console.log(
-//             `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 産休・育休ではないためチェック実行`
-//           );
+          // // console.log(
+          //             `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 産休・育休ではないためチェック実行`
+          //           );
           await this.uncollectedPremiumService.saveUncollectedPremium(
             emp.id,
             year,
@@ -154,14 +189,14 @@ export class PaymentSummaryEmployeeCalculationService {
             employeeTotalPremium
           );
         } else {
-// // console.log(
-//             `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 産休・育休中のためスキップ`
-//           );
+          // // console.log(
+          //             `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 産休・育休中のためスキップ`
+          //           );
         }
       } else {
-// // console.log(
-//           `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 給与データなし`
-//         );
+        // // console.log(
+        //           `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 給与データなし`
+        //         );
       }
     }
 
