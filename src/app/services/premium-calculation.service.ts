@@ -659,12 +659,6 @@ export class PremiumCalculationService {
     //         standardMonthlyRemuneration,
     //       }
     //     );
-    // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
-    const healthTotal = healthBase * (r.health_employee + r.health_employer);
-    const healthHalf = healthTotal / 2;
-    const health_employee = this.roundWith50SenRule(healthHalf);
-    const health_employer = this.roundWith50SenRule(healthHalf);
-
     // 介護保険（Service統一ロジックを使用）
     // careTypeは既に1330行目で宣言済み
     const isCareApplicable = careType === 'type2';
@@ -691,11 +685,29 @@ export class PremiumCalculationService {
         careBase = standardMonthlyRemuneration;
       }
     }
-    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
-    const careTotal = careBase * (r.care_employee + r.care_employer);
-    const careHalf = careTotal / 2;
-    const care_employee = this.roundWith50SenRule(careHalf);
-    const care_employer = this.roundWith50SenRule(careHalf);
+
+    // 健康保険の計算方法変更：
+    // 介護保険に加入していない場合：標準報酬月額×健保保険料率
+    // 介護保険に加入している場合（40歳～64歳）：標準報酬月額×（健康保険料率＋介護保険料率）
+    // 50銭未満切り捨て、50銭超切り上げ
+    const healthRateEmployee =
+      isCareApplicable && careBase > 0
+        ? r.health_employee + r.care_employee
+        : r.health_employee;
+    const healthRateEmployer =
+      isCareApplicable && careBase > 0
+        ? r.health_employer + r.care_employer
+        : r.health_employer;
+
+    // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
+    const healthTotal = healthBase * (healthRateEmployee + healthRateEmployer);
+    const healthHalf = healthTotal / 2;
+    const health_employee = this.roundWith50SenRule(healthHalf);
+    const health_employer = this.roundWith50SenRule(healthHalf);
+
+    // 介護保険は健康保険に含まれるため、個別の値は0とする（後方互換性のため残す）
+    const care_employee = 0;
+    const care_employer = 0;
 
     // 厚生年金（70歳以上は0円）も月末在籍ルールに合わせる
     // 同月得喪でも月末在籍があれば当月発生させる
@@ -805,9 +817,6 @@ export class PremiumCalculationService {
   } | null {
     if (!rates) return null;
     const r = rates;
-    const health_employee = r.health_employee;
-    const health_employer = r.health_employer;
-
     // 介護保険判定（Service統一ロジックを使用）
     const careType = this.exemptionDeterminationService.getCareInsuranceType(
       birthDate,
@@ -815,23 +824,30 @@ export class PremiumCalculationService {
       month
     );
     const isCareApplicable = careType === 'type2';
-    const care_employee = isCareApplicable ? r.care_employee : 0;
-    const care_employer = isCareApplicable ? r.care_employer : 0;
 
     const pension_employee = r.pension_employee;
     const pension_employer = r.pension_employer;
 
+    // 健康保険の計算方法変更：
+    // 介護保険に加入していない場合：標準報酬月額×健保保険料率
+    // 介護保険に加入している場合（40歳～64歳）：標準報酬月額×（健康保険料率＋介護保険料率）
+    // 50銭未満切り捨て、50銭超切り上げ
+    const healthRateEmployee = isCareApplicable
+      ? r.health_employee + r.care_employee
+      : r.health_employee;
+    const healthRateEmployer = isCareApplicable
+      ? r.health_employer + r.care_employer
+      : r.health_employer;
+
     // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
-    const healthTotal = standard * (health_employee + health_employer);
+    const healthTotal = standard * (healthRateEmployee + healthRateEmployer);
     const healthHalf = healthTotal / 2;
     const health_employee_result = this.roundWith50SenRule(healthHalf);
     const health_employer_result = this.roundWith50SenRule(healthHalf);
 
-    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
-    const careTotal = standard * (care_employee + care_employer);
-    const careHalf = careTotal / 2;
-    const care_employee_result = this.roundWith50SenRule(careHalf);
-    const care_employer_result = this.roundWith50SenRule(careHalf);
+    // 介護保険は健康保険に含まれるため、個別の値は0とする（後方互換性のため残す）
+    const care_employee_result = 0;
+    const care_employer_result = 0;
 
     // 厚生年金：標準報酬月額を補正してから計算
     const adjustedStandard =

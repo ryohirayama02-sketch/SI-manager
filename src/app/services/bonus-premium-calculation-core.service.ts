@@ -58,9 +58,9 @@ export class BonusPremiumCalculationCoreService {
     const targetYear = payDate.getFullYear();
     const existingBonuses = await this.bonusService.listBonuses(
       roomId,
-        employeeId,
+      employeeId,
       targetYear
-      );
+    );
     const existingTotal = existingBonuses.reduce((sum, bonus) => {
       const bonusAmount = bonus.amount || 0;
       const existingStandard = Math.floor(bonusAmount / 1000) * 1000;
@@ -107,20 +107,27 @@ export class BonusPremiumCalculationCoreService {
     const isCareEligible = ageFlags.isCare2;
 
     // 保険料計算
+    // 健康保険の計算方法変更：
+    // 介護保険に加入していない場合：標準報酬月額×健保保険料率
+    // 介護保険に加入している場合（40歳～64歳）：標準報酬月額×（健康保険料率＋介護保険料率）
+    // 50銭未満切り捨て、50銭超切り上げ
+    const healthRateEmployee = isCareEligible
+      ? rates.health_employee + rates.care_employee
+      : rates.health_employee;
+    const healthRateEmployer = isCareEligible
+      ? rates.health_employer + rates.care_employer
+      : rates.health_employer;
+
     // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const healthTotal =
-      actualHealthBase * (rates.health_employee + rates.health_employer);
+      actualHealthBase * (healthRateEmployee + healthRateEmployer);
     const healthHalf = healthTotal / 2;
     const healthEmployee = this.roundWith50SenRule(healthHalf);
     const healthEmployer = this.roundWith50SenRule(healthHalf);
 
-    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
-    const careTotal = isCareEligible
-      ? actualHealthBase * (rates.care_employee + rates.care_employer)
-      : 0;
-    const careHalf = careTotal / 2;
-    const careEmployee = isCareEligible ? this.roundWith50SenRule(careHalf) : 0;
-    const careEmployer = isCareEligible ? this.roundWith50SenRule(careHalf) : 0;
+    // 介護保険は健康保険に含まれるため、個別の値は0とする（後方互換性のため残す）
+    const careEmployee = 0;
+    const careEmployer = 0;
 
     // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
     const pensionTotal =
