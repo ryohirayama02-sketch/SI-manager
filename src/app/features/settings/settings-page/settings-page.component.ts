@@ -15,6 +15,7 @@ import { AuthService } from '../../../services/auth.service';
 import { RoomService } from '../../../services/room.service';
 import { EditLogService } from '../../../services/edit-log.service';
 import { RoomIdService } from '../../../services/room-id.service';
+import { EmployeeService } from '../../../services/employee.service';
 import { Settings } from '../../../models/settings.model';
 import { Rate } from '../../../models/rate.model';
 import { SalaryItem } from '../../../models/salary-item.model';
@@ -182,6 +183,7 @@ export class SettingsPageComponent implements OnInit {
     private roomService: RoomService,
     private editLogService: EditLogService,
     private roomIdService: RoomIdService,
+    private employeeService: EmployeeService,
     private cdr: ChangeDetectorRef,
     private route: ActivatedRoute,
     private router: Router
@@ -654,6 +656,17 @@ export class SettingsPageComponent implements OnInit {
       createdAt: this.selectedOffice?.createdAt || new Date(),
     };
 
+    // 既存の事業所の場合、都道府県が変更されたかチェック
+    const oldPrefecture = this.selectedOffice?.prefecture;
+    const newPrefecture = office.prefecture;
+    const officeNumber = office.officeNumber;
+    const isPrefectureChanged =
+      this.selectedOffice?.id &&
+      officeNumber &&
+      oldPrefecture &&
+      newPrefecture &&
+      oldPrefecture !== newPrefecture;
+
     if (!this.selectedOffice?.id) {
       const savedId = await this.officeService.createOfficeInRoom(
         roomId,
@@ -667,6 +680,44 @@ export class SettingsPageComponent implements OnInit {
         office
       );
     }
+
+    // 都道府県が変更された場合、その事業所に紐づく従業員の都道府県も自動更新
+    if (isPrefectureChanged && officeNumber && newPrefecture) {
+      try {
+        const updateCount =
+          await this.employeeService.updateEmployeesPrefectureByOfficeNumber(
+            officeNumber,
+            newPrefecture
+          );
+        if (updateCount > 0) {
+          console.log(
+            `[settings-page] 事業所「${officeNumber}」の都道府県変更に伴い、${updateCount}名の従業員の都道府県を更新しました`
+          );
+        }
+      } catch (error) {
+        console.error(
+          '[settings-page] 従業員の都道府県更新中にエラーが発生しました:',
+          error
+        );
+        // エラーが発生しても事業所の保存は成功しているため、警告のみ表示
+        alert(
+          `事業所マスタを保存しましたが、従業員の都道府県更新中にエラーが発生しました。\n従業員の都道府県を手動で更新してください。`
+        );
+        await this.loadOffices();
+        if (office.id) {
+          const savedOffice = this.offices.find((o) => o.id === office.id);
+          if (savedOffice) {
+            this.selectOffice(savedOffice);
+          } else {
+            this.selectOffice(null);
+          }
+        } else {
+          this.selectOffice(null);
+        }
+        return;
+      }
+    }
+
     alert('事業所マスタを保存しました');
     await this.loadOffices();
     // 保存した事業所を選択状態に保つ

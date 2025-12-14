@@ -322,4 +322,55 @@ export class EmployeeService {
   async getEmployees(): Promise<Employee[]> {
     return this.getAllEmployees();
   }
+
+  /**
+   * 特定の事業所番号に紐づく従業員の都道府県を一括更新
+   * @param officeNumber 事業所番号
+   * @param newPrefecture 新しい都道府県コード
+   */
+  async updateEmployeesPrefectureByOfficeNumber(
+    officeNumber: string,
+    newPrefecture: string
+  ): Promise<number> {
+    const roomId = this.roomIdService.requireRoomId();
+    const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
+
+    // 特定のofficeNumberに紐づく従業員を検索
+    const q = query(colRef, where('officeNumber', '==', officeNumber));
+    const querySnapshot = await getDocs(q);
+
+    let updateCount = 0;
+    const updatePromises: Promise<void>[] = [];
+
+    querySnapshot.forEach((docSnapshot) => {
+      const employeeData = docSnapshot.data();
+      const employeeId = docSnapshot.id;
+
+      // 既に同じ都道府県の場合はスキップ
+      if (employeeData['prefecture'] === newPrefecture) {
+        return;
+      }
+
+      // 都道府県を更新
+      const updatePromise = updateDoc(docSnapshot.ref, {
+        prefecture: newPrefecture,
+      }).then(() => {
+        updateCount++;
+        console.log(
+          `[EmployeeService] 従業員 ${
+            employeeData['name'] || employeeId
+          } の都道府県を ${
+            employeeData['prefecture']
+          } → ${newPrefecture} に更新`
+        );
+      });
+
+      updatePromises.push(updatePromise);
+    });
+
+    // すべての更新を実行
+    await Promise.all(updatePromises);
+
+    return updateCount;
+  }
 }

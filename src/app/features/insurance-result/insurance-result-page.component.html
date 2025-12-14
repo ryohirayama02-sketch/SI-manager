@@ -301,6 +301,8 @@
                   <th>月</th>
                   <th>健康保険 本人/会社</th>
                   <th>厚生年金 本人/会社</th>
+                  <th>賞与 健康保険 本人/会社</th>
+                  <th>賞与 厚生年金 本人/会社</th>
                   <th>月合計 本人/会社</th>
                 </tr>
               </thead>
@@ -340,21 +342,102 @@
                     </span>
                   </td>
                   <td>
+                    <span *ngIf="getMonthBonus(emp.id, premium.month)">
+                      <span
+                        *ngIf="getMonthBonus(emp.id, premium.month)!.isExempted"
+                        >{{
+                          getExemptLabel(
+                            getMonthBonus(emp.id, premium.month)!.exemptReason
+                          )
+                        }}</span
+                      >
+                      <span
+                        *ngIf="
+                          !getMonthBonus(emp.id, premium.month)!.isExempted
+                        "
+                      >
+                        {{
+                          getMonthBonus(emp.id, premium.month)!
+                            .healthEmployee || 0 | number : "1.0-0"
+                        }}
+                        /
+                        {{
+                          getMonthBonus(emp.id, premium.month)!
+                            .healthEmployer || 0 | number : "1.0-0"
+                        }}
+                      </span>
+                    </span>
+                    <span *ngIf="!getMonthBonus(emp.id, premium.month)">-</span>
+                  </td>
+                  <td>
+                    <span *ngIf="getMonthBonus(emp.id, premium.month)">
+                      <span
+                        *ngIf="getMonthBonus(emp.id, premium.month)!.isExempted"
+                        >{{
+                          getExemptLabel(
+                            getMonthBonus(emp.id, premium.month)!.exemptReason
+                          )
+                        }}</span
+                      >
+                      <span
+                        *ngIf="
+                          !getMonthBonus(emp.id, premium.month)!.isExempted
+                        "
+                      >
+                        {{
+                          getMonthBonus(emp.id, premium.month)!
+                            .pensionEmployee || 0 | number : "1.0-0"
+                        }}
+                        /
+                        {{
+                          getMonthBonus(emp.id, premium.month)!
+                            .pensionEmployer || 0 | number : "1.0-0"
+                        }}
+                      </span>
+                    </span>
+                    <span *ngIf="!getMonthBonus(emp.id, premium.month)">-</span>
+                  </td>
+                  <td>
                     <span
-                      *ngIf="premium.isExempt"
+                      *ngIf="
+                        premium.isExempt ||
+                        (getMonthBonus(emp.id, premium.month) &&
+                          getMonthBonus(emp.id, premium.month)!.isExempted)
+                      "
                       style="color: #ff6b00; font-weight: bold"
                     >
-                      {{ getExemptLabel(premium.exemptReason) }}
-                    </span>
-                    <span *ngIf="!premium.isExempt">
                       {{
-                        premium.healthEmployee + premium.pensionEmployee
-                          | number : "1.0-0"
+                        getExemptLabel(
+                          premium.exemptReason ||
+                            getMonthBonus(emp.id, premium.month)?.exemptReason
+                        )
+                      }}
+                    </span>
+                    <span
+                      *ngIf="
+                        !premium.isExempt &&
+                        (!getMonthBonus(emp.id, premium.month) ||
+                          !getMonthBonus(emp.id, premium.month)!.isExempted)
+                      "
+                    >
+                      {{
+                        premium.healthEmployee +
+                          premium.careEmployee +
+                          premium.pensionEmployee +
+                          (getMonthBonus(emp.id, premium.month)
+                            ?.healthEmployee || 0) +
+                          (getMonthBonus(emp.id, premium.month)
+                            ?.pensionEmployee || 0) | number : "1.0-0"
                       }}
                       /
                       {{
-                        premium.healthEmployer + premium.pensionEmployer
-                          | number : "1.0-0"
+                        premium.healthEmployer +
+                          premium.careEmployer +
+                          premium.pensionEmployer +
+                          (getMonthBonus(emp.id, premium.month)
+                            ?.healthEmployer || 0) +
+                          (getMonthBonus(emp.id, premium.month)
+                            ?.pensionEmployer || 0) | number : "1.0-0"
                       }}
                     </span>
                   </td>
@@ -363,7 +446,7 @@
                   *ngIf="data.monthlyPremiums.length === 0"
                   class="no-data-row"
                 >
-                  <td colspan="4" style="text-align: center; padding: 1rem">
+                  <td colspan="6" style="text-align: center; padding: 1rem">
                     月次給与データがありません
                   </td>
                 </tr>
@@ -396,6 +479,28 @@
                         data.monthlyTotal.pensionEmployer +
                           (data.bonusTotal?.pensionEmployer || 0)
                           | number : "1.0-0"
+                      }}</strong
+                    >
+                  </td>
+                  <td>
+                    <strong
+                      >{{
+                        data.bonusTotal?.healthEmployee || 0 | number : "1.0-0"
+                      }}
+                      /
+                      {{
+                        data.bonusTotal?.healthEmployer || 0 | number : "1.0-0"
+                      }}</strong
+                    >
+                  </td>
+                  <td>
+                    <strong
+                      >{{
+                        data.bonusTotal?.pensionEmployee || 0 | number : "1.0-0"
+                      }}
+                      /
+                      {{
+                        data.bonusTotal?.pensionEmployer || 0 | number : "1.0-0"
                       }}</strong
                     >
                   </td>
