@@ -98,6 +98,7 @@ export class BonusExemptionService {
    * 育休免除チェック
    * 月ベースの判定を使用（月次給与と同じロジック）
    * 開始日が含まれる月は保険料ゼロ、終了日の翌日が含まれる月から保険料発生
+   * 届出・同居条件の確認は不要（月次給与入力と同じ）
    */
   checkChildcareExemption(
     employee: Employee,
@@ -118,29 +119,10 @@ export class BonusExemptionService {
       );
 
     if (isChildcareLeavePeriod) {
-      // 育休の場合は届出と同居の条件を確認
-      const isNotificationSubmitted =
-        employee.childcareNotificationSubmitted === true;
-      const isLivingTogether = employee.childcareLivingTogether === true;
-
-      if (isNotificationSubmitted && isLivingTogether) {
-        return {
-          isExempted: true,
-          exemptReason: '育児休業中（健康保険・厚生年金本人分免除）',
-        };
-      } else {
-        const reasons: string[] = [];
-        if (!isNotificationSubmitted) {
-          reasons.push('届出未提出');
-        }
-        if (!isLivingTogether) {
-          reasons.push('子と同居していない');
-        }
-        return {
-          isExempted: false,
-          exemptReason: `育休中だが${reasons.join('・')}のため免除されません`,
-        };
-      }
+      return {
+        isExempted: true,
+        exemptReason: '育児休業中（健康保険・厚生年金本人分免除）',
+      };
     }
 
     return { isExempted: false };
