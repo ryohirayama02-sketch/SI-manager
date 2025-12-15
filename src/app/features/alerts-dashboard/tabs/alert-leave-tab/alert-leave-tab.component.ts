@@ -26,7 +26,8 @@ export interface MaternityChildcareAlert {
     | '傷病手当金支給申請書の記入依頼'
     | '育児休業関係の事業主証明書の記入依頼'
     | '出産手当金支給申請書の記入依頼'
-    | '出産育児一時金支給申請書の記入依頼';
+    | '出産育児一時金支給申請書の記入依頼'
+    | '育休期間確認';
   notificationName: string;
   startDate: Date; // 開始日（産休開始日、育休開始日、産休終了日の翌日、育休終了日の翌日、賞与支給日、申請書記入依頼日）
   submitDeadline: Date; // 提出期限（開始日から5日後、または申請書記入依頼日から1週間後）
@@ -140,6 +141,37 @@ export class AlertLeaveTabComponent implements OnInit {
             daysUntilDeadline: daysUntilDeadline,
             details: `育休開始日: ${formatDate(startDate)}`,
           });
+        }
+
+        // 育休期間確認（開始日から終了日が14日未満の場合）
+        if (emp.childcareLeaveStart && emp.childcareLeaveEnd) {
+          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
+          // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+          const daysDiff =
+            Math.floor(
+              (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+            ) + 1;
+
+          if (daysDiff < 14) {
+            // 開始日は育児休業等終了日、提出期限は終了日から5日以内
+            const submitDeadline = calculateSubmitDeadline(endDate);
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            alerts.push({
+              id: `childcare_period_check_${emp.id}_${emp.childcareLeaveEnd}`,
+              employeeId: emp.id,
+              employeeName: emp.name,
+              alertType: '育休期間確認',
+              notificationName: '育休期間確認',
+              startDate: endDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: '育休期間が14日未満か確認',
+            });
+          }
         }
 
         // 終了届の管理は対象外とするため生成しない

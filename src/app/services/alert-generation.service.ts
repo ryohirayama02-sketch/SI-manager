@@ -84,7 +84,8 @@ export class AlertGenerationService {
           alert.year || 2025
         ),
         id: alert.id || getSuijiAlertId(alert),
-        currentStandard: alert.currentStandard ?? alert.currentRemuneration ?? null,
+        currentStandard:
+          alert.currentStandard ?? alert.currentRemuneration ?? null,
       }));
   }
 
@@ -254,7 +255,9 @@ export class AlertGenerationService {
       );
       changeHistories.forEach((h, idx) => {
         console.log(
-          `[alerts-dashboard] 履歴${idx + 1}: emp=${h.employeeId}, type=${h.changeType}, date=${h.changeDate}, old=${h.oldValue}, new=${h.newValue}`
+          `[alerts-dashboard] 履歴${idx + 1}: emp=${h.employeeId}, type=${
+            h.changeType
+          }, date=${h.changeDate}, old=${h.oldValue}, new=${h.newValue}`
         );
       });
 
@@ -409,10 +412,7 @@ export class AlertGenerationService {
         return b.changeDate.getTime() - a.changeDate.getTime();
       });
     } catch (error) {
-      console.error(
-        '[alerts-dashboard] 資格取得アラート生成エラー:',
-        error
-      );
+      console.error('[alerts-dashboard] 資格取得アラート生成エラー:', error);
     }
 
     // 退職（資格喪失）アラートを生成（退職日から5日以内が期限）
@@ -452,10 +452,7 @@ export class AlertGenerationService {
         return b.changeDate.getTime() - a.changeDate.getTime();
       });
     } catch (error) {
-      console.error(
-        '[alerts-dashboard] 資格喪失アラート生成エラー:',
-        error
-      );
+      console.error('[alerts-dashboard] 資格喪失アラート生成エラー:', error);
     }
 
     // 非加入者の収入超過アラート（固定+非固定が88,000円超）
@@ -591,6 +588,37 @@ export class AlertGenerationService {
           });
         }
 
+        // 育休期間確認（開始日から終了日が14日未満の場合）
+        if (emp.childcareLeaveStart && emp.childcareLeaveEnd) {
+          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
+          // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+          const daysDiff =
+            Math.floor(
+              (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+            ) + 1;
+
+          if (daysDiff < 14) {
+            // 開始日は育児休業等終了日、提出期限は終了日から5日以内
+            const submitDeadline = calculateSubmitDeadline(endDate);
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            maternityChildcareAlerts.push({
+              id: `childcare_period_check_${emp.id}_${emp.childcareLeaveEnd}`,
+              employeeId: emp.id,
+              employeeName: emp.name,
+              alertType: '育休期間確認',
+              notificationName: '育休期間確認',
+              startDate: endDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: '育休期間が14日未満か確認',
+            });
+          }
+        }
+
         // 終了届は管理対象外とする
 
         // 傷病手当金支給申請書の記入依頼
@@ -688,7 +716,12 @@ export class AlertGenerationService {
     const roomId = this.roomIdService.requireRoomId();
 
     // 過去2年から将来1年までの賞与を取得（賞与支払届の提出期限は支給日の翌月10日なので、過去の賞与も対象になる可能性がある）
-    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+    const years = [
+      currentYear - 2,
+      currentYear - 1,
+      currentYear,
+      currentYear + 1,
+    ];
 
     for (const emp of employees) {
       // 複数年度の賞与を取得

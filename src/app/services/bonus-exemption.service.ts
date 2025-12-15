@@ -97,10 +97,36 @@ export class BonusExemptionService {
   }
 
   /**
+   * 育休期間が14日未満かどうかを判定
+   * @param employee 従業員情報
+   * @returns 14日未満の場合true
+   */
+  private isChildcareLeavePeriodLessThan14Days(employee: Employee): boolean {
+    const startValue = employee.childcareLeaveStart;
+    const endValue =
+      employee.childcareLeaveEnd ?? employee.childcareLeaveEndExpected;
+
+    if (!startValue || !endValue) {
+      return false;
+    }
+
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
+    // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+    const daysDiff =
+      Math.floor(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+    return daysDiff < 14;
+  }
+
+  /**
    * 育休免除チェック
    * 月ベースの判定を使用（月次給与と同じロジック）
    * 開始日が含まれる月は保険料ゼロ、終了日の翌日が含まれる月から保険料発生
    * 届出・同居条件の確認は不要（月次給与入力と同じ）
+   * ただし、育休期間が14日未満の場合は免除しない
    */
   checkChildcareExemption(
     employee: Employee,
@@ -109,6 +135,11 @@ export class BonusExemptionService {
     isExempted: boolean;
     exemptReason?: string;
   } {
+    // 育休期間が14日未満の場合は免除しない
+    if (this.isChildcareLeavePeriodLessThan14Days(employee)) {
+      return { isExempted: false };
+    }
+
     const payYear = payDate.getFullYear();
     const payMonth = payDate.getMonth() + 1;
 

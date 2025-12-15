@@ -86,7 +86,7 @@ export class AlertsDashboardStateService {
       schedule: '#6c757d',
       bonus: '#0056b3', // より濃い青
       suiji: '#1e7e34', // より濃い緑
-      teiji: '#d39e00', // より濃い黄色
+      teiji: '#ffc107', // 明るい黄色（UI的にポジティブな印象）
       age: '#c82333', // より濃い赤
       leave: '#138496', // より濃いシアン
       family: '#5a32a3', // より濃い紫

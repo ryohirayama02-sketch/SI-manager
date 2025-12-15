@@ -55,6 +55,31 @@ export class MaternityLeaveService {
   }
 
   /**
+   * 育休期間が14日未満かどうかを判定
+   * @param employee 従業員情報
+   * @returns 14日未満の場合true
+   */
+  private isChildcareLeavePeriodLessThan14Days(employee: Employee): boolean {
+    const startValue = employee.childcareLeaveStart;
+    const endValue =
+      employee.childcareLeaveEnd ?? employee.childcareLeaveEndExpected;
+
+    if (!startValue || !endValue) {
+      return false;
+    }
+
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
+    // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+    const daysDiff =
+      Math.floor(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+    return daysDiff < 14;
+  }
+
+  /**
    * 指定日が育児休業中かどうかを判定
    * @param date 判定対象日
    * @param employee 従業員情報
@@ -67,6 +92,11 @@ export class MaternityLeaveService {
       employee.childcareLeaveEnd ?? employee.childcareLeaveEndExpected;
 
     if (!startValue || !endValue) {
+      return { exempt: false, reason: '' };
+    }
+
+    // 育休期間が14日未満の場合は免除しない
+    if (this.isChildcareLeavePeriodLessThan14Days(employee)) {
       return { exempt: false, reason: '' };
     }
 

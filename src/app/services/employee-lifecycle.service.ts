@@ -39,7 +39,9 @@ export class EmployeeLifecycleService {
     // 終了日と終了予定日が両方ある場合は終了日を優先
     const startValue = emp.maternityLeaveStart;
     const endValue =
-      emp.maternityLeaveEnd !== undefined && emp.maternityLeaveEnd !== null && emp.maternityLeaveEnd !== ''
+      emp.maternityLeaveEnd !== undefined &&
+      emp.maternityLeaveEnd !== null &&
+      emp.maternityLeaveEnd !== ''
         ? emp.maternityLeaveEnd
         : emp.maternityLeaveEndExpected;
 
@@ -71,7 +73,7 @@ export class EmployeeLifecycleService {
         0
       );
       const lastDayOfEndMonth = endOfEndMonth.getDate();
-      
+
       // 終了日が月末（31日など）の場合、免除対象（保険料ゼロ）
       // 終了日が1-30日の場合、免除対象外（保険料発生）
       return endDate.getDate() === lastDayOfEndMonth;
@@ -82,6 +84,35 @@ export class EmployeeLifecycleService {
   }
 
   /**
+   * 育休期間が14日未満かどうかを判定
+   * @param emp 従業員
+   * @returns 14日未満の場合true
+   */
+  private isChildcareLeavePeriodLessThan14Days(emp: Employee): boolean {
+    const startValue = emp.childcareLeaveStart;
+    const endValue =
+      emp.childcareLeaveEnd !== undefined &&
+      emp.childcareLeaveEnd !== null &&
+      emp.childcareLeaveEnd !== ''
+        ? emp.childcareLeaveEnd
+        : emp.childcareLeaveEndExpected;
+
+    if (!startValue || !endValue) {
+      return false;
+    }
+
+    const startDate = new Date(startValue);
+    const endDate = new Date(endValue);
+    // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+    const daysDiff =
+      Math.floor(
+        (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+      ) + 1;
+
+    return daysDiff < 14;
+  }
+
+  /**
    * 指定月が育休期間中かどうかを判定する
    * @param emp 従業員
    * @param year 年
@@ -89,6 +120,11 @@ export class EmployeeLifecycleService {
    * @returns 育休期間中の場合true
    */
   isChildcareLeave(emp: Employee, year: number, month: number): boolean {
+    // 育休期間が14日未満の場合は免除しない
+    if (this.isChildcareLeavePeriodLessThan14Days(emp)) {
+      return false;
+    }
+
     // 終了日と終了予定日が両方ある場合は終了日を優先
     const startValue = emp.childcareLeaveStart;
     const endValue =
@@ -125,7 +161,7 @@ export class EmployeeLifecycleService {
         0
       );
       const lastDayOfEndMonth = endOfEndMonth.getDate();
-      
+
       // 終了日が月末（31日など）の場合、免除対象（保険料ゼロ）
       // 終了日が1-30日の場合、免除対象外（保険料発生）
       return endDate.getDate() === lastDayOfEndMonth;
@@ -196,7 +232,10 @@ export class EmployeeLifecycleService {
 
       // 入社が前年以前で退職日が1/1-1/30の場合、保険料ゼロ
       // 例：2024年12月以前入社で2025年1月1-30日退職 → 保険料ゼロ
-      if (joinYear < retireYear || (joinYear === retireYear && joinMonth < retireMonth)) {
+      if (
+        joinYear < retireYear ||
+        (joinYear === retireYear && joinMonth < retireMonth)
+      ) {
         return false; // 月末在籍なし
       }
     }
