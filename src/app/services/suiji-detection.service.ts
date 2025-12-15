@@ -182,9 +182,9 @@ export class SuijiDetectionService {
       workingDaysList.push(workingDays ?? 0);
     }
 
-    // 支払基礎日数17日未満が1つでもあれば随時改定無効
+    // 支払基礎日数17日未満（0日を含む）が1つでもあれば随時改定無効
     const invalidByWorkingDays = workingDaysList.some(
-      (wd) => wd > 0 && wd < 17
+      (wd) => wd < 17
     );
     if (invalidByWorkingDays) {
       reasons.push('支払基礎日数17日未満の月が含まれるため随時改定対象外');

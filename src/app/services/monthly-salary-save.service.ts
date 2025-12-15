@@ -437,8 +437,8 @@ export class MonthlySalarySaveService {
                 workingDays = new Date(year, targetMonth, 0).getDate();
               }
               
-              // 支払基礎日数が17日未満（0より大きく17未満）の場合は無効
-              return workingDays > 0 && workingDays < 17;
+              // 支払基礎日数が17日未満（0日を含む）の場合は無効
+              return workingDays < 17;
             });
 
             // 支払基礎日数17日未満の月が1つでもあれば随時改定をスキップ
