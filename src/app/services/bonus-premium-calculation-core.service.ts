@@ -55,16 +55,151 @@ export class BonusPremiumCalculationCoreService {
     // 健保・介保：保険年度（4/1〜翌3/31）累計573万円上限
     // 今回の支給日が属する保険年度内の賞与合計を取得
     const roomId = this.roomIdService.requireRoomId();
-    const targetYear = payDate.getFullYear();
-    const existingBonuses = await this.bonusService.listBonuses(
+
+    // 保険年度の開始年を計算（4月1日〜翌年3月31日）
+    // 例：2025年2月 → 保険年度は2024年4月1日〜2025年3月31日 → 開始年は2024
+    // 例：2025年4月 → 保険年度は2025年4月1日〜2026年3月31日 → 開始年は2025
+    const payYear = payDate.getFullYear();
+    const payMonth = payDate.getMonth() + 1;
+    const insuranceYearStart = payMonth >= 4 ? payYear : payYear - 1;
+    const insuranceYearEnd = insuranceYearStart + 1;
+
+    console.log(
+      '[BonusPremiumCalculationCoreService] applyBonusCaps: 保険年度判定',
+      {
+        employeeId,
+        payDate: payDate.toISOString(),
+        payYear,
+        payMonth,
+        insuranceYearStart,
+        insuranceYearEnd,
+        insuranceYearRange: `${insuranceYearStart}年4月1日〜${insuranceYearEnd}年3月31日`,
+      }
+    );
+
+    // 保険年度に含まれる年度の賞与を取得（開始年度と終了年度の両方）
+    const bonusesYearStart = await this.bonusService.listBonuses(
       roomId,
       employeeId,
-      targetYear
+      insuranceYearStart
     );
-    const existingTotal = existingBonuses.reduce((sum, bonus) => {
-      const bonusAmount = bonus.amount || 0;
-      const existingStandard = Math.floor(bonusAmount / 1000) * 1000;
-      return sum + existingStandard;
+    const bonusesYearEnd = await this.bonusService.listBonuses(
+      roomId,
+      employeeId,
+      insuranceYearEnd
+    );
+
+    // 保険年度の範囲内の賞与のみをフィルタリング
+    const insuranceYearStartDate = new Date(insuranceYearStart, 3, 1); // 4月1日
+    const insuranceYearEndDate = new Date(insuranceYearEnd, 2, 31, 23, 59, 59); // 3月31日23:59:59
+
+    const allBonuses = [...bonusesYearStart, ...bonusesYearEnd];
+    const existingBonuses = allBonuses.filter((bonus) => {
+      if (!bonus.payDate) return false;
+      const bonusPayDate = new Date(bonus.payDate);
+      return (
+        bonusPayDate >= insuranceYearStartDate &&
+        bonusPayDate <= insuranceYearEndDate
+      );
+    });
+
+    // 今回計算中の賞与より前の支給日の賞与のみを累計に含める（時系列順に上限を適用）
+    const currentPayDate = new Date(payDate);
+    currentPayDate.setHours(0, 0, 0, 0); // 時刻を0にして日付のみで比較
+    const otherBonuses = existingBonuses.filter((bonus) => {
+      if (!bonus.payDate) return false; // payDateがない場合は除外
+      const bonusPayDate = new Date(bonus.payDate);
+      bonusPayDate.setHours(0, 0, 0, 0); // 時刻を0にして日付のみで比較
+      return bonusPayDate < currentPayDate; // 現在の賞与より前の日付のみ
+    });
+
+    const currentPayDateStr = currentPayDate.toISOString().split('T')[0]; // ログ用
+    console.log(
+      '[BonusPremiumCalculationCoreService] applyBonusCaps: 既存賞与データ',
+      {
+        employeeId,
+        payDate: payDate.toISOString(),
+        currentPayDateStr,
+        insuranceYearStart,
+        insuranceYearEnd,
+        insuranceYearRange: `${insuranceYearStart}年4月1日〜${insuranceYearEnd}年3月31日`,
+        bonusesYearStartCount: bonusesYearStart.length,
+        bonusesYearEndCount: bonusesYearEnd.length,
+        allBonusesCount: allBonuses.length,
+        existingBonusesCount: existingBonuses.length,
+        otherBonusesCount: otherBonuses.length,
+        standardBonus,
+        existingBonuses: existingBonuses.map((b) => {
+          if (!b.payDate) {
+            return {
+              id: b.id,
+              payDate: b.payDate,
+              amount: b.amount,
+              standardBonusAmount: b.standardBonusAmount,
+              bonusPayDate: null,
+              isInInsuranceYear: false,
+              isExcluded: false,
+              isBeforeCurrent: false,
+            };
+          }
+          const bonusPayDate = new Date(b.payDate);
+          bonusPayDate.setHours(0, 0, 0, 0);
+          const isBeforeCurrent = bonusPayDate < currentPayDate;
+          return {
+            id: b.id,
+            payDate: b.payDate,
+            amount: b.amount,
+            standardBonusAmount: b.standardBonusAmount,
+            bonusPayDate: bonusPayDate,
+            isInInsuranceYear:
+              bonusPayDate >= insuranceYearStartDate &&
+              bonusPayDate <= insuranceYearEndDate,
+            isExcluded: !isBeforeCurrent,
+            isBeforeCurrent,
+          };
+        }),
+        otherBonuses: otherBonuses.map((b) => ({
+          id: b.id,
+          payDate: b.payDate,
+          amount: b.amount,
+          standardBonusAmount: b.standardBonusAmount,
+        })),
+      }
+    );
+
+    const existingTotal = otherBonuses.reduce((sum, bonus) => {
+      // 上限適用後の値（cappedBonusHealth）が保存されている場合はそれを使用
+      // なければstandardBonusAmountを使用、それもなければamountから計算
+      let existingCapped: number;
+      if (
+        bonus.cappedBonusHealth !== undefined &&
+        bonus.cappedBonusHealth !== null
+      ) {
+        existingCapped = bonus.cappedBonusHealth;
+      } else if (
+        bonus.standardBonusAmount !== undefined &&
+        bonus.standardBonusAmount !== null
+      ) {
+        existingCapped = bonus.standardBonusAmount;
+      } else {
+        existingCapped = Math.floor((bonus.amount || 0) / 1000) * 1000;
+      }
+
+      console.log(
+        '[BonusPremiumCalculationCoreService] applyBonusCaps: 累計に加算',
+        {
+          employeeId,
+          bonusPayDate: bonus.payDate,
+          bonusAmount: bonus.amount,
+          standardBonusAmount: bonus.standardBonusAmount,
+          cappedBonusHealth: bonus.cappedBonusHealth,
+          existingCapped,
+          sumBefore: sum,
+          sumAfter: sum + existingCapped,
+        }
+      );
+
+      return sum + existingCapped;
     }, 0);
 
     const remainingLimit = Math.max(
@@ -73,6 +208,22 @@ export class BonusPremiumCalculationCoreService {
     );
     const cappedBonusHealth = Math.min(standardBonus, remainingLimit);
     const reason_upper_limit_health = standardBonus > remainingLimit;
+
+    console.log(
+      '[BonusPremiumCalculationCoreService] applyBonusCaps: 上限適用結果',
+      {
+        employeeId,
+        payDate: payDate.toISOString(),
+        standardBonus,
+        HEALTH_CARE_ANNUAL_LIMIT,
+        existingTotal,
+        remainingLimit,
+        cappedBonusHealth,
+        reason_upper_limit_health,
+        cappedBonusPension,
+        reason_upper_limit_pension,
+      }
+    );
 
     return {
       cappedBonusHealth,

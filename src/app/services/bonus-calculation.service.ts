@@ -148,6 +148,14 @@ export class BonusCalculationService {
       this.preparationService.calculateStandardBonus(bonusAmount);
 
     // 上限適用（保険年度ベースで集計するため、payDateを渡す）
+    console.log('[BonusCalculationService] 上限適用前', {
+      employeeId,
+      employeeName: employee.name,
+      bonusAmount,
+      standardBonus,
+      payDate: payDate.toISOString(),
+    });
+
     const caps = await this.preparationService.applyBonusCaps(
       standardBonus,
       employeeId,
@@ -159,6 +167,16 @@ export class BonusCalculationService {
       reason_upper_limit_health,
       reason_upper_limit_pension,
     } = caps;
+
+    console.log('[BonusCalculationService] 上限適用後', {
+      employeeId,
+      employeeName: employee.name,
+      standardBonus,
+      cappedBonusHealth,
+      cappedBonusPension,
+      reason_upper_limit_health,
+      reason_upper_limit_pension,
+    });
 
     // 退職月チェック
     const isRetiredNoLastDay = this.exemptionCheckService.checkRetirement(
@@ -241,6 +259,16 @@ export class BonusCalculationService {
     }
 
     // 保険料計算のベース額を決定
+    console.log('[BonusCalculationService] ベース額決定前', {
+      employeeId,
+      employeeName: employee.name,
+      isRetiredNoLastDay,
+      isExempted,
+      isSalaryInsteadOfBonus,
+      cappedBonusHealth,
+      cappedBonusPension,
+    });
+
     const { healthBase, pensionBase } =
       this.premiumOrchestrationService.determinePremiumBases(
         isRetiredNoLastDay,
@@ -249,6 +277,13 @@ export class BonusCalculationService {
         cappedBonusHealth,
         cappedBonusPension
       );
+
+    console.log('[BonusCalculationService] ベース額決定後', {
+      employeeId,
+      employeeName: employee.name,
+      healthBase,
+      pensionBase,
+    });
 
     // 保険料を計算
     console.log('[BonusCalculationService] 保険料計算開始', {
