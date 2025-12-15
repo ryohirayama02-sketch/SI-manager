@@ -59,9 +59,11 @@ export class PremiumStoppingRuleService {
       // 退職月の次の月以降（退職月より後）は退職済み
       if (targetMonthKey > retireMonthKey) {
         retired = true;
-      } else {
-        // 退職月の場合は、isRetiredInMonthで判定（月末在籍なしの場合のみ退職扱い）
-        retired = this.lifecycle.isRetiredInMonth(emp, year, month);
+      } else if (targetMonthKey === retireMonthKey) {
+        // 退職月の場合は、月末在籍がない場合のみ退職扱い
+        // 月末在籍がある場合は保険料発生（9月30日退職なら9月は保険料発生）
+        const isLastDayEligible = this.lifecycle.isLastDayEligible(emp, year, month);
+        retired = !isLastDayEligible;
       }
     }
 
