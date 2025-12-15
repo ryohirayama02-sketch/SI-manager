@@ -41,7 +41,7 @@ export class BonusExemptionService {
   }
 
   /**
-   * 退職月チェック
+   * 退職月チェック（退職月で月末在籍なし、または退職後の賞与）
    */
   checkRetirement(
     employee: Employee,
@@ -58,6 +58,14 @@ export class BonusExemptionService {
     const retireDay = retireDate.getDate();
     const lastDayOfMonth = new Date(payYear, payMonth, 0).getDate();
 
+    // 退職月の次の月以降（退職後の賞与）は保険料0円
+    const payMonthKey = payYear * 12 + (payMonth - 1);
+    const retireMonthKey = retireYear * 12 + (retireMonth - 1);
+    if (payMonthKey > retireMonthKey) {
+      return true; // 退職後の賞与
+    }
+
+    // 退職月で月末在籍なしの場合
     if (retireYear === payYear && retireMonth === payMonth) {
       return retireDay < lastDayOfMonth;
     }

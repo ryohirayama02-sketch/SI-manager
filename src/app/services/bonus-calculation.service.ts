@@ -244,7 +244,21 @@ export class BonusCalculationService {
     // 免除理由の配列を作成
     const exemptReasons: string[] = [];
     if (isRetiredNoLastDay) {
-      exemptReasons.push('退職月のため社保対象外（月末在籍なし）');
+      // 退職月で月末在籍なし、または退職後の賞与の場合
+      if (employee.retireDate) {
+        const payMonthKey = payYear * 12 + (payMonth - 1);
+        const retireDate = new Date(employee.retireDate);
+        const retireYear = retireDate.getFullYear();
+        const retireMonth = retireDate.getMonth() + 1;
+        const retireMonthKey = retireYear * 12 + (retireMonth - 1);
+        if (payMonthKey > retireMonthKey) {
+          exemptReasons.push('退職後の賞与のため社保対象外');
+        } else {
+          exemptReasons.push('退職月のため社保対象外（月末在籍なし）');
+        }
+      } else {
+        exemptReasons.push('退職月のため社保対象外（月末在籍なし）');
+      }
     }
     exemptReasons.push(...maternityChildcareExemptReasons);
 
