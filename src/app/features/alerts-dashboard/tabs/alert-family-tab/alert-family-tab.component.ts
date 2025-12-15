@@ -150,7 +150,8 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
           const age = this.familyMemberService.calculateAge(member.birthDate);
           const relationship = member.relationship || '';
           const income =
-            member.expectedIncome !== null && member.expectedIncome !== undefined
+            member.expectedIncome !== null &&
+            member.expectedIncome !== undefined
               ? member.expectedIncome
               : null;
 
@@ -258,9 +259,7 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
                 daysUntilDeadline: daysUntilDeadline,
                 details: `配偶者の収入が扶養基準を超える可能性があります（収入見込: ${member.expectedIncome.toLocaleString(
                   'ja-JP'
-                )}円）。被扶養者（異動）削除届および国民年金第3号資格喪失届が必要です（提出期限: ${this.formatDate(
-                  submitDeadline
-                )}）。`,
+                )}円）。配偶者の扶養基準を確認、必要に応じて届出を提出してください。`,
               });
             }
 
@@ -372,37 +371,37 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
             relationship === '次女' ||
             relationship.includes('子')
           ) {
-        // 0) 扶養追加（健康保険被扶養者（異動）届）: 75歳未満かつ見込年収106万円未満のみ
-        if (
-          age < 75 &&
-          income !== null &&
-          income !== undefined &&
-          income < 1060000
-        ) {
-          const submitDeadline = new Date(today);
-          submitDeadline.setDate(submitDeadline.getDate() + 5);
-          const daysUntilDeadline = Math.ceil(
-            (submitDeadline.getTime() - today.getTime()) /
-              (1000 * 60 * 60 * 24)
-          );
+            // 0) 扶養追加（健康保険被扶養者（異動）届）: 75歳未満かつ見込年収106万円未満のみ
+            if (
+              age < 75 &&
+              income !== null &&
+              income !== undefined &&
+              income < 1060000
+            ) {
+              const submitDeadline = new Date(today);
+              submitDeadline.setDate(submitDeadline.getDate() + 5);
+              const daysUntilDeadline = Math.ceil(
+                (submitDeadline.getTime() - today.getTime()) /
+                  (1000 * 60 * 60 * 24)
+              );
 
-          alerts.push({
-            id: `child_new_dependent_${emp.id}_${member.id}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            familyMemberId: member.id || '',
-            familyMemberName: member.name,
-            relationship: relationship,
-            alertType: '子扶養追加',
-            notificationName: '健康保険被扶養者異動届',
-            alertDate: today,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `子が扶養条件（75歳未満・見込年収106万円未満）に該当しました。健康保険被扶養者異動届（扶養追加）を提出してください（期限: ${this.formatDate(
-              submitDeadline
-            )}）。`,
-          });
-        }
+              alerts.push({
+                id: `child_new_dependent_${emp.id}_${member.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                familyMemberId: member.id || '',
+                familyMemberName: member.name,
+                relationship: relationship,
+                alertType: '子扶養追加',
+                notificationName: '健康保険被扶養者異動届',
+                alertDate: today,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: `子が扶養条件（75歳未満・見込年収106万円未満）に該当しました。健康保険被扶養者異動届（扶養追加）を提出してください（期限: ${this.formatDate(
+                  submitDeadline
+                )}）。`,
+              });
+            }
 
             // ① 18歳到達（高校卒業）
             const age18Year = birthDate.getFullYear() + 18;

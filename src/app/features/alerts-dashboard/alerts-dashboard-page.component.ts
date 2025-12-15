@@ -531,9 +531,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
                 daysUntilDeadline: daysUntilDeadline,
                 details: `配偶者の収入が扶養基準を超える可能性があります（収入見込: ${member.expectedIncome.toLocaleString(
                   'ja-JP'
-                )}円）。被扶養者（異動）削除届および国民年金第3号資格喪失届が必要です（提出期限: ${this.formatDate(
-                  submitDeadline
-                )}）。`,
+                )}円）。配偶者の扶養基準を確認、必要に応じて届出を提出してください。`,
               });
             }
 
