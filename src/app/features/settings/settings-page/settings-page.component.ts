@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ReactiveFormsModule,
@@ -31,7 +31,7 @@ import { firstValueFrom } from 'rxjs';
   templateUrl: './settings-page.component.html',
   styleUrl: './settings-page.component.css',
 })
-export class SettingsPageComponent implements OnInit {
+export class SettingsPageComponent {
   year = '2025';
   availableYears: number[] = [];
   standardTableYear: number = new Date().getFullYear();
@@ -90,6 +90,9 @@ export class SettingsPageComponent implements OnInit {
   // 保存中フラグ
   isSavingRates = false;
   isSavingStandardTable = false;
+
+  // 初回案内モーダル
+  showOnboardingGuide = false;
 
   // 47都道府県の料率データ（パーセント形式で保持）
   prefectureRates: {
@@ -360,6 +363,35 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
+  /**
+   * 新規作成ルームの初回入室時に案内を表示
+   */
+  private showFirstEntryGuideIfNeeded(roomId: string): void {
+    const key = `room_onboarding_${roomId}`;
+    const flag = localStorage.getItem(key);
+    console.log('[SettingsPage] showFirstEntryGuideIfNeeded:', {
+      roomId,
+      key,
+      flag,
+    });
+    if (flag === '1') {
+      // ページ内モーダルで案内を表示し、閉じるとフラグを削除
+      console.log('[SettingsPage] オンボーディングダイアログを表示');
+      this.showOnboardingGuide = true;
+      localStorage.removeItem(key);
+      // 変更検知を強制的に実行（ビューが更新されるように）
+      this.cdr.detectChanges();
+    } else {
+      console.log(
+        '[SettingsPage] オンボーディングフラグなし、ダイアログを表示しない'
+      );
+    }
+  }
+
+  closeOnboardingGuide(): void {
+    this.showOnboardingGuide = false;
+  }
+
   async saveStandardTable(): Promise<void> {
     if (this.isSavingStandardTable) return;
 
@@ -445,6 +477,13 @@ export class SettingsPageComponent implements OnInit {
     await this.loadSalaryItems();
     await this.loadOffices();
     await this.loadUserRoomInfo();
+
+    // 初回入室時の案内を表示（ビューが完全に初期化された後に実行）
+    const roomId = this.roomIdService.requireRoomId();
+    // setTimeoutを使用して、次のティックで実行することで、ビューが完全に初期化された後にダイアログを表示
+    setTimeout(() => {
+      this.showFirstEntryGuideIfNeeded(roomId);
+    }, 0);
   }
 
   // 編集ログタブがクリックされたときの処理

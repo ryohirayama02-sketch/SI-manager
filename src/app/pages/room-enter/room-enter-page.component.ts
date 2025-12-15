@@ -196,6 +196,8 @@ export class RoomEnterPageComponent implements OnInit {
             '[RoomEnterPage] onSubmit: 初回入室 → /settings?tab=rate へ遷移'
           );
           localStorage.setItem(visitedKey, '1');
+          // 新規ルーム初回入室フラグ（オンボーディング表示用）
+          localStorage.setItem(`room_onboarding_${roomId}`, '1');
           this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
         } else {
           // 2回目以降: アラート画面の届出スケジュールタブへ

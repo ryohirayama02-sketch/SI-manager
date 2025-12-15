@@ -48,6 +48,8 @@ export class LoginPageComponent implements OnInit, OnDestroy {
         const hasVisited = localStorage.getItem(visitedKey);
         if (!hasVisited) {
           // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+          // 新規ルーム初回入室フラグ（オンボーディング表示用）
+          localStorage.setItem(`room_onboarding_${roomId}`, '1');
           this.router.navigate(['/settings'], { queryParams: { tab: 'rate' } });
         } else {
           // 2回目以降: アラート画面の届出スケジュールタブへ
@@ -72,6 +74,8 @@ export class LoginPageComponent implements OnInit, OnDestroy {
               const hasVisited = localStorage.getItem(visitedKey);
               if (!hasVisited) {
                 // 初回入室: 設定・マスタ画面の保険料率の設定タブへ
+                // 新規ルーム初回入室フラグ（オンボーディング表示用）
+                localStorage.setItem(`room_onboarding_${roomId}`, '1');
                 this.router.navigate(['/settings'], {
                   queryParams: { tab: 'rate' },
                 });
