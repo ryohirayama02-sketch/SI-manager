@@ -114,7 +114,7 @@ export class PaymentSummaryEmployeeCalculationService {
         const monthSalaryData = salaryData[monthKeyString];
         // totalSalaryまたはtotalが存在する場合はそれを使用（既に欠勤控除を引いた値）
         // 存在しない場合は、fixedSalary + variableSalaryから計算（欠勤控除は既に引かれている可能性がある）
-        const totalSalary =
+        const monthlyTotalSalary =
           (monthSalaryData?.totalSalary ?? monthSalaryData?.total ?? 0) ||
           (monthSalaryData?.fixedSalary ?? monthSalaryData?.fixed ?? 0) +
             (monthSalaryData?.variableSalary ?? monthSalaryData?.variable ?? 0);
@@ -139,7 +139,16 @@ export class PaymentSummaryEmployeeCalculationService {
           );
         });
 
+        // 月次給与の総支給額に賞与の金額も加算
+        let totalSalary = monthlyTotalSalary;
         if (monthBonuses.length > 0) {
+          // 同じ月のすべての賞与の金額を合算
+          const totalBonusAmount = monthBonuses.reduce(
+            (sum, b) => sum + (b.amount || 0),
+            0
+          );
+          totalSalary += totalBonusAmount;
+
           // 同じ月のすべての賞与の保険料を合算
           const totalBonusPremium = monthBonuses.reduce((sum, bonus) => {
             return (
@@ -151,13 +160,12 @@ export class PaymentSummaryEmployeeCalculationService {
           }, 0);
           employeeTotalPremium += totalBonusPremium;
           console.log(
-            `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 賞与の保険料を加算`,
+            `[徴収不能チェック] ${emp.name} (${year}年${month}月) [payment-summary]: 賞与の金額と保険料を加算`,
             {
               monthBonusesCount: monthBonuses.length,
-              totalBonusAmount: monthBonuses.reduce(
-                (sum, b) => sum + (b.amount || 0),
-                0
-              ),
+              monthlyTotalSalary,
+              totalBonusAmount,
+              totalSalary,
               totalBonusPremium,
               employeeTotalPremiumBefore: employeeTotalPremium - totalBonusPremium,
               employeeTotalPremiumAfter: employeeTotalPremium,
