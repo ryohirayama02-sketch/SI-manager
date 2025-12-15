@@ -202,16 +202,6 @@ export class NotificationDecisionService {
       };
     }
 
-    // 給与扱いの場合は提出不要
-    if (isSalaryInsteadOfBonus) {
-      reasons.push('給与扱いのため、賞与支払届は不要');
-      return {
-        type: 'bonus',
-        required: false,
-        reasons,
-      };
-    }
-
     // 上記の例外に該当しない場合は提出要
     reasons.push('賞与支給があるため、賞与支払届の提出が必要');
 

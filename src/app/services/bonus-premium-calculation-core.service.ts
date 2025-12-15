@@ -34,6 +34,7 @@ export class BonusPremiumCalculationCoreService {
 
   /**
    * 賞与の上限を適用
+   * 同じ月に複数回の賞与がある場合は、それらを合算してから上限を適用する
    */
   async applyBonusCaps(
     standardBonus: number,
@@ -46,21 +47,24 @@ export class BonusPremiumCalculationCoreService {
     reason_upper_limit_pension: boolean;
   }> {
     const HEALTH_CARE_ANNUAL_LIMIT = 5730000;
-    const PENSION_SINGLE_LIMIT = 1500000;
+    const PENSION_MONTHLY_LIMIT = 1500000; // 厚生年金：月当たり150万円上限
 
-    // 厚生年金：1回150万円上限
-    const cappedBonusPension = Math.min(standardBonus, PENSION_SINGLE_LIMIT);
-    const reason_upper_limit_pension = standardBonus > PENSION_SINGLE_LIMIT;
+    // standardBonusは既に同じ月の合計標準賞与額として渡されている
+    // （bonus-calculation.service.tsで同じ月の賞与を合算してから標準賞与額に変換済み）
+
+    // 厚生年金：月当たり150万円上限
+    const cappedBonusPension = Math.min(standardBonus, PENSION_MONTHLY_LIMIT);
+    const reason_upper_limit_pension = standardBonus > PENSION_MONTHLY_LIMIT;
 
     // 健保・介保：保険年度（4/1〜翌3/31）累計573万円上限
     // 今回の支給日が属する保険年度内の賞与合計を取得
     const roomId = this.roomIdService.requireRoomId();
+    const payYear = payDate.getFullYear();
+    const payMonth = payDate.getMonth() + 1;
 
     // 保険年度の開始年を計算（4月1日〜翌年3月31日）
     // 例：2025年2月 → 保険年度は2024年4月1日〜2025年3月31日 → 開始年は2024
     // 例：2025年4月 → 保険年度は2025年4月1日〜2026年3月31日 → 開始年は2025
-    const payYear = payDate.getFullYear();
-    const payMonth = payDate.getMonth() + 1;
     const insuranceYearStart = payMonth >= 4 ? payYear : payYear - 1;
     const insuranceYearEnd = insuranceYearStart + 1;
 
@@ -104,13 +108,20 @@ export class BonusPremiumCalculationCoreService {
     });
 
     // 今回計算中の賞与より前の支給日の賞与のみを累計に含める（時系列順に上限を適用）
+    // 同じ月の既存賞与は既にstandardBonusに含まれているため、同じ月の賞与は除外する
     const currentPayDate = new Date(payDate);
     currentPayDate.setHours(0, 0, 0, 0); // 時刻を0にして日付のみで比較
     const otherBonuses = existingBonuses.filter((bonus) => {
       if (!bonus.payDate) return false; // payDateがない場合は除外
       const bonusPayDate = new Date(bonus.payDate);
       bonusPayDate.setHours(0, 0, 0, 0); // 時刻を0にして日付のみで比較
-      return bonusPayDate < currentPayDate; // 現在の賞与より前の日付のみ
+      const bonusYear = bonusPayDate.getFullYear();
+      const bonusMonth = bonusPayDate.getMonth() + 1;
+      // 現在の賞与より前の日付で、かつ同じ月ではない賞与のみ
+      return (
+        bonusPayDate < currentPayDate &&
+        !(bonusYear === payYear && bonusMonth === payMonth)
+      );
     });
 
     const currentPayDateStr = currentPayDate.toISOString().split('T')[0]; // ログ用
@@ -202,9 +213,12 @@ export class BonusPremiumCalculationCoreService {
       return sum + existingCapped;
     }, 0);
 
+    // 健康保険の上限適用：保険年度累計573万円上限
+    // 同じ月の既存賞与は既にstandardBonusに含まれているため、existingTotalをそのまま使用
+    const totalExistingForHealth = existingTotal;
     const remainingLimit = Math.max(
       0,
-      HEALTH_CARE_ANNUAL_LIMIT - existingTotal
+      HEALTH_CARE_ANNUAL_LIMIT - totalExistingForHealth
     );
     const cappedBonusHealth = Math.min(standardBonus, remainingLimit);
     const reason_upper_limit_health = standardBonus > remainingLimit;
@@ -217,9 +231,11 @@ export class BonusPremiumCalculationCoreService {
         standardBonus,
         HEALTH_CARE_ANNUAL_LIMIT,
         existingTotal,
+        totalExistingForHealth,
         remainingLimit,
         cappedBonusHealth,
         reason_upper_limit_health,
+        PENSION_MONTHLY_LIMIT,
         cappedBonusPension,
         reason_upper_limit_pension,
       }
@@ -436,11 +452,6 @@ export class BonusPremiumCalculationCoreService {
       reasons.push('75歳到達月のため健保・介保の賞与保険料は停止されます');
     }
 
-    if (reason_bonus_to_salary) {
-      reasons.push(
-        '過去1年間の賞与支給回数が3回を超えているため、今回の支給は賞与ではなく給与として扱われます。'
-      );
-    }
 
     if (reason_upper_limit_health) {
       reasons.push(
@@ -450,32 +461,11 @@ export class BonusPremiumCalculationCoreService {
 
     if (reason_upper_limit_pension) {
       reasons.push(
-        `厚生年金の1回あたり上限（150万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusPension.toLocaleString()}円）`
+        `厚生年金の月当たり上限（150万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusPension.toLocaleString()}円）`
       );
     }
 
     return reasons;
   }
 
-  /**
-   * 給与扱いの場合、標準賞与額を給与に合算する
-   */
-  async addBonusAsSalary(
-    employeeId: string,
-    payYear: number,
-    payMonth: number,
-    standardBonus: number
-  ): Promise<void> {
-    try {
-      await this.salaryCalculationService.addBonusAsSalary(
-        employeeId,
-        payYear,
-        payMonth,
-        standardBonus
-      );
-    } catch (error) {
-      console.error('給与への賞与合算処理でエラーが発生しました:', error);
-      throw error;
-    }
-  }
 }

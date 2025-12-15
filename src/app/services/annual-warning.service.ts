@@ -300,28 +300,64 @@ export class AnnualWarningService {
     const bonusTotalsByEmployee: {
       [employeeId: string]: { healthCare: number; pension: number };
     } = {};
+    
+    // 同じ月の賞与をグループ化して合算
+    const bonusesByEmployeeAndMonth: {
+      [key: string]: Bonus[];
+    } = {};
     for (const bonus of bonuses) {
-      if (!bonusTotalsByEmployee[bonus.employeeId]) {
-        bonusTotalsByEmployee[bonus.employeeId] = { healthCare: 0, pension: 0 };
+      if (!bonus.payDate) continue;
+      const payDateObj = new Date(bonus.payDate);
+      const payYear = payDateObj.getFullYear();
+      const payMonth = payDateObj.getMonth() + 1;
+      const key = `${bonus.employeeId}_${payYear}_${payMonth}`;
+      if (!bonusesByEmployeeAndMonth[key]) {
+        bonusesByEmployeeAndMonth[key] = [];
+      }
+      bonusesByEmployeeAndMonth[key].push(bonus);
+    }
+
+    // 同じ月の賞与を合算して上限チェック
+    for (const key in bonusesByEmployeeAndMonth) {
+      const monthBonuses = bonusesByEmployeeAndMonth[key];
+      const [employeeId] = key.split('_');
+      
+      if (!bonusTotalsByEmployee[employeeId]) {
+        bonusTotalsByEmployee[employeeId] = { healthCare: 0, pension: 0 };
       }
 
-      const standardBonus =
-        bonus.standardBonusAmount ??
-        Math.floor((bonus.amount || 0) / 1000) * 1000;
-      const cappedHealth = bonus.cappedBonusHealth ?? standardBonus;
-      const cappedPension =
-        bonus.cappedBonusPension ?? Math.min(standardBonus, 1500000);
+      // 同じ月の賞与の金額を合算
+      const totalAmountForMonth = monthBonuses.reduce(
+        (sum, bonus) => sum + (bonus.amount || 0),
+        0
+      );
+      
+      // 合算後の金額を標準賞与額に変換（1000円未満切捨て）
+      const totalStandardBonusForMonth = Math.floor(totalAmountForMonth / 1000) * 1000;
 
-      bonusTotalsByEmployee[bonus.employeeId].healthCare += cappedHealth;
-      bonusTotalsByEmployee[bonus.employeeId].pension += cappedPension;
+      // 各賞与の上限適用後の値を合算（健康保険用）
+      for (const bonus of monthBonuses) {
+        const standardBonus =
+          bonus.standardBonusAmount ??
+          Math.floor((bonus.amount || 0) / 1000) * 1000;
+        const cappedHealth = bonus.cappedBonusHealth ?? standardBonus;
+        bonusTotalsByEmployee[employeeId].healthCare += cappedHealth;
+      }
 
-      // 厚生年金の上限チェック：1回の賞与が150万円を超えているか
-      // 厚生年金の上限は「1回150万円」なので、各賞与ごとにチェック
-      if (standardBonus > 1500000) {
-        const emp = employees.find((e) => e.id === bonus.employeeId);
+      // 厚生年金の上限適用：月当たり150万円上限
+      const cappedPensionForMonth = Math.min(totalStandardBonusForMonth, 1500000);
+      bonusTotalsByEmployee[employeeId].pension += cappedPensionForMonth;
+
+      // 厚生年金の上限チェック：同じ月の賞与の合計が150万円を超えているか
+      // 厚生年金の上限は「月当たり150万円」なので、同じ月の賞与を合算してチェック
+      if (totalStandardBonusForMonth > 1500000) {
+        const emp = employees.find((e) => e.id === employeeId);
+        const payDateObj = new Date(monthBonuses[0].payDate);
+        const payYear = payDateObj.getFullYear();
+        const payMonth = payDateObj.getMonth() + 1;
         const msg = `従業員「${
-          emp?.name || bonus.employeeId
-        }」の賞与が厚生年金の上限額（1回150万円）を超えています。`;
+          emp?.name || employeeId
+        }」の${payYear}年${payMonth}月の賞与合計が厚生年金の上限額（月当たり150万円）を超えています。`;
         if (!warningSet.has(msg)) {
           warningSet.add(msg);
           warnings.push(msg);
@@ -343,7 +379,7 @@ export class AnnualWarningService {
           warnings.push(msg);
         }
       }
-      // 厚生年金の年度累計チェックは削除（1回あたりの上限のみチェック）
+      // 厚生年金の年度累計チェックは削除（月当たりの上限のみチェック）
     }
 
     // 5. 随時改定候補（suijiAlerts）がある場合

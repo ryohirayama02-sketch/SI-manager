@@ -313,7 +313,7 @@ export class MonthlyPremiumCalculationService {
         premiumResult.care_employee +
         premiumResult.pension_employee;
 
-      // その月の賞与の本人負担保険料を加算
+      // その月の賞与の本人負担保険料を加算（同じ月に複数の賞与がある場合は合算）
       const roomIdForBonus = this.roomIdService.requireRoomId();
       const employeeIdForBonus = employeeWithStandard.id || emp.id;
       const bonusesForBonus = await this.bonusService.listBonuses(
@@ -321,34 +321,40 @@ export class MonthlyPremiumCalculationService {
         employeeIdForBonus,
         year
       );
-      const monthBonusForBonus = bonusesForBonus.find((bonus) => {
+      const monthBonusesForBonus = bonusesForBonus.filter((bonus) => {
         if (!bonus.payDate) return false;
         const payDateObj = new Date(bonus.payDate);
         const payYear = payDateObj.getFullYear();
         const payMonth = payDateObj.getMonth() + 1;
-        return payYear === year && payMonth === month;
+        return (
+          payYear === year &&
+          payMonth === month &&
+          !bonus.isExempted &&
+          !bonus.isSalaryInsteadOfBonus
+        );
       });
 
-      if (
-        monthBonusForBonus &&
-        !monthBonusForBonus.isExempted &&
-        !monthBonusForBonus.isSalaryInsteadOfBonus
-      ) {
-        // 賞与の本人負担保険料を加算
-        const bonusPremium =
-          (monthBonusForBonus.healthEmployee || 0) +
-          (monthBonusForBonus.careEmployee || 0) +
-          (monthBonusForBonus.pensionEmployee || 0);
-        employeeTotalPremium += bonusPremium;
+      if (monthBonusesForBonus.length > 0) {
+        // 同じ月のすべての賞与の保険料を合算
+        const totalBonusPremium = monthBonusesForBonus.reduce((sum, bonus) => {
+          return (
+            sum +
+            (bonus.healthEmployee || 0) +
+            (bonus.careEmployee || 0) +
+            (bonus.pensionEmployee || 0)
+          );
+        }, 0);
+        employeeTotalPremium += totalBonusPremium;
         console.log(
           `[徴収不能チェック] ${emp.name} (${year}年${month}月): 賞与の保険料を加算`,
           {
-            bonusAmount: monthBonusForBonus.amount,
-            bonusPremium,
-            healthEmployee: monthBonusForBonus.healthEmployee || 0,
-            careEmployee: monthBonusForBonus.careEmployee || 0,
-            pensionEmployee: monthBonusForBonus.pensionEmployee || 0,
-            employeeTotalPremiumBefore: employeeTotalPremium - bonusPremium,
+            monthBonusesCount: monthBonusesForBonus.length,
+            totalBonusAmount: monthBonusesForBonus.reduce(
+              (sum, b) => sum + (b.amount || 0),
+              0
+            ),
+            totalBonusPremium,
+            employeeTotalPremiumBefore: employeeTotalPremium - totalBonusPremium,
             employeeTotalPremiumAfter: employeeTotalPremium,
           }
         );

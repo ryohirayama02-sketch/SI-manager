@@ -60,8 +60,6 @@ export class PaymentSummaryFormatService {
 
       if (bonus.isExempted || bonus.isExempt) {
         lines.push(`免除: ${bonus.exemptReason || '産休・育休中'}`);
-      } else if (bonus.isSalaryInsteadOfBonus) {
-        lines.push(`給与扱い: 年間4回以上支給のため`);
       } else if (bonus.isRetiredNoLastDay) {
         lines.push(`対象外: 月末在籍なし`);
       } else {

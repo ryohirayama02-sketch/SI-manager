@@ -42,21 +42,6 @@ export class BonusNotificationService {
     let isSalaryInsteadOfBonus = false;
     let reason_bonus_to_salary_text: string | undefined = undefined;
 
-    // 過去12ヶ月の賞与支給回数から判定
-    // 3回以内 → 賞与扱い
-    // 4回以上 → 給与扱い（賞与保険料なし）
-    if (bonusCountLast12Months >= 4) {
-      isSalaryInsteadOfBonus = true;
-      reason_bonus_to_salary_text = `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため、今回の支給は賞与ではなく給与として扱われます。`;
-      salaryInsteadReasons.push(
-        `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（4回以上）のため給与扱い`
-      );
-    } else {
-      salaryInsteadReasons.push(
-        `過去12ヶ月の賞与支給回数が${bonusCountLast12Months}回（3回以内）のため賞与扱い`
-      );
-    }
-
     return {
       isSalaryInsteadOfBonus,
       reason_bonus_to_salary_text,
@@ -103,10 +88,6 @@ export class BonusNotificationService {
       requireReport = false;
       reportReason =
         '75歳到達月で健康保険・介護保険の資格喪失のため賞与支払届は不要です';
-    } else if (reason_bonus_to_salary) {
-      requireReport = false;
-      reportReason =
-        '年度内4回目以降の賞与は給与扱いとなるため賞与支払届は不要です';
     } else {
       requireReport = true;
       reportReason =
@@ -141,38 +122,4 @@ export class BonusNotificationService {
     return true;
   }
 
-  /**
-   * 保存前チェック：過去12か月の賞与件数が4回目になるかどうかを判定
-   * @param employeeId 従業員ID
-   * @param payDate 今回保存しようとしている賞与の支給日
-   * @param excludePayDate 除外する支給日（既存の賞与を更新する場合、その支給日を指定）
-   * @returns 4回目になる場合true、そうでない場合false
-   */
-  async isFourthBonusInLast12Months(
-    employeeId: string,
-    payDate: Date,
-    excludePayDate?: string
-  ): Promise<boolean> {
-    const roomId = this.roomIdService.requireRoomId();
-    const targetYears = [payDate.getFullYear() - 1, payDate.getFullYear()];
-    let bonusesLast12Months: any[] = [];
-    for (const y of targetYears) {
-      const list = await this.bonusService.listBonuses(roomId, employeeId, y);
-      bonusesLast12Months.push(...list);
-    }
-
-    // 既存の賞与のみをカウント（今回保存しようとしている賞与は除外）
-    const payDateStr = payDate.toISOString().split('T')[0];
-    const existingBonusCount = bonusesLast12Months.filter((bonus) => {
-      if (!bonus.payDate) return false;
-      // 今回保存しようとしている賞与は除外
-      if (bonus.payDate === payDateStr) return false;
-      // 既存の賞与を更新する場合、その支給日も除外
-      if (excludePayDate && bonus.payDate === excludePayDate) return false;
-      return true;
-    }).length;
-
-    // 既存の賞与が3回あり、今回が4回目になる場合
-    return existingBonusCount >= 3;
-  }
 }

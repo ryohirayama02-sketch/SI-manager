@@ -112,7 +112,7 @@ describe('BonusCalculationService', () => {
     });
 
     describe('1-2. applyBonusCaps', () => {
-      it('厚年: 1回150万円上限', async () => {
+      it('厚年: 月当たり150万円上限', async () => {
         bonusServiceStub.bonusesForResult = [];
         const result = await service.applyBonusCaps(2000000, 'emp1', 2025);
 
@@ -857,7 +857,7 @@ describe('BonusCalculationService', () => {
         );
         expect(reasons8).toContain(
           jasmine.stringContaining(
-            '厚生年金の1回あたり上限（150万円）を適用しました'
+            '厚生年金の月当たり上限（150万円）を適用しました'
           )
         );
       });

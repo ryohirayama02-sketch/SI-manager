@@ -6,6 +6,8 @@ import { BonusExemptionCheckService } from './bonus-exemption-check.service';
 import { BonusPremiumCalculationOrchestrationService } from './bonus-premium-calculation-orchestration.service';
 import { BonusCalculationResultBuilderService } from './bonus-calculation-result-builder.service';
 import { EmployeeWorkCategoryService } from './employee-work-category.service';
+import { BonusService } from './bonus.service';
+import { RoomIdService } from './room-id.service';
 import { Employee } from '../models/employee.model';
 
 export interface BonusCalculationResult {
@@ -62,7 +64,9 @@ export class BonusCalculationService {
     private exemptionCheckService: BonusExemptionCheckService,
     private premiumOrchestrationService: BonusPremiumCalculationOrchestrationService,
     private resultBuilderService: BonusCalculationResultBuilderService,
-    private employeeWorkCategoryService: EmployeeWorkCategoryService
+    private employeeWorkCategoryService: EmployeeWorkCategoryService,
+    private bonusService: BonusService,
+    private roomIdService: RoomIdService
   ) {}
 
   async calculateBonus(
@@ -143,15 +147,51 @@ export class BonusCalculationService {
       return null;
     }
 
-    // 標準賞与額を計算
-    const standardBonus =
-      this.preparationService.calculateStandardBonus(bonusAmount);
+    // 同じ月の既存賞与を取得して合算
+    const roomId = this.roomIdService.requireRoomId();
+    const sameMonthBonuses = await this.bonusService.listBonuses(
+      roomId,
+      employeeId,
+      payYear
+    );
+    
+    // 同じ月の既存賞与をフィルタリング（今回計算中の賞与より前の日付のみ）
+    const currentPayDate = new Date(payDate);
+    currentPayDate.setHours(0, 0, 0, 0);
+    
+    const sameMonthExistingBonuses = sameMonthBonuses.filter((bonus) => {
+      if (!bonus.payDate) return false;
+      const bonusPayDate = new Date(bonus.payDate);
+      bonusPayDate.setHours(0, 0, 0, 0);
+      const bonusYear = bonusPayDate.getFullYear();
+      const bonusMonth = bonusPayDate.getMonth() + 1;
+      // 同じ年月で、かつ今回の賞与より前の日付
+      return (
+        bonusYear === payYear &&
+        bonusMonth === payMonth &&
+        bonusPayDate < currentPayDate
+      );
+    });
 
-    // 上限適用（保険年度ベースで集計するため、payDateを渡す）
+    // 同じ月の既存賞与の金額を合算
+    const sameMonthTotalAmount = sameMonthExistingBonuses.reduce(
+      (sum, bonus) => sum + (bonus.amount || 0),
+      0
+    );
+
+    // 今回の賞与を含めた同じ月の合計金額
+    const totalAmountForMonth = sameMonthTotalAmount + bonusAmount;
+
+    // 合算後の金額を標準賞与額に変換（1000円未満切捨て）
+    const standardBonus =
+      this.preparationService.calculateStandardBonus(totalAmountForMonth);
+
     console.log('[BonusCalculationService] 上限適用前', {
       employeeId,
       employeeName: employee.name,
       bonusAmount,
+      sameMonthTotalAmount,
+      totalAmountForMonth,
       standardBonus,
       payDate: payDate.toISOString(),
     });
@@ -233,30 +273,20 @@ export class BonusCalculationService {
       isNoHealth: ageFlags.isNoHealth,
     });
 
-    // 賞与→給与扱いチェック
-    const salaryResult =
-      await this.notificationService.checkSalaryInsteadOfBonus(
-        employeeId,
-        payDate
-      );
-    const {
-      isSalaryInsteadOfBonus,
-      reason_bonus_to_salary_text,
-      bonusCountLast12Months,
-      bonusCount,
-      salaryInsteadReasons,
-    } = salaryResult;
-    const reason_bonus_to_salary = isSalaryInsteadOfBonus;
-
-    // 給与扱いの場合、標準賞与額を給与に合算
-    if (isSalaryInsteadOfBonus) {
-      await this.premiumCalculationCore.addBonusAsSalary(
-        employeeId,
-        payYear,
-        payMonth,
-        standardBonus
-      );
+    // 賞与支給回数の取得（表示用）
+    // roomIdは既に151行目で宣言済み
+    const targetYears = [payDate.getFullYear() - 1, payDate.getFullYear()];
+    let bonusesLast12Months: any[] = [];
+    for (const y of targetYears) {
+      const list = await this.bonusService.listBonuses(roomId, employeeId, y);
+      bonusesLast12Months.push(...list);
     }
+    const bonusCountLast12Months = bonusesLast12Months.length;
+    const bonusCount = bonusCountLast12Months;
+    const isSalaryInsteadOfBonus = false;
+    const reason_bonus_to_salary_text = undefined;
+    const salaryInsteadReasons: string[] = [];
+    const reason_bonus_to_salary = false;
 
     // 保険料計算のベース額を決定
     console.log('[BonusCalculationService] ベース額決定前', {

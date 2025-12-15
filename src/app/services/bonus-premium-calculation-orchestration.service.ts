@@ -40,10 +40,6 @@ export class BonusPremiumCalculationOrchestrationService {
     if (isExempted) {
       return { healthBase: 0, pensionBase: 0 };
     }
-    // 給与扱いの場合（過去12ヶ月で4回以上）
-    if (isSalaryInsteadOfBonus) {
-      return { healthBase: 0, pensionBase: 0 };
-    }
     // 通常の場合（上限適用済みの標準賞与額を使用）
     return {
       healthBase: cappedBonusHealth,

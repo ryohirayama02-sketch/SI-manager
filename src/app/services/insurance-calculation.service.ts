@@ -77,12 +77,6 @@ export class InsuranceCalculationService {
         continue;
       }
 
-      // 給与扱いの場合も 0 円
-      if (bonus.isSalaryInsteadOfBonus) {
-        salaryInsteadReasons.push('過去12ヶ月の賞与支給回数が1回のため給与扱い、または4回目以降のため給与扱い');
-        continue;
-      }
-
       // 保険料を集計
       healthEmployee += bonus.healthEmployee || 0;
       healthEmployer += bonus.healthEmployer || 0;
@@ -137,11 +131,6 @@ export class InsuranceCalculationService {
     for (const bonus of bonusPremiums) {
       // 免除が true の場合は 0 円
       if (bonus.isExempted) {
-        continue;
-      }
-
-      // 給与扱いの場合も 0 円
-      if (bonus.isSalaryInsteadOfBonus) {
         continue;
       }
 
