@@ -46,6 +46,7 @@
                 *ngFor="let item of getScheduleItemsForDate(date)"
                 class="schedule-item"
                 [style.backgroundColor]="item.color"
+                [style.color]="item.textColor"
                 [style.cursor]="
                   item.tabId === 'payment' ? 'default' : 'pointer'
                 "

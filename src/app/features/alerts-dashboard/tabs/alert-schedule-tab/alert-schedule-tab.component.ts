@@ -49,7 +49,13 @@ export class AlertScheduleTabComponent {
    */
   getScheduleItemsForDate(
     date: Date
-  ): { tabName: string; count: number; tabId: string; color: string }[] {
+  ): {
+    tabName: string;
+    count: number;
+    tabId: string;
+    color: string;
+    textColor: string;
+  }[] {
     const dateKey = this.formatDateKey(date);
     const items = this.scheduleData[dateKey];
     if (!items) {
@@ -73,21 +79,41 @@ export class AlertScheduleTabComponent {
       count: number;
       tabId: string;
       color: string;
+      textColor: string;
     }[] = [];
     for (const [tabName, count] of Object.entries(items)) {
       const tabId = tabMapping[tabName] || '';
       if (tabId) {
+        const backgroundColor = this.state.getTabColor(tabId);
         result.push({
           tabName,
           count,
           tabId,
-          color: this.state.getTabColor(tabId),
+          color: backgroundColor,
+          textColor: this.getTextColorForBackground(backgroundColor),
         });
       }
     }
 
     // 最大6件まで
     return result.slice(0, 6);
+  }
+
+  /**
+   * 背景色の明度に応じて、読みやすいテキスト色（白または黒）を返す
+   */
+  getTextColorForBackground(backgroundColor: string): string {
+    // 16進数カラーコードをRGBに変換
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+
+    // 相対輝度を計算（WCAG 2.1の公式を使用）
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    // 明度が0.5以上なら黒、それ以下なら白
+    return luminance > 0.5 ? '#000000' : '#ffffff';
   }
 
   /**

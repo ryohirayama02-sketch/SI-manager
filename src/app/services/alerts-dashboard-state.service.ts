@@ -79,19 +79,19 @@ export class AlertsDashboardStateService {
   constructor(private alertAggregationService: AlertAggregationService) {}
 
   /**
-   * タブの色を取得
+   * タブの色を取得（視認性向上のため、カレンダー用に少し濃い色を返す）
    */
   getTabColor(tabId: string): string {
     const colorMap: { [key: string]: string } = {
       schedule: '#6c757d',
-      bonus: '#007bff',
-      suiji: '#28a745',
-      teiji: '#ffc107',
-      age: '#dc3545',
-      leave: '#17a2b8',
-      family: '#6f42c1',
-      uncollected: '#e91e63',
-      payment: '#ff7043',
+      bonus: '#0056b3', // より濃い青
+      suiji: '#1e7e34', // より濃い緑
+      teiji: '#d39e00', // より濃い黄色
+      age: '#c82333', // より濃い赤
+      leave: '#138496', // より濃いシアン
+      family: '#5a32a3', // より濃い紫
+      uncollected: '#c2185b', // より濃いピンク
+      payment: '#e64a19', // より濃いオレンジ/赤
     };
     return colorMap[tabId] || '#6c757d';
   }

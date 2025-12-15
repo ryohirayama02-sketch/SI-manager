@@ -71,14 +71,13 @@
   padding: 2px 4px;
   border-radius: 3px;
   font-size: 0.75rem;
-  color: #0b1f33;
+  font-weight: 500; /* 視認性向上のため少し太く */
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: opacity 0.2s;
-  background: #ede4fa; /* かなり薄い紫 */
-  border: 1px solid #cbb7f2;
+  /* 背景色とテキスト色は動的に設定されるため、ここでは削除 */
 }
 
 .schedule-item:hover {

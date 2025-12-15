@@ -8,7 +8,6 @@ import { PaymentSummaryFormatService } from '../../services/payment-summary-form
 import { NotificationFormatService } from '../../services/notification-format.service';
 import { PaymentSummaryAggregationUiService } from '../../services/payment-summary-aggregation-ui.service';
 import { RoomIdService } from '../../services/room-id.service';
-import { AnnualWarningPanelComponent } from './components/annual-warning-panel/annual-warning-panel.component';
 import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-total-table/company-monthly-total-table.component';
 import { PaymentSummaryHeaderComponent } from './components/payment-summary-header/payment-summary-header.component';
 import { ErrorPanelComponent } from './components/error-panel/error-panel.component';
@@ -27,7 +26,6 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
   imports: [
     CommonModule,
     FormsModule,
-    AnnualWarningPanelComponent,
     CompanyMonthlyTotalTableComponent,
     PaymentSummaryHeaderComponent,
     ErrorPanelComponent,
@@ -125,16 +123,21 @@ export class PaymentSummaryPageComponent implements OnInit {
       const notice = this.getNoticeAmountForMonth(month) || 0;
       const company = notice - employee;
 
-      rows.push([
-        `${month}月`,
-        employee.toString(),
-        company.toString(),
-        notice.toString(),
-      ].join(','));
+      rows.push(
+        [
+          `${month}月`,
+          employee.toString(),
+          company.toString(),
+          notice.toString(),
+        ].join(',')
+      );
     }
 
     const csvContent = rows.join('\n');
-    this.downloadCsv(csvContent, `社会保険料振込額一覧_${this.state.year}年度.csv`);
+    this.downloadCsv(
+      csvContent,
+      `社会保険料振込額一覧_${this.state.year}年度.csv`
+    );
   }
 
   private downloadCsv(content: string, filename: string): void {

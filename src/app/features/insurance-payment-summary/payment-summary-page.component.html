@@ -104,16 +104,15 @@
     </table>
 
     <div style="margin-top: 1rem; text-align: right">
-      <button type="button" class="btn-primary" (click)="exportAnnualTableCsv()">
+      <button
+        type="button"
+        class="btn-primary"
+        (click)="exportAnnualTableCsv()"
+      >
         年間振込額一覧をCSV出力
       </button>
     </div>
   </div>
-
-  <!-- 年間警告パネル -->
-  <app-annual-warning-panel
-    [warnings]="state.warnings"
-  ></app-annual-warning-panel>
 
   <div *ngIf="state.employees.length === 0" class="no-data-message">
     <p>データがありません</p>

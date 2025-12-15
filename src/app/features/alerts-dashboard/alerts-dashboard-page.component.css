@@ -45,10 +45,6 @@
   padding: 1rem;
 }
 
-.alerts-dashboard h2 {
-  color: blue;
-}
-
 .tabs {
   display: flex;
   gap: 0.5rem;
