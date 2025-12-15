@@ -433,6 +433,10 @@ export class SettingsPageComponent {
   }
 
   async ngOnInit(): Promise<void> {
+    // 初回入室時の案内を表示（画面表示と同時にすぐに表示）
+    const roomId = this.roomIdService.requireRoomId();
+    this.showFirstEntryGuideIfNeeded(roomId);
+
     // クエリパラメータからタブを読み取る
     this.route.queryParams.subscribe((params) => {
       const tab = params['tab'];
@@ -477,13 +481,6 @@ export class SettingsPageComponent {
     await this.loadSalaryItems();
     await this.loadOffices();
     await this.loadUserRoomInfo();
-
-    // 初回入室時の案内を表示（ビューが完全に初期化された後に実行）
-    const roomId = this.roomIdService.requireRoomId();
-    // setTimeoutを使用して、次のティックで実行することで、ビューが完全に初期化された後にダイアログを表示
-    setTimeout(() => {
-      this.showFirstEntryGuideIfNeeded(roomId);
-    }, 0);
   }
 
   // 編集ログタブがクリックされたときの処理
