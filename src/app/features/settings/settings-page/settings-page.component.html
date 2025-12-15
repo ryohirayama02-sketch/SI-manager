@@ -305,25 +305,9 @@
           北海道,5.155,5.155<br />
           青森県,4.925,4.925
         </p>
-        <div style="display: flex; gap: 1rem; margin-bottom: 1rem">
-          <input
-            type="file"
-            #fileInput
-            accept=".csv"
-            (change)="onFileSelected($event)"
-            style="display: none"
-          />
-          <button (click)="fileInput.click()" class="btn-secondary">
-            CSVファイルを選択
-          </button>
-          <button (click)="showImportDialog = true" class="btn-secondary">
-            テキストから貼り付け
-          </button>
-        </div>
 
-        <!-- テキストエリアダイアログ -->
+        <!-- テキストエリア -->
         <div
-          *ngIf="showImportDialog"
           style="
             margin-top: 1rem;
             padding: 1rem;
@@ -349,12 +333,6 @@
           <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
             <button (click)="importFromText()" class="btn-success">
               インポート
-            </button>
-            <button
-              (click)="showImportDialog = false; csvImportText = ''"
-              class="btn-secondary"
-            >
-              キャンセル
             </button>
           </div>
         </div>
@@ -484,31 +462,9 @@
           等級,標準報酬月額(円),報酬月額下限(円),報酬月額上限(円未満)<br />
           30,500000,485000,515000
         </p>
-        <div style="display: flex; gap: 1rem; margin-bottom: 1rem">
-          <input
-            type="file"
-            #standardTableFileInput
-            accept=".csv"
-            (change)="onStandardTableFileSelected($event)"
-            style="display: none"
-          />
-          <button
-            (click)="standardTableFileInput.click()"
-            class="btn-secondary"
-          >
-            CSVファイルを選択
-          </button>
-          <button
-            (click)="showStandardTableImportDialog = true"
-            class="btn-secondary"
-          >
-            テキストから貼り付け
-          </button>
-        </div>
 
-        <!-- テキストエリアダイアログ -->
+        <!-- テキストエリア -->
         <div
-          *ngIf="showStandardTableImportDialog"
           style="
             margin-top: 1rem;
             padding: 1rem;
@@ -536,15 +492,6 @@
           <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
             <button (click)="importStandardTableFromText()" class="btn-success">
               インポート
-            </button>
-            <button
-              (click)="
-                showStandardTableImportDialog = false;
-                standardTableCsvImportText = ''
-              "
-              class="btn-secondary"
-            >
-              キャンセル
             </button>
           </div>
         </div>
