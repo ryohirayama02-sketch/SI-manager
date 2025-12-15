@@ -1146,18 +1146,18 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           }
         }
 
-        // 基礎支払日数が17日未満の月を算定除外月候補に追加
-        if (aprilWorkingDays > 0 && aprilWorkingDays < 17) {
+        // 基礎支払日数が17日未満（0日を含む）の月を算定除外月候補に追加
+        if (aprilWorkingDays < 17) {
           if (!exclusionCandidates.includes(4)) {
             exclusionCandidates.push(4);
           }
         }
-        if (mayWorkingDays > 0 && mayWorkingDays < 17) {
+        if (mayWorkingDays < 17) {
           if (!exclusionCandidates.includes(5)) {
             exclusionCandidates.push(5);
           }
         }
-        if (juneWorkingDays > 0 && juneWorkingDays < 17) {
+        if (juneWorkingDays < 17) {
           if (!exclusionCandidates.includes(6)) {
             exclusionCandidates.push(6);
           }
