@@ -153,7 +153,7 @@
             *ngIf="result.exclusionCandidates.length > 0"
             style="color: #f57c00; font-weight: bold"
           >
-            {{ result.exclusionCandidates.join(", ") }}月
+            算定除外月候補：{{ result.exclusionCandidates.join("月、") }}月
           </span>
           <span *ngIf="result.exclusionCandidates.length === 0">-</span>
         </td>
