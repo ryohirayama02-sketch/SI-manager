@@ -21,6 +21,7 @@ export interface SalaryData {
   total: number;
   fixed: number;
   variable: number;
+  workingDays?: number; // 支払基礎日数
 }
 
 @Injectable({ providedIn: 'root' })
@@ -68,20 +69,36 @@ export class SuijiService {
     // 各従業員について、月ごとの変動を検出
     for (const employeeId in employeeMonths) {
       const months = employeeMonths[employeeId];
+      let prevFixed = 0; // 基準固定費（支払基礎日数17日未満の月はスキップして維持）
 
-      // 2月以降について、前月と比較
-      for (let month = 2; month <= 12; month++) {
+      // 1月から12月まで順にチェック
+      for (let month = 1; month <= 12; month++) {
+        const key = `${employeeId}_${month}`;
+        const data = salaryData[key];
+        const workingDays = data?.workingDays;
         const currentFixed = months[month] ?? 0;
-        const previousFixed = months[month - 1] ?? 0;
 
-        // 変動がある場合（0以外の差分）
-        if (currentFixed !== previousFixed) {
+        // 支払基礎日数が17日未満の月は固定費のチェックをスキップ（基準固定費は維持）
+        if (workingDays !== undefined && workingDays < 17) {
+          // この月はスキップ。prevFixedは維持されたまま次の月へ
+          continue;
+        }
+
+        // 前月と比較して変動があったか判定
+        if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
           results.push({
             employeeId,
             changeMonth: month,
-            fixedBefore: previousFixed,
+            fixedBefore: prevFixed,
             fixedAfter: currentFixed,
           });
+        }
+
+        // 初月または前月のfixedが0の場合は、現在のfixedを記録
+        if (month === 1 || prevFixed === 0) {
+          prevFixed = currentFixed;
+        } else {
+          prevFixed = currentFixed;
         }
       }
     }
@@ -451,9 +468,31 @@ export class SuijiService {
     }
 
     const key = `${employeeId}_${month}`;
-    const prevKey = `${employeeId}_${month - 1}`;
-    const prev = salaries[prevKey]?.fixed || 0;
-    const cur = salaries[key]?.fixed || 0;
+    const currentSalaryData = salaries[key];
+    const cur = currentSalaryData?.fixed || 0;
+    const currentWorkingDays = currentSalaryData?.workingDays;
+
+    // 当月の支払基礎日数が17日未満の場合はスキップ
+    if (currentWorkingDays !== undefined && currentWorkingDays < 17) {
+      return { hasChange: false };
+    }
+
+    // 前月から遡って、支払基礎日数17日以上の月の固定費を基準にする
+    let prev = 0;
+    for (let checkMonth = month - 1; checkMonth >= 1; checkMonth--) {
+      const checkKey = `${employeeId}_${checkMonth}`;
+      const checkSalaryData = salaries[checkKey];
+      const checkWorkingDays = checkSalaryData?.workingDays;
+      
+      // 支払基礎日数が17日未満の月はスキップ
+      if (checkWorkingDays !== undefined && checkWorkingDays < 17) {
+        continue;
+      }
+      
+      // 有効な月の固定費を基準にする
+      prev = checkSalaryData?.fixed || 0;
+      break;
+    }
 
     // 固定的賃金の変動を検出（前月と異なり、かつ今月が0より大きい）
     const hasChange = prev !== cur && cur > 0;

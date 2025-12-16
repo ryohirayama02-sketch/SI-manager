@@ -37,7 +37,7 @@ export class SuijiDetectionService {
     salaries: { [key: string]: SalaryData }
   ): number[] {
     const changeMonths: number[] = [];
-    let prevFixed = 0;
+    let prevFixed = 0; // 基準固定費（支払基礎日数17日未満の月はスキップして維持）
 
     // 1月から12月まで順にチェック
     for (let month = 1; month <= 12; month++) {
@@ -45,6 +45,13 @@ export class SuijiDetectionService {
       const salaryData = salaries[key];
       const currentFixed =
         this.salaryAggregationService.getFixedSalaryPublic(salaryData); // fixedSalary を優先
+      const workingDays = salaryData?.workingDays;
+
+      // 支払基礎日数が17日未満の月は固定費のチェックをスキップ（基準固定費は維持）
+      if (workingDays !== undefined && workingDays < 17) {
+        // この月はスキップ。prevFixedは維持されたまま次の月へ
+        continue;
+      }
 
       // 前月と比較して変動があったか判定
       if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
@@ -120,14 +127,26 @@ export class SuijiDetectionService {
       };
     }
 
-    // 前月の固定的賃金を取得
+    // 前月の固定的賃金を取得（支払基礎日数17日未満の月はスキップして、その前の有効な月を基準にする）
     const prevMonth = month > 1 ? month - 1 : null;
     let prevFixed = 0;
     if (prevMonth) {
-      const prevKey = this.getSalaryKey(employeeId, prevMonth);
-      const prevSalaryData = salaries[prevKey];
-      prevFixed =
-        this.salaryAggregationService.getFixedSalaryPublic(prevSalaryData); // fixedSalary を優先
+      // 前月から遡って、支払基礎日数17日以上の月の固定費を基準にする
+      for (let checkMonth = prevMonth; checkMonth >= 1; checkMonth--) {
+        const checkKey = this.getSalaryKey(employeeId, checkMonth);
+        const checkSalaryData = salaries[checkKey];
+        const checkWorkingDays = checkSalaryData?.workingDays;
+        
+        // 支払基礎日数が17日未満の月はスキップ
+        if (checkWorkingDays !== undefined && checkWorkingDays < 17) {
+          continue;
+        }
+        
+        // 有効な月の固定費を基準にする
+        prevFixed =
+          this.salaryAggregationService.getFixedSalaryPublic(checkSalaryData); // fixedSalary を優先
+        break;
+      }
     }
 
     // 当月の固定的賃金を取得
@@ -135,6 +154,12 @@ export class SuijiDetectionService {
     const currentSalaryData = salaries[currentKey];
     const currentFixed =
       this.salaryAggregationService.getFixedSalaryPublic(currentSalaryData); // fixedSalary を優先
+    const currentWorkingDays = currentSalaryData?.workingDays;
+
+    // 当月の支払基礎日数が17日未満の場合はスキップ
+    if (currentWorkingDays !== undefined && currentWorkingDays < 17) {
+      return null;
+    }
 
     // 固定的賃金の変動がない場合はスキップ
     if (prevFixed === 0 || currentFixed === prevFixed) {

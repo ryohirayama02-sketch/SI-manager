@@ -1119,34 +1119,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           emp
         );
 
-        // 平均額との差が10%以上の月を検出
-        const exclusionCandidates: number[] = [];
-        if (validMonths.includes(4) && aprilSalary > 0) {
-          const diffRate = Math.abs(
-            (aprilSalary - averageSalary) / averageSalary
-          );
-          if (diffRate >= 0.1) {
-            exclusionCandidates.push(4);
-          }
-        }
-        if (validMonths.includes(5) && maySalary > 0) {
-          const diffRate = Math.abs(
-            (maySalary - averageSalary) / averageSalary
-          );
-          if (diffRate >= 0.1) {
-            exclusionCandidates.push(5);
-          }
-        }
-        if (validMonths.includes(6) && juneSalary > 0) {
-          const diffRate = Math.abs(
-            (juneSalary - averageSalary) / averageSalary
-          );
-          if (diffRate >= 0.1) {
-            exclusionCandidates.push(6);
-          }
-        }
-
         // 基礎支払日数が17日未満（0日を含む）の月を算定除外月候補に追加
+        const exclusionCandidates: number[] = [];
         if (aprilWorkingDays < 17) {
           if (!exclusionCandidates.includes(4)) {
             exclusionCandidates.push(4);

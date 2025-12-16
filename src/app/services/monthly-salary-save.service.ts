@@ -388,36 +388,48 @@ export class MonthlySalarySaveService {
           //             `[随時改定判定] ${emp.name || emp.id}: 現行等級=${currentGrade}`
           //           );
 
-          // 報酬月額が変動した月を検出（前月と比較）
+          // 固定的賃金が変動した月を検出（前月と比較、支払基礎日数17日未満の月はスキップ）
           const changedMonths: number[] = [];
-          for (let month = 2; month <= 12; month++) {
+          let prevFixed = 0; // 基準固定費（支払基礎日数17日未満の月はスキップして維持）
+
+          for (let month = 1; month <= 12; month++) {
             const currentMonthKey = `${emp.id}_${month}`;
-            const prevMonthKey = `${emp.id}_${month - 1}`;
             const currentMonthData = salaryDataForDetection[currentMonthKey];
-            const prevMonthData = salaryDataForDetection[prevMonthKey];
 
-            if (currentMonthData && prevMonthData) {
-              const currentRemuneration = this.calculateRemunerationAmount(
-                currentMonthData,
-                currentMonthKey,
-                salaryItemData,
-                salaryItems
-              );
-              const prevRemuneration = this.calculateRemunerationAmount(
-                prevMonthData,
-                prevMonthKey,
-                salaryItemData,
-                salaryItems
-              );
+            if (!currentMonthData) {
+              continue;
+            }
 
-              // 報酬月額が変動した場合のみ判定対象とする
-              if (
-                currentRemuneration !== null &&
-                prevRemuneration !== null &&
-                Math.abs(currentRemuneration - prevRemuneration) > 0.01
-              ) {
-                changedMonths.push(month);
-              }
+            // 支払基礎日数を取得
+            const workingDaysKey = this.state.getWorkingDaysKey(emp.id, month);
+            let workingDays = workingDaysData[workingDaysKey];
+            if (workingDays === undefined) {
+              workingDays = new Date(year, month, 0).getDate();
+            }
+
+            // 固定費を取得
+            const currentFixed =
+              currentMonthData.fixedTotal ??
+              currentMonthData.fixed ??
+              currentMonthData.fixedSalary ??
+              0;
+
+            // 支払基礎日数が17日未満の月は固定費のチェックをスキップ（基準固定費は維持）
+            if (workingDays < 17) {
+              // この月はスキップ。prevFixedは維持されたまま次の月へ
+              continue;
+            }
+
+            // 前月と比較して変動があったか判定
+            if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
+              changedMonths.push(month);
+            }
+
+            // 初月または前月のfixedが0の場合は、現在のfixedを記録
+            if (month === 1 || prevFixed === 0) {
+              prevFixed = currentFixed;
+            } else {
+              prevFixed = currentFixed;
             }
           }
 
