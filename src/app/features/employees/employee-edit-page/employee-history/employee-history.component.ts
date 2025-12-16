@@ -32,6 +32,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
   insuranceStatusHistories: InsuranceStatusHistory[] = [];
   selectedHistoryYear: number = new Date().getFullYear();
   isLoadingHistories: boolean = false;
+  availableHistoryYears: number[] = [];
   joinDate?: string;
   joinYear?: number | null;
   joinMonth?: number | null;
@@ -63,6 +64,12 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
   ) {}
 
   async ngOnInit(): Promise<void> {
+    // 利用可能な年度リストを生成（2020年から2030年まで）
+    this.availableHistoryYears = [];
+    for (let year = 2020; year <= 2030; year++) {
+      this.availableHistoryYears.push(year);
+    }
+
     await this.loadHistories();
 
     // ルーターイベントを購読（画面遷移後に再読み込み）

@@ -1,10 +1,4 @@
 <h3>標準報酬履歴・社保加入履歴</h3>
-<small
-  class="form-text"
-  style="display: block; margin-bottom: 1rem; color: #666"
->
-  ※ 履歴は自動的に生成・更新されます
-</small>
 
 <div style="margin-bottom: 1rem">
   <label for="historyYear">表示年度:</label>
@@ -15,7 +9,7 @@
     class="form-control"
     style="display: inline-block; width: auto; margin-left: 0.5rem"
   >
-    <option *ngFor="let year of [2023, 2024, 2025, 2026]" [value]="year">
+    <option *ngFor="let year of availableHistoryYears" [value]="year">
       {{ year }}年
     </option>
   </select>

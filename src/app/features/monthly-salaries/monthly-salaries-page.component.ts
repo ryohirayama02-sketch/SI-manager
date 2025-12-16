@@ -113,8 +113,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     private roomIdService: RoomIdService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService
   ) {
-    // 年度選択用の年度リストを生成（2023〜2026）
-    for (let y = 2023; y <= 2026; y++) {
+    // 年度選択用の年度リストを生成（2020〜2030）
+    for (let y = 2020; y <= 2030; y++) {
       this.availableYears.push(y);
     }
   }

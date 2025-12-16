@@ -128,9 +128,8 @@ export class PaymentSummaryStateService {
   isLoading: boolean = false;
 
   constructor() {
-    // 年度選択用のリストを初期化
-    const currentYear = new Date().getFullYear();
-    for (let i = currentYear - 5; i <= currentYear + 1; i++) {
+    // 年度選択用のリストを初期化（2020〜2030）
+    for (let i = 2020; i <= 2030; i++) {
       this.availableYears.push(i);
     }
   }

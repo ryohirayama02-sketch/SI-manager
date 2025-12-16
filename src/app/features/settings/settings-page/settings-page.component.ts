@@ -198,25 +198,20 @@ export class SettingsPageComponent {
     private route: ActivatedRoute,
     private router: Router
   ) {
-    // 年度選択用のリストを初期化（現在年度±2年）
+    // 年度選択用のリストを初期化（2020〜2029年：2020/3-2021/2から2029/3-2030/2まで）
     // 3月〜翌2月の年度で扱うため、基準年は「3月を含む年」
+    this.availableYears = [];
+    for (let y = 2020; y <= 2029; y++) {
+      this.availableYears.push(y);
+    }
     const currentYear = new Date().getFullYear();
-    this.availableYears = [
-      currentYear - 2,
-      currentYear - 1,
-      currentYear,
-      currentYear + 1,
-      currentYear + 2,
-    ];
-    this.year = currentYear.toString();
-    // 標準報酬等級表の年度選択用リストを初期化（現在年度±2年）
-    this.availableGradeYears = [
-      currentYear - 2,
-      currentYear - 1,
-      currentYear,
-      currentYear + 1,
-      currentYear + 2,
-    ];
+    // 現在年度が範囲内の場合は現在年度を、範囲外の場合は2020年をデフォルトに設定
+    this.year = (currentYear >= 2020 && currentYear <= 2029) ? currentYear.toString() : '2020';
+    // 標準報酬等級表の年度選択用リストを初期化（2020〜2029年：2020/3-2021/2から2029/3-2030/2まで）
+    this.availableGradeYears = [];
+    for (let y = 2020; y <= 2029; y++) {
+      this.availableGradeYears.push(y);
+    }
     this.form = this.fb.group({
       prefecture: [this.prefecture, Validators.required],
       effectiveFrom: [`${this.year}-03`, Validators.required],
@@ -1658,10 +1653,9 @@ export class SettingsPageComponent {
   }
 
   getAvailableYears(): number[] {
-    const currentYear = new Date().getFullYear();
     const years: number[] = [];
-    // 現在年から過去5年、未来2年まで
-    for (let i = currentYear - 5; i <= currentYear + 2; i++) {
+    // 2020年から2030年まで
+    for (let i = 2020; i <= 2030; i++) {
       years.push(i);
     }
     return years;

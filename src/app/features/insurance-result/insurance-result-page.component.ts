@@ -128,9 +128,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private bonusCalculationService: BonusCalculationService
   ) {
-    // 年度選択用の年度リストを生成（現在年度±2年）
-    const currentYear = new Date().getFullYear();
-    for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+    // 年度選択用の年度リストを生成（2020〜2030）
+    for (let y = 2020; y <= 2030; y++) {
       this.availableYears.push(y);
     }
   }
