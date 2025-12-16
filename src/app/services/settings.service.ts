@@ -180,13 +180,6 @@ export class SettingsService {
       const data = snap.data();
       // roomIdの検証（セキュリティチェック）
       if (data['roomId'] !== roomId) {
-        console.error(
-          '[SettingsService] roomIdが一致しないため、nullを返します',
-          {
-            requestedRoomId: roomId,
-            documentRoomId: data['roomId'],
-          }
-        );
         return null;
       }
       return data;

@@ -110,11 +110,17 @@ export class SettingsPageComponent {
 
   // パーセント→小数変換ヘルパー
   private percentToDecimal(percent: number): number {
+    if (isNaN(percent) || !isFinite(percent)) {
+      return 0;
+    }
     return percent / 100;
   }
 
   // 小数→パーセント変換ヘルパー
   private decimalToPercent(decimal: number): number {
+    if (isNaN(decimal) || !isFinite(decimal)) {
+      return 0;
+    }
     return decimal * 100;
   }
 
@@ -370,22 +376,12 @@ export class SettingsPageComponent {
   private showFirstEntryGuideIfNeeded(roomId: string): void {
     const key = `room_onboarding_${roomId}`;
     const flag = localStorage.getItem(key);
-    console.log('[SettingsPage] showFirstEntryGuideIfNeeded:', {
-      roomId,
-      key,
-      flag,
-    });
     if (flag === '1') {
       // ページ内モーダルで案内を表示し、閉じるとフラグを削除
-      console.log('[SettingsPage] オンボーディングダイアログを表示');
       this.showOnboardingGuide = true;
       localStorage.removeItem(key);
       // 変更検知を強制的に実行（ビューが更新されるように）
       this.cdr.detectChanges();
-    } else {
-      console.log(
-        '[SettingsPage] オンボーディングフラグなし、ダイアログを表示しない'
-      );
     }
   }
 
@@ -456,25 +452,40 @@ export class SettingsPageComponent {
       }
     });
 
-    await this.loadAllRates();
+    try {
+      await this.loadAllRates();
+    } catch (error) {
+      // エラーはloadAllRates内で処理されているため、ここでは何もしない
+    }
 
     // 標準報酬等級表の年度を初期化
     this.standardTableYear = parseInt(this.gradeYear, 10);
 
     // 適用開始月（改定月）をロード
-    const versionInfo = await this.settingsService.getRateVersionInfo(
-      this.year
-    );
-    this.rateVersionForm.patchValue({
-      applyFromMonth: versionInfo.applyFromMonth,
-    });
+    try {
+      const versionInfo = await this.settingsService.getRateVersionInfo(
+        this.year
+      );
+      this.rateVersionForm.patchValue({
+        applyFromMonth: versionInfo.applyFromMonth,
+      });
+    } catch (error) {
+      // エラーが発生した場合はデフォルト値を使用
+      this.rateVersionForm.patchValue({
+        applyFromMonth: 3,
+      });
+    }
 
     // 変更時に自動保存
     this.rateVersionForm
       .get('applyFromMonth')
       ?.valueChanges.subscribe(async (value) => {
         if (value && value >= 1 && value <= 12) {
-          await this.settingsService.saveRateVersionInfo(this.year, value);
+          try {
+            await this.settingsService.saveRateVersionInfo(this.year, value);
+          } catch (error) {
+            // エラーは静かに処理（ユーザー体験を損なわないため）
+          }
         }
       });
 
@@ -783,62 +794,106 @@ export class SettingsPageComponent {
   }
 
   async loadAllRates(): Promise<void> {
-    // 47都道府県の健康保険料率を取得（小数→パーセント変換）
-    this.prefectureRates = {};
-    for (const pref of this.prefectureList) {
-      const data = await this.settingsService.getRates(this.year, pref.code);
-      if (data) {
-        this.prefectureRates[pref.code] = {
-          health_employee: this.decimalToPercent(data.health_employee || 0),
-          health_employer: this.decimalToPercent(data.health_employer || 0),
-        };
-      } else {
-        this.prefectureRates[pref.code] = {
-          health_employee: 0,
-          health_employer: 0,
-        };
+    try {
+      // yearのバリデーション
+      if (!this.year) {
+        return;
       }
-    }
+      const yearNum = parseInt(this.year, 10);
+      if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+        return;
+      }
 
-    // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため、小数→パーセント変換）
-    const careData = await this.settingsService.getRates(this.year, 'tokyo');
-    if (careData) {
-      this.careRates = {
-        care_employee: this.decimalToPercent(careData.care_employee || 0),
-        care_employer: this.decimalToPercent(careData.care_employer || 0),
-      };
-      this.pensionRates = {
-        pension_employee: this.decimalToPercent(careData.pension_employee || 0),
-        pension_employer: this.decimalToPercent(careData.pension_employer || 0),
-      };
-    } else {
-      // データが存在しない場合は、既存の値を保持（初期化しない）
-      // これにより、ユーザーが入力した値が消えない
-      if (!this.careRates || Object.keys(this.careRates).length === 0) {
-        this.careRates = {
-          care_employee: 0,
-          care_employer: 0,
-        };
+      // 47都道府県の健康保険料率を取得（小数→パーセント変換）
+      this.prefectureRates = {};
+      for (const pref of this.prefectureList) {
+        try {
+          const data = await this.settingsService.getRates(this.year, pref.code);
+          if (data) {
+            this.prefectureRates[pref.code] = {
+              health_employee: this.decimalToPercent(data.health_employee || 0),
+              health_employer: this.decimalToPercent(data.health_employer || 0),
+            };
+          } else {
+            this.prefectureRates[pref.code] = {
+              health_employee: 0,
+              health_employer: 0,
+            };
+          }
+        } catch (error) {
+          // 個別の都道府県の読み込みエラーは無視して、デフォルト値を設定
+          this.prefectureRates[pref.code] = {
+            health_employee: 0,
+            health_employer: 0,
+          };
+        }
       }
-      if (!this.pensionRates || Object.keys(this.pensionRates).length === 0) {
-        this.pensionRates = {
-          pension_employee: 0,
-          pension_employer: 0,
-        };
+
+      // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため、小数→パーセント変換）
+      try {
+        const careData = await this.settingsService.getRates(this.year, 'tokyo');
+        if (careData) {
+          this.careRates = {
+            care_employee: this.decimalToPercent(careData.care_employee || 0),
+            care_employer: this.decimalToPercent(careData.care_employer || 0),
+          };
+          this.pensionRates = {
+            pension_employee: this.decimalToPercent(careData.pension_employee || 0),
+            pension_employer: this.decimalToPercent(careData.pension_employer || 0),
+          };
+        } else {
+          // データが存在しない場合は、既存の値を保持（初期化しない）
+          // これにより、ユーザーが入力した値が消えない
+          if (!this.careRates || Object.keys(this.careRates).length === 0) {
+            this.careRates = {
+              care_employee: 0,
+              care_employer: 0,
+            };
+          }
+          if (!this.pensionRates || Object.keys(this.pensionRates).length === 0) {
+            this.pensionRates = {
+              pension_employee: 0,
+              pension_employer: 0,
+            };
+          }
+        }
+      } catch (error) {
+        // 介護保険・厚生年金の読み込みエラーは無視して、既存の値を保持
+        if (!this.careRates || Object.keys(this.careRates).length === 0) {
+          this.careRates = {
+            care_employee: 0,
+            care_employer: 0,
+          };
+        }
+        if (!this.pensionRates || Object.keys(this.pensionRates).length === 0) {
+          this.pensionRates = {
+            pension_employee: 0,
+            pension_employer: 0,
+          };
+        }
       }
+    } catch (error) {
+      // 全体のエラーは無視（既存の値を保持）
     }
   }
 
   async onYearChange(): Promise<void> {
     // 対象期間を変更した際に、前のインポート結果メッセージをクリア
     this.importResult = null;
-    await this.loadAllRates();
+    try {
+      await this.loadAllRates();
+    } catch (error) {
+      // エラーはloadAllRates内で処理されているため、ここでは何もしない
+    }
   }
 
   /**
    * 小数点以下5位に丸める（6位以下を切り捨て）
    */
   private roundTo5Decimals(value: number): number {
+    if (isNaN(value) || !isFinite(value)) {
+      return 0;
+    }
     return Math.floor(value * 100000) / 100000;
   }
 
@@ -846,6 +901,9 @@ export class SettingsPageComponent {
    * 健康保険料率を小数点以下3位に丸める（4位以下を切り捨て）
    */
   private roundHealthRateTo3Decimals(value: number): number {
+    if (isNaN(value) || !isFinite(value)) {
+      return 0;
+    }
     return Math.floor(value * 1000) / 1000;
   }
 
@@ -853,12 +911,20 @@ export class SettingsPageComponent {
    * 健康保険料率の表示を小数点以下3位までフォーマット
    */
   formatHealthRate(value: number): number {
+    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+      return 0;
+    }
     return this.roundHealthRateTo3Decimals(value);
   }
 
   onHealthEmployeeInput(prefecture: string, event: Event): void {
     const input = event.target as HTMLInputElement;
-    const value = parseFloat(input.value) || 0;
+    let value = parseFloat(input.value);
+    if (isNaN(value) || !isFinite(value)) {
+      value = 0;
+    }
+    // 範囲チェック（0-100%）
+    value = Math.max(0, Math.min(100, value));
     if (!this.prefectureRates[prefecture]) {
       this.prefectureRates[prefecture] = {
         health_employee: 0,
@@ -875,7 +941,12 @@ export class SettingsPageComponent {
 
   onHealthEmployerInput(prefecture: string, event: Event): void {
     const input = event.target as HTMLInputElement;
-    const value = parseFloat(input.value) || 0;
+    let value = parseFloat(input.value);
+    if (isNaN(value) || !isFinite(value)) {
+      value = 0;
+    }
+    // 範囲チェック（0-100%）
+    value = Math.max(0, Math.min(100, value));
     if (!this.prefectureRates[prefecture]) {
       this.prefectureRates[prefecture] = {
         health_employee: 0,
@@ -891,45 +962,78 @@ export class SettingsPageComponent {
   }
 
   async savePrefectureRate(prefecture: string): Promise<void> {
-    const rate = this.prefectureRates[prefecture] || {
-      health_employee: 0,
-      health_employer: 0,
-    };
-    // 健康保険料率は小数点以下3位に丸める（4位以下を切り捨て）
-    const roundedHealthEmployee = this.roundHealthRateTo3Decimals(
-      rate.health_employee || 0
-    );
-    const roundedHealthEmployer = this.roundHealthRateTo3Decimals(
-      rate.health_employer || 0
-    );
-    // 介護保険と厚生年金は小数点以下5位に丸める
-    const roundedCareEmployee = this.roundTo5Decimals(
-      this.careRates.care_employee || 0
-    );
-    const roundedCareEmployer = this.roundTo5Decimals(
-      this.careRates.care_employer || 0
-    );
-    const roundedPensionEmployee = this.roundTo5Decimals(
-      this.pensionRates.pension_employee || 0
-    );
-    const roundedPensionEmployer = this.roundTo5Decimals(
-      this.pensionRates.pension_employer || 0
-    );
+    try {
+      // yearとprefectureのバリデーション
+      if (!this.year || !prefecture) {
+        return;
+      }
+      const yearNum = parseInt(this.year, 10);
+      if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+        return;
+      }
 
-    // パーセント→小数変換して保存
-    await this.settingsService.saveRates(this.year, prefecture, {
-      health_employee: this.percentToDecimal(roundedHealthEmployee),
-      health_employer: this.percentToDecimal(roundedHealthEmployer),
-      care_employee: this.percentToDecimal(roundedCareEmployee),
-      care_employer: this.percentToDecimal(roundedCareEmployer),
-      pension_employee: this.percentToDecimal(roundedPensionEmployee),
-      pension_employer: this.percentToDecimal(roundedPensionEmployer),
-      effectiveFrom: `${this.year}-04`,
-    } as Rate);
+      const rate = this.prefectureRates[prefecture] || {
+        health_employee: 0,
+        health_employer: 0,
+      };
+      // 健康保険料率は小数点以下3位に丸める（4位以下を切り捨て）
+      let roundedHealthEmployee = this.roundHealthRateTo3Decimals(
+        rate.health_employee || 0
+      );
+      let roundedHealthEmployer = this.roundHealthRateTo3Decimals(
+        rate.health_employer || 0
+      );
+      // 介護保険と厚生年金は小数点以下5位に丸める
+      let roundedCareEmployee = this.roundTo5Decimals(
+        this.careRates.care_employee || 0
+      );
+      let roundedCareEmployer = this.roundTo5Decimals(
+        this.careRates.care_employer || 0
+      );
+      let roundedPensionEmployee = this.roundTo5Decimals(
+        this.pensionRates.pension_employee || 0
+      );
+      let roundedPensionEmployer = this.roundTo5Decimals(
+        this.pensionRates.pension_employer || 0
+      );
+
+      // 値の範囲チェック（0-100%）
+      roundedHealthEmployee = Math.max(0, Math.min(100, roundedHealthEmployee));
+      roundedHealthEmployer = Math.max(0, Math.min(100, roundedHealthEmployer));
+      roundedCareEmployee = Math.max(0, Math.min(100, roundedCareEmployee));
+      roundedCareEmployer = Math.max(0, Math.min(100, roundedCareEmployer));
+      roundedPensionEmployee = Math.max(0, Math.min(100, roundedPensionEmployee));
+      roundedPensionEmployer = Math.max(0, Math.min(100, roundedPensionEmployer));
+
+      // パーセント→小数変換して保存
+      await this.settingsService.saveRates(this.year, prefecture, {
+        health_employee: this.percentToDecimal(roundedHealthEmployee),
+        health_employer: this.percentToDecimal(roundedHealthEmployer),
+        care_employee: this.percentToDecimal(roundedCareEmployee),
+        care_employer: this.percentToDecimal(roundedCareEmployer),
+        pension_employee: this.percentToDecimal(roundedPensionEmployee),
+        pension_employer: this.percentToDecimal(roundedPensionEmployer),
+        effectiveFrom: `${this.year}-04`,
+      } as Rate);
+    } catch (error) {
+      // エラーが発生した場合は、ユーザーに通知せずに静かに失敗する
+      // （blurイベントから呼び出される場合、ユーザー体験を損なわないため）
+    }
   }
 
   async saveAllRates(): Promise<void> {
     if (this.isSavingRates) return;
+
+    // yearのバリデーション
+    if (!this.year) {
+      alert('年度が設定されていません');
+      return;
+    }
+    const yearNum = parseInt(this.year, 10);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      alert('無効な年度が設定されています');
+      return;
+    }
 
     this.isSavingRates = true;
     try {
@@ -938,7 +1042,6 @@ export class SettingsPageComponent {
       }
       alert('保険料率を保存しました');
     } catch (error) {
-      console.error('保険料率の保存エラー:', error);
       alert('保険料率の保存に失敗しました');
     } finally {
       this.isSavingRates = false;
@@ -951,6 +1054,18 @@ export class SettingsPageComponent {
     ) {
       return;
     }
+
+    // yearのバリデーション
+    if (!this.year) {
+      alert('年度が設定されていません');
+      return;
+    }
+    const yearNum = parseInt(this.year, 10);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      alert('無効な年度が設定されています');
+      return;
+    }
+
     // 47都道府県の料率をクリア（画面表示用）
     for (const pref of this.prefectureList) {
       this.prefectureRates[pref.code] = {
@@ -975,7 +1090,6 @@ export class SettingsPageComponent {
       }
       alert('すべての料率をクリアしました');
     } catch (error) {
-      console.error('料率のクリアエラー:', error);
       alert('料率のクリアに失敗しました');
     }
     this.cdr.detectChanges();
@@ -988,8 +1102,28 @@ export class SettingsPageComponent {
       const file = input.files[0];
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const text = e.target?.result as string;
-        await this.importFromCsvText(text);
+        try {
+          const text = e.target?.result as string;
+          if (text) {
+            await this.importFromCsvText(text);
+          } else {
+            this.importResult = {
+              type: 'error',
+              message: 'ファイルの読み込みに失敗しました',
+            };
+          }
+        } catch (error) {
+          this.importResult = {
+            type: 'error',
+            message: 'ファイルの読み込み中にエラーが発生しました',
+          };
+        }
+      };
+      reader.onerror = () => {
+        this.importResult = {
+          type: 'error',
+          message: 'ファイルの読み込みに失敗しました',
+        };
       };
       reader.readAsText(file, 'UTF-8');
     }
@@ -1008,6 +1142,24 @@ export class SettingsPageComponent {
 
   async importFromCsvText(csvText: string): Promise<void> {
     if (this.isImportingRates) return;
+
+    // yearのバリデーション
+    if (!this.year) {
+      this.importResult = {
+        type: 'error',
+        message: '年度が設定されていません',
+      };
+      return;
+    }
+    const yearNum = parseInt(this.year, 10);
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+      this.importResult = {
+        type: 'error',
+        message: '無効な年度が設定されています',
+      };
+      return;
+    }
+
     this.isImportingRates = true;
     this.cdr.detectChanges(); // 変更検知を強制してローディング状態を即座に反映
     try {
@@ -1068,7 +1220,12 @@ export class SettingsPageComponent {
         const employeeRate = parseFloat(employeeRateStr);
         const employerRate = parseFloat(employerRateStr);
 
-        if (isNaN(employeeRate) || isNaN(employerRate)) {
+        if (
+          isNaN(employeeRate) ||
+          isNaN(employerRate) ||
+          !isFinite(employeeRate) ||
+          !isFinite(employerRate)
+        ) {
           errorCount++;
           errors.push(`行「${line}」: 料率が数値ではありません`);
           continue;
@@ -1110,20 +1267,27 @@ export class SettingsPageComponent {
       // 結果メッセージ
       if (errorCount === 0) {
         // Firestoreに保存（現在選択されている年度に対して）
-        for (const [prefectureCode, rates] of ratesToAdd) {
-          await this.savePrefectureRate(prefectureCode);
+        try {
+          for (const [prefectureCode, rates] of ratesToAdd) {
+            await this.savePrefectureRate(prefectureCode);
+          }
+
+          // 画面表示を更新するためにloadAllRates()を呼び出す
+          await this.loadAllRates();
+          this.cdr.detectChanges();
+
+          this.importResult = {
+            type: 'success',
+            message: `${successCount}件の料率をインポートしました`,
+          };
+          this.showImportDialog = false;
+          this.csvImportText = '';
+        } catch (saveError) {
+          this.importResult = {
+            type: 'error',
+            message: `インポートは成功しましたが、保存に失敗しました`,
+          };
         }
-
-        // 画面表示を更新するためにloadAllRates()を呼び出す
-        await this.loadAllRates();
-        this.cdr.detectChanges();
-
-        this.importResult = {
-          type: 'success',
-          message: `${successCount}件の料率をインポートしました`,
-        };
-        this.showImportDialog = false;
-        this.csvImportText = '';
       } else {
         const errorMsg = errors.slice(0, 5).join('\n');
         const moreErrors =
@@ -1144,17 +1308,25 @@ export class SettingsPageComponent {
   }
 
   async onPrefectureChange(): Promise<void> {
-    this.prefecture = this.form.get('prefecture')?.value || 'tokyo';
-    await this.reloadRates();
+    try {
+      this.prefecture = this.form.get('prefecture')?.value || 'tokyo';
+      await this.reloadRates();
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   async reloadRates(): Promise<void> {
-    const data = await this.settingsService.getRates(
-      this.year,
-      this.prefecture
-    );
-    if (data) {
-      this.form.patchValue(data);
+    try {
+      const data = await this.settingsService.getRates(
+        this.year,
+        this.prefecture
+      );
+      if (data) {
+        this.form.patchValue(data);
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
     }
   }
 
@@ -1183,39 +1355,51 @@ export class SettingsPageComponent {
   }
 
   async save(): Promise<void> {
-    this.validateRates();
-    if (this.errorMessages.length > 0) {
-      return;
+    try {
+      this.validateRates();
+      if (this.errorMessages.length > 0) {
+        return;
+      }
+      const prefectureValue =
+        this.form.get('prefecture')?.value || this.prefecture;
+      const formData = { ...this.form.value };
+      delete formData.prefecture; // prefectureはformDataから除外
+
+      const rateData: Rate = {
+        effectiveFrom: formData.effectiveFrom || `${this.year}-04`,
+        health_employee: formData.health_employee,
+        health_employer: formData.health_employer,
+        care_employee: formData.care_employee,
+        care_employer: formData.care_employer,
+        pension_employee: formData.pension_employee,
+        pension_employer: formData.pension_employer,
+      };
+
+      await this.settingsService.saveRates(this.year, prefectureValue, rateData);
+      alert('設定を保存しました');
+    } catch (error) {
+      alert('設定の保存に失敗しました');
     }
-    const prefectureValue =
-      this.form.get('prefecture')?.value || this.prefecture;
-    const formData = { ...this.form.value };
-    delete formData.prefecture; // prefectureはformDataから除外
-
-    const rateData: Rate = {
-      effectiveFrom: formData.effectiveFrom || `${this.year}-04`,
-      health_employee: formData.health_employee,
-      health_employer: formData.health_employer,
-      care_employee: formData.care_employee,
-      care_employer: formData.care_employer,
-      pension_employee: formData.pension_employee,
-      pension_employer: formData.pension_employer,
-    };
-
-    await this.settingsService.saveRates(this.year, prefectureValue, rateData);
-    alert('設定を保存しました');
   }
 
   async seedTokyo(): Promise<void> {
-    await this.settingsService.seedRatesTokyo2025();
-    alert('東京都の料率（2025年）を登録しました');
+    try {
+      await this.settingsService.seedRatesTokyo2025();
+      alert('東京都の料率（2025年）を登録しました');
+    } catch (error) {
+      alert('東京都の料率の登録に失敗しました');
+    }
   }
 
   async seedAllPrefectures(): Promise<void> {
-    const yearNum = parseInt(this.year, 10);
-    await this.settingsService.seedRatesAllPrefectures2025();
-    await this.loadAllRates();
-    alert(`47都道府県の${yearNum}年度料率を登録しました`);
+    try {
+      const yearNum = parseInt(this.year, 10);
+      await this.settingsService.seedRatesAllPrefectures2025();
+      await this.loadAllRates();
+      alert(`47都道府県の${yearNum}年度料率を登録しました`);
+    } catch (error) {
+      alert('47都道府県の料率の登録に失敗しました');
+    }
   }
 
   async saveSettings(): Promise<void> {

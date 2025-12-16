@@ -305,16 +305,6 @@ export class PremiumCalculationService {
       // 標準報酬月額が取得できない場合でも、その月の給与が0円の場合は
       // monthly-premium-calculation.service.ts で年度全体の給与データから定時決定を計算して標準報酬月額を取得しているはずです。
       // そのため、ここで早期リターンしないようにします。
-      console.error(
-        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ❌ 標準報酬月額が取得できませんでした → 保険料0円を返します`,
-        {
-          employeeStandardMonthlyRemuneration:
-            employee.currentStandardMonthlyRemuneration,
-          totalSalary: fixedSalary + variableSalary,
-          standardMonthlyRemuneration,
-          reasons,
-        }
-      );
       reasons.push(
         '標準報酬月額が取得できません（年度全体の給与データから定時決定を計算して標準報酬月額を取得する必要があります）'
       );
@@ -528,16 +518,6 @@ export class PremiumCalculationService {
     if (!ratesResult) {
       reasons.push(
         `保険料率の取得に失敗しました（年度: ${year}, 都道府県: ${prefecture}, 月: ${month}）。設定画面で料率を設定してください。`
-      );
-      console.error(
-        `[calculateMonthlyPremiumsCore] ${employee.name} (${year}年${month}月): ❌ 料率取得失敗 → 保険料0円を返します`,
-        {
-          year,
-          prefecture,
-          month,
-          employeeId: employee.id,
-          employeeName: employee.name,
-        }
       );
       return {
         health_employee: 0,

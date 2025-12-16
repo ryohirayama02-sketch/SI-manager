@@ -323,11 +323,7 @@ export class MonthlyPremiumCalculationService {
       // 産休・育休中でない場合のみチェック
       if (!stopping.isMaternityLeave && !stopping.isChildcareLeave) {
         const employeeId = employeeWithStandard.id || emp.id;
-        if (!employeeId) {
-          console.error(
-            `[徴収不能チェック] ${emp.name} (${year}年${month}月): employeeIdが取得できません`
-          );
-        } else {
+        if (employeeId) {
           await this.uncollectedPremiumService.saveUncollectedPremium(
             employeeId,
             year,
@@ -501,11 +497,7 @@ export class MonthlyPremiumCalculationService {
         //             empId: emp.id,
         //           }
         //         );
-        if (!employeeId) {
-          console.error(
-            `[徴収不能チェック] ${emp.name} (${year}年${month}月): employeeIdが取得できません（給与データなし）`
-          );
-        } else {
+        if (employeeId) {
           await this.uncollectedPremiumService.saveUncollectedPremium(
             employeeId,
             year,
