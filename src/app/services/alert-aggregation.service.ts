@@ -39,7 +39,7 @@ export class AlertAggregationService {
   aggregateScheduleData(
     bonusAlerts: BonusReportAlert[],
     suijiAlerts: SuijiKouhoResultWithDiff[],
-    notificationAlerts: AlertItem[],
+    notificationAlerts: AlertItem[], // 未使用だが、将来の拡張のために保持
     ageAlerts: AgeAlert[],
     qualificationChangeAlerts: QualificationChangeAlert[],
     maternityChildcareAlerts: MaternityChildcareAlert[],
@@ -50,28 +50,46 @@ export class AlertAggregationService {
   ): ScheduleData {
     const scheduleData: ScheduleData = {};
     const yearsForFixedEvents = new Set<number>();
-    targetYears.forEach((y) => yearsForFixedEvents.add(y));
+    targetYears.forEach((y) => {
+      if (y && !isNaN(y) && y >= 1900 && y <= 2100) {
+        yearsForFixedEvents.add(y);
+      }
+    });
 
     // 賞与支払届アラート
-    for (const alert of bonusAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
-      if (!scheduleData[dateKey]) {
-        scheduleData[dateKey] = {};
+    if (bonusAlerts && Array.isArray(bonusAlerts)) {
+      for (const alert of bonusAlerts) {
+        if (!alert || !alert.submitDeadline) {
+          continue;
+        }
+        const dateKey = this.formatDateKey(alert.submitDeadline);
+        const year = alert.submitDeadline.getFullYear();
+        if (year >= 1900 && year <= 2100) {
+          yearsForFixedEvents.add(year);
+        }
+        if (!scheduleData[dateKey]) {
+          scheduleData[dateKey] = {};
+        }
+        if (!scheduleData[dateKey]['賞与支払届']) {
+          scheduleData[dateKey]['賞与支払届'] = 0;
+        }
+        scheduleData[dateKey]['賞与支払届']++;
       }
-      if (!scheduleData[dateKey]['賞与支払届']) {
-        scheduleData[dateKey]['賞与支払届'] = 0;
-      }
-      scheduleData[dateKey]['賞与支払届']++;
     }
 
     // 随時改定アラート
-    for (const alert of suijiAlerts) {
-      if (alert.isEligible && alert.applyStartMonth) {
+    if (suijiAlerts && Array.isArray(suijiAlerts)) {
+      for (const alert of suijiAlerts) {
+        if (!alert || !alert.isEligible || !alert.applyStartMonth) {
+          continue;
+        }
         const deadline = this.getSuijiReportDeadlineDate(alert);
         if (deadline) {
           const dateKey = this.formatDateKey(deadline);
-          yearsForFixedEvents.add(deadline.getFullYear());
+          const year = deadline.getFullYear();
+          if (year >= 1900 && year <= 2100) {
+            yearsForFixedEvents.add(year);
+          }
           if (!scheduleData[dateKey]) {
             scheduleData[dateKey] = {};
           }
@@ -91,55 +109,85 @@ export class AlertAggregationService {
     if (!scheduleData[teijiDateKey]) {
       scheduleData[teijiDateKey] = {};
     }
-    if (teijiKetteiResults.length > 0) {
+    if (teijiKetteiResults && Array.isArray(teijiKetteiResults) && teijiKetteiResults.length > 0) {
       scheduleData[teijiDateKey]['定時決定（算定基礎届）'] =
         teijiKetteiResults.length;
     }
 
     // 年齢到達アラート
-    for (const alert of ageAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
-      if (!scheduleData[dateKey]) {
-        scheduleData[dateKey] = {};
+    if (ageAlerts && Array.isArray(ageAlerts)) {
+      for (const alert of ageAlerts) {
+        if (!alert || !alert.submitDeadline) {
+          continue;
+        }
+        const dateKey = this.formatDateKey(alert.submitDeadline);
+        const year = alert.submitDeadline.getFullYear();
+        if (year >= 1900 && year <= 2100) {
+          yearsForFixedEvents.add(year);
+        }
+        if (!scheduleData[dateKey]) {
+          scheduleData[dateKey] = {};
+        }
+        if (!scheduleData[dateKey]['年齢到達・資格変更']) {
+          scheduleData[dateKey]['年齢到達・資格変更'] = 0;
+        }
+        scheduleData[dateKey]['年齢到達・資格変更']++;
       }
-      if (!scheduleData[dateKey]['年齢到達・資格変更']) {
-        scheduleData[dateKey]['年齢到達・資格変更'] = 0;
-      }
-      scheduleData[dateKey]['年齢到達・資格変更']++;
     }
 
     // 資格変更アラート
-    for (const alert of qualificationChangeAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
-      if (!scheduleData[dateKey]) {
-        scheduleData[dateKey] = {};
+    if (qualificationChangeAlerts && Array.isArray(qualificationChangeAlerts)) {
+      for (const alert of qualificationChangeAlerts) {
+        if (!alert || !alert.submitDeadline) {
+          continue;
+        }
+        const dateKey = this.formatDateKey(alert.submitDeadline);
+        const year = alert.submitDeadline.getFullYear();
+        if (year >= 1900 && year <= 2100) {
+          yearsForFixedEvents.add(year);
+        }
+        if (!scheduleData[dateKey]) {
+          scheduleData[dateKey] = {};
+        }
+        if (!scheduleData[dateKey]['年齢到達・資格変更']) {
+          scheduleData[dateKey]['年齢到達・資格変更'] = 0;
+        }
+        scheduleData[dateKey]['年齢到達・資格変更']++;
       }
-      if (!scheduleData[dateKey]['年齢到達・資格変更']) {
-        scheduleData[dateKey]['年齢到達・資格変更'] = 0;
-      }
-      scheduleData[dateKey]['年齢到達・資格変更']++;
     }
 
     // 産休・育休・休職アラート
-    for (const alert of maternityChildcareAlerts) {
-      const dateKey = this.formatDateKey(alert.submitDeadline);
-      yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
-      if (!scheduleData[dateKey]) {
-        scheduleData[dateKey] = {};
+    if (maternityChildcareAlerts && Array.isArray(maternityChildcareAlerts)) {
+      for (const alert of maternityChildcareAlerts) {
+        if (!alert || !alert.submitDeadline) {
+          continue;
+        }
+        const dateKey = this.formatDateKey(alert.submitDeadline);
+        const year = alert.submitDeadline.getFullYear();
+        if (year >= 1900 && year <= 2100) {
+          yearsForFixedEvents.add(year);
+        }
+        if (!scheduleData[dateKey]) {
+          scheduleData[dateKey] = {};
+        }
+        if (!scheduleData[dateKey]['産休・育休・休職']) {
+          scheduleData[dateKey]['産休・育休・休職'] = 0;
+        }
+        scheduleData[dateKey]['産休・育休・休職']++;
       }
-      if (!scheduleData[dateKey]['産休・育休・休職']) {
-        scheduleData[dateKey]['産休・育休・休職'] = 0;
-      }
-      scheduleData[dateKey]['産休・育休・休職']++;
     }
 
     // 扶養アラート
-    for (const alert of supportAlerts) {
-      if (alert.submitDeadline) {
+    if (supportAlerts && Array.isArray(supportAlerts)) {
+      for (const alert of supportAlerts) {
+        if (!alert || !alert.submitDeadline) {
+          continue;
+        }
         const dateKey = this.formatDateKey(alert.submitDeadline);
-        yearsForFixedEvents.add(alert.submitDeadline.getFullYear());
+        const year = alert.submitDeadline.getFullYear();
+        if (year >= 1900 && year <= 2100) {
+          yearsForFixedEvents.add(year);
+        }
         if (!scheduleData[dateKey]) {
           scheduleData[dateKey] = {};
         }
@@ -153,8 +201,14 @@ export class AlertAggregationService {
     // 徴収不能アラート - 毎月1日に表示（提出期限の概念がないため）
     // 徴収不能額を年月ごとに集計
     const uncollectedByMonth = new Map<string, number>(); // key: "YYYY-MM", value: 件数
-    for (const premium of uncollectedPremiums) {
-      if (!premium.resolved && premium.amount > 0) {
+    if (uncollectedPremiums && Array.isArray(uncollectedPremiums)) {
+      for (const premium of uncollectedPremiums) {
+        if (!premium || premium.resolved || !premium.amount || premium.amount <= 0) {
+          continue;
+        }
+        if (!premium.year || !premium.month || premium.month < 1 || premium.month > 12) {
+          continue;
+        }
         const monthKey = `${premium.year}-${String(premium.month).padStart(
           2,
           '0'
@@ -169,6 +223,9 @@ export class AlertAggregationService {
     // 毎月1日に件数を設定
     for (const [monthKey, count] of uncollectedByMonth.entries()) {
       const [year, month] = monthKey.split('-').map(Number);
+      if (isNaN(year) || isNaN(month) || year < 1900 || year > 2100 || month < 1 || month > 12) {
+        continue;
+      }
       const dateKey = this.formatDateKey(new Date(year, month - 1, 1)); // 毎月1日
       yearsForFixedEvents.add(year);
       if (!scheduleData[dateKey]) {
@@ -203,6 +260,14 @@ export class AlertAggregationService {
    * 日付をYYYY-MM-DD形式のキーに変換
    */
   private formatDateKey(date: Date): string {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      // 無効な日付の場合は現在日時を使用
+      const now = getJSTDate();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -217,12 +282,20 @@ export class AlertAggregationService {
   private getSuijiReportDeadlineDate(
     alert: SuijiKouhoResultWithDiff
   ): Date | null {
-    if (!alert.applyStartMonth || !alert.changeMonth) {
+    if (!alert || !alert.applyStartMonth || !alert.changeMonth) {
       return null;
     }
 
     const changeYear = alert.year || getJSTDate().getFullYear();
     const changeMonth = alert.changeMonth;
+
+    // バリデーション
+    if (changeMonth < 1 || changeMonth > 12) {
+      return null;
+    }
+    if (changeYear < 1900 || changeYear > 2100) {
+      return null;
+    }
 
     // 適用開始月を変動月から再計算（変動月+3ヶ月後）
     const applyStartMonthRaw = changeMonth + 3;
@@ -237,6 +310,11 @@ export class AlertAggregationService {
 
     // 適用開始月の7日を提出期日とする
     const deadlineDate = new Date(applyStartYear, applyStartMonth - 1, 7); // 月は0ベースなので-1
+
+    // 無効な日付でないかチェック
+    if (isNaN(deadlineDate.getTime())) {
+      return null;
+    }
 
     return deadlineDate;
   }

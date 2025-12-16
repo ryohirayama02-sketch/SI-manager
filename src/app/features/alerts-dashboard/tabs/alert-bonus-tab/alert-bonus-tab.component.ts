@@ -48,30 +48,60 @@ export class AlertBonusTabComponent {
    * 日付をフォーマット
    */
   formatDate(date: Date): string {
-    return this.bonusAlertUiService.formatDate(date);
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '-';
+    }
+    try {
+      return this.bonusAlertUiService.formatDate(date);
+    } catch (error) {
+      console.error('[alert-bonus-tab] formatDateエラー:', error);
+      return '-';
+    }
   }
 
   /**
    * 支給日をフォーマット
    */
   formatPayDate(payDateStr: string): string {
-    return this.bonusAlertUiService.formatPayDate(payDateStr);
+    if (!payDateStr) {
+      return '-';
+    }
+    try {
+      return this.bonusAlertUiService.formatPayDate(payDateStr);
+    } catch (error) {
+      console.error('[alert-bonus-tab] formatPayDateエラー:', error);
+      return '-';
+    }
   }
 
   /**
    * 賞与支払届アラートの選択管理
    */
   toggleBonusReportAlertSelection(alertId: string): void {
+    if (!alertId) {
+      console.warn('[alert-bonus-tab] toggleBonusReportAlertSelection: alertIdが無効です');
+      return;
+    }
+    if (!this.selectedBonusReportAlertIds) {
+      this.selectedBonusReportAlertIds = new Set();
+    }
     const isSelected = this.selectedBonusReportAlertIds.has(alertId);
     this.alertSelectionChange.emit({ alertId, selected: !isSelected });
   }
 
   toggleAllBonusReportAlertsChange(event: Event): void {
+    if (!event || !event.target) {
+      console.warn('[alert-bonus-tab] toggleAllBonusReportAlertsChange: eventが無効です');
+      return;
+    }
     const target = event.target as HTMLInputElement;
     this.selectAllChange.emit(target.checked);
   }
 
   isBonusReportAlertSelected(alertId: string): boolean {
+    if (!alertId || !this.selectedBonusReportAlertIds) {
+      return false;
+    }
     return this.selectedBonusReportAlertIds.has(alertId);
   }
 
@@ -79,7 +109,7 @@ export class AlertBonusTabComponent {
    * 選択した賞与支払届アラートを削除
    */
   deleteSelectedBonusReportAlerts(): void {
-    if (this.selectedBonusReportAlertIds.size === 0) {
+    if (!this.selectedBonusReportAlertIds || this.selectedBonusReportAlertIds.size === 0) {
       return;
     }
     this.deleteSelected.emit();
@@ -106,20 +136,37 @@ export class AlertBonusTabComponent {
       // 各従業員ごとに処理
       for (let i = 0; i < this.bonusReportAlerts.length; i++) {
         const alert = this.bonusReportAlerts[i];
+        if (!alert || !alert.employeeId) {
+          console.warn(`[alert-bonus-tab] 無効なアラート: インデックス=${i}`);
+          continue;
+        }
+
         const employee = this.employees.find((e) => e.id === alert.employeeId);
-        if (!employee) continue;
+        if (!employee) {
+          console.warn(`[alert-bonus-tab] 従業員が見つかりません: ID=${alert.employeeId}`);
+          continue;
+        }
 
         // 事業所情報を取得
         let office: Office | null = null;
-        if (employee.officeNumber) {
-          const offices = await this.officeService.getAllOffices();
-          office =
-            offices.find((o) => o.officeNumber === employee.officeNumber) ||
-            null;
-        }
-        if (!office) {
-          const offices = await this.officeService.getAllOffices();
-          office = offices[0] || null;
+        try {
+          if (employee.officeNumber) {
+            const offices = await this.officeService.getAllOffices();
+            if (offices && Array.isArray(offices)) {
+              office =
+                offices.find((o) => o.officeNumber === employee.officeNumber) ||
+                null;
+            }
+          }
+          if (!office) {
+            const offices = await this.officeService.getAllOffices();
+            if (offices && Array.isArray(offices) && offices.length > 0) {
+              office = offices[0] || null;
+            }
+          }
+        } catch (error) {
+          console.error(`[alert-bonus-tab] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
+          // エラーが発生しても処理を継続（officeはnullのまま）
         }
 
         // 事業所整理記号のフォーマット（例：01-イ-1234567）
@@ -132,24 +179,43 @@ export class AlertBonusTabComponent {
 
         // 支給日を令和YYMMDD形式に変換
         const payDateObj = new Date(alert.payDate);
+        if (isNaN(payDateObj.getTime())) {
+          console.error(`[alert-bonus-tab] 無効な支給日: ${alert.payDate}`);
+          continue;
+        }
         const year = payDateObj.getFullYear();
         const month = String(payDateObj.getMonth() + 1).padStart(2, '0');
         const day = String(payDateObj.getDate()).padStart(2, '0');
         // 令和年を計算（2019年が令和1年）
         const reiwaYear = year >= 2019 ? year - 2018 : 0;
+        if (reiwaYear <= 0) {
+          console.error(`[alert-bonus-tab] 無効な年: ${year}`);
+          continue;
+        }
         const reiwaYearStr = String(reiwaYear).padStart(2, '0');
         const payDateFormatted = `R${reiwaYearStr}${month}${day}`;
 
         // 賞与データを取得（1000円未満切り捨て額を取得）
-        const bonuses = await this.bonusService.listBonuses(
-          roomId,
-          alert.employeeId,
-          year
-        );
-        const bonus = bonuses.find((b) => b.payDate === alert.payDate);
-        const standardBonusAmount =
-          bonus?.standardBonusAmount ||
-          Math.floor(alert.bonusAmount / 1000) * 1000;
+        let standardBonusAmount = Math.floor(alert.bonusAmount / 1000) * 1000;
+        try {
+          const bonuses = await this.bonusService.listBonuses(
+            roomId,
+            alert.employeeId,
+            year
+          );
+          if (bonuses && Array.isArray(bonuses)) {
+            const bonus = bonuses.find((b) => b && b.payDate === alert.payDate);
+            if (bonus && bonus.standardBonusAmount !== undefined) {
+              standardBonusAmount = bonus.standardBonusAmount;
+            }
+          }
+        } catch (error) {
+          console.error(
+            `[alert-bonus-tab] 賞与データ取得エラー: 従業員ID=${alert.employeeId}, 年度=${year}`,
+            error
+          );
+          // エラーが発生してもデフォルト値を使用
+        }
 
         // 生年月日を和暦形式に変換
         const birthDate = this.formatBirthDateToEra(employee.birthDate);
@@ -191,6 +257,11 @@ export class AlertBonusTabComponent {
       }
 
       // CSVファイルをダウンロード
+      if (csvLines.length === 0) {
+        alert('出力するデータがありません。');
+        return;
+      }
+
       const csvContent = csvLines.join('\n');
       const blob = new Blob(['\uFEFF' + csvContent], {
         type: 'text/csv;charset=utf-8;',
@@ -198,14 +269,26 @@ export class AlertBonusTabComponent {
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
+      const today = new Date();
+      const dateStr = today.toISOString().split('T')[0];
       link.setAttribute(
         'download',
-        `賞与支払届_${new Date().toISOString().split('T')[0]}.csv`
+        `賞与支払届_${dateStr}.csv`
       );
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      // クリーンアップ（少し遅延させて確実に削除）
+      setTimeout(() => {
+        try {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('[alert-bonus-tab] CSVダウンロード後のクリーンアップエラー:', error);
+        }
+      }, 100);
     } catch (error) {
       console.error('CSV出力エラー:', error);
       alert('CSV出力中にエラーが発生しました。');
@@ -217,10 +300,14 @@ export class AlertBonusTabComponent {
    */
   private formatBirthDateToEra(birthDateStr: string): string {
     if (!birthDateStr) return '';
-    const date = new Date(birthDateStr);
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
+    try {
+      const date = new Date(birthDateStr);
+      if (isNaN(date.getTime())) {
+        return '';
+      }
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
 
     let era = '';
     let eraYear = 0;
@@ -239,7 +326,11 @@ export class AlertBonusTabComponent {
       eraYear = year - 1911;
     }
 
-    return `${era}${eraYear}年${month}月${day}日`;
+      return `${era}${eraYear}年${month}月${day}日`;
+    } catch (error) {
+      console.error('[alert-bonus-tab] formatBirthDateToEraエラー:', error);
+      return '';
+    }
   }
 
   /**
@@ -247,16 +338,32 @@ export class AlertBonusTabComponent {
    */
   private calculateAge(birthDateStr: string, referenceDateStr: string): number {
     if (!birthDateStr || !referenceDateStr) return 0;
-    const birthDate = new Date(birthDateStr);
-    const referenceDate = new Date(referenceDateStr);
-    let age = referenceDate.getFullYear() - birthDate.getFullYear();
-    const monthDiff = referenceDate.getMonth() - birthDate.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && referenceDate.getDate() < birthDate.getDate())
-    ) {
-      age--;
+    try {
+      const birthDate = new Date(birthDateStr);
+      const referenceDate = new Date(referenceDateStr);
+      
+      if (isNaN(birthDate.getTime()) || isNaN(referenceDate.getTime())) {
+        return 0;
+      }
+      
+      let age = referenceDate.getFullYear() - birthDate.getFullYear();
+      const monthDiff = referenceDate.getMonth() - birthDate.getMonth();
+      if (
+        monthDiff < 0 ||
+        (monthDiff === 0 && referenceDate.getDate() < birthDate.getDate())
+      ) {
+        age--;
+      }
+      
+      // 年齢が負の値や異常に大きい値の場合は0を返す
+      if (age < 0 || age > 150) {
+        return 0;
+      }
+      
+      return age;
+    } catch (error) {
+      console.error('[alert-bonus-tab] calculateAgeエラー:', error);
+      return 0;
     }
-    return age;
   }
 }

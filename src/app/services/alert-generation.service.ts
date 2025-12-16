@@ -803,63 +803,128 @@ export class AlertGenerationService {
   ): Promise<BonusReportAlert[]> {
     const bonusReportAlerts: BonusReportAlert[] = [];
 
-    const currentYear = getJSTDate().getFullYear();
-    const today = normalizeDate(getJSTDate());
-    const roomId = this.roomIdService.requireRoomId();
-
-    // 過去2年から将来1年までの賞与を取得（賞与支払届の提出期限は支給日の翌月10日なので、過去の賞与も対象になる可能性がある）
-    const years = [
-      currentYear - 2,
-      currentYear - 1,
-      currentYear,
-      currentYear + 1,
-    ];
-
-    for (const emp of employees) {
-      // 複数年度の賞与を取得
-      const allBonuses: any[] = [];
-      for (const year of years) {
-        const bonuses = await this.bonusService.listBonuses(
-          roomId,
-          emp.id,
-          year
-        );
-        allBonuses.push(...bonuses);
-      }
-
-      for (const bonus of allBonuses) {
-        if (!bonus.amount || bonus.amount === 0) {
-          continue;
-        }
-
-        if (!bonus.payDate) {
-          continue;
-        }
-
-        const payDate = normalizeDate(new Date(bonus.payDate));
-        const submitDeadline = calculateSubmitDeadline(payDate);
-        submitDeadline.setHours(23, 59, 59, 999);
-        const daysUntilDeadline = calculateDaysUntilDeadline(
-          submitDeadline,
-          today
-        );
-
-        const alertId = `${bonus.employeeId}_${bonus.payDate}`;
-
-        bonusReportAlerts.push({
-          id: alertId,
-          employeeId: bonus.employeeId,
-          employeeName: emp.name,
-          bonusAmount: bonus.amount,
-          payDate: bonus.payDate,
-          submitDeadline: submitDeadline,
-          daysUntilDeadline: daysUntilDeadline,
-        });
-      }
+    if (!employees || !Array.isArray(employees)) {
+      console.warn('[alert-generation] generateBonusReportAlerts: employeesが無効です');
+      return bonusReportAlerts;
     }
 
+    try {
+      const currentYear = getJSTDate().getFullYear();
+      const today = normalizeDate(getJSTDate());
+      const roomId = this.roomIdService.requireRoomId();
+
+      // 過去2年から将来1年までの賞与を取得（賞与支払届の提出期限は支給日の翌月10日なので、過去の賞与も対象になる可能性がある）
+      const years = [
+        currentYear - 2,
+        currentYear - 1,
+        currentYear,
+        currentYear + 1,
+      ];
+
+      for (const emp of employees) {
+        if (!emp || !emp.id) {
+          continue;
+        }
+
+        try {
+          // 複数年度の賞与を取得
+          const allBonuses: any[] = [];
+          for (const year of years) {
+            try {
+              const bonuses = await this.bonusService.listBonuses(
+                roomId,
+                emp.id,
+                year
+              );
+              if (bonuses && Array.isArray(bonuses)) {
+                allBonuses.push(...bonuses);
+              }
+            } catch (error) {
+              console.error(
+                `[alert-generation] 賞与取得エラー: 従業員ID=${emp.id}, 年度=${year}`,
+                error
+              );
+              // エラーが発生しても処理を継続
+            }
+          }
+
+          for (const bonus of allBonuses) {
+            if (!bonus) {
+              continue;
+            }
+
+            if (!bonus.amount || bonus.amount === 0 || isNaN(bonus.amount)) {
+              continue;
+            }
+
+            if (!bonus.payDate) {
+              continue;
+            }
+
+            try {
+              const payDate = normalizeDate(new Date(bonus.payDate));
+              if (isNaN(payDate.getTime())) {
+                console.warn(
+                  `[alert-generation] 無効な支給日: ${bonus.payDate}, 従業員ID=${bonus.employeeId}`
+                );
+                continue;
+              }
+
+              const submitDeadline = calculateSubmitDeadline(payDate);
+              submitDeadline.setHours(23, 59, 59, 999);
+              const daysUntilDeadline = calculateDaysUntilDeadline(
+                submitDeadline,
+                today
+              );
+
+              const alertId = `${bonus.employeeId}_${bonus.payDate}`;
+
+              bonusReportAlerts.push({
+                id: alertId,
+                employeeId: bonus.employeeId || emp.id,
+                employeeName: emp.name || '',
+                bonusAmount: bonus.amount,
+                payDate: bonus.payDate,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+              });
+            } catch (error) {
+              console.error(
+                `[alert-generation] 賞与アラート生成エラー: 従業員ID=${bonus.employeeId}, 支給日=${bonus.payDate}`,
+                error
+              );
+              // エラーが発生しても処理を継続
+            }
+          }
+        } catch (error) {
+          console.error(
+            `[alert-generation] 従業員処理エラー: ID=${emp.id}, 名前=${emp.name}`,
+            error
+          );
+          // エラーが発生しても処理を継続
+        }
+      }
+    } catch (error) {
+      console.error('[alert-generation] generateBonusReportAlertsエラー:', error);
+      // エラーが発生しても空配列を返す
+    }
+
+    // ソート処理（提出期限でソート）
     bonusReportAlerts.sort((a, b) => {
-      return a.submitDeadline.getTime() - b.submitDeadline.getTime();
+      if (!a || !b || !a.submitDeadline || !b.submitDeadline) {
+        return 0;
+      }
+      try {
+        const timeA = a.submitDeadline.getTime();
+        const timeB = b.submitDeadline.getTime();
+        if (isNaN(timeA) || isNaN(timeB)) {
+          return 0;
+        }
+        return timeA - timeB;
+      } catch (error) {
+        console.error('[alert-generation] ソート処理エラー:', error);
+        return 0;
+      }
     });
     return bonusReportAlerts;
   }

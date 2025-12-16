@@ -17,8 +17,16 @@ export class BonusAlertUiService {
    */
   formatPayDate(payDateStr: string): string {
     if (!payDateStr) return '-';
-    const date = new Date(payDateStr);
-    return formatDate(date);
+    try {
+      const date = new Date(payDateStr);
+      if (isNaN(date.getTime())) {
+        return '-';
+      }
+      return formatDate(date);
+    } catch (error) {
+      console.error('[bonus-alert-ui] formatPayDateエラー:', error);
+      return '-';
+    }
   }
 }
 

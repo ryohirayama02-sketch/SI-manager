@@ -9,6 +9,14 @@ export class CalendarService {
    * カレンダーの日付配列を生成
    */
   getCalendarDays(year: number, month: number): Date[] {
+    // 入力値のバリデーション
+    if (month < 1 || month > 12) {
+      throw new Error(`Invalid month: ${month}. Month must be between 1 and 12.`);
+    }
+    if (year < 1900 || year > 2100) {
+      throw new Error(`Invalid year: ${year}. Year must be between 1900 and 2100.`);
+    }
+
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     const daysInMonth = lastDay.getDate();
@@ -17,8 +25,12 @@ export class CalendarService {
     const days: Date[] = [];
     
     // 前月の日付を追加（カレンダーの最初の週を埋める）
-    const prevMonth = month - 1;
-    const prevYear = prevMonth < 1 ? year - 1 : year;
+    let prevMonth = month - 1;
+    let prevYear = year;
+    if (prevMonth < 1) {
+      prevMonth = 12;
+      prevYear = year - 1;
+    }
     const prevMonthLastDay = new Date(prevYear, prevMonth, 0).getDate();
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       days.push(new Date(prevYear, prevMonth - 1, prevMonthLastDay - i));

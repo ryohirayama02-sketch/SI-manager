@@ -381,11 +381,20 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 賞与支払届アラートを読み込む
    */
   async loadBonusReportAlerts(): Promise<void> {
-    const deletedIds = await this.alertDeletionService.getDeletedIds('bonus');
-    const result = await this.alertsDashboardUiService.loadBonusReportAlerts(
-      this.employees
-    );
-    this.state.bonusReportAlerts = result.filter((a) => !deletedIds.has(a.id));
+    try {
+      const deletedIds = await this.alertDeletionService.getDeletedIds('bonus');
+      const result = await this.alertsDashboardUiService.loadBonusReportAlerts(
+        this.employees || []
+      );
+      if (result && Array.isArray(result)) {
+        this.state.bonusReportAlerts = result.filter((a) => a && !deletedIds.has(a.id));
+      } else {
+        this.state.bonusReportAlerts = [];
+      }
+    } catch (error) {
+      console.error('[AlertsDashboardPage] loadBonusReportAlertsエラー:', error);
+      this.state.bonusReportAlerts = [];
+    }
   }
 
   /**
@@ -1201,13 +1210,20 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
           undefined, // 年度フィルタなし（すべての年度）
           false // 未対応のみ
         );
-      this.state.uncollectedPremiums = uncollectedPremiums;
+      this.state.uncollectedPremiums = uncollectedPremiums || [];
     } catch (error) {
       console.error('[AlertsDashboardPage] 徴収不能額の読み込みエラー:', error);
       this.state.uncollectedPremiums = [];
     }
 
-    this.state.updateScheduleData();
+    // スケジュールデータを更新（エラーハンドリング付き）
+    try {
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[AlertsDashboardPage] スケジュールデータ更新エラー:', error);
+      // エラーが発生してもアプリケーションを継続させるため、空のスケジュールデータを設定
+      this.state.scheduleData = {};
+    }
   }
 
   async setActiveTab(
@@ -1502,6 +1518,21 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   onScheduleDateClick(tabId: string): void {
+    // 有効なタブIDかチェック
+    const validTabs: Array<
+      | 'schedule'
+      | 'bonus'
+      | 'suiji'
+      | 'teiji'
+      | 'age'
+      | 'leave'
+      | 'family'
+      | 'uncollected'
+    > = ['schedule', 'bonus', 'suiji', 'teiji', 'age', 'leave', 'family', 'uncollected'];
+    if (!tabId || !validTabs.includes(tabId as any)) {
+      console.warn(`[AlertsDashboardPage] Invalid tabId: ${tabId}`);
+      return;
+    }
     this.setActiveTab(tabId as any);
   }
 }

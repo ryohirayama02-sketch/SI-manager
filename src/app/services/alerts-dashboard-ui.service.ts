@@ -28,18 +28,47 @@ export class AlertsDashboardUiService {
     loadMaternityChildcareAlerts: () => Promise<void>,
     loadBonusReportAlerts: () => Promise<void>
   ): Promise<void> {
-    await loadSuijiAlerts();
-    this.state.updateScheduleData();
-    await loadNotificationAlerts();
-    this.state.updateScheduleData();
-    await loadAgeAlerts();
-    this.state.updateScheduleData();
-    await loadQualificationChangeAlerts();
-    this.state.updateScheduleData();
-    await loadMaternityChildcareAlerts();
-    this.state.updateScheduleData();
-    await loadBonusReportAlerts();
-    this.state.updateScheduleData();
+    try {
+      await loadSuijiAlerts();
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadSuijiAlertsエラー:', error);
+    }
+    
+    try {
+      await loadNotificationAlerts();
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadNotificationAlertsエラー:', error);
+    }
+    
+    try {
+      await loadAgeAlerts();
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadAgeAlertsエラー:', error);
+    }
+    
+    try {
+      await loadQualificationChangeAlerts();
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadQualificationChangeAlertsエラー:', error);
+    }
+    
+    try {
+      await loadMaternityChildcareAlerts();
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadMaternityChildcareAlertsエラー:', error);
+    }
+    
+    try {
+      await loadBonusReportAlerts();
+      this.state.updateScheduleData();
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadBonusReportAlertsエラー:', error);
+    }
   }
 
   async loadSuijiAlerts(

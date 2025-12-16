@@ -100,17 +100,22 @@ export class AlertsDashboardStateService {
    * 届出スケジュールデータを更新
    */
   updateScheduleData(): void {
+    // scheduleYearのバリデーション
+    const targetYear = this.scheduleYear && !isNaN(this.scheduleYear) && this.scheduleYear >= 1900 && this.scheduleYear <= 2100
+      ? this.scheduleYear
+      : getJSTDate().getFullYear();
+    
     this.scheduleData = this.alertAggregationService.aggregateScheduleData(
-      this.bonusReportAlerts,
-      this.suijiAlerts,
-      this.notificationAlerts,
-      this.ageAlerts,
-      this.qualificationChangeAlerts,
-      this.maternityChildcareAlerts,
-      this.supportAlerts,
-      this.teijiKetteiResults,
-      this.uncollectedPremiums,
-      [this.scheduleYear]
+      this.bonusReportAlerts || [],
+      this.suijiAlerts || [],
+      this.notificationAlerts || [],
+      this.ageAlerts || [],
+      this.qualificationChangeAlerts || [],
+      this.maternityChildcareAlerts || [],
+      this.supportAlerts || [],
+      this.teijiKetteiResults || [],
+      this.uncollectedPremiums || [],
+      [targetYear]
     );
   }
 
@@ -119,6 +124,13 @@ export class AlertsDashboardStateService {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !event.alertId) {
+      console.warn('[alerts-dashboard-state] onBonusAlertSelectionChange: eventが無効です');
+      return;
+    }
+    if (!this.selectedBonusReportAlertIds) {
+      this.selectedBonusReportAlertIds = new Set();
+    }
     if (event.selected) {
       this.selectedBonusReportAlertIds.add(event.alertId);
     } else {
@@ -127,9 +139,20 @@ export class AlertsDashboardStateService {
   }
 
   onBonusSelectAllChange(checked: boolean): void {
+    if (!this.selectedBonusReportAlertIds) {
+      this.selectedBonusReportAlertIds = new Set();
+    }
+    if (!this.bonusReportAlerts || !Array.isArray(this.bonusReportAlerts)) {
+      if (!checked) {
+        this.selectedBonusReportAlertIds.clear();
+      }
+      return;
+    }
     if (checked) {
       this.bonusReportAlerts.forEach((alert) => {
-        this.selectedBonusReportAlertIds.add(alert.id);
+        if (alert && alert.id) {
+          this.selectedBonusReportAlertIds.add(alert.id);
+        }
       });
     } else {
       this.selectedBonusReportAlertIds.clear();
@@ -137,12 +160,16 @@ export class AlertsDashboardStateService {
   }
 
   deleteSelectedBonusReportAlerts(): void {
-    const selectedIds = Array.from(this.selectedBonusReportAlertIds);
-    if (selectedIds.length === 0) {
+    if (!this.selectedBonusReportAlertIds || this.selectedBonusReportAlertIds.size === 0) {
       return;
     }
+    if (!this.bonusReportAlerts || !Array.isArray(this.bonusReportAlerts)) {
+      this.selectedBonusReportAlertIds.clear();
+      return;
+    }
+    const selectedIds = Array.from(this.selectedBonusReportAlertIds);
     this.bonusReportAlerts = this.bonusReportAlerts.filter(
-      (alert) => !selectedIds.includes(alert.id)
+      (alert) => alert && !selectedIds.includes(alert.id)
     );
     this.selectedBonusReportAlertIds.clear();
     this.updateScheduleData();
@@ -383,6 +410,8 @@ export class AlertsDashboardStateService {
   // スケジュールタブのイベントハンドラ
   onScheduleMonthChange(month: number): void {
     this.scheduleMonth = month;
+    // 月が変更された場合もスケジュールデータを更新（カレンダー表示のため）
+    this.updateScheduleData();
   }
 
   onScheduleYearChange(year: number): void {

@@ -17,6 +17,13 @@ export function getJSTDate(): Date {
  * 日付を正規化（時刻を00:00:00に設定）
  */
 export function normalizeDate(date: Date): Date {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    // 無効な日付の場合は現在日時を使用
+    const now = getJSTDate();
+    const normalized = new Date(now);
+    normalized.setHours(0, 0, 0, 0);
+    return normalized;
+  }
   const normalized = new Date(date);
   normalized.setHours(0, 0, 0, 0);
   return normalized;
@@ -26,6 +33,11 @@ export function normalizeDate(date: Date): Date {
  * 日付を日本語形式でフォーマット（YYYY年MM月DD日）
  */
 export function formatDate(date: Date): string {
+  if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+    // 無効な日付の場合は現在日時を使用
+    const now = getJSTDate();
+    return `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+  }
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
