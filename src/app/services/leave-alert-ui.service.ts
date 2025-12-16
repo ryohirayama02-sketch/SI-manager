@@ -8,7 +8,10 @@ export class LeaveAlertUiService {
   /**
    * 日付をフォーマット
    */
-  formatDate(date: Date): string {
+  formatDate(date: Date | null | undefined): string {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
     return formatDate(date);
   }
 }

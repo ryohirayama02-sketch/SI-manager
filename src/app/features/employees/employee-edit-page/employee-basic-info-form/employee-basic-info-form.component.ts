@@ -135,13 +135,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       this.employeeId
     );
     if (data) {
-      console.log('[employee-basic-info-form] 読み込みデータ:', {
-        officeNumber: (data as any).officeNumber,
-        prefecture: data.prefecture,
-        department: (data as any).department,
-        fullData: data,
-      });
-
       this.originalEmployeeData = {
         name: data.name || '',
         nameKana: (data as any).nameKana || '',
@@ -377,13 +370,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       updateData.maternityAllowanceApplicationRequestDate =
         value.maternityAllowanceApplicationRequestDate || null;
 
-    console.log('[employee-basic-info-form] 保存データ:', {
-      officeNumber: updateData.officeNumber,
-      prefecture: updateData.prefecture,
-      department: updateData.department,
-      fullUpdateData: updateData,
-    });
-
     if (!this.roomId) {
       console.warn(
         '[employee-basic-info-form] roomId is not set. skip update.'
@@ -479,13 +465,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         oldPrefecture !== newPrefecture) &&
       (oldOfficeNumber || newOfficeNumber || oldPrefecture || newPrefecture)
     ) {
-      console.log('[employee-basic-info-form] detect office change', {
-        employeeId: this.employeeId,
-        oldOfficeNumber,
-        newOfficeNumber,
-        oldPrefecture,
-        newPrefecture,
-      });
       const oldOfficeInfo = oldOfficeNumber
         ? `${oldOfficeNumber}${oldPrefecture ? ` (${oldPrefecture})` : ''}`
         : '(未設定)';
@@ -516,14 +495,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     // 週所定労働時間カテゴリの変化があれば履歴を残す（勤務区分変更）
     if (oldWeeklyCategory !== newWeeklyCategory) {
-      console.log(
-        '[employee-basic-info-form] detect work category change (weeklyWorkHoursCategory)',
-        {
-          employeeId: this.employeeId,
-          oldWeeklyWorkHoursCategory: oldWeeklyCategory,
-          newWeeklyWorkHoursCategory: newWeeklyCategory,
-        }
-      );
 
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
@@ -545,13 +516,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         await this.handleInsuranceAcquisition(newData, today);
       }
     } else if (oldIsShortTime !== newIsShortTime) {
-      console.log('[employee-basic-info-form] detect work category change', {
-        employeeId: this.employeeId,
-        oldIsShortTime,
-        newIsShortTime,
-        oldWeeklyWorkHoursCategory: oldData.weeklyWorkHoursCategory || '',
-        newWeeklyWorkHoursCategory: newData.weeklyWorkHoursCategory || '',
-      });
       const oldStatus = oldIsShortTime ? '短時間労働者' : '通常加入';
       const newStatus = newIsShortTime ? '短時間労働者' : '通常加入';
       await this.employeeChangeHistoryService.saveChangeHistory({
@@ -593,16 +557,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       );
       return;
     }
-
-    console.log(
-      `[employee-basic-info-form] 保険加入時の標準報酬履歴を生成`,
-      {
-        employeeId: this.employeeId,
-        acquisitionYear,
-        acquisitionMonth,
-        monthlyWage,
-      }
-    );
 
     // 標準報酬等級表を取得
     const gradeTable = await this.settingsService.getStandardTable(
@@ -674,16 +628,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         }
       );
 
-      console.log(
-        `[employee-basic-info-form] 保険加入時の標準報酬履歴を保存しました`,
-        {
-          employeeId: this.employeeId,
-          acquisitionYear,
-          acquisitionMonth,
-          grade,
-          standardMonthlyRemuneration,
-        }
-      );
     }
   }
 
@@ -716,7 +660,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
    * @param value 数値または選択値
    * @returns 選択値（'within-2months' | 'over-2months' | ''）
    */
-  private convertExpectedEmploymentMonthsToSelectValue(
+  public convertExpectedEmploymentMonthsToSelectValue(
     value?: number | string | null
   ): string {
     if (value === undefined || value === null || value === '') {
@@ -738,16 +682,37 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
   /**
    * 従業員をシステムから削除
    */
-  async deleteEmployee(): Promise<void> {
-    if (!this.employeeId) {
+  public async deleteEmployee(): Promise<void> {
+    const employeeId = this.employeeId;
+    const employeeService = this.employeeService;
+    const familyMemberService = this.familyMemberService;
+    const router = this.router;
+
+    if (!employeeId) {
       window.alert('従業員IDが設定されていません');
       return;
     }
 
+    if (!employeeService) {
+      console.error('[employee-basic-info-form] employeeService is not initialized');
+      window.alert('システムエラーが発生しました');
+      return;
+    }
+
+    if (!familyMemberService) {
+      console.error('[employee-basic-info-form] familyMemberService is not initialized');
+      window.alert('システムエラーが発生しました');
+      return;
+    }
+
+    if (!router) {
+      console.error('[employee-basic-info-form] router is not initialized');
+      window.alert('システムエラーが発生しました');
+      return;
+    }
+
     // 削除確認
-    const employee = await this.employeeService.getEmployeeById(
-      this.employeeId
-    );
+    const employee = await employeeService.getEmployeeById(employeeId);
     const employeeName = employee?.name || 'この従業員';
     const confirmMessage = `${employeeName}をシステムから削除しますか？\n\nこの操作は取り消せません。\n関連する家族情報も全て削除されます。`;
 
@@ -757,18 +722,16 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     try {
       // 家族情報を先に削除
-      await this.familyMemberService.deleteFamilyMembersByEmployeeId(
-        this.employeeId
-      );
+      await familyMemberService.deleteFamilyMembersByEmployeeId(employeeId);
 
       // 従業員情報を削除
-      await this.employeeService.deleteEmployee(this.employeeId);
+      await employeeService.deleteEmployee(employeeId);
 
       // 削除成功メッセージ
       window.alert('従業員を削除しました');
 
       // 従業員一覧画面にリダイレクト
-      this.router.navigate(['/employees']);
+      router.navigate(['/employees']);
     } catch (error) {
       console.error('[employee-basic-info-form] 従業員削除エラー:', error);
       window.alert('従業員の削除中にエラーが発生しました');

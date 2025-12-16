@@ -872,11 +872,27 @@ export class StandardRemunerationHistoryService {
     year: number,
     month: number
   ): boolean {
-    if (!employee.maternityLeaveStart || !employee.maternityLeaveEnd)
+    if (!employee) {
       return false;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
+    if (!employee.maternityLeaveStart || !employee.maternityLeaveEnd) {
+      return false;
+    }
     const start = new Date(employee.maternityLeaveStart);
     const end = new Date(employee.maternityLeaveEnd);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return false;
+    }
     const target = new Date(year, month - 1, 1);
+    if (isNaN(target.getTime())) {
+      return false;
+    }
     return target >= start && target <= end;
   }
 
@@ -885,11 +901,27 @@ export class StandardRemunerationHistoryService {
     year: number,
     month: number
   ): boolean {
-    if (!employee.childcareLeaveStart || !employee.childcareLeaveEnd)
+    if (!employee) {
       return false;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
+    if (!employee.childcareLeaveStart || !employee.childcareLeaveEnd) {
+      return false;
+    }
     const start = new Date(employee.childcareLeaveStart);
     const end = new Date(employee.childcareLeaveEnd);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return false;
+    }
     const target = new Date(year, month - 1, 1);
+    if (isNaN(target.getTime())) {
+      return false;
+    }
     return target >= start && target <= end;
   }
 }

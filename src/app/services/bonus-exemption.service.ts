@@ -26,9 +26,21 @@ export class BonusExemptionService {
   /**
    * 年齢を計算
    */
-  calculateAge(birthDate: string): number {
+  calculateAge(birthDate: string | null | undefined): number {
+    if (!birthDate || typeof birthDate !== 'string') {
+      return 0;
+    }
+
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return 0;
+    }
+
     const today = new Date();
+    if (isNaN(today.getTime())) {
+      return 0;
+    }
+
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (
@@ -37,6 +49,12 @@ export class BonusExemptionService {
     ) {
       age--;
     }
+
+    // 年齢の範囲チェック（0-150歳）
+    if (age < 0 || age > 150) {
+      return 0;
+    }
+
     return age;
   }
 
@@ -84,8 +102,22 @@ export class BonusExemptionService {
     isExempted: boolean;
     exemptReason?: string;
   } {
+    if (!employee) {
+      return { isExempted: false };
+    }
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return { isExempted: false };
+    }
+
     const payYear = payDate.getFullYear();
     const payMonth = payDate.getMonth() + 1;
+
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return { isExempted: false };
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
+      return { isExempted: false };
+    }
 
     // 月ベースの判定を使用（月次給与と同じロジック）
     const isMaternityLeavePeriod =
@@ -110,6 +142,10 @@ export class BonusExemptionService {
    * @returns 14日未満の場合true
    */
   private isChildcareLeavePeriodLessThan14Days(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
+
     const startValue = employee.childcareLeaveStart;
     const endValue =
       employee.childcareLeaveEnd ?? employee.childcareLeaveEndExpected;
@@ -120,13 +156,18 @@ export class BonusExemptionService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return false;
+    }
+
     // 開始日から終了日までの日数を計算（開始日と終了日を含む）
     const daysDiff =
       Math.floor(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
       ) + 1;
 
-    return daysDiff < 14;
+    return daysDiff < 14 && daysDiff > 0;
   }
 
   /**
@@ -143,6 +184,13 @@ export class BonusExemptionService {
     isExempted: boolean;
     exemptReason?: string;
   } {
+    if (!employee) {
+      return { isExempted: false };
+    }
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return { isExempted: false };
+    }
+
     // 育休期間が14日未満の場合は免除しない
     if (this.isChildcareLeavePeriodLessThan14Days(employee)) {
       return { isExempted: false };
@@ -150,6 +198,13 @@ export class BonusExemptionService {
 
     const payYear = payDate.getFullYear();
     const payMonth = payDate.getMonth() + 1;
+
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return { isExempted: false };
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
+      return { isExempted: false };
+    }
 
     // 月ベースの判定を使用（月次給与と同じロジック）
     const isChildcareLeavePeriod =
@@ -204,23 +259,35 @@ export class BonusExemptionService {
    * 賞与の場合も月次給与と同じように、支給月が40歳到達月かどうかで判定する
    */
   getAgeFlags(employee: Employee, payDate: Date): AgeFlags {
-    console.log('[BonusExemptionService] getAgeFlags 開始', {
-      employeeId: employee.id,
-      employeeName: employee.name,
-      birthDate: employee.birthDate,
-      payDate: payDate.toISOString(),
-    });
+    const defaultAgeFlags: AgeFlags = {
+      isCare2: false,
+      isCare1: false,
+      isNoPension: false,
+      isNoHealth: false,
+    };
+
+    if (!employee) {
+      return defaultAgeFlags;
+    }
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return defaultAgeFlags;
+    }
 
     // 支給月の1日時点の年齢で判定（月次給与と同じロジック）
     const payYear = payDate.getFullYear();
     const payMonth = payDate.getMonth() + 1;
-    const payMonthFirstDay = new Date(payYear, payMonth - 1, 1);
 
-    console.log('[BonusExemptionService] 支給月情報', {
-      payYear,
-      payMonth,
-      payMonthFirstDay: payMonthFirstDay.toISOString(),
-    });
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return defaultAgeFlags;
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
+      return defaultAgeFlags;
+    }
+
+    const payMonthFirstDay = new Date(payYear, payMonth - 1, 1);
+    if (isNaN(payMonthFirstDay.getTime())) {
+      return defaultAgeFlags;
+    }
 
     const eligibilityResult = this.employeeEligibilityService.checkEligibility(
       employee,
@@ -228,11 +295,6 @@ export class BonusExemptionService {
     );
 
     // 支給月が40歳到達月かどうかを判定（月次給与と同じロジック）
-    console.log('[BonusExemptionService] getCareInsuranceType を呼び出し', {
-      birthDate: employee.birthDate,
-      payYear,
-      payMonth,
-    });
     const careType = this.exemptionDeterminationService.getCareInsuranceType(
       employee.birthDate,
       payYear,
@@ -245,17 +307,6 @@ export class BonusExemptionService {
       ...eligibilityResult.ageFlags,
       isCare2: careType === 'type2',
     };
-
-    console.log('[BonusExemptionService] getAgeFlags 結果', {
-      payYear,
-      payMonth,
-      careType,
-      originalAgeFlags: eligibilityResult.ageFlags,
-      adjustedAgeFlags: ageFlags,
-      isCare2: ageFlags.isCare2,
-      ageCategory: eligibilityResult.ageCategory,
-      birthDate: employee.birthDate,
-    });
 
     return ageFlags;
   }

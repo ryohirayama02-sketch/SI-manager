@@ -15,6 +15,13 @@ export class MaternityLeaveService {
    * @returns 免除結果
    */
   isMaternityLeave(date: Date, employee: Employee): ExemptResult {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return { exempt: false, reason: '' };
+    }
+    if (!employee) {
+      return { exempt: false, reason: '' };
+    }
+
     const startValue = employee.maternityLeaveStart;
     // 終了日が未入力の場合は終了予定日を使用する
     const endValue =
@@ -26,6 +33,10 @@ export class MaternityLeaveService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return { exempt: false, reason: '' };
+    }
 
     // 日付のみで比較（時刻を無視）
     const checkDate = new Date(
@@ -60,6 +71,10 @@ export class MaternityLeaveService {
    * @returns 14日未満の場合true
    */
   private isChildcareLeavePeriodLessThan14Days(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
+
     const startValue = employee.childcareLeaveStart;
     const endValue =
       employee.childcareLeaveEnd ?? employee.childcareLeaveEndExpected;
@@ -70,13 +85,18 @@ export class MaternityLeaveService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return false;
+    }
+
     // 開始日から終了日までの日数を計算（開始日と終了日を含む）
     const daysDiff =
       Math.floor(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
       ) + 1;
 
-    return daysDiff < 14;
+    return daysDiff < 14 && daysDiff > 0;
   }
 
   /**
@@ -86,6 +106,13 @@ export class MaternityLeaveService {
    * @returns 免除結果
    */
   isChildcareLeave(date: Date, employee: Employee): ExemptResult {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return { exempt: false, reason: '' };
+    }
+    if (!employee) {
+      return { exempt: false, reason: '' };
+    }
+
     const startValue = employee.childcareLeaveStart;
     // 終了日が未入力の場合は終了予定日を使用する
     const endValue =
@@ -102,6 +129,10 @@ export class MaternityLeaveService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return { exempt: false, reason: '' };
+    }
 
     // 日付のみで比較（時刻を無視）
     const checkDate = new Date(
@@ -137,6 +168,13 @@ export class MaternityLeaveService {
    * @returns 免除結果
    */
   getExemptReason(date: Date, employee: Employee): ExemptResult {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return { exempt: false, reason: '' };
+    }
+    if (!employee) {
+      return { exempt: false, reason: '' };
+    }
+
     // 産休を優先チェック
     const maternityResult = this.isMaternityLeave(date, employee);
     if (maternityResult.exempt) {
@@ -166,8 +204,21 @@ export class MaternityLeaveService {
     month: number,
     employee: Employee
   ): ExemptResult {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return { exempt: false, reason: '' };
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return { exempt: false, reason: '' };
+    }
+    if (!employee) {
+      return { exempt: false, reason: '' };
+    }
+
     // 月の1日を基準に判定（非推奨：月初復帰時に誤判定する可能性あり）
     const checkDate = new Date(year, month - 1, 1);
+    if (isNaN(checkDate.getTime())) {
+      return { exempt: false, reason: '' };
+    }
     return this.getExemptReason(checkDate, employee);
   }
 
@@ -178,6 +229,12 @@ export class MaternityLeaveService {
    * @returns 免除結果
    */
   isExemptForBonus(payDate: Date, employee: Employee): ExemptResult {
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return { exempt: false, reason: '' };
+    }
+    if (!employee) {
+      return { exempt: false, reason: '' };
+    }
     return this.getExemptReason(payDate, employee);
   }
 }

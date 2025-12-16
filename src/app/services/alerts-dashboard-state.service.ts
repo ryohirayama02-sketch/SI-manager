@@ -395,6 +395,9 @@ export class AlertsDashboardStateService {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !event.alertId) {
+      return;
+    }
     if (event.selected) {
       this.selectedMaternityChildcareAlertIds.add(event.alertId);
     } else {
@@ -403,9 +406,14 @@ export class AlertsDashboardStateService {
   }
 
   onMaternityChildcareSelectAllChange(checked: boolean): void {
+    if (!this.maternityChildcareAlerts || !Array.isArray(this.maternityChildcareAlerts)) {
+      return;
+    }
     if (checked) {
       this.maternityChildcareAlerts.forEach((alert) => {
-        this.selectedMaternityChildcareAlertIds.add(alert.id);
+        if (alert && alert.id) {
+          this.selectedMaternityChildcareAlertIds.add(alert.id);
+        }
       });
     } else {
       this.selectedMaternityChildcareAlertIds.clear();
@@ -413,13 +421,18 @@ export class AlertsDashboardStateService {
   }
 
   deleteSelectedMaternityChildcareAlerts(): void {
+    if (!this.selectedMaternityChildcareAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
     if (selectedIds.length === 0) {
       return;
     }
-    this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
-      (alert) => !selectedIds.includes(alert.id)
-    );
+    if (this.maternityChildcareAlerts && Array.isArray(this.maternityChildcareAlerts)) {
+      this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
+        (alert) => alert && alert.id && !selectedIds.includes(alert.id)
+      );
+    }
     this.selectedMaternityChildcareAlertIds.clear();
     this.updateScheduleData();
   }

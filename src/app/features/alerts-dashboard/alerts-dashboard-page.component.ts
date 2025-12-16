@@ -402,15 +402,28 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 産休育休アラートを読み込む
    */
   async loadMaternityChildcareAlerts(): Promise<void> {
-    const deletedIds = await this.alertDeletionService.getDeletedIds('leave');
-    const result =
-      await this.alertsDashboardUiService.loadMaternityChildcareAlerts(
-        this.employees,
-        (date: Date) => this.formatDate(date)
-      );
-    this.state.maternityChildcareAlerts = result.filter(
-      (a) => !deletedIds.has(a.id)
-    );
+    try {
+      const deletedIds = await this.alertDeletionService.getDeletedIds('leave');
+      if (!this.employees || !Array.isArray(this.employees)) {
+        this.state.maternityChildcareAlerts = [];
+        return;
+      }
+      const result =
+        await this.alertsDashboardUiService.loadMaternityChildcareAlerts(
+          this.employees,
+          (date: Date) => this.formatDate(date)
+        );
+      if (result && Array.isArray(result)) {
+        this.state.maternityChildcareAlerts = result.filter(
+          (a) => a && a.id && !deletedIds.has(a.id)
+        );
+      } else {
+        this.state.maternityChildcareAlerts = [];
+      }
+    } catch (error) {
+      console.error('[AlertsDashboardPage] loadMaternityChildcareAlertsエラー:', error);
+      this.state.maternityChildcareAlerts = [];
+    }
   }
 
   /**
@@ -1561,6 +1574,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async deleteSelectedMaternityChildcareAlerts(): Promise<void> {
+    if (!this.state || !this.state.selectedMaternityChildcareAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(
       this.state.selectedMaternityChildcareAlertIds
     );
@@ -1574,12 +1590,25 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     }
 
     // 永続削除フラグを保存
-    for (const id of selectedIds) {
-      await this.alertDeletionService.markAsDeleted('leave', id);
+    try {
+      await Promise.all(
+        selectedIds.map((id) => {
+          if (!id) {
+            return Promise.resolve();
+          }
+          return this.alertDeletionService.markAsDeleted('leave', id).catch((error) => {
+            console.error(`[AlertsDashboardPage] 産休・育休アラート削除エラー: id=${id}`, error);
+            // エラーが発生しても処理を継続
+            return Promise.resolve();
+          });
+        })
+      );
+    } catch (error) {
+      console.error('[AlertsDashboardPage] deleteSelectedMaternityChildcareAlertsエラー:', error);
     }
 
     this.state.deleteSelectedMaternityChildcareAlerts();
-    this.loadScheduleData();
+    await this.loadScheduleData();
   }
 
   onSupportAlertSelectionChange(event: {

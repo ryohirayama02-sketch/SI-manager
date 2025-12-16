@@ -581,78 +581,130 @@ export class AlertGenerationService {
     const maternityChildcareAlerts: MaternityChildcareAlert[] = [];
     const today = normalizeDate(getJSTDate());
 
+    if (!employees || !Array.isArray(employees)) {
+      return maternityChildcareAlerts;
+    }
+
     try {
       for (const emp of employees) {
+        if (!emp || !emp.id) {
+          continue;
+        }
+
+        // 産前産後休業取得者申出書
         if (emp.maternityLeaveStart) {
-          const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '産前産後休業取得者申出書',
-            notificationName: '産前産後休業取得者申出書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `産休開始日: ${formatDate(startDate)}`,
-          });
-        }
-
-        // 終了届は管理対象外とする
-
-        if (emp.childcareLeaveStart) {
-          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業等取得者申出書',
-            notificationName: '育児休業等取得者申出書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `育休開始日: ${formatDate(startDate)}`,
-          });
-        }
-
-        // 育休期間確認（開始日から終了日が14日未満の場合）
-        if (emp.childcareLeaveStart && emp.childcareLeaveEnd) {
-          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
-          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
-          // 開始日から終了日までの日数を計算（開始日と終了日を含む）
-          const daysDiff =
-            Math.floor(
-              (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-            ) + 1;
-
-          if (daysDiff < 14) {
-            // 開始日は育児休業等終了日、提出期限は終了日から5日以内
-            const submitDeadline = calculateSubmitDeadline(endDate);
+          try {
+            const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
             const daysUntilDeadline = calculateDaysUntilDeadline(
               submitDeadline,
               today
             );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
             maternityChildcareAlerts.push({
-              id: `childcare_period_check_${emp.id}_${emp.childcareLeaveEnd}`,
+              id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
               employeeId: emp.id,
-              employeeName: emp.name,
-              alertType: '育休期間確認',
-              notificationName: '育休期間確認',
-              startDate: endDate,
+              employeeName: emp.name || '不明',
+              alertType: '産前産後休業取得者申出書',
+              notificationName: '産前産後休業取得者申出書',
+              startDate: startDate,
               submitDeadline: submitDeadline,
               daysUntilDeadline: daysUntilDeadline,
-              details: '育休期間が14日未満か確認',
+              details: `産休開始日: ${formatDate(startDate)}`,
             });
+          } catch (error) {
+            console.error(`[alert-generation] 産前産後休業アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
+        }
+
+        // 終了届は管理対象外とする
+
+        // 育児休業等取得者申出書
+        if (emp.childcareLeaveStart) {
+          try {
+            const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            maternityChildcareAlerts.push({
+              id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '育児休業等取得者申出書',
+              notificationName: '育児休業等取得者申出書',
+              startDate: startDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: `育休開始日: ${formatDate(startDate)}`,
+            });
+          } catch (error) {
+            console.error(`[alert-generation] 育児休業等取得者申出書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
+        }
+
+        // 育休期間確認（開始日から終了日が14日未満の場合）
+        if (emp.childcareLeaveStart && emp.childcareLeaveEnd) {
+          try {
+            const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+            const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+              continue;
+            }
+            // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+            const daysDiff =
+              Math.floor(
+                (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+              ) + 1;
+
+            if (daysDiff < 14 && daysDiff > 0) {
+              // 開始日は育児休業等終了日、提出期限は終了日から5日以内
+              const submitDeadline = calculateSubmitDeadline(endDate);
+              if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+                continue;
+              }
+              const daysUntilDeadline = calculateDaysUntilDeadline(
+                submitDeadline,
+                today
+              );
+              if (isNaN(daysUntilDeadline)) {
+                continue;
+              }
+              maternityChildcareAlerts.push({
+                id: `childcare_period_check_${emp.id}_${emp.childcareLeaveEnd}`,
+                employeeId: emp.id,
+                employeeName: emp.name || '不明',
+                alertType: '育休期間確認',
+                notificationName: '育休期間確認',
+                startDate: endDate,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: '育休期間が14日未満か確認',
+              });
+            }
+          } catch (error) {
+            console.error(`[alert-generation] 育休期間確認アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
           }
         }
 
@@ -660,83 +712,142 @@ export class AlertGenerationService {
 
         // 傷病手当金支給申請書の記入依頼
         if (emp.sickPayApplicationRequest) {
-          const requestDateStr =
-            emp.sickPayApplicationRequestDate ||
-            getJSTDate().toISOString().split('T')[0];
-          const startDate = normalizeDate(new Date(requestDateStr));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `sickpay_request_${emp.id}_${requestDateStr}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '傷病手当金支給申請書の記入依頼',
-            notificationName: '傷病手当金支給申請書',
-            startDate,
-            submitDeadline,
-            daysUntilDeadline,
-            details: '傷病手当金支給申請書の記入依頼あり',
-          });
+          try {
+            const requestDateStr =
+              emp.sickPayApplicationRequestDate ||
+              getJSTDate().toISOString().split('T')[0];
+            if (!requestDateStr || typeof requestDateStr !== 'string') {
+              continue;
+            }
+            const startDate = normalizeDate(new Date(requestDateStr));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            maternityChildcareAlerts.push({
+              id: `sickpay_request_${emp.id}_${requestDateStr}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '傷病手当金支給申請書の記入依頼',
+              notificationName: '傷病手当金支給申請書',
+              startDate,
+              submitDeadline,
+              daysUntilDeadline,
+              details: '傷病手当金支給申請書の記入依頼あり',
+            });
+          } catch (error) {
+            console.error(`[alert-generation] 傷病手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
         }
 
         // 育児休業関係の事業主証明書の記入依頼
         if (emp.childcareEmployerCertificateRequest) {
-          const requestDateStr =
-            emp.childcareEmployerCertificateRequestDate ||
-            getJSTDate().toISOString().split('T')[0];
-          const startDate = normalizeDate(new Date(requestDateStr));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `childcare_certificate_request_${emp.id}_${requestDateStr}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業関係の事業主証明書の記入依頼',
-            notificationName: '育児休業関係の事業主証明書',
-            startDate,
-            submitDeadline,
-            daysUntilDeadline,
-            details: '育児休業関係の事業主証明書の記入依頼あり',
-          });
+          try {
+            const requestDateStr =
+              emp.childcareEmployerCertificateRequestDate ||
+              getJSTDate().toISOString().split('T')[0];
+            if (!requestDateStr || typeof requestDateStr !== 'string') {
+              continue;
+            }
+            const startDate = normalizeDate(new Date(requestDateStr));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            maternityChildcareAlerts.push({
+              id: `childcare_certificate_request_${emp.id}_${requestDateStr}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '育児休業関係の事業主証明書の記入依頼',
+              notificationName: '育児休業関係の事業主証明書',
+              startDate,
+              submitDeadline,
+              daysUntilDeadline,
+              details: '育児休業関係の事業主証明書の記入依頼あり',
+            });
+          } catch (error) {
+            console.error(`[alert-generation] 育児休業関係の事業主証明書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
         }
 
         // 出産手当金支給申請書の記入依頼
         if (emp.maternityAllowanceApplicationRequest) {
-          const requestDateStr =
-            emp.maternityAllowanceApplicationRequestDate ||
-            getJSTDate().toISOString().split('T')[0];
-          const startDate = normalizeDate(new Date(requestDateStr));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          maternityChildcareAlerts.push({
-            id: `maternity_allowance_request_${emp.id}_${requestDateStr}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '出産手当金支給申請書の記入依頼',
-            notificationName: '出産手当金支給申請書',
-            startDate,
-            submitDeadline,
-            daysUntilDeadline,
-            details: '出産手当金支給申請書の記入依頼あり',
-          });
+          try {
+            const requestDateStr =
+              emp.maternityAllowanceApplicationRequestDate ||
+              getJSTDate().toISOString().split('T')[0];
+            if (!requestDateStr || typeof requestDateStr !== 'string') {
+              continue;
+            }
+            const startDate = normalizeDate(new Date(requestDateStr));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            maternityChildcareAlerts.push({
+              id: `maternity_allowance_request_${emp.id}_${requestDateStr}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '出産手当金支給申請書の記入依頼',
+              notificationName: '出産手当金支給申請書',
+              startDate,
+              submitDeadline,
+              daysUntilDeadline,
+              details: '出産手当金支給申請書の記入依頼あり',
+            });
+          } catch (error) {
+            console.error(`[alert-generation] 出産手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
         }
       }
 
       maternityChildcareAlerts.sort((a, b) => {
-        return b.startDate.getTime() - a.startDate.getTime();
+        if (!a || !b || !a.startDate || !b.startDate) {
+          return 0;
+        }
+        const aTime = a.startDate.getTime();
+        const bTime = b.startDate.getTime();
+        if (isNaN(aTime) || isNaN(bTime)) {
+          return 0;
+        }
+        return bTime - aTime;
       });
     } catch (error) {
       console.error(
-        '[alerts-dashboard] loadMaternityChildcareAlertsエラー:',
+        '[alert-generation] generateMaternityChildcareAlertsエラー:',
         error
       );
     }

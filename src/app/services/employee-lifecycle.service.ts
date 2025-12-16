@@ -15,8 +15,26 @@ export class EmployeeLifecycleService {
    * @returns 年齢
    */
   getAgeAtMonth(birthDate: Date | string, year: number, month: number): number {
+    if (!birthDate) {
+      return 0;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return 0;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return 0;
+    }
+
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return 0;
+    }
+
     const targetDate = new Date(year, month - 1, 1); // 月初日
+    if (isNaN(targetDate.getTime())) {
+      return 0;
+    }
+
     let age = targetDate.getFullYear() - birth.getFullYear();
     const monthDiff = targetDate.getMonth() - birth.getMonth();
     if (
@@ -25,6 +43,12 @@ export class EmployeeLifecycleService {
     ) {
       age--;
     }
+
+    // 年齢の範囲チェック（0-150歳）
+    if (age < 0 || age > 150) {
+      return 0;
+    }
+
     return age;
   }
 
@@ -36,6 +60,16 @@ export class EmployeeLifecycleService {
    * @returns 産休期間中の場合true
    */
   isMaternityLeave(emp: Employee, year: number, month: number): boolean {
+    if (!emp) {
+      return false;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
+
     // 終了日と終了予定日が両方ある場合は終了日を優先
     const startValue = emp.maternityLeaveStart;
     const endValue =
@@ -51,6 +85,10 @@ export class EmployeeLifecycleService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return false;
+    }
     const targetMonthKey = year * 12 + (month - 1);
     const startMonthKey = startDate.getFullYear() * 12 + startDate.getMonth();
     const endMonthKey = endDate.getFullYear() * 12 + endDate.getMonth();
@@ -89,6 +127,10 @@ export class EmployeeLifecycleService {
    * @returns 14日未満の場合true
    */
   private isChildcareLeavePeriodLessThan14Days(emp: Employee): boolean {
+    if (!emp) {
+      return false;
+    }
+
     const startValue = emp.childcareLeaveStart;
     const endValue =
       emp.childcareLeaveEnd !== undefined &&
@@ -103,13 +145,18 @@ export class EmployeeLifecycleService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return false;
+    }
+
     // 開始日から終了日までの日数を計算（開始日と終了日を含む）
     const daysDiff =
       Math.floor(
         (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
       ) + 1;
 
-    return daysDiff < 14;
+    return daysDiff < 14 && daysDiff > 0;
   }
 
   /**
@@ -120,6 +167,16 @@ export class EmployeeLifecycleService {
    * @returns 育休期間中の場合true
    */
   isChildcareLeave(emp: Employee, year: number, month: number): boolean {
+    if (!emp) {
+      return false;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
+
     // 育休期間が14日未満の場合は免除しない
     if (this.isChildcareLeavePeriodLessThan14Days(emp)) {
       return false;
@@ -140,6 +197,10 @@ export class EmployeeLifecycleService {
 
     const startDate = new Date(startValue);
     const endDate = new Date(endValue);
+
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return false;
+    }
     const targetMonthKey = year * 12 + (month - 1);
     const startMonthKey = startDate.getFullYear() * 12 + startDate.getMonth();
     const endMonthKey = endDate.getFullYear() * 12 + endDate.getMonth();

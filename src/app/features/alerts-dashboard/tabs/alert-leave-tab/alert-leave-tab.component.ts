@@ -69,26 +69,35 @@ export class AlertLeaveTabComponent implements OnInit {
   ) {}
 
   async ngOnInit(): Promise<void> {
-    // @Input()でmaternityChildcareAlertsが渡されていない場合、自分でロードする
-    // ただし、state.maternityChildcareAlertsが既に設定されている場合はそれを使用
-    if (
-      this.state.maternityChildcareAlerts &&
-      this.state.maternityChildcareAlerts.length > 0
-    ) {
-      this._maternityChildcareAlerts = this.state.maternityChildcareAlerts;
-    } else if (
-      !this._maternityChildcareAlerts ||
-      this._maternityChildcareAlerts.length === 0
-    ) {
-      this.employees = await this.employeeService.getAllEmployees();
-      await this.loadMaternityChildcareAlerts();
+    try {
+      // @Input()でmaternityChildcareAlertsが渡されていない場合、自分でロードする
+      // ただし、state.maternityChildcareAlertsが既に設定されている場合はそれを使用
+      if (
+        this.state.maternityChildcareAlerts &&
+        Array.isArray(this.state.maternityChildcareAlerts) &&
+        this.state.maternityChildcareAlerts.length > 0
+      ) {
+        this._maternityChildcareAlerts = this.state.maternityChildcareAlerts;
+      } else if (
+        !this._maternityChildcareAlerts ||
+        !Array.isArray(this._maternityChildcareAlerts) ||
+        this._maternityChildcareAlerts.length === 0
+      ) {
+        this.employees = await this.employeeService.getAllEmployees();
+        await this.loadMaternityChildcareAlerts();
+      }
+    } catch (error) {
+      console.error('[alert-leave-tab] ngOnInitエラー:', error);
     }
   }
 
   /**
    * 日付をフォーマット
    */
-  formatDate(date: Date): string {
+  formatDate(date: Date | null | undefined): string {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
     return this.leaveAlertUiService.formatDate(date);
   }
 
@@ -100,77 +109,129 @@ export class AlertLeaveTabComponent implements OnInit {
     const today = normalizeDate(getJSTDate());
 
     try {
+      if (!this.employees || !Array.isArray(this.employees)) {
+        this._maternityChildcareAlerts = [];
+        this.state.maternityChildcareAlerts = [];
+        this.state.updateScheduleData();
+        return;
+      }
+
       for (const emp of this.employees) {
+        if (!emp || !emp.id) {
+          continue;
+        }
         // 産前産後休業取得者申出書
         if (emp.maternityLeaveStart) {
-          const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '産前産後休業取得者申出書',
-            notificationName: '産前産後休業取得者申出書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `産休開始日: ${formatDate(startDate)}`,
-          });
-        }
-
-        // 育児休業等取得者申出書
-        if (emp.childcareLeaveStart) {
-          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業等取得者申出書',
-            notificationName: '育児休業等取得者申出書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: `育休開始日: ${formatDate(startDate)}`,
-          });
-        }
-
-        // 育休期間確認（開始日から終了日が14日未満の場合）
-        if (emp.childcareLeaveStart && emp.childcareLeaveEnd) {
-          const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
-          const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
-          // 開始日から終了日までの日数を計算（開始日と終了日を含む）
-          const daysDiff =
-            Math.floor(
-              (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-            ) + 1;
-
-          if (daysDiff < 14) {
-            // 開始日は育児休業等終了日、提出期限は終了日から5日以内
-            const submitDeadline = calculateSubmitDeadline(endDate);
+          try {
+            const startDate = normalizeDate(new Date(emp.maternityLeaveStart));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
             const daysUntilDeadline = calculateDaysUntilDeadline(
               submitDeadline,
               today
             );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
             alerts.push({
-              id: `childcare_period_check_${emp.id}_${emp.childcareLeaveEnd}`,
+              id: `maternity_start_${emp.id}_${emp.maternityLeaveStart}`,
               employeeId: emp.id,
-              employeeName: emp.name,
-              alertType: '育休期間確認',
-              notificationName: '育休期間確認',
-              startDate: endDate,
+              employeeName: emp.name || '不明',
+              alertType: '産前産後休業取得者申出書',
+              notificationName: '産前産後休業取得者申出書',
+              startDate: startDate,
               submitDeadline: submitDeadline,
               daysUntilDeadline: daysUntilDeadline,
-              details: '育休期間が14日未満か確認',
+              details: `産休開始日: ${formatDate(startDate)}`,
             });
+          } catch (error) {
+            console.error(`[alert-leave-tab] 産前産後休業アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
+        }
+
+        // 育児休業等取得者申出書
+        if (emp.childcareLeaveStart) {
+          try {
+            const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            alerts.push({
+              id: `childcare_start_${emp.id}_${emp.childcareLeaveStart}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '育児休業等取得者申出書',
+              notificationName: '育児休業等取得者申出書',
+              startDate: startDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: `育休開始日: ${formatDate(startDate)}`,
+            });
+          } catch (error) {
+            console.error(`[alert-leave-tab] 育児休業等取得者申出書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
+        }
+
+        // 育休期間確認（開始日から終了日が14日未満の場合）
+        if (emp.childcareLeaveStart && emp.childcareLeaveEnd) {
+          try {
+            const startDate = normalizeDate(new Date(emp.childcareLeaveStart));
+            const endDate = normalizeDate(new Date(emp.childcareLeaveEnd));
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+              continue;
+            }
+            // 開始日から終了日までの日数を計算（開始日と終了日を含む）
+            const daysDiff =
+              Math.floor(
+                (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+              ) + 1;
+
+            if (daysDiff < 14 && daysDiff > 0) {
+              // 開始日は育児休業等終了日、提出期限は終了日から5日以内
+              const submitDeadline = calculateSubmitDeadline(endDate);
+              if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+                continue;
+              }
+              const daysUntilDeadline = calculateDaysUntilDeadline(
+                submitDeadline,
+                today
+              );
+              if (isNaN(daysUntilDeadline)) {
+                continue;
+              }
+              alerts.push({
+                id: `childcare_period_check_${emp.id}_${emp.childcareLeaveEnd}`,
+                employeeId: emp.id,
+                employeeName: emp.name || '不明',
+                alertType: '育休期間確認',
+                notificationName: '育休期間確認',
+                startDate: endDate,
+                submitDeadline: submitDeadline,
+                daysUntilDeadline: daysUntilDeadline,
+                details: '育休期間が14日未満か確認',
+              });
+            }
+          } catch (error) {
+            console.error(`[alert-leave-tab] 育休期間確認アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
           }
         }
 
@@ -178,79 +239,138 @@ export class AlertLeaveTabComponent implements OnInit {
 
         // 傷病手当金支給申請書の記入依頼
         if (emp.sickPayApplicationRequest) {
-          const requestDateStr =
-            emp.sickPayApplicationRequestDate ||
-            getJSTDate().toISOString().split('T')[0];
-          const startDate = normalizeDate(new Date(requestDateStr));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `sickpay_request_${emp.id}_${requestDateStr}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '傷病手当金支給申請書の記入依頼',
-            notificationName: '傷病手当金支給申請書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: '傷病手当金支給申請書の記入依頼あり',
-          });
+          try {
+            const requestDateStr =
+              emp.sickPayApplicationRequestDate ||
+              getJSTDate().toISOString().split('T')[0];
+            if (!requestDateStr || typeof requestDateStr !== 'string') {
+              continue;
+            }
+            const startDate = normalizeDate(new Date(requestDateStr));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            alerts.push({
+              id: `sickpay_request_${emp.id}_${requestDateStr}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '傷病手当金支給申請書の記入依頼',
+              notificationName: '傷病手当金支給申請書',
+              startDate: startDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: '傷病手当金支給申請書の記入依頼あり',
+            });
+          } catch (error) {
+            console.error(`[alert-leave-tab] 傷病手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
         }
 
         // 育児休業関係の事業主証明書の記入依頼
         if (emp.childcareEmployerCertificateRequest) {
-          const requestDateStr =
-            emp.childcareEmployerCertificateRequestDate ||
-            getJSTDate().toISOString().split('T')[0];
-          const startDate = normalizeDate(new Date(requestDateStr));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `childcare_certificate_request_${emp.id}_${requestDateStr}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '育児休業関係の事業主証明書の記入依頼',
-            notificationName: '育児休業関係の事業主証明書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: '育児休業関係の事業主証明書の記入依頼あり',
-          });
+          try {
+            const requestDateStr =
+              emp.childcareEmployerCertificateRequestDate ||
+              getJSTDate().toISOString().split('T')[0];
+            if (!requestDateStr || typeof requestDateStr !== 'string') {
+              continue;
+            }
+            const startDate = normalizeDate(new Date(requestDateStr));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            alerts.push({
+              id: `childcare_certificate_request_${emp.id}_${requestDateStr}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '育児休業関係の事業主証明書の記入依頼',
+              notificationName: '育児休業関係の事業主証明書',
+              startDate: startDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: '育児休業関係の事業主証明書の記入依頼あり',
+            });
+          } catch (error) {
+            console.error(`[alert-leave-tab] 育児休業関係の事業主証明書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
         }
 
         // 出産手当金支給申請書の記入依頼
         if (emp.maternityAllowanceApplicationRequest) {
-          const requestDateStr =
-            emp.maternityAllowanceApplicationRequestDate ||
-            getJSTDate().toISOString().split('T')[0];
-          const startDate = normalizeDate(new Date(requestDateStr));
-          const submitDeadline = calculateSubmitDeadline(startDate);
-          const daysUntilDeadline = calculateDaysUntilDeadline(
-            submitDeadline,
-            today
-          );
-          alerts.push({
-            id: `maternity_allowance_request_${emp.id}_${requestDateStr}`,
-            employeeId: emp.id,
-            employeeName: emp.name,
-            alertType: '出産手当金支給申請書の記入依頼',
-            notificationName: '出産手当金支給申請書',
-            startDate: startDate,
-            submitDeadline: submitDeadline,
-            daysUntilDeadline: daysUntilDeadline,
-            details: '出産手当金支給申請書の記入依頼あり',
-          });
+          try {
+            const requestDateStr =
+              emp.maternityAllowanceApplicationRequestDate ||
+              getJSTDate().toISOString().split('T')[0];
+            if (!requestDateStr || typeof requestDateStr !== 'string') {
+              continue;
+            }
+            const startDate = normalizeDate(new Date(requestDateStr));
+            if (isNaN(startDate.getTime())) {
+              continue;
+            }
+            const submitDeadline = calculateSubmitDeadline(startDate);
+            if (!submitDeadline || isNaN(submitDeadline.getTime())) {
+              continue;
+            }
+            const daysUntilDeadline = calculateDaysUntilDeadline(
+              submitDeadline,
+              today
+            );
+            if (isNaN(daysUntilDeadline)) {
+              continue;
+            }
+            alerts.push({
+              id: `maternity_allowance_request_${emp.id}_${requestDateStr}`,
+              employeeId: emp.id,
+              employeeName: emp.name || '不明',
+              alertType: '出産手当金支給申請書の記入依頼',
+              notificationName: '出産手当金支給申請書',
+              startDate: startDate,
+              submitDeadline: submitDeadline,
+              daysUntilDeadline: daysUntilDeadline,
+              details: '出産手当金支給申請書の記入依頼あり',
+            });
+          } catch (error) {
+            console.error(`[alert-leave-tab] 出産手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            continue;
+          }
         }
       }
 
       alerts.sort((a, b) => {
-        return b.startDate.getTime() - a.startDate.getTime();
+        if (!a || !b || !a.startDate || !b.startDate) {
+          return 0;
+        }
+        const aTime = a.startDate.getTime();
+        const bTime = b.startDate.getTime();
+        if (isNaN(aTime) || isNaN(bTime)) {
+          return 0;
+        }
+        return bTime - aTime;
       });
 
       // @Input()で渡されていない場合、自分で設定
@@ -274,28 +394,41 @@ export class AlertLeaveTabComponent implements OnInit {
 
   // 産休育休アラートの選択管理
   toggleMaternityChildcareAlertSelection(alertId: string): void {
+    if (!alertId) {
+      return;
+    }
+    if (!this.selectedMaternityChildcareAlertIds) {
+      return;
+    }
     const isSelected = this.selectedMaternityChildcareAlertIds.has(alertId);
     this.alertSelectionChange.emit({ alertId, selected: !isSelected });
   }
 
   toggleAllMaternityChildcareAlertsChange(event: Event): void {
+    if (!event || !event.target) {
+      return;
+    }
     const target = event.target as HTMLInputElement;
     this.selectAllChange.emit(target.checked);
   }
 
   isMaternityChildcareAlertSelected(alertId: string): boolean {
+    if (!alertId || !this.selectedMaternityChildcareAlertIds) {
+      return false;
+    }
     return this.selectedMaternityChildcareAlertIds.has(alertId);
   }
 
   // 産休育休アラートの削除
   deleteSelectedMaternityChildcareAlerts(): void {
-    if (this.selectedMaternityChildcareAlertIds.size === 0) {
+    if (!this.selectedMaternityChildcareAlertIds || this.selectedMaternityChildcareAlertIds.size === 0) {
       return;
     }
     // @Input()でmaternityChildcareAlertsが渡されている場合は親に委譲
     // そうでない場合は自分で削除処理を行う
     if (
       this._maternityChildcareAlerts &&
+      Array.isArray(this._maternityChildcareAlerts) &&
       this._maternityChildcareAlerts.length > 0 &&
       this._maternityChildcareAlerts === this.state.maternityChildcareAlerts
     ) {
@@ -305,13 +438,15 @@ export class AlertLeaveTabComponent implements OnInit {
       // 自分でロードしたアラートを削除
       const selectedIds = Array.from(this.selectedMaternityChildcareAlertIds);
 
-      this._maternityChildcareAlerts = this._maternityChildcareAlerts.filter(
-        (alert) => !selectedIds.includes(alert.id)
-      );
+      if (this._maternityChildcareAlerts && Array.isArray(this._maternityChildcareAlerts)) {
+        this._maternityChildcareAlerts = this._maternityChildcareAlerts.filter(
+          (alert) => alert && alert.id && !selectedIds.includes(alert.id)
+        );
+      }
       this.selectedMaternityChildcareAlertIds.clear();
 
       // stateも更新
-      this.state.maternityChildcareAlerts = this._maternityChildcareAlerts;
+      this.state.maternityChildcareAlerts = this._maternityChildcareAlerts || [];
       this.state.updateScheduleData();
     }
   }
@@ -319,25 +454,41 @@ export class AlertLeaveTabComponent implements OnInit {
   /**
    * CSV出力（産前産後休業取得者申出書 / 育児休業等取得者申出書 / 傷病手当金支給申請書の記入依頼）
    */
-  async exportToCsv(alert: MaternityChildcareAlert): Promise<void> {
+  async exportToCsv(alert: MaternityChildcareAlert | null | undefined): Promise<void> {
+    if (!alert || !alert.employeeId) {
+      window.alert('アラート情報が不正です');
+      return;
+    }
+
     try {
-      const employee = this.employees.find((e) => e.id === alert.employeeId) as
+      const employee = this.employees.find((e) => e && e.id === alert.employeeId) as
         | Employee
         | undefined;
       let emp: Employee | null = null;
 
       if (!employee) {
         // employeesにない場合は、EmployeeServiceから取得
-        const fetchedEmp = await this.employeeService.getEmployeeById(
-          alert.employeeId
-        );
-        if (!fetchedEmp) {
-          window.alert('従業員情報が見つかりません');
+        try {
+          const fetchedEmp = await this.employeeService.getEmployeeById(
+            alert.employeeId
+          );
+          if (!fetchedEmp) {
+            window.alert('従業員情報が見つかりません');
+            return;
+          }
+          emp = fetchedEmp as Employee;
+        } catch (error) {
+          console.error(`[alert-leave-tab] 従業員情報取得エラー: 従業員ID=${alert.employeeId}`, error);
+          window.alert('従業員情報の取得中にエラーが発生しました');
           return;
         }
-        emp = fetchedEmp as Employee;
       } else {
         emp = employee;
+      }
+
+      if (!emp) {
+        window.alert('従業員情報が見つかりません');
+        return;
       }
 
       if (alert.alertType === '産前産後休業取得者申出書') {
@@ -352,7 +503,7 @@ export class AlertLeaveTabComponent implements OnInit {
         await this.generateCsvForMaternityAllowanceApplication(alert, emp);
       }
     } catch (error) {
-      console.error('CSV出力エラー:', error);
+      console.error('[alert-leave-tab] CSV出力エラー:', error);
       window.alert('CSV出力中にエラーが発生しました');
     }
   }
@@ -364,16 +515,25 @@ export class AlertLeaveTabComponent implements OnInit {
     alert: MaternityChildcareAlert,
     employee: Employee
   ): Promise<void> {
+    if (!alert || !employee) {
+      window.alert('アラートまたは従業員情報が不正です');
+      return;
+    }
+
     // 事業所情報を取得
     let office: Office | null = null;
-    if (employee.officeNumber) {
+    try {
       const offices = await this.officeService.getAllOffices();
-      office =
-        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-    }
-    if (!office) {
-      const offices = await this.officeService.getAllOffices();
-      office = offices[0] || null;
+      if (offices && Array.isArray(offices)) {
+        if (employee.officeNumber) {
+          office = offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+        }
+        if (!office && offices.length > 0) {
+          office = offices[0] || null;
+        }
+      }
+    } catch (error) {
+      console.error(`[alert-leave-tab] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
     }
 
     // CSVデータを生成
@@ -449,6 +609,10 @@ export class AlertLeaveTabComponent implements OnInit {
     );
 
     // CSVファイルをダウンロード
+    if (csvRows.length === 0) {
+      window.alert('出力するデータがありません。');
+      return;
+    }
     const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], {
       type: 'text/csv;charset=utf-8;',
@@ -456,26 +620,45 @@ export class AlertLeaveTabComponent implements OnInit {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    const today = new Date();
+    const today = getJSTDate();
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
     link.setAttribute(
       'download',
-      `${alert.alertType}_${employee.name}_${year}年${month}月.csv`
+      `${alert.alertType}_${employee.name || '不明'}_${year}年${month}月.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('[alert-leave-tab] CSVダウンロード後のクリーンアップエラー:', error);
+      }
+    }, 100);
   }
 
   /**
    * 生年月日を和暦形式に変換（昭和30年1月2日形式）
    */
-  private formatBirthDateToEra(birthDateStr: string): string {
+  private formatBirthDateToEra(birthDateStr: string | null | undefined): string {
+    if (!birthDateStr || typeof birthDateStr !== 'string') {
+      return '';
+    }
     const date = new Date(birthDateStr);
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+    const year = date.getFullYear();
+    if (year < 1900 || year > 2100) {
+      return '';
+    }
     return this.formatJapaneseEra(
-      date.getFullYear(),
+      year,
       date.getMonth() + 1,
       date.getDate()
     );
@@ -484,10 +667,20 @@ export class AlertLeaveTabComponent implements OnInit {
   /**
    * 日付文字列（YYYY-MM-DD）を和暦形式に変換
    */
-  private formatJapaneseEraFromString(dateStr: string): string {
+  private formatJapaneseEraFromString(dateStr: string | null | undefined): string {
+    if (!dateStr || typeof dateStr !== 'string') {
+      return '';
+    }
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+    const year = date.getFullYear();
+    if (year < 1900 || year > 2100) {
+      return '';
+    }
     return this.formatJapaneseEra(
-      date.getFullYear(),
+      year,
       date.getMonth() + 1,
       date.getDate()
     );
@@ -497,6 +690,11 @@ export class AlertLeaveTabComponent implements OnInit {
    * 年月日を元号形式でフォーマット（令和7年1月1日形式）
    */
   private formatJapaneseEra(year: number, month: number, day: number): string {
+    if (isNaN(year) || year < 1900 || year > 2100 || 
+        isNaN(month) || month < 1 || month > 12 ||
+        isNaN(day) || day < 1 || day > 31) {
+      return '';
+    }
     let era: string;
     let eraYear: number;
     if (year >= 2019) {
@@ -523,16 +721,25 @@ export class AlertLeaveTabComponent implements OnInit {
     alert: MaternityChildcareAlert,
     employee: Employee
   ): Promise<void> {
+    if (!alert || !employee) {
+      window.alert('アラートまたは従業員情報が不正です');
+      return;
+    }
+
     // 事業所情報を取得
     let office: Office | null = null;
-    if (employee.officeNumber) {
+    try {
       const offices = await this.officeService.getAllOffices();
-      office =
-        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-    }
-    if (!office) {
-      const offices = await this.officeService.getAllOffices();
-      office = offices[0] || null;
+      if (offices && Array.isArray(offices)) {
+        if (employee.officeNumber) {
+          office = offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+        }
+        if (!office && offices.length > 0) {
+          office = offices[0] || null;
+        }
+      }
+    } catch (error) {
+      console.error(`[alert-leave-tab] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
     }
 
     // 性別を取得
@@ -556,6 +763,10 @@ export class AlertLeaveTabComponent implements OnInit {
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
 
     // CSVファイルをダウンロード
+    if (csvRows.length === 0) {
+      window.alert('出力するデータがありません。');
+      return;
+    }
     const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], {
       type: 'text/csv;charset=utf-8;',
@@ -563,17 +774,26 @@ export class AlertLeaveTabComponent implements OnInit {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    const today = new Date();
+    const today = getJSTDate();
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
     link.setAttribute(
       'download',
-      `傷病手当金支給申請書_${employee.name}_${year}年${month}月.csv`
+      `傷病手当金支給申請書_${employee.name || '不明'}_${year}年${month}月.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('[alert-leave-tab] CSVダウンロード後のクリーンアップエラー:', error);
+      }
+    }, 100);
   }
 
   /**
@@ -587,7 +807,7 @@ export class AlertLeaveTabComponent implements OnInit {
    * 性別のコード値を表示用の文字に変換
    */
   private formatGenderValue(value: string | null | undefined): string {
-    if (!value) return '';
+    if (!value || typeof value !== 'string') return '';
     const genderMap: { [key: string]: string } = {
       female: '女性',
       male: '男性',
@@ -606,16 +826,25 @@ export class AlertLeaveTabComponent implements OnInit {
     alert: MaternityChildcareAlert,
     employee: Employee
   ): Promise<void> {
+    if (!alert || !employee) {
+      window.alert('アラートまたは従業員情報が不正です');
+      return;
+    }
+
     // 事業所情報を取得
     let office: Office | null = null;
-    if (employee.officeNumber) {
+    try {
       const offices = await this.officeService.getAllOffices();
-      office =
-        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-    }
-    if (!office) {
-      const offices = await this.officeService.getAllOffices();
-      office = offices[0] || null;
+      if (offices && Array.isArray(offices)) {
+        if (employee.officeNumber) {
+          office = offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+        }
+        if (!office && offices.length > 0) {
+          office = offices[0] || null;
+        }
+      }
+    } catch (error) {
+      console.error(`[alert-leave-tab] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
     }
 
     // 性別を取得
@@ -641,6 +870,10 @@ export class AlertLeaveTabComponent implements OnInit {
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
 
     // CSVファイルをダウンロード
+    if (csvRows.length === 0) {
+      window.alert('出力するデータがありません。');
+      return;
+    }
     const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], {
       type: 'text/csv;charset=utf-8;',
@@ -648,17 +881,26 @@ export class AlertLeaveTabComponent implements OnInit {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    const today = new Date();
+    const today = getJSTDate();
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
     link.setAttribute(
       'download',
-      `育児休業関係の事業主証明書_${employee.name}_${year}年${month}月.csv`
+      `育児休業関係の事業主証明書_${employee.name || '不明'}_${year}年${month}月.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('[alert-leave-tab] CSVダウンロード後のクリーンアップエラー:', error);
+      }
+    }, 100);
   }
 
   /**
@@ -668,16 +910,25 @@ export class AlertLeaveTabComponent implements OnInit {
     alert: MaternityChildcareAlert,
     employee: Employee
   ): Promise<void> {
+    if (!alert || !employee) {
+      window.alert('アラートまたは従業員情報が不正です');
+      return;
+    }
+
     // 事業所情報を取得
     let office: Office | null = null;
-    if (employee.officeNumber) {
+    try {
       const offices = await this.officeService.getAllOffices();
-      office =
-        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-    }
-    if (!office) {
-      const offices = await this.officeService.getAllOffices();
-      office = offices[0] || null;
+      if (offices && Array.isArray(offices)) {
+        if (employee.officeNumber) {
+          office = offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+        }
+        if (!office && offices.length > 0) {
+          office = offices[0] || null;
+        }
+      }
+    } catch (error) {
+      console.error(`[alert-leave-tab] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
     }
 
     // 性別を取得
@@ -703,6 +954,10 @@ export class AlertLeaveTabComponent implements OnInit {
     csvRows.push(`電話番号,${office?.phoneNumber || '03-5432-6789'}`);
 
     // CSVファイルをダウンロード
+    if (csvRows.length === 0) {
+      window.alert('出力するデータがありません。');
+      return;
+    }
     const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], {
       type: 'text/csv;charset=utf-8;',
@@ -710,17 +965,26 @@ export class AlertLeaveTabComponent implements OnInit {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    const today = new Date();
+    const today = getJSTDate();
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
     link.setAttribute(
       'download',
-      `出産手当金支給申請書_${employee.name}_${year}年${month}月.csv`
+      `出産手当金支給申請書_${employee.name || '不明'}_${year}年${month}月.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('[alert-leave-tab] CSVダウンロード後のクリーンアップエラー:', error);
+      }
+    }, 100);
   }
 
   /**
@@ -730,16 +994,25 @@ export class AlertLeaveTabComponent implements OnInit {
     alert: MaternityChildcareAlert,
     employee: Employee
   ): Promise<void> {
+    if (!alert || !employee) {
+      window.alert('アラートまたは従業員情報が不正です');
+      return;
+    }
+
     // 事業所情報を取得
     let office: Office | null = null;
-    if (employee.officeNumber) {
+    try {
       const offices = await this.officeService.getAllOffices();
-      office =
-        offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-    }
-    if (!office) {
-      const offices = await this.officeService.getAllOffices();
-      office = offices[0] || null;
+      if (offices && Array.isArray(offices)) {
+        if (employee.officeNumber) {
+          office = offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+        }
+        if (!office && offices.length > 0) {
+          office = offices[0] || null;
+        }
+      }
+    } catch (error) {
+      console.error(`[alert-leave-tab] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
     }
 
     // 養育する子の情報を取得（Employeeモデルから取得、なければ家族情報から取得）
@@ -748,21 +1021,33 @@ export class AlertLeaveTabComponent implements OnInit {
 
     // Employeeモデルに情報がない場合は、家族情報から取得
     if (!childName || !childBirthDate) {
-      const familyMembers =
-        await this.familyMemberService.getFamilyMembersByEmployeeId(
-          employee.id
-        );
-      // 子の情報を取得（relationshipに「子」が含まれるもの）
-      const children = familyMembers.filter((member) => {
-        const relationship = (member.relationship || '').toLowerCase();
-        return relationship.includes('子') || relationship.includes('child');
-      });
+      try {
+        const familyMembers =
+          await this.familyMemberService.getFamilyMembersByEmployeeId(
+            employee.id
+          ) || [];
+        // 子の情報を取得（relationshipに「子」が含まれるもの）
+        const children = familyMembers.filter((member) => {
+          if (!member || !member.relationship) {
+            return false;
+          }
+          const relationship = (member.relationship || '').toLowerCase();
+          return relationship.includes('子') || relationship.includes('child');
+        });
 
-      // 最初の子の情報を使用（複数の子がいる場合は最初の1人）
-      const child = children.length > 0 ? children[0] : null;
-      if (child) {
-        childName = childName || child.name || '';
-        childBirthDate = childBirthDate || child.birthDate || '';
+        // 最初の子の情報を使用（複数の子がいる場合は最初の1人）
+        const child = children.length > 0 ? children[0] : null;
+        if (child) {
+          // Employeeモデルに情報がない場合のみ、家族情報から取得
+          if (!childName && child.name) {
+            childName = child.name;
+          }
+          if (!childBirthDate && child.birthDate) {
+            childBirthDate = child.birthDate;
+          }
+        }
+      } catch (error) {
+        console.error(`[alert-leave-tab] 家族情報取得エラー: 従業員ID=${employee.id}`, error);
       }
     }
 
@@ -823,6 +1108,10 @@ export class AlertLeaveTabComponent implements OnInit {
     );
 
     // CSVファイルをダウンロード
+    if (csvRows.length === 0) {
+      window.alert('出力するデータがありません。');
+      return;
+    }
     const csvContent = csvRows.join('\n');
     const blob = new Blob(['\uFEFF' + csvContent], {
       type: 'text/csv;charset=utf-8;',
@@ -830,16 +1119,25 @@ export class AlertLeaveTabComponent implements OnInit {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    const today = new Date();
+    const today = getJSTDate();
     const year = today.getFullYear();
     const month = today.getMonth() + 1;
     link.setAttribute(
       'download',
-      `${alert.alertType}_${employee.name}_${year}年${month}月.csv`
+      `${alert.alertType}_${employee.name || '不明'}_${year}年${month}月.csv`
     );
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('[alert-leave-tab] CSVダウンロード後のクリーンアップエラー:', error);
+      }
+    }, 100);
   }
 }
