@@ -76,7 +76,7 @@ export class EmployeeEligibilityService {
       });
     } catch (error) {
       // エラーが発生した場合は購読をスキップ
-      console.warn(
+      console.error(
         '[EmployeeEligibilityService] 購読の初期化に失敗しました:',
         error
       );
@@ -107,7 +107,7 @@ export class EmployeeEligibilityService {
       this.eligibilitySubject.next(eligibilityMap);
     } catch (error) {
       // ルームIDが設定されていない場合など、エラーが発生した場合はスキップ
-      console.warn(
+      console.error(
         '[EmployeeEligibilityService] 加入区分の再計算に失敗しました:',
         error
       );

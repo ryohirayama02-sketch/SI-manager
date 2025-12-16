@@ -128,7 +128,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private bonusCalculationService: BonusCalculationService
   ) {
-    console.log('[insurance-result-page] constructor 実行');
     // 年度選択用の年度リストを生成（現在年度±2年）
     const currentYear = new Date().getFullYear();
     for (let y = currentYear - 2; y <= currentYear + 2; y++) {
@@ -137,96 +136,35 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.log('[insurance-result-page] ngOnInit 開始');
-
     // 従業員情報の変更を直接購読（observeEmployeesを使用）
-    console.log('[insurance-result-page] observeEmployees の購読を設定');
     this.employeeSubscription = this.employeeService
       .observeEmployees()
       .subscribe(() => {
-        console.log(
-          '[insurance-result-page] observeEmployees 発火 - 従業員情報が変更されました'
-        );
         // 従業員情報が変更されたときは、既に表示されているデータがあれば再読み込み
         // loadSelectedEmployeesData内で最新の従業員情報を取得する
         if (this.selectedEmployeeIds.size > 0) {
-          console.log(
-            '[insurance-result-page] 選択された従業員があるため、データを再読み込み',
-            {
-              selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
-            }
-          );
           this.loadSelectedEmployeesData();
-        } else {
-          console.log(
-            '[insurance-result-page] 選択された従業員がないため、スキップ'
-          );
         }
       });
-    console.log('[insurance-result-page] observeEmployees の購読設定完了');
 
     // 加入区分の変更も購読（既存のロジックを維持）
-    console.log('[insurance-result-page] observeEligibility の購読を設定');
-    const observable = this.employeeEligibilityService.observeEligibility();
-    console.log('[insurance-result-page] observable を取得', {
-      observableType: observable.constructor.name,
-    });
-    console.log('[insurance-result-page] subscribe() を呼び出し');
-    this.eligibilitySubscription = observable.subscribe(
-      (eligibilityMap) => {
-        console.log('[insurance-result-page] observeEligibility 発火', {
-          eligibilityMapSize: Object.keys(eligibilityMap).length,
-          selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
-          eligibilityMapKeys: Object.keys(eligibilityMap),
-          eligibilityMap: eligibilityMap,
-        });
-        // 加入区分変更時は、既に表示されているデータがあれば再読み込み
-        // loadSelectedEmployeesData内で最新の従業員情報を取得する
-        if (this.selectedEmployeeIds.size > 0) {
-          console.log(
-            '[insurance-result-page] 選択された従業員があるため、データを再読み込み',
-            {
-              selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
-            }
+    this.eligibilitySubscription = this.employeeEligibilityService
+      .observeEligibility()
+      .subscribe(
+        (eligibilityMap) => {
+          // 加入区分変更時は、既に表示されているデータがあれば再読み込み
+          // loadSelectedEmployeesData内で最新の従業員情報を取得する
+          if (this.selectedEmployeeIds.size > 0) {
+            this.loadSelectedEmployeesData();
+          }
+        },
+        (error) => {
+          console.error(
+            '[insurance-result-page] observeEligibility エラー',
+            error
           );
-          this.loadSelectedEmployeesData();
-        } else {
-          console.log(
-            '[insurance-result-page] 選択された従業員がないため、スキップ'
-          );
-        }
-      },
-      (error) => {
-        console.error(
-          '[insurance-result-page] observeEligibility エラー',
-          error
-        );
-      },
-      () => {
-        console.log('[insurance-result-page] observeEligibility 完了');
-      }
-    );
-    console.log('[insurance-result-page] subscribe() 完了', {
-      subscriptionExists: !!this.eligibilitySubscription,
-      subscriptionClosed: this.eligibilitySubscription?.closed,
-    });
-
-    // 購読が正しく設定されているか確認
-    if (!this.eligibilitySubscription || this.eligibilitySubscription.closed) {
-      console.error(
-        '[insurance-result-page] 購読が正しく設定されていません！',
-        {
-          subscriptionExists: !!this.eligibilitySubscription,
-          subscriptionClosed: this.eligibilitySubscription?.closed,
         }
       );
-    } else {
-      console.log('[insurance-result-page] 購読が正しく設定されました');
-    }
-    console.log('[insurance-result-page] observeEligibility の購読設定完了', {
-      subscriptionExists: !!this.eligibilitySubscription,
-      subscriptionClosed: this.eligibilitySubscription?.closed,
-    });
 
     // 従業員リストの取得とソートを非同期で実行（UIブロックを防ぐ）
     // Promise.then()を使うことで、ngOnInitがすぐに完了し、UIがブロックされない
@@ -348,10 +286,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
    * 選択された従業員の賞与を再計算して保存
    */
   private async recalculateAndSaveBonuses(): Promise<void> {
-    console.log('[insurance-result-page] 賞与の再計算と保存を開始', {
-      selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
-    });
-
     const roomId = this.roomIdService.requireRoomId();
     const selectedEmployees = this.sortedEmployees.filter((emp) =>
       this.selectedEmployeeIds.has(emp.id)
@@ -367,19 +301,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         );
 
         if (!bonuses || bonuses.length === 0) {
-          console.log('[insurance-result-page] 賞与が存在しないためスキップ', {
-            employeeId: emp.id,
-            employeeName: emp.name,
-          });
           continue;
         }
-
-        console.log('[insurance-result-page] 賞与を再計算して保存', {
-          employeeId: emp.id,
-          employeeName: emp.name,
-          birthDate: emp.birthDate,
-          bonusesCount: bonuses.length,
-        });
 
         // 各賞与を再計算して保存
         for (const bonus of bonuses) {
@@ -401,16 +324,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 );
 
               if (calculationResult) {
-                console.log(
-                  '[insurance-result-page] 賞与の再計算完了、保存します',
-                  {
-                    employeeId: emp.id,
-                    employeeName: emp.name,
-                    bonusPayDate: bonus.payDate,
-                    bonusId: bonus.id,
-                  }
-                );
-
                 // 賞与を保存（計算結果を反映）
                 const bonusId =
                   bonus.id || `bonus_${bonus.payDate.replace(/-/g, '')}`;
@@ -455,19 +368,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   bonusId,
                   updateData
                 );
-
-                console.log('[insurance-result-page] 賞与の保存完了', {
-                  employeeId: emp.id,
-                  employeeName: emp.name,
-                  bonusPayDate: bonus.payDate,
-                  bonusId: bonusId,
-                });
-              } else {
-                console.warn('[insurance-result-page] 賞与の再計算結果がnull', {
-                  employeeId: emp.id,
-                  employeeName: emp.name,
-                  bonusPayDate: bonus.payDate,
-                });
               }
             } catch (error) {
               console.error(
@@ -484,42 +384,16 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         );
       }
     }
-
-    console.log('[insurance-result-page] 賞与の再計算と保存を完了');
   }
 
   /**
    * 従業員リストを最新の情報に更新
    */
   private async refreshEmployeesList(): Promise<void> {
-    console.log('[insurance-result-page] refreshEmployeesList 開始');
     try {
       const employeesData = await this.employeeService.getAllEmployees();
-      console.log('[insurance-result-page] 従業員データを取得', {
-        count: employeesData?.length || 0,
-        selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
-      });
-
-      // 選択された従業員の誕生日をログ出力
-      if (employeesData && this.selectedEmployeeIds.size > 0) {
-        const selectedEmployees = employeesData.filter((emp) =>
-          this.selectedEmployeeIds.has(emp.id)
-        );
-        selectedEmployees.forEach((emp) => {
-          console.log('[insurance-result-page] 従業員データ', {
-            id: emp.id,
-            name: emp.name,
-            birthDate: emp.birthDate,
-          });
-        });
-      }
-
       this.employees = employeesData || [];
       this.sortedEmployees = this.sortEmployeesByName(this.employees);
-      console.log('[insurance-result-page] refreshEmployeesList 完了', {
-        employeesCount: this.employees.length,
-        sortedEmployeesCount: this.sortedEmployees.length,
-      });
     } catch (error) {
       console.error(
         '[insurance-result-page] 従業員データの再取得エラー:',
@@ -532,14 +406,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
    * 選択された従業員のデータだけを読み込む
    */
   private async loadSelectedEmployeesData(): Promise<void> {
-    console.log('[insurance-result-page] loadSelectedEmployeesData 開始', {
-      selectedEmployeeIds: Array.from(this.selectedEmployeeIds),
-    });
-
     if (this.selectedEmployeeIds.size === 0) {
-      console.log(
-        '[insurance-result-page] 選択された従業員がないため、スキップ'
-      );
       return;
     }
 
@@ -547,7 +414,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
     try {
       // 従業員情報が更新された可能性があるため、最新の情報を取得
-      console.log('[insurance-result-page] 従業員リストを最新の情報に更新');
       await this.refreshEmployeesList();
 
       // 対象月ごとに標準報酬月額テーブルを取得（3月始まりの年度判定）
@@ -566,15 +432,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         this.selectedEmployeeIds.has(emp.id)
       );
 
-      console.log('[insurance-result-page] 選択された従業員を処理', {
-        selectedEmployeesCount: selectedEmployees.length,
-        selectedEmployees: selectedEmployees.map((emp) => ({
-          id: emp.id,
-          name: emp.name,
-          birthDate: emp.birthDate,
-        })),
-      });
-
       // 選択された従業員をバッチ処理（一度に2人ずつ処理してUIの応答性を保つ）
       const batchSize = 2;
       for (let i = 0; i < selectedEmployees.length; i += batchSize) {
@@ -583,11 +440,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         // バッチ内の従業員を並列処理
         await Promise.all(
           batch.map((emp) => {
-            console.log('[insurance-result-page] 従業員の保険料データを処理', {
-              id: emp.id,
-              name: emp.name,
-              birthDate: emp.birthDate,
-            });
             return this.processEmployeeInsuranceData(
               emp,
               gradeTableByMonth,
@@ -638,15 +490,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    console.log('[insurance-result-page] ngOnDestroy 実行', {
-      eligibilitySubscriptionExists: !!this.eligibilitySubscription,
-      eligibilitySubscriptionClosed: this.eligibilitySubscription?.closed,
-      employeeSubscriptionExists: !!this.employeeSubscription,
-      employeeSubscriptionClosed: this.employeeSubscription?.closed,
-    });
     this.eligibilitySubscription?.unsubscribe();
     this.employeeSubscription?.unsubscribe();
-    console.log('[insurance-result-page] ngOnDestroy 完了');
   }
 
   async reloadEligibility(): Promise<void> {
@@ -685,8 +530,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     this.cachedHasBonus = false;
     this.errorMessages = {};
     this.warningMessages = {};
-    this.cachedTableRows = [];
-    this.cachedHasBonus = false;
   }
 
   /**
@@ -748,46 +591,11 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       const payYear = payDateObj.getFullYear();
       const payMonth = payDateObj.getMonth() + 1; // getMonth()は0-11なので+1
 
-      const matches = payYear === selectedYearNum && payMonth === month;
-
-      console.log(
-        `[insurance-result-page] getFilteredBonus: ${employeeId} (${selectedYearNum}年${month}月)`,
-        {
-          bonusPayDate: b.payDate,
-          bonusId: b.id,
-          bonusAmount: b.amount,
-          payYear,
-          payMonth,
-          selectedYearNum,
-          month,
-          matches,
-          healthEmployee: b.healthEmployee,
-          pensionEmployee: b.pensionEmployee,
-        }
-      );
-
       // selectedYearとselectedMonthに完全一致する賞与のみ
-      return matches;
+      return payYear === selectedYearNum && payMonth === month;
     });
 
-    const result = filtered.length > 0 ? filtered[0] : null;
-    console.log('[insurance-result-page] getFilteredBonus: 結果', {
-      employeeId,
-      selectedYearNum,
-      month,
-      filteredCount: filtered.length,
-      result: result
-        ? {
-            id: result.id,
-            payDate: result.payDate,
-            amount: result.amount,
-            healthEmployee: result.healthEmployee,
-            pensionEmployee: result.pensionEmployee,
-          }
-        : null,
-    });
-
-    return result;
+    return filtered.length > 0 ? filtered[0] : null;
   }
 
   /**
@@ -807,13 +615,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     gradeTableByMonth: { [month: number]: any[] },
     targetMonths: number[]
   ): Promise<void> {
-    console.log('[insurance-result-page] processEmployeeInsuranceData 開始', {
-      employeeId: emp.id,
-      employeeName: emp.name,
-      birthDate: emp.birthDate,
-      prefecture: emp.prefecture,
-      targetMonths,
-    });
     try {
       const roomId = this.roomIdService.requireRoomId();
       this.errorMessages[emp.id] = [];
@@ -825,22 +626,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         emp
       );
 
-      // 標準報酬履歴を確認（デバッグ用）
-      const allHistories =
-        await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
-          emp.id
-        );
-      console.log(
-        `[insurance-result-page] ${emp.name} (${this.year}年): 標準報酬履歴生成後`,
-        {
-          employeeId: emp.id,
-          year: this.year,
-          historiesCount: allHistories.length,
-          histories: allHistories,
-          employeeCurrentStandardMonthlyRemuneration:
-            emp.currentStandardMonthlyRemuneration,
-        }
-      );
 
       // 月次給与の保険料を計算
       const monthlyPremiums: MonthlyPremiumData[] = [];
@@ -887,17 +672,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             month
           )) || 0;
 
-        console.log(
-          `[insurance-result-page] ${emp.name} (${this.year}年${month}月): getStandardRemunerationForMonth呼び出し後`,
-          {
-            selectedYearNum,
-            month,
-            standardFromHistory,
-            yearType: typeof this.year,
-            yearValue: this.year,
-          }
-        );
-
         // 標準報酬履歴から取得できない場合、資格取得時決定の履歴を確認
         if (!standardFromHistory || standardFromHistory === 0) {
           const allHistories =
@@ -905,34 +679,11 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               emp.id
             );
 
-          console.log(
-            `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 標準報酬履歴一覧`,
-            {
-              historiesCount: allHistories.length,
-              histories: allHistories,
-              joinDate: emp.joinDate,
-              monthlyWage: (emp as any).monthlyWage,
-            }
-          );
-
           // 資格取得時決定の履歴を探す（入社年月以前で最も新しいもの）
           if (emp.joinDate) {
             const joinDate = new Date(emp.joinDate);
             const joinYear = joinDate.getFullYear();
             const joinMonth = joinDate.getMonth() + 1;
-
-            console.log(
-              `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の履歴を検索`,
-              {
-                joinYear,
-                joinMonth,
-                selectedYear: this.year,
-                selectedMonth: month,
-                isAfterJoin:
-                  this.year > joinYear ||
-                  (this.year === joinYear && month >= joinMonth),
-              }
-            );
 
             // 選択年度が入社年以降の場合、資格取得時決定の履歴を使用
             // this.yearを数値に変換（文字列の場合に備えて）
@@ -949,69 +700,20 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   h.applyStartMonth === joinMonth
               );
 
-              console.log(
-                `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の履歴検索結果`,
-                {
-                  acquisitionHistory,
-                  found: !!acquisitionHistory,
-                  standardMonthlyRemuneration:
-                    acquisitionHistory?.standardMonthlyRemuneration,
-                  selectedYearNum,
-                  joinYear,
-                  joinMonth,
-                  month,
-                }
-              );
-
               if (acquisitionHistory) {
                 // 選択年度の該当月が入社月以降の場合、資格取得時決定の標準報酬月額を使用
                 const isAfterJoinMonth =
                   selectedYearNum > joinYear ||
                   (selectedYearNum === joinYear && month >= joinMonth);
 
-                console.log(
-                  `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 入社月以降チェック`,
-                  {
-                    selectedYearNum,
-                    joinYear,
-                    month,
-                    joinMonth,
-                    isAfterJoinMonth,
-                  }
-                );
-
                 if (isAfterJoinMonth) {
                   standardFromHistory =
                     acquisitionHistory.standardMonthlyRemuneration;
-                  console.log(
-                    `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の標準報酬月額を使用`,
-                    {
-                      standardFromHistory,
-                    }
-                  );
-                } else {
-                  console.log(
-                    `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 入社月以前のため、資格取得時決定の標準報酬月額を使用しない`,
-                    {
-                      selectedYearNum,
-                      joinYear,
-                      month,
-                      joinMonth,
-                    }
-                  );
                 }
               } else {
                 // 資格取得時決定の履歴が見つからない場合、月額賃金から直接計算
                 const monthlyWage = (emp as any).monthlyWage;
                 if (monthlyWage && monthlyWage > 0) {
-                  console.log(
-                    `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 資格取得時決定の履歴が見つからないため、月額賃金から計算`,
-                    {
-                      monthlyWage,
-                      joinYear,
-                      joinMonth,
-                    }
-                  );
                   // 入社年の標準報酬等級表を取得
                   const gradeTable =
                     await this.settingsService.getStandardTable(joinYear);
@@ -1023,14 +725,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                       );
                     if (result && result.standard > 0) {
                       standardFromHistory = result.standard;
-                      console.log(
-                        `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 月額賃金から標準報酬月額を計算`,
-                        {
-                          monthlyWage,
-                          standardFromHistory,
-                          grade: result.rank,
-                        }
-                      );
                     }
                   }
                 }
@@ -1038,18 +732,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             }
           }
         }
-
-        console.log(
-          `[insurance-result-page] ${emp.name} (${this.year}年${month}月): 標準報酬月額取得`,
-          {
-            standardFromHistory,
-            employeeCurrentStandardMonthlyRemuneration:
-              emp.currentStandardMonthlyRemuneration,
-            joinDate: emp.joinDate,
-            // 標準報酬履歴から取得した値を優先する（定時改定・随時改定を反映）
-            willUseHistoryValue: standardFromHistory > 0,
-          }
-        );
 
         // 標準報酬履歴から取得した値を優先する
         // これにより、定時改定や随時改定で標準報酬月額が変わった場合も正しく反映される
@@ -1064,27 +746,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             : 0;
         const hasStandardRemuneration = effectiveStandard > 0;
 
-        console.log(
-          `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ループ処理開始`,
-          {
-            month,
-            monthKey,
-            monthDataExists: !!monthData,
-            fixedSalary,
-            variableSalary,
-            hasStandardRemuneration,
-            employeeCurrentStandardMonthlyRemuneration:
-              emp.currentStandardMonthlyRemuneration,
-            willCalculate:
-              fixedSalary > 0 || variableSalary > 0 || hasStandardRemuneration,
-          }
-        );
-
         // 給与がある場合、または標準報酬月額が確定している場合は保険料を計算
         if (fixedSalary > 0 || variableSalary > 0 || hasStandardRemuneration) {
-          console.log(
-            `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ✅ 保険料計算を実行`
-          );
           const gradeTable = gradeTableByMonth[month];
           // 従業員データに標準報酬が無い場合は履歴から取得した値をセットして計算
           const employeeForCalc =
@@ -1188,19 +851,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           monthlyTotal.careEmployer += careEmployer;
           monthlyTotal.pensionEmployee += pensionEmployee;
           monthlyTotal.pensionEmployer += pensionEmployer;
-        } else {
-          console.log(
-            `[insurance-result-page] ${emp.name} (${this.year}年${month}月): ❌ 条件を満たさないためスキップ`,
-            {
-              fixedSalary,
-              variableSalary,
-              hasStandardRemuneration,
-              condition:
-                fixedSalary > 0 ||
-                variableSalary > 0 ||
-                hasStandardRemuneration,
-            }
-          );
         }
       }
 
@@ -1213,31 +863,11 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         monthlyTotal.pensionEmployer;
 
       // 賞与データを取得
-      console.log('[insurance-result-page] 賞与データを取得', {
-        employeeId: emp.id,
-        employeeName: emp.name,
-        year: this.year,
-      });
       const bonuses = await this.bonusService.listBonuses(
         roomId,
         emp.id,
         this.year
       );
-      console.log('[insurance-result-page] 賞与データ取得完了', {
-        employeeId: emp.id,
-        employeeName: emp.name,
-        bonusesCount: bonuses?.length || 0,
-        bonuses: bonuses?.map((b: Bonus) => ({
-          id: b.id,
-          payDate: b.payDate,
-          amount: b.amount,
-          healthEmployee: b.healthEmployee,
-          healthEmployer: b.healthEmployer,
-          pensionEmployee: b.pensionEmployee,
-          isExempted: b.isExempted,
-          isSalaryInsteadOfBonus: b.isSalaryInsteadOfBonus,
-        })),
-      });
       this.bonusData[emp.id] = bonuses || [];
       const latestBonus =
         bonuses && bonuses.length > 0
@@ -1260,28 +890,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         total: 0,
       };
 
-      console.log('[insurance-result-page] 賞与のループ開始', {
-        employeeId: emp.id,
-        employeeName: emp.name,
-        bonusesCount: bonuses?.length || 0,
-      });
       for (const bonus of bonuses || []) {
-        console.log('[insurance-result-page] 賞与を処理', {
-          employeeId: emp.id,
-          employeeName: emp.name,
-          bonusId: bonus.id,
-          bonusPayDate: bonus.payDate,
-          bonusAmount: bonus.amount,
-          isExempted: bonus.isExempted,
-          isSalaryInsteadOfBonus: bonus.isSalaryInsteadOfBonus,
-          condition1: bonus.amount > 0,
-          condition2: !bonus.isExempted,
-          condition3: !bonus.isSalaryInsteadOfBonus,
-          willProcess:
-            bonus.amount > 0 &&
-            !bonus.isExempted &&
-            !bonus.isSalaryInsteadOfBonus,
-        });
         // 賞与額が0の場合は除外（免除中かどうかに関わらず）
         if (
           bonus.amount > 0 &&
@@ -1308,18 +917,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
           if (!hasStoredPremiums && bonus.payDate) {
             try {
-              console.log(
-                '[insurance-result-page] 賞与の保険料が保存されていないため再計算',
-                {
-                  employeeId: emp.id,
-                  employeeName: emp.name,
-                  birthDate: emp.birthDate,
-                  bonusPayDate: bonus.payDate,
-                  bonusAmount: bonus.amount,
-                  year: this.year,
-                }
-              );
-
               const calculationResult =
                 await this.bonusCalculationService.calculateBonus(
                   emp,
@@ -1330,16 +927,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 );
 
               if (calculationResult) {
-                console.log('[insurance-result-page] 賞与の再計算結果', {
-                  employeeId: emp.id,
-                  employeeName: emp.name,
-                  bonusPayDate: bonus.payDate,
-                  careEmployee: calculationResult.careEmployee,
-                  careEmployer: calculationResult.careEmployer,
-                  healthEmployee: calculationResult.healthEmployee,
-                  healthEmployer: calculationResult.healthEmployer,
-                });
-
                 // 再計算した結果を使用
                 recalculatedPremiums = {
                   healthEmployee: calculationResult.healthEmployee || 0,
@@ -1357,12 +944,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 bonus.careEmployer = calculationResult.careEmployer || 0;
                 bonus.pensionEmployee = calculationResult.pensionEmployee || 0;
                 bonus.pensionEmployer = calculationResult.pensionEmployer || 0;
-              } else {
-                console.warn('[insurance-result-page] 賞与の再計算結果がnull', {
-                  employeeId: emp.id,
-                  employeeName: emp.name,
-                  bonusPayDate: bonus.payDate,
-                });
               }
             } catch (error) {
               console.error(
@@ -1371,29 +952,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               );
               // エラーが発生した場合は、既存の値をそのまま使用
             }
-          } else {
-            console.log('[insurance-result-page] 保存済みの賞与保険料を使用', {
-              employeeId: emp.id,
-              employeeName: emp.name,
-              bonusPayDate: bonus.payDate,
-              bonusAmount: bonus.amount,
-              healthEmployee: bonus.healthEmployee,
-              healthEmployer: bonus.healthEmployer,
-              careEmployee: bonus.careEmployee,
-              careEmployer: bonus.careEmployer,
-              pensionEmployee: bonus.pensionEmployee,
-              pensionEmployer: bonus.pensionEmployer,
-              recalculatedPremiums,
-            });
           }
-
-          console.log('[insurance-result-page] 賞与保険料の集計前', {
-            employeeId: emp.id,
-            employeeName: emp.name,
-            bonusPayDate: bonus.payDate,
-            recalculatedPremiums,
-            bonusTotalBefore: { ...bonusTotal },
-          });
 
           bonusTotal.healthEmployee += recalculatedPremiums.healthEmployee;
           bonusTotal.healthEmployer += recalculatedPremiums.healthEmployer;
@@ -1401,14 +960,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           bonusTotal.careEmployer += recalculatedPremiums.careEmployer;
           bonusTotal.pensionEmployee += recalculatedPremiums.pensionEmployee;
           bonusTotal.pensionEmployer += recalculatedPremiums.pensionEmployer;
-
-          console.log('[insurance-result-page] 賞与保険料の集計後', {
-            employeeId: emp.id,
-            employeeName: emp.name,
-            bonusPayDate: bonus.payDate,
-            recalculatedPremiums,
-            bonusTotalAfter: { ...bonusTotal },
-          });
         }
       }
 
@@ -1419,12 +970,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         bonusTotal.careEmployer +
         bonusTotal.pensionEmployee +
         bonusTotal.pensionEmployer;
-
-      console.log('[insurance-result-page] 賞与年間合計の最終結果', {
-        employeeId: emp.id,
-        employeeName: emp.name,
-        bonusTotal,
-      });
 
       // 合計（給与＋賞与）
       const grandTotal = {
@@ -1609,28 +1154,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         filteredMonthly.length > 0 ? filteredMonthly[0] : null;
       const bonusPremium = this.getFilteredBonus(emp.id);
 
-      console.log(
-        '[insurance-result-page] calculateTableRows: 賞与データ確認',
-        {
-          employeeId: emp.id,
-          employeeName: emp.name,
-          selectedMonth: this.selectedMonth,
-          bonusPremium: bonusPremium
-            ? {
-                id: bonusPremium.id,
-                payDate: bonusPremium.payDate,
-                amount: bonusPremium.amount,
-                healthEmployee: bonusPremium.healthEmployee,
-                healthEmployer: bonusPremium.healthEmployer,
-                pensionEmployee: bonusPremium.pensionEmployee,
-                isExempted: bonusPremium.isExempted,
-                isSalaryInsteadOfBonus: bonusPremium.isSalaryInsteadOfBonus,
-              }
-            : null,
-          bonusDataCount: this.bonusData[emp.id]?.length || 0,
-        }
-      );
-
       // 月次合計（選択月の1件分、または全月合計）
       const monthlyTotal = monthlyPremium
         ? {
@@ -1691,22 +1214,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         // 賞与が免除扱いの場合は表示/計算とも0円で扱う
         const isBonusExempt = !!bonusPremium?.isExempted;
 
-        console.log(
-          '[insurance-result-page] calculateTableRows: 月次選択時の賞与合計計算',
-          {
-            employeeId: emp.id,
-            employeeName: emp.name,
-            selectedMonth: this.selectedMonth,
-            bonusPremiumExists: !!bonusPremium,
-            isBonusExempt,
-            bonusPremiumHealthEmployee: bonusPremium?.healthEmployee,
-            bonusPremiumHealthEmployer: bonusPremium?.healthEmployer,
-            bonusPremiumPensionEmployee: bonusPremium?.pensionEmployee,
-            bonusPremiumAmount: bonusPremium?.amount,
-            bonusPremiumPayDate: bonusPremium?.payDate,
-          }
-        );
-
         bonusTotal = bonusPremium
           ? {
               healthEmployee: isBonusExempt
@@ -1741,15 +1248,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               pensionEmployer: 0,
               total: 0,
             };
-
-        console.log(
-          '[insurance-result-page] calculateTableRows: 計算後の賞与合計',
-          {
-            employeeId: emp.id,
-            employeeName: emp.name,
-            bonusTotal,
-          }
-        );
       }
 
       rows.push({
@@ -1786,11 +1284,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   hasBonusColumn(): boolean {
-    // 月次選択時（selectedMonth !== 'all'）は、選択された月に賞与があるかチェック
-    if (this.selectedMonth !== 'all') {
-      return this.cachedHasBonus;
-    }
-    // 全月選択時は、年度内に賞与があるかチェック
+    // キャッシュされた賞与列の有無を返す
     return this.cachedHasBonus;
   }
 
@@ -1811,41 +1305,16 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       const hasBonus = this.employees.some((emp) => {
         const bonus = this.getFilteredBonus(emp.id);
         // 賞与が存在し、かつ保険料が計算されているかチェック
-        const isValid =
+        return (
           bonus !== null &&
           bonus.amount > 0 &&
           !bonus.isExempted &&
           !bonus.isSalaryInsteadOfBonus &&
           (bonus.healthEmployee !== undefined ||
             bonus.careEmployee !== undefined ||
-            bonus.pensionEmployee !== undefined);
-
-        console.log(
-          `[insurance-result-page] calculateHasBonus: ${emp.name} (${selectedYearNum}年${month}月)`,
-          {
-            bonusExists: bonus !== null,
-            bonusAmount: bonus?.amount,
-            isExempted: bonus?.isExempted,
-            isSalaryInsteadOfBonus: bonus?.isSalaryInsteadOfBonus,
-            hasInsurancePremiums: bonus
-              ? bonus.healthEmployee !== undefined ||
-                bonus.careEmployee !== undefined ||
-                bonus.pensionEmployee !== undefined
-              : false,
-            isValid,
-          }
+            bonus.pensionEmployee !== undefined)
         );
-
-        return isValid;
       });
-
-      console.log(
-        `[insurance-result-page] calculateHasBonus結果: ${selectedYearNum}年${month}月`,
-        {
-          hasBonus,
-          employeesCount: this.employees.length,
-        }
-      );
 
       return hasBonus;
     }
@@ -1859,39 +1328,25 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       if (!data) return false;
 
       // 年度内の全賞与の合計が0より大きい場合、賞与があるとみなす
-      const hasBonusTotal =
+      return (
         (data.bonusTotal.healthEmployee || 0) +
           (data.bonusTotal.healthEmployer || 0) +
           (data.bonusTotal.careEmployee || 0) +
           (data.bonusTotal.careEmployer || 0) +
           (data.bonusTotal.pensionEmployee || 0) +
           (data.bonusTotal.pensionEmployer || 0) >
-        0;
-
-      console.log(
-        `[insurance-result-page] calculateHasBonus (全月): ${emp.name} (${selectedYearNum}年)`,
-        {
-          bonusTotal: data.bonusTotal,
-          hasBonusTotal,
-        }
+        0
       );
-
-      return hasBonusTotal;
     });
-
-    console.log(
-      `[insurance-result-page] calculateHasBonus結果 (全月): ${selectedYearNum}年`,
-      {
-        hasBonus,
-        employeesCount: this.employees.length,
-      }
-    );
 
     return hasBonus;
   }
 
   getYearBonuses(employeeId: string): Bonus[] {
     const bonuses = this.bonusData[employeeId] || [];
+    // this.yearを数値に変換（文字列の場合に備えて）
+    const selectedYearNum =
+      typeof this.year === 'string' ? parseInt(this.year, 10) : this.year;
     // 該当年度の賞与を支給月順にソートして返す（賞与額が0のものは除外）
     return bonuses
       .filter((b) => {
@@ -1902,12 +1357,12 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
         // bonus.yearフィールドを優先的に使用（賞与入力画面で設定される）
         if (b.year !== undefined && b.year !== null) {
-          return b.year === this.year;
+          return b.year === selectedYearNum;
         }
         // フォールバック: payDateから年度を判定
         if (b.payDate) {
           const payDateObj = new Date(b.payDate);
-          return payDateObj.getFullYear() === this.year;
+          return payDateObj.getFullYear() === selectedYearNum;
         }
         return false;
       })
