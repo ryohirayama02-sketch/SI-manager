@@ -282,10 +282,7 @@ export class AlertsDashboardStateService {
       return;
     }
 
-    const confirmMessage = `選択した${selectedIds.length}件の算定基礎届アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
+    // 確認ダイアログは親コンポーネント（alerts-dashboard-page.component.ts）で表示済み
 
     if (this.teijiKetteiResults && Array.isArray(this.teijiKetteiResults)) {
       this.teijiKetteiResults = this.teijiKetteiResults.filter(
