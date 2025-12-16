@@ -70,23 +70,45 @@ export class AlertGenerationService {
     ) => number | null,
     getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string
   ): Promise<SuijiKouhoResultWithDiff[]> {
-    const years = [2023, 2024, 2025, 2026];
-    const loadedAlerts = await this.suijiService.loadAllAlerts(years);
+    if (!employees || !Array.isArray(employees)) {
+      return [];
+    }
+    try {
+      const years = [2023, 2024, 2025, 2026];
+      const loadedAlerts = await this.suijiService.loadAllAlerts(years);
 
-    const validEmployeeIds = new Set(employees.map((e) => e.id));
-    return loadedAlerts
-      .filter((alert: any) => validEmployeeIds.has(alert.employeeId))
-      .map((alert: any) => ({
-        ...alert,
-        diffPrev: getPrevMonthDiff(
-          alert.employeeId,
-          alert.changeMonth,
-          alert.year || 2025
-        ),
-        id: alert.id || getSuijiAlertId(alert),
-        currentStandard:
-          alert.currentStandard ?? alert.currentRemuneration ?? null,
-      }));
+      if (!loadedAlerts || !Array.isArray(loadedAlerts)) {
+        return [];
+      }
+
+      const validEmployeeIds = new Set(
+        employees.filter((e) => e && e.id).map((e) => e.id)
+      );
+      return loadedAlerts
+        .filter((alert: any) => alert && alert.employeeId && validEmployeeIds.has(alert.employeeId))
+        .map((alert: any) => {
+          try {
+            return {
+              ...alert,
+              diffPrev: getPrevMonthDiff(
+                alert.employeeId,
+                alert.changeMonth,
+                alert.year || 2025
+              ),
+              id: alert.id || getSuijiAlertId(alert),
+              currentStandard:
+                alert.currentStandard ?? alert.currentRemuneration ?? null,
+            };
+          } catch (error) {
+            console.error('[alert-generation] generateSuijiAlerts マッピングエラー:', error, alert);
+            return null;
+          }
+        })
+        .filter((alert): alert is SuijiKouhoResultWithDiff => alert !== null);
+    } catch (error) {
+      console.error('[alert-generation] generateSuijiAlertsエラー:', error);
+      return [];
+    }
   }
 
   async generateNotificationAlerts(

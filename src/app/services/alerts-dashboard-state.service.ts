@@ -179,6 +179,12 @@ export class AlertsDashboardStateService {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !event.alertId) {
+      return;
+    }
+    if (!this.selectedSuijiAlertIds) {
+      this.selectedSuijiAlertIds = new Set();
+    }
     if (event.selected) {
       this.selectedSuijiAlertIds.add(event.alertId);
     } else {
@@ -190,10 +196,23 @@ export class AlertsDashboardStateService {
     checked: boolean,
     getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string
   ): void {
+    if (!this.selectedSuijiAlertIds) {
+      this.selectedSuijiAlertIds = new Set();
+    }
+    if (!this.suijiAlerts || !Array.isArray(this.suijiAlerts)) {
+      if (!checked) {
+        this.selectedSuijiAlertIds.clear();
+      }
+      return;
+    }
     if (checked) {
       this.suijiAlerts.forEach((alert) => {
-        const alertId = getSuijiAlertId(alert);
-        this.selectedSuijiAlertIds.add(alertId);
+        if (alert) {
+          const alertId = getSuijiAlertId(alert);
+          if (alertId) {
+            this.selectedSuijiAlertIds.add(alertId);
+          }
+        }
       });
     } else {
       this.selectedSuijiAlertIds.clear();
@@ -203,18 +222,16 @@ export class AlertsDashboardStateService {
   deleteSelectedSuijiAlerts(
     getSuijiAlertId: (alert: SuijiKouhoResultWithDiff) => string
   ): void {
+    if (!this.selectedSuijiAlertIds || this.selectedSuijiAlertIds.size === 0) {
+      return;
+    }
+    if (!this.suijiAlerts || !Array.isArray(this.suijiAlerts)) {
+      this.selectedSuijiAlertIds.clear();
+      return;
+    }
     const selectedIds = Array.from(this.selectedSuijiAlertIds);
-    if (selectedIds.length === 0) {
-      return;
-    }
-
-    const confirmMessage = `選択した${selectedIds.length}件の随時改定アラートを削除しますか？`;
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
     this.suijiAlerts = this.suijiAlerts.filter(
-      (alert) => !selectedIds.includes(getSuijiAlertId(alert))
+      (alert) => alert && !selectedIds.includes(getSuijiAlertId(alert))
     );
     this.selectedSuijiAlertIds.clear();
     this.updateScheduleData();

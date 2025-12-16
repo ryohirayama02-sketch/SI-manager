@@ -261,19 +261,28 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async loadSuijiAlerts(): Promise<void> {
-    const deletedIds = await this.alertDeletionService.getDeletedIds('suiji');
-    const result = await this.alertsDashboardUiService.loadSuijiAlerts(
-      this.employees,
-      this.salariesByYear,
-      (employeeId: string, month: number) =>
-        this.getSalaryKey(employeeId, month),
-      (employeeId: string, month: number, year: number) =>
-        this.getPrevMonthDiff(employeeId, month, year),
-      (alert: SuijiKouhoResultWithDiff) => this.getSuijiAlertId(alert)
-    );
-    this.state.suijiAlerts = result.filter(
-      (a) => !deletedIds.has(this.getSuijiAlertId(a))
-    );
+    try {
+      const deletedIds = await this.alertDeletionService.getDeletedIds('suiji');
+      const result = await this.alertsDashboardUiService.loadSuijiAlerts(
+        this.employees || [],
+        this.salariesByYear || {},
+        (employeeId: string, month: number) =>
+          this.getSalaryKey(employeeId, month),
+        (employeeId: string, month: number, year: number) =>
+          this.getPrevMonthDiff(employeeId, month, year),
+        (alert: SuijiKouhoResultWithDiff) => this.getSuijiAlertId(alert)
+      );
+      if (result && Array.isArray(result)) {
+        this.state.suijiAlerts = result.filter(
+          (a) => a && !deletedIds.has(this.getSuijiAlertId(a))
+        );
+      } else {
+        this.state.suijiAlerts = [];
+      }
+    } catch (error) {
+      console.error('[AlertsDashboardPage] loadSuijiAlertsエラー:', error);
+      this.state.suijiAlerts = [];
+    }
   }
 
   getPrevMonthDiff(
@@ -1327,6 +1336,9 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   }
 
   async deleteSelectedSuijiAlerts(): Promise<void> {
+    if (!this.state || !this.state.selectedSuijiAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(this.state.selectedSuijiAlertIds);
     if (selectedIds.length === 0) {
       return;
@@ -1337,29 +1349,59 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    for (const alertId of selectedIds) {
-      const alert = this.state.suijiAlerts.find(
-        (a) => this.getSuijiAlertId(a) === alertId
-      );
-      if (alert) {
-        const docId = alert.id || `${alert.employeeId}_${alert.changeMonth}`;
-        const parts = docId.split('_');
-        const employeeId = parts[0];
-        const changeMonth = parseInt(parts[1], 10);
-        const year = alert.year || 2025;
-        await this.suijiService.deleteAlert(year, employeeId, changeMonth);
+    // エラーハンドリング付きで削除処理を実行
+    try {
+      // Firestoreからアラートを削除
+      for (const alertId of selectedIds) {
+        if (!alertId) {
+          continue;
+        }
+        const alert = this.state.suijiAlerts.find(
+          (a) => a && this.getSuijiAlertId(a) === alertId
+        );
+        if (alert) {
+          try {
+            const docId = alert.id || `${alert.employeeId}_${alert.changeMonth}`;
+            const parts = docId.split('_');
+            if (parts.length >= 2) {
+              const employeeId = parts[0];
+              const changeMonth = parseInt(parts[1], 10);
+              const year = alert.year || 2025;
+              if (employeeId && !isNaN(changeMonth) && changeMonth >= 1 && changeMonth <= 12 && year >= 1900 && year <= 2100) {
+                await this.suijiService.deleteAlert(year, employeeId, changeMonth);
+              }
+            }
+          } catch (error) {
+            console.error(`[AlertsDashboardPage] 随時改定アラートFirestore削除エラー: alertId=${alertId}`, error);
+            // エラーが発生しても処理を継続
+          }
+        }
       }
-    }
 
-    for (const alertId of selectedIds) {
-      await this.alertDeletionService.markAsDeleted('suiji', alertId);
-    }
+      // 削除済みIDとしてマーク
+      await Promise.all(
+        selectedIds.map((id) => {
+          if (!id) {
+            return Promise.resolve();
+          }
+          return this.alertDeletionService.markAsDeleted('suiji', id).catch((error) => {
+            console.error(`[AlertsDashboardPage] 随時改定アラート削除マークエラー: id=${id}`, error);
+            // エラーが発生しても処理を継続
+          });
+        })
+      );
 
-    await this.loadSuijiAlerts();
-    this.state.deleteSelectedSuijiAlerts((alert: SuijiKouhoResultWithDiff) =>
-      this.getSuijiAlertId(alert)
-    );
-    await this.loadScheduleData();
+      await this.loadSuijiAlerts();
+      this.state.deleteSelectedSuijiAlerts((alert: SuijiKouhoResultWithDiff) =>
+        this.getSuijiAlertId(alert)
+      );
+      await this.loadScheduleData();
+    } catch (error) {
+      console.error('[AlertsDashboardPage] deleteSelectedSuijiAlertsエラー:', error);
+      // エラーが発生しても状態を更新
+      await this.loadSuijiAlerts();
+      await this.loadScheduleData();
+    }
   }
 
   async onTeijiYearChange(year: number): Promise<void> {

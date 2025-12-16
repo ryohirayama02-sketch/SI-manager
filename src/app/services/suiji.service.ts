@@ -402,7 +402,7 @@ export class SuijiService {
         allAlerts.push(...yearAlerts);
       } catch (error) {
         // 年度のコレクションが存在しない場合はスキップ
-        console.warn(
+        console.error(
           `[suiji-service] 年度 ${year} のアラート取得に失敗:`,
           error
         );
