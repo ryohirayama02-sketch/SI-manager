@@ -497,16 +497,11 @@ export class EmployeeBasicInfoStandardRemunerationComponent
 
     const wageVal = this.form.get('monthlyWage')?.value;
     if (wageVal === null || wageVal === undefined || wageVal === '') {
-      console.log('[std-remuneration] skip auto-set: monthlyWage empty');
       return;
     }
 
     const rawWage = Number(wageVal);
     if (Number.isNaN(rawWage) || rawWage <= 0) {
-      console.log(
-        '[std-remuneration] skip auto-set: monthlyWage invalid',
-        wageVal
-      );
       return;
     }
 
@@ -521,14 +516,6 @@ export class EmployeeBasicInfoStandardRemunerationComponent
       gradeTable
     );
     const standard = result?.standard ?? rawWage;
-    console.log('[std-remuneration] auto-set from monthlyWage', {
-      rawWage,
-      joinVal,
-      currentYear,
-      gradeTableLength: gradeTable?.length ?? 0,
-      result,
-      standard,
-    });
 
     this.form.patchValue(
       {

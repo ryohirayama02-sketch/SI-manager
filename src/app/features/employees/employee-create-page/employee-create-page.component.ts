@@ -252,7 +252,6 @@ export class EmployeeCreatePageComponent implements OnInit {
   private async updateStandardFromMonthlyWage(): Promise<void> {
     const wage = this.form.get('monthlyWage')?.value;
     if (wage === null || wage === undefined || wage === '') {
-      console.log('[employee-create] standard calc skipped: wage empty');
       this.form.patchValue(
         { currentStandardMonthlyRemuneration: null },
         { emitEvent: false }
@@ -262,10 +261,6 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     const rawNumber = Number(wage);
     if (Number.isNaN(rawNumber) || rawNumber <= 0) {
-      console.log(
-        '[employee-create] standard calc skipped: wage invalid',
-        wage
-      );
       this.form.patchValue(
         { currentStandardMonthlyRemuneration: null },
         { emitEvent: false }
@@ -279,22 +274,12 @@ export class EmployeeCreatePageComponent implements OnInit {
       : new Date().getFullYear();
     const gradeTable =
       (await this.settingsService.getStandardTable(currentYear)) || [];
-    console.log('[employee-create] standard calc input', {
-      rawNumber,
-      joinVal,
-      currentYear,
-      gradeTableLength: gradeTable?.length ?? 0,
-    });
     const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
       rawNumber,
       gradeTable
     );
     // 等級表で判定できない場合は、入力額をそのまま標準報酬月額として設定
     const standard = result?.standard ?? rawNumber;
-    console.log('[employee-create] standard calc result', {
-      result,
-      standard,
-    });
     this.form.patchValue(
       { currentStandardMonthlyRemuneration: standard },
       { emitEvent: false }

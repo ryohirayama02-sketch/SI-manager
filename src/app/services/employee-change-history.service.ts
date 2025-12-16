@@ -45,17 +45,11 @@ export class EmployeeChangeHistoryService {
       });
 
       if (isDuplicate) {
-        console.log(
-          `[employee-change-history] 同じ変更内容の履歴が既に存在するためスキップ: ${history.employeeId}, ${history.changeType}, ${history.changeDate}, ${history.oldValue} → ${history.newValue}`
-        );
         return;
       }
     }
 
     // 新しい変更履歴を保存（同じ日でも変更内容が異なる場合は保存）
-    console.log(
-      `[employee-change-history] 新しい変更履歴を保存: ${history.employeeId}, ${history.changeType}, ${history.changeDate}, ${history.oldValue} → ${history.newValue}`
-    );
     const payload = { ...history, createdAt: new Date(), roomId };
     // 個別従業員配下に保存
     await addDoc(col, payload);
@@ -65,7 +59,6 @@ export class EmployeeChangeHistoryService {
       `rooms/${roomId}/employeeChangeHistory`
     );
     await addDoc(roomCol, payload);
-    console.log(`[employee-change-history] 変更履歴の保存が完了しました`);
   }
 
   /**

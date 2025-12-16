@@ -726,11 +726,6 @@ export class SettingsPageComponent {
             officeNumber,
             newPrefecture
           );
-        if (updateCount > 0) {
-          console.log(
-            `[settings-page] 事業所「${officeNumber}」の都道府県変更に伴い、${updateCount}名の従業員の都道府県を更新しました`
-          );
-        }
       } catch (error) {
         console.error(
           '[settings-page] 従業員の都道府県更新中にエラーが発生しました:',

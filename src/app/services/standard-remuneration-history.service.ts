@@ -79,15 +79,6 @@ export class StandardRemunerationHistoryService {
     }
 
     await setDoc(ref, data, { merge: true });
-// // console.log('[std-history] history saved', {
-//       employeeId: history.employeeId,
-//       applyStartYear: history.applyStartYear,
-//       applyStartMonth: history.applyStartMonth,
-//       grade: history.grade,
-//       standard: history.standardMonthlyRemuneration,
-//       reason: history.determinationReason,
-//       docId,
-//     });
   }
 
   /**

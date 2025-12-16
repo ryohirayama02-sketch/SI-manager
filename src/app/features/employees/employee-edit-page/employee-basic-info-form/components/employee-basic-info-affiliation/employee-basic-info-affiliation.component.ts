@@ -79,31 +79,20 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
     const officeNumber = this.form.get('officeNumber')?.value;
     const prefecture = this.form.get('prefecture')?.value;
     
-    console.log('[employee-basic-info-affiliation] 事業所特定:', {
-      officeNumber,
-      prefecture,
-      officesCount: this.offices.length,
-      selectedOfficeIdBefore: this.selectedOfficeId
-    });
-    
     if (officeNumber && prefecture) {
       const matchingOffice = this.offices.find(
         office => office.officeNumber === officeNumber && office.prefecture === prefecture
       );
-      console.log('[employee-basic-info-affiliation] マッチした事業所:', matchingOffice);
       if (matchingOffice?.id) {
         this.selectedOfficeId = matchingOffice.id;
-        console.log('[employee-basic-info-affiliation] selectedOfficeId設定:', this.selectedOfficeId);
         // 変更検出をトリガー
         this.cdr.detectChanges();
       } else {
         this.selectedOfficeId = null;
-        console.log('[employee-basic-info-affiliation] 事業所が見つからないためnullに設定');
         this.cdr.detectChanges();
       }
     } else {
       this.selectedOfficeId = null;
-      console.log('[employee-basic-info-affiliation] officeNumberまたはprefectureが空のためnullに設定');
       this.cdr.detectChanges();
     }
   }
@@ -113,13 +102,6 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
     const selectedOffice = this.offices.find(office => office.id === officeId);
     
     if (selectedOffice) {
-      console.log('[employee-basic-info-affiliation] office selected', {
-        officeId,
-        officeCode: selectedOffice.officeCode,
-        officeNumber: selectedOffice.officeNumber,
-        prefecture: selectedOffice.prefecture,
-        address: selectedOffice.address
-      });
       // 事業所を選択したら、都道府県と事業所番号を自動設定
       this.form.patchValue({
         prefecture: selectedOffice.prefecture || 'tokyo',

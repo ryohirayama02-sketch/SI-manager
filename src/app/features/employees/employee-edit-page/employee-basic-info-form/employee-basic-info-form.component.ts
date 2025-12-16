@@ -683,36 +683,13 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
    * 従業員をシステムから削除
    */
   public async deleteEmployee(): Promise<void> {
-    const employeeId = this.employeeId;
-    const employeeService = this.employeeService;
-    const familyMemberService = this.familyMemberService;
-    const router = this.router;
-
-    if (!employeeId) {
+    if (!this.employeeId) {
       window.alert('従業員IDが設定されていません');
       return;
     }
 
-    if (!employeeService) {
-      console.error('[employee-basic-info-form] employeeService is not initialized');
-      window.alert('システムエラーが発生しました');
-      return;
-    }
-
-    if (!familyMemberService) {
-      console.error('[employee-basic-info-form] familyMemberService is not initialized');
-      window.alert('システムエラーが発生しました');
-      return;
-    }
-
-    if (!router) {
-      console.error('[employee-basic-info-form] router is not initialized');
-      window.alert('システムエラーが発生しました');
-      return;
-    }
-
     // 削除確認
-    const employee = await employeeService.getEmployeeById(employeeId);
+    const employee = await this.employeeService.getEmployeeById(this.employeeId);
     const employeeName = employee?.name || 'この従業員';
     const confirmMessage = `${employeeName}をシステムから削除しますか？\n\nこの操作は取り消せません。\n関連する家族情報も全て削除されます。`;
 
@@ -722,16 +699,16 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     try {
       // 家族情報を先に削除
-      await familyMemberService.deleteFamilyMembersByEmployeeId(employeeId);
+      await this.familyMemberService.deleteFamilyMembersByEmployeeId(this.employeeId);
 
       // 従業員情報を削除
-      await employeeService.deleteEmployee(employeeId);
+      await this.employeeService.deleteEmployee(this.employeeId);
 
       // 削除成功メッセージ
       window.alert('従業員を削除しました');
 
       // 従業員一覧画面にリダイレクト
-      router.navigate(['/employees']);
+      this.router.navigate(['/employees']);
     } catch (error) {
       console.error('[employee-basic-info-form] 従業員削除エラー:', error);
       window.alert('従業員の削除中にエラーが発生しました');
