@@ -28,6 +28,9 @@ import { EmployeeBasicInfoAffiliationComponent } from './components/employee-bas
 import { EmployeeBasicInfoLifecycleComponent } from './components/employee-basic-info-lifecycle/employee-basic-info-lifecycle.component';
 import { EmployeeBasicInfoStandardRemunerationComponent } from './components/employee-basic-info-standard-remuneration/employee-basic-info-standard-remuneration.component';
 import { EmployeeBasicInfoLeaveComponent } from './components/employee-basic-info-leave/employee-basic-info-leave.component';
+import { StandardRemunerationHistoryService } from '../../../../services/standard-remuneration-history.service';
+import { SalaryCalculationService } from '../../../../services/salary-calculation.service';
+import { SettingsService } from '../../../../services/settings.service';
 
 @Component({
   selector: 'app-employee-basic-info-form',
@@ -69,7 +72,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     private employeeWorkCategoryService: EmployeeWorkCategoryService,
     private familyMemberService: FamilyMemberService,
     private roomIdService: RoomIdService,
-    private router: Router
+    private router: Router,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
+    private salaryCalculationService: SalaryCalculationService,
+    private settingsService: SettingsService
   ) {
     this.form = this.fb.group({
       name: ['', Validators.required],
@@ -504,6 +510,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     const oldWeeklyCategory = oldData.weeklyWorkHoursCategory || '';
     const newWeeklyCategory = newData.weeklyWorkHoursCategory || '';
 
+    // 保険加入状態の変化を検出
+    const oldIsInsured = oldWeeklyCategory !== 'less-than-20hours';
+    const newIsInsured = newWeeklyCategory !== 'less-than-20hours';
+
     // 週所定労働時間カテゴリの変化があれば履歴を残す（勤務区分変更）
     if (oldWeeklyCategory !== newWeeklyCategory) {
       console.log(
@@ -529,6 +539,11 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         ),
         notificationNames: ['資格取得届'],
       });
+
+      // 保険加入状態が「非加入」から「加入」に変わった場合、標準報酬履歴を生成
+      if (!oldIsInsured && newIsInsured) {
+        await this.handleInsuranceAcquisition(newData, today);
+      }
     } else if (oldIsShortTime !== newIsShortTime) {
       console.log('[employee-basic-info-form] detect work category change', {
         employeeId: this.employeeId,
@@ -547,6 +562,128 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         newValue: newStatus,
         notificationNames: ['資格取得届'],
       });
+    }
+  }
+
+  /**
+   * 保険加入時の標準報酬履歴を生成
+   */
+  private async handleInsuranceAcquisition(
+    newData: any,
+    changeDate: string
+  ): Promise<void> {
+    if (!this.employeeId) return;
+
+    // 変更月を取得（変更日の年月）
+    const changeDateObj = new Date(changeDate);
+    const acquisitionYear = changeDateObj.getFullYear();
+    const acquisitionMonth = changeDateObj.getMonth() + 1;
+
+    // 月額賃金見込を取得
+    const monthlyWage = newData.monthlyWage || null;
+    if (!monthlyWage || monthlyWage <= 0) {
+      console.warn(
+        `[employee-basic-info-form] 保険加入時の標準報酬履歴生成をスキップ: 月額賃金見込が設定されていません`,
+        {
+          employeeId: this.employeeId,
+          acquisitionYear,
+          acquisitionMonth,
+          monthlyWage,
+        }
+      );
+      return;
+    }
+
+    console.log(
+      `[employee-basic-info-form] 保険加入時の標準報酬履歴を生成`,
+      {
+        employeeId: this.employeeId,
+        acquisitionYear,
+        acquisitionMonth,
+        monthlyWage,
+      }
+    );
+
+    // 標準報酬等級表を取得
+    const gradeTable = await this.settingsService.getStandardTable(
+      acquisitionYear
+    );
+    if (!gradeTable || gradeTable.length === 0) {
+      console.warn(
+        `[employee-basic-info-form] 標準報酬等級表が取得できませんでした`,
+        {
+          employeeId: this.employeeId,
+          acquisitionYear,
+        }
+      );
+      return;
+    }
+
+    // 月額賃金見込から標準報酬月額を決定
+    const result =
+      this.salaryCalculationService.getStandardMonthlyRemuneration(
+        monthlyWage,
+        gradeTable
+      );
+    if (!result) {
+      console.warn(
+        `[employee-basic-info-form] 標準報酬月額の決定に失敗しました`,
+        {
+          employeeId: this.employeeId,
+          acquisitionYear,
+          acquisitionMonth,
+          monthlyWage,
+        }
+      );
+      return;
+    }
+
+    const standardMonthlyRemuneration = result.standard;
+    const grade = result.rank || 0;
+
+    // 既存の履歴を確認
+    const existingHistories =
+      await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+        this.employeeId
+      );
+    const existingAcquisition = existingHistories.find(
+      (h) =>
+        h.determinationReason === 'acquisition' &&
+        h.applyStartYear === acquisitionYear &&
+        h.applyStartMonth === acquisitionMonth
+    );
+
+    // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
+    if (
+      !existingAcquisition ||
+      existingAcquisition.standardMonthlyRemuneration !==
+        standardMonthlyRemuneration ||
+      existingAcquisition.grade !== grade
+    ) {
+      await this.standardRemunerationHistoryService.saveStandardRemunerationHistory(
+        {
+          id: existingAcquisition?.id,
+          employeeId: this.employeeId,
+          applyStartYear: acquisitionYear,
+          applyStartMonth: acquisitionMonth,
+          grade: grade,
+          standardMonthlyRemuneration: standardMonthlyRemuneration,
+          determinationReason: 'acquisition',
+          memo: `資格取得時決定（雇用条件変更による保険加入、月額賃金見込: ${monthlyWage.toLocaleString()}円）`,
+          createdAt: existingAcquisition?.createdAt,
+        }
+      );
+
+      console.log(
+        `[employee-basic-info-form] 保険加入時の標準報酬履歴を保存しました`,
+        {
+          employeeId: this.employeeId,
+          acquisitionYear,
+          acquisitionMonth,
+          grade,
+          standardMonthlyRemuneration,
+        }
+      );
     }
   }
 

@@ -462,43 +462,131 @@ export class AlertGenerationService {
       const currentYear = today.getFullYear();
       const currentMonth = today.getMonth() + 1;
 
-      // 過去3ヶ月分をチェック（現在の月を含む）
+      // 過去12ヶ月分をチェック（現在の月を含む）
+      // 非加入者の収入超過は過去の月でも発生する可能性があるため、過去12ヶ月をチェック
       const monthsToCheck: { year: number; month: number }[] = [];
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 12; i++) {
         const checkDate = new Date(currentYear, currentMonth - 1 - i, 1);
         monthsToCheck.push({
           year: checkDate.getFullYear(),
           month: checkDate.getMonth() + 1,
         });
       }
+      console.log(
+        `[alert-generation] 非加入者収入超過アラート: チェック対象月`,
+        {
+          currentYear,
+          currentMonth,
+          monthsToCheck,
+        }
+      );
 
       for (const emp of employees) {
         // 社会保険未加入のみ対象
-        if (!this.employeeWorkCategoryService.isNonInsured(emp)) continue;
+        const isNonInsured = this.employeeWorkCategoryService.isNonInsured(emp);
+        console.log(
+          `[alert-generation] 非加入者チェック: ${emp.name} (${emp.id}), weeklyWorkHoursCategory=${emp.weeklyWorkHoursCategory}, isNonInsured=${isNonInsured}`
+        );
+        if (!isNonInsured) continue;
+
+        console.log(
+          `[alert-generation] 非加入者として処理開始: ${emp.name} (${emp.id}), チェック対象月数=${monthsToCheck.length}`,
+          { monthsToCheck }
+        );
 
         // 過去3ヶ月分をチェック
         for (const { year, month } of monthsToCheck) {
+          console.log(
+            `[alert-generation] 月次給与データ取得開始: ${emp.name} (${emp.id}), ${year}年${month}月`
+          );
           const monthData = await this.monthlySalaryService.getEmployeeSalary(
             roomId,
             emp.id,
             year,
             month
           );
-          if (!monthData) continue;
+          const monthDataSummary = monthData ? {
+            totalSalary: monthData.totalSalary,
+            total: monthData.total,
+            fixedSalary: monthData.fixedSalary,
+            fixed: monthData.fixed,
+            variableSalary: monthData.variableSalary,
+            variable: monthData.variable,
+            fixedTotal: monthData.fixedTotal,
+            variableTotal: monthData.variableTotal,
+            salaryItems: monthData.salaryItems,
+            allKeys: Object.keys(monthData),
+            fullMonthData: monthData, // デバッグ用：全データを表示
+          } : null;
+          console.log(
+            `[alert-generation] 月次給与データ取得完了: ${emp.name} (${emp.id}), ${year}年${month}月`,
+            {
+              monthData: monthDataSummary,
+              hasMonthData: !!monthData,
+              rawMonthData: monthData, // 生データを確認
+            }
+          );
+          if (!monthData) {
+            console.log(
+              `[alert-generation] 月次給与データなしのためスキップ: ${emp.name} (${emp.id}), ${year}年${month}月`
+            );
+            continue;
+          }
 
+          // 月次給与データから合計を計算（複数の形式に対応）
+          // 1. totalSalary/total を優先
+          // 2. fixedTotal + variableTotal を計算
+          // 3. fixedSalary + variableSalary を計算
+          // 4. fixed + variable を計算
+          const fixedTotal = monthData.fixedTotal ?? monthData.fixedSalary ?? monthData.fixed ?? 0;
+          const variableTotal = monthData.variableTotal ?? monthData.variableSalary ?? monthData.variable ?? 0;
+          const calculatedTotal = fixedTotal + variableTotal;
+          
           const total =
             monthData.totalSalary ??
             monthData.total ??
-            (monthData.fixedSalary ?? monthData.fixed ?? 0) +
-              (monthData.variableSalary ?? monthData.variable ?? 0);
+            calculatedTotal;
 
-          if (total <= 88000) continue;
+          console.log(
+            `[alert-generation] 収入チェック: ${emp.name} (${emp.id}), ${year}年${month}月`,
+            {
+              totalSalary: monthData.totalSalary,
+              total: monthData.total,
+              fixedSalary: monthData.fixedSalary,
+              fixed: monthData.fixed,
+              variableSalary: monthData.variableSalary,
+              variable: monthData.variable,
+              fixedTotal: monthData.fixedTotal,
+              variableTotal: monthData.variableTotal,
+              calculatedTotal: total,
+              threshold: 88000,
+              isOverThreshold: total > 88000,
+            }
+          );
+
+          if (total <= 88000) {
+            console.log(
+              `[alert-generation] 収入が88000円以下のためスキップ: ${emp.name} (${emp.id}), ${year}年${month}月, total=${total}`
+            );
+            continue;
+          }
 
           const alertId = `noninsured_income_${emp.id}_${year}_${month}`;
-          if (
-            qualificationChangeAlerts.find((a) => a.id === alertId) ||
-            deletedAlertIds.has(alertId)
-          ) {
+          const existingAlert = qualificationChangeAlerts.find(
+            (a) => a.id === alertId
+          );
+          const isDeleted = deletedAlertIds.has(alertId);
+          console.log(
+            `[alert-generation] アラート生成チェック: ${emp.name} (${emp.id}), ${year}年${month}月`,
+            {
+              alertId,
+              existingAlert: existingAlert ? existingAlert.id : null,
+              isDeleted,
+              willCreate: !existingAlert && !isDeleted,
+            }
+          );
+
+          if (existingAlert || isDeleted) {
             continue;
           }
 
@@ -508,6 +596,10 @@ export class AlertGenerationService {
           const daysUntilDeadline = calculateDaysUntilDeadline(
             submitDeadline,
             today
+          );
+
+          console.log(
+            `[alert-generation] 非加入者収入超過アラートを生成: ${emp.name} (${emp.id}), ${year}年${month}月, total=${total}`
           );
 
           qualificationChangeAlerts.push({

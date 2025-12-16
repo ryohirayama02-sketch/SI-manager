@@ -112,7 +112,6 @@
     <thead>
       <tr>
         <th>氏名</th>
-        <th>休業ステータス</th>
         <th>産前産後休業<br />開始日</th>
         <th>産前産後休業<br />終了予定日</th>
         <th>育児休業<br />開始日</th>
@@ -126,12 +125,6 @@
         style="cursor: pointer"
       >
         <td>{{ info.employee.name }}</td>
-        <td>
-          <span *ngIf="info.leaveStatus">
-            {{ getLeaveStatusLabel(info.leaveStatus.status) }}
-          </span>
-          <span *ngIf="!info.leaveStatus">-</span>
-        </td>
         <td>{{ info.employee.maternityLeaveStart || "-" }}</td>
         <td>{{ info.employee.maternityLeaveEndExpected || "-" }}</td>
         <td>{{ info.employee.childcareLeaveStart || "-" }}</td>
