@@ -301,6 +301,9 @@ export class AlertsDashboardStateService {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !event.alertId) {
+      return;
+    }
     if (event.selected) {
       this.selectedAgeAlertIds.add(event.alertId);
     } else {
@@ -309,9 +312,14 @@ export class AlertsDashboardStateService {
   }
 
   onAgeSelectAllChange(checked: boolean): void {
+    if (!this.ageAlerts || !Array.isArray(this.ageAlerts)) {
+      return;
+    }
     if (checked) {
       this.ageAlerts.forEach((alert) => {
-        this.selectedAgeAlertIds.add(alert.id);
+        if (alert && alert.id) {
+          this.selectedAgeAlertIds.add(alert.id);
+        }
       });
     } else {
       this.selectedAgeAlertIds.clear();
@@ -319,13 +327,18 @@ export class AlertsDashboardStateService {
   }
 
   deleteSelectedAgeAlerts(): void {
+    if (!this.selectedAgeAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(this.selectedAgeAlertIds);
     if (selectedIds.length === 0) {
       return;
     }
-    this.ageAlerts = this.ageAlerts.filter(
-      (alert) => !selectedIds.includes(alert.id)
-    );
+    if (this.ageAlerts && Array.isArray(this.ageAlerts)) {
+      this.ageAlerts = this.ageAlerts.filter(
+        (alert) => alert && alert.id && !selectedIds.includes(alert.id)
+      );
+    }
     this.selectedAgeAlertIds.clear();
     this.updateScheduleData();
   }
@@ -335,6 +348,9 @@ export class AlertsDashboardStateService {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !event.alertId) {
+      return;
+    }
     if (event.selected) {
       this.selectedQualificationChangeAlertIds.add(event.alertId);
     } else {
@@ -343,9 +359,14 @@ export class AlertsDashboardStateService {
   }
 
   onQualificationChangeSelectAllChange(checked: boolean): void {
+    if (!this.qualificationChangeAlerts || !Array.isArray(this.qualificationChangeAlerts)) {
+      return;
+    }
     if (checked) {
       this.qualificationChangeAlerts.forEach((alert) => {
-        this.selectedQualificationChangeAlertIds.add(alert.id);
+        if (alert && alert.id) {
+          this.selectedQualificationChangeAlertIds.add(alert.id);
+        }
       });
     } else {
       this.selectedQualificationChangeAlertIds.clear();
@@ -353,13 +374,18 @@ export class AlertsDashboardStateService {
   }
 
   deleteSelectedQualificationChangeAlerts(): void {
+    if (!this.selectedQualificationChangeAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(this.selectedQualificationChangeAlertIds);
     if (selectedIds.length === 0) {
       return;
     }
-    this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
-      (alert) => !selectedIds.includes(alert.id)
-    );
+    if (this.qualificationChangeAlerts && Array.isArray(this.qualificationChangeAlerts)) {
+      this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
+        (alert) => alert && alert.id && !selectedIds.includes(alert.id)
+      );
+    }
     this.selectedQualificationChangeAlertIds.clear();
     this.updateScheduleData();
   }

@@ -41,30 +41,51 @@ export class AgeAlertListComponent {
   ) {}
 
   formatDate(date: Date): string {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
     return formatDateHelper(date);
   }
 
-  formatBirthDate(birthDateString: string): string {
+  formatBirthDate(birthDateString: string | null | undefined): string {
+    if (!birthDateString || typeof birthDateString !== 'string') {
+      return '';
+    }
     const date = new Date(birthDateString);
+    if (isNaN(date.getTime())) {
+      return '';
+    }
     return formatDateHelper(date);
   }
 
   toggleAgeAlertSelection(alertId: string): void {
+    if (!alertId) {
+      return;
+    }
+    if (!this.selectedAgeAlertIds) {
+      return;
+    }
     const isSelected = this.selectedAgeAlertIds.has(alertId);
     this.alertSelectionChange.emit({ alertId, selected: !isSelected });
   }
 
   toggleAllAgeAlertsChange(event: Event): void {
+    if (!event || !event.target) {
+      return;
+    }
     const target = event.target as HTMLInputElement;
     this.selectAllChange.emit(target.checked);
   }
 
   isAgeAlertSelected(alertId: string): boolean {
+    if (!alertId || !this.selectedAgeAlertIds) {
+      return false;
+    }
     return this.selectedAgeAlertIds.has(alertId);
   }
 
   deleteSelectedAgeAlerts(): void {
-    if (this.selectedAgeAlertIds.size === 0) {
+    if (!this.selectedAgeAlertIds || this.selectedAgeAlertIds.size === 0) {
       return;
     }
     this.deleteSelected.emit();
@@ -73,13 +94,17 @@ export class AgeAlertListComponent {
   /**
    * CSV出力（70歳到達厚生年金喪失届 / 75歳到達健保資格喪失届）
    */
-  async exportToCsv(alert: AgeAlert): Promise<void> {
+  async exportToCsv(alert: AgeAlert | null | undefined): Promise<void> {
+    if (!alert || !alert.employeeId) {
+      window.alert('アラート情報が不正です');
+      return;
+    }
     if (alert.alertType !== '70歳到達' && alert.alertType !== '75歳到達') {
       return;
     }
 
     try {
-      const employee = this.employees.find((e) => e.id === alert.employeeId) as
+      const employee = this.employees.find((e) => e && e.id === alert.employeeId) as
         | Employee
         | undefined;
       if (!employee) {
@@ -89,19 +114,35 @@ export class AgeAlertListComponent {
 
       // 事業所情報を取得
       let office: Office | null = null;
-      if (employee.officeNumber) {
-        const offices = await this.officeService.getAllOffices();
-        office =
-          offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-      }
-      if (!office) {
-        const offices = await this.officeService.getAllOffices();
-        office = offices[0] || null;
+      try {
+        if (employee.officeNumber) {
+          const offices = await this.officeService.getAllOffices();
+          if (offices && Array.isArray(offices)) {
+            office =
+              offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+          }
+        }
+        if (!office) {
+          const offices = await this.officeService.getAllOffices();
+          if (offices && Array.isArray(offices) && offices.length > 0) {
+            office = offices[0] || null;
+          }
+        }
+      } catch (error) {
+        console.error(`[age-alert-list] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
       }
 
       // 到達日を取得
       const reachDate = alert.reachDate;
+      if (!reachDate || !(reachDate instanceof Date) || isNaN(reachDate.getTime())) {
+        window.alert('到達日の情報が不正です');
+        return;
+      }
       const reachYear = reachDate.getFullYear();
+      if (reachYear < 1900 || reachYear > 2100) {
+        window.alert('到達年の情報が不正です');
+        return;
+      }
       const reachMonth = reachDate.getMonth() + 1;
       const reachDay = reachDate.getDate();
 
@@ -120,17 +161,27 @@ export class AgeAlertListComponent {
         const roomId = this.roomIdService.requireRoomId();
 
         // 給与データを取得
-        const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          employee.id,
-          prevYear,
-          actualPrevMonth
-        );
+        let prevMonthData = null;
+        try {
+          prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            employee.id,
+            prevYear,
+            actualPrevMonth
+          );
+        } catch (error) {
+          console.error(`[age-alert-list] 給与データ取得エラー: 従業員ID=${employee.id}, 年=${prevYear}, 月=${actualPrevMonth}`, error);
+        }
 
         // 給与項目マスタを取得
-        const salaryItems = await this.settingsService.loadSalaryItems(
-          prevYear
-        );
+        let salaryItems: SalaryItem[] = [];
+        try {
+          salaryItems = await this.settingsService.loadSalaryItems(
+            prevYear
+          );
+        } catch (error) {
+          console.error(`[age-alert-list] 給与項目マスタ取得エラー: 年=${prevYear}`, error);
+        }
 
         // 報酬月額を計算
         let remunerationAmount = 0;
@@ -159,22 +210,42 @@ export class AgeAlertListComponent {
         const gender = this.getGender(employee);
 
         // 扶養の有無を確認
-        const familyMembers =
-          await this.familyMemberService.getFamilyMembersByEmployeeId(
+        let familyMembers: any[] = [];
+        try {
+          familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(
             employee.id
-          );
-        const hasDependents = familyMembers.length > 0;
+          ) || [];
+        } catch (error) {
+          console.error(`[age-alert-list] 扶養情報取得エラー: 従業員ID=${employee.id}`, error);
+        }
+        const hasDependents = familyMembers && Array.isArray(familyMembers) && familyMembers.length > 0;
         const dependentStatus = hasDependents ? '有' : '無';
 
         // 70歳到達の誕生日の翌日を計算（reachDateは前日なので、そこから2日後）
+        if (!employee.birthDate) {
+          window.alert('生年月日の情報が不正です');
+          return;
+        }
         const birthDate = new Date(employee.birthDate);
+        if (isNaN(birthDate.getTime())) {
+          window.alert('生年月日の情報が不正です');
+          return;
+        }
         const age70Birthday = new Date(
           birthDate.getFullYear() + 70,
           birthDate.getMonth(),
           birthDate.getDate()
         );
+        if (isNaN(age70Birthday.getTime())) {
+          window.alert('70歳到達日の計算に失敗しました');
+          return;
+        }
         const nextDay = new Date(age70Birthday);
         nextDay.setDate(nextDay.getDate() + 1);
+        if (isNaN(nextDay.getTime())) {
+          window.alert('70歳到達日の翌日の計算に失敗しました');
+          return;
+        }
 
         csvRows.push('70歳到達厚生年金喪失届');
         csvRows.push('');
@@ -224,6 +295,10 @@ export class AgeAlertListComponent {
         );
 
         // CSVファイルをダウンロード
+        if (csvRows.length === 0) {
+          window.alert('出力するデータがありません。');
+          return;
+        }
         const csvContent = csvRows.join('\n');
         const blob = new Blob(['\uFEFF' + csvContent], {
           type: 'text/csv;charset=utf-8;',
@@ -233,22 +308,43 @@ export class AgeAlertListComponent {
         link.setAttribute('href', url);
         link.setAttribute(
           'download',
-          `70歳到達厚生年金喪失届_${employee.name}_${reachYear}年${reachMonth}月.csv`
+          `70歳到達厚生年金喪失届_${employee.name || '不明'}_${reachYear}年${reachMonth}月.csv`
         );
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        setTimeout(() => {
+          try {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            console.error('[age-alert-list] CSVダウンロード後のクリーンアップエラー:', error);
+          }
+        }, 100);
       } else if (alert.alertType === '75歳到達') {
         // 75歳到達健保資格喪失届
         // 喪失年月日は75歳到達の誕生日（reachDateから1日後を計算）
         // 生年月日から75歳到達日を計算
+        if (!employee.birthDate) {
+          window.alert('生年月日の情報が不正です');
+          return;
+        }
         const birthDate = new Date(employee.birthDate);
+        if (isNaN(birthDate.getTime())) {
+          window.alert('生年月日の情報が不正です');
+          return;
+        }
         const lossDate = new Date(
           birthDate.getFullYear() + 75,
           birthDate.getMonth(),
           birthDate.getDate()
         );
+        if (isNaN(lossDate.getTime())) {
+          window.alert('75歳到達日の計算に失敗しました');
+          return;
+        }
 
         csvRows.push('75歳到達健保資格喪失届');
         csvRows.push('');
@@ -279,6 +375,10 @@ export class AgeAlertListComponent {
         );
 
         // CSVファイルをダウンロード
+        if (csvRows.length === 0) {
+          window.alert('出力するデータがありません。');
+          return;
+        }
         const csvContent = csvRows.join('\n');
         const blob = new Blob(['\uFEFF' + csvContent], {
           type: 'text/csv;charset=utf-8;',
@@ -288,17 +388,26 @@ export class AgeAlertListComponent {
         link.setAttribute('href', url);
         link.setAttribute(
           'download',
-          `75歳到達健保資格喪失届_${employee.name}_${lossDate.getFullYear()}年${
+          `75歳到達健保資格喪失届_${employee.name || '不明'}_${lossDate.getFullYear()}年${
             lossDate.getMonth() + 1
           }月.csv`
         );
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        setTimeout(() => {
+          try {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+            URL.revokeObjectURL(url);
+          } catch (error) {
+            console.error('[age-alert-list] CSVダウンロード後のクリーンアップエラー:', error);
+          }
+        }, 100);
       }
     } catch (error) {
-      console.error('CSV出力エラー:', error);
+      console.error('[age-alert-list] CSV出力エラー:', error);
       window.alert('CSV出力中にエラーが発生しました');
     }
   }
@@ -306,10 +415,18 @@ export class AgeAlertListComponent {
   /**
    * 生年月日を和暦形式に変換（昭和30年1月2日形式）
    */
-  private formatBirthDateToEra(birthDateStr: string): string {
-    if (!birthDateStr) return '';
+  private formatBirthDateToEra(birthDateStr: string | null | undefined): string {
+    if (!birthDateStr || typeof birthDateStr !== 'string') {
+      return '';
+    }
     const date = new Date(birthDateStr);
+    if (isNaN(date.getTime())) {
+      return '';
+    }
     const year = date.getFullYear();
+    if (year < 1900 || year > 2100) {
+      return '';
+    }
     const month = date.getMonth() + 1;
     const day = date.getDate();
 
@@ -337,6 +454,11 @@ export class AgeAlertListComponent {
    * 年月日を元号形式でフォーマット（令和7年1月1日形式）
    */
   private formatJapaneseEra(year: number, month: number, day: number): string {
+    if (isNaN(year) || year < 1900 || year > 2100 || 
+        isNaN(month) || month < 1 || month > 12 ||
+        isNaN(day) || day < 1 || day > 31) {
+      return '';
+    }
     let era: string;
     let eraYear: number;
     if (year >= 2019) {
@@ -388,10 +510,16 @@ export class AgeAlertListComponent {
     salaryItemData?: { [key: string]: { [itemId: string]: number } },
     salaryItems?: SalaryItem[]
   ): number {
+    if (!monthData || !key) {
+      return 0;
+    }
     const total = monthData.totalSalary ?? monthData.total ?? 0;
+    if (isNaN(total)) {
+      return 0;
+    }
 
     // 給与項目マスタがある場合は、控除項目と賞与を除外
-    if (salaryItemData && salaryItems) {
+    if (salaryItemData && salaryItems && Array.isArray(salaryItems)) {
       const itemData = salaryItemData[key];
       if (itemData) {
         let absenceDeduction = 0;
@@ -399,21 +527,27 @@ export class AgeAlertListComponent {
 
         // 給与項目マスタから「欠勤控除」種別の項目を探す
         const deductionItems = salaryItems.filter(
-          (item) => item.type === 'deduction'
+          (item) => item && item.type === 'deduction'
         );
         for (const item of deductionItems) {
-          absenceDeduction += itemData[item.id] || 0;
+          if (item && item.id) {
+            absenceDeduction += itemData[item.id] || 0;
+          }
         }
 
         // 給与項目マスタから「賞与」という名前の項目を探す
         const bonusItems = salaryItems.filter(
           (item) =>
-            item.name === '賞与' ||
-            item.name.includes('賞与') ||
-            item.name.includes('ボーナス')
+            item &&
+            item.name &&
+            (item.name === '賞与' ||
+              item.name.includes('賞与') ||
+              item.name.includes('ボーナス'))
         );
         for (const item of bonusItems) {
-          bonusAmount += itemData[item.id] || 0;
+          if (item && item.id) {
+            bonusAmount += itemData[item.id] || 0;
+          }
         }
 
         // 報酬月額 = 総支給額 - 欠勤控除 - 賞与

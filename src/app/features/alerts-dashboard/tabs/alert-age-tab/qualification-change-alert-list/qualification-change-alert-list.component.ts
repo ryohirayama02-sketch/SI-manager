@@ -43,25 +43,40 @@ export class QualificationChangeAlertListComponent {
   ) {}
 
   formatDate(date: Date): string {
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      return '';
+    }
     return formatDateHelper(date);
   }
 
   toggleQualificationChangeAlertSelection(alertId: string): void {
+    if (!alertId) {
+      return;
+    }
+    if (!this.selectedQualificationChangeAlertIds) {
+      return;
+    }
     const isSelected = this.selectedQualificationChangeAlertIds.has(alertId);
     this.alertSelectionChange.emit({ alertId, selected: !isSelected });
   }
 
   toggleAllQualificationChangeAlertsChange(event: Event): void {
+    if (!event || !event.target) {
+      return;
+    }
     const target = event.target as HTMLInputElement;
     this.selectAllChange.emit(target.checked);
   }
 
   isQualificationChangeAlertSelected(alertId: string): boolean {
+    if (!alertId || !this.selectedQualificationChangeAlertIds) {
+      return false;
+    }
     return this.selectedQualificationChangeAlertIds.has(alertId);
   }
 
   deleteSelectedQualificationChangeAlerts(): void {
-    if (this.selectedQualificationChangeAlertIds.size === 0) {
+    if (!this.selectedQualificationChangeAlertIds || this.selectedQualificationChangeAlertIds.size === 0) {
       return;
     }
     // 確認ダイアログは親側（stateハンドラ）で行うよう統一し、ここではイベントのみ発火
@@ -71,9 +86,14 @@ export class QualificationChangeAlertListComponent {
   /**
    * CSV出力（資格変更アラート）
    */
-  async exportToCsv(alert: QualificationChangeAlert): Promise<void> {
+  async exportToCsv(alert: QualificationChangeAlert | null | undefined): Promise<void> {
+    if (!alert || !alert.employeeId) {
+      window.alert('アラート情報が不正です');
+      return;
+    }
+
     try {
-      const employee = this.employees.find((e) => e.id === alert.employeeId) as
+      const employee = this.employees.find((e) => e && e.id === alert.employeeId) as
         | Employee
         | undefined;
       if (!employee) {
@@ -83,19 +103,35 @@ export class QualificationChangeAlertListComponent {
 
       // 事業所情報を取得
       let office: Office | null = null;
-      if (employee.officeNumber) {
-        const offices = await this.officeService.getAllOffices();
-        office =
-          offices.find((o) => o.officeNumber === employee.officeNumber) || null;
-      }
-      if (!office) {
-        const offices = await this.officeService.getAllOffices();
-        office = offices[0] || null;
+      try {
+        if (employee.officeNumber) {
+          const offices = await this.officeService.getAllOffices();
+          if (offices && Array.isArray(offices)) {
+            office =
+              offices.find((o) => o && o.officeNumber === employee.officeNumber) || null;
+          }
+        }
+        if (!office) {
+          const offices = await this.officeService.getAllOffices();
+          if (offices && Array.isArray(offices) && offices.length > 0) {
+            office = offices[0] || null;
+          }
+        }
+      } catch (error) {
+        console.error(`[qualification-change-alert-list] 事業所情報取得エラー: 従業員ID=${employee.id}`, error);
       }
 
       // 適応日（変更日）を取得
       const changeDate = alert.changeDate;
+      if (!changeDate || !(changeDate instanceof Date) || isNaN(changeDate.getTime())) {
+        window.alert('変更日の情報が不正です');
+        return;
+      }
       const changeYear = changeDate.getFullYear();
+      if (changeYear < 1900 || changeYear > 2100) {
+        window.alert('変更年の情報が不正です');
+        return;
+      }
       const changeMonth = changeDate.getMonth() + 1;
       const changeDay = changeDate.getDate();
 
@@ -106,15 +142,25 @@ export class QualificationChangeAlertListComponent {
       const roomId = this.roomIdService.requireRoomId();
 
       // 給与データを取得
-      const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
-        roomId,
-        employee.id,
-        prevYear,
-        actualPrevMonth
-      );
+      let prevMonthData = null;
+      try {
+        prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employee.id,
+          prevYear,
+          actualPrevMonth
+        );
+      } catch (error) {
+        console.error(`[qualification-change-alert-list] 給与データ取得エラー: 従業員ID=${employee.id}, 年=${prevYear}, 月=${actualPrevMonth}`, error);
+      }
 
       // 給与項目マスタを取得
-      const salaryItems = await this.settingsService.loadSalaryItems(prevYear);
+      let salaryItems: SalaryItem[] = [];
+      try {
+        salaryItems = await this.settingsService.loadSalaryItems(prevYear);
+      } catch (error) {
+        console.error(`[qualification-change-alert-list] 給与項目マスタ取得エラー: 年=${prevYear}`, error);
+      }
 
       // 報酬月額を計算
       let remunerationAmount = 0;
@@ -139,11 +185,15 @@ export class QualificationChangeAlertListComponent {
       }
 
       // 被扶養者の有無を確認
-      const familyMembers =
-        await this.familyMemberService.getFamilyMembersByEmployeeId(
+      let familyMembers: any[] = [];
+      try {
+        familyMembers = await this.familyMemberService.getFamilyMembersByEmployeeId(
           employee.id
-        );
-      const hasDependents = familyMembers.length > 0;
+        ) || [];
+      } catch (error) {
+        console.error(`[qualification-change-alert-list] 扶養情報取得エラー: 従業員ID=${employee.id}`, error);
+      }
+      const hasDependents = familyMembers && Array.isArray(familyMembers) && familyMembers.length > 0;
 
       // 性別を取得（変更詳細から取得、または従業員の現在の性別を取得）
       const gender = this.getGender(employee, alert);
@@ -191,6 +241,10 @@ export class QualificationChangeAlertListComponent {
       csvRows.push(`勤務区分,${categoryLabel}`);
 
       // CSVファイルをダウンロード
+      if (csvRows.length === 0) {
+        window.alert('出力するデータがありません。');
+        return;
+      }
       const csvContent = csvRows.join('\n');
       const blob = new Blob(['\uFEFF' + csvContent], {
         type: 'text/csv;charset=utf-8;',
@@ -200,14 +254,23 @@ export class QualificationChangeAlertListComponent {
       link.setAttribute('href', url);
       link.setAttribute(
         'download',
-        `資格変更アラート_${employee.name}_${changeYear}年${changeMonth}月${changeDay}日.csv`
+        `資格変更アラート_${employee.name || '不明'}_${changeYear}年${changeMonth}月${changeDay}日.csv`
       );
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      setTimeout(() => {
+        try {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error('[qualification-change-alert-list] CSVダウンロード後のクリーンアップエラー:', error);
+        }
+      }, 100);
     } catch (error) {
-      console.error('CSV出力エラー:', error);
+      console.error('[qualification-change-alert-list] CSV出力エラー:', error);
       window.alert('CSV出力中にエラーが発生しました');
     }
   }
@@ -215,10 +278,18 @@ export class QualificationChangeAlertListComponent {
   /**
    * 生年月日をフォーマット（昭和30年1月2日形式）
    */
-  private formatBirthDateToEra(birthDate: string): string {
-    if (!birthDate) return '';
+  private formatBirthDateToEra(birthDate: string | null | undefined): string {
+    if (!birthDate || typeof birthDate !== 'string') {
+      return '';
+    }
     const date = new Date(birthDate);
+    if (isNaN(date.getTime())) {
+      return '';
+    }
     const year = date.getFullYear();
+    if (year < 1900 || year > 2100) {
+      return '';
+    }
     const month = date.getMonth() + 1;
     const day = date.getDate();
 
@@ -246,6 +317,11 @@ export class QualificationChangeAlertListComponent {
    * 年月日を元号形式でフォーマット（令和6年8月15日形式）
    */
   private formatJapaneseEra(year: number, month: number, day: number): string {
+    if (isNaN(year) || year < 1900 || year > 2100 || 
+        isNaN(month) || month < 1 || month > 12 ||
+        isNaN(day) || day < 1 || day > 31) {
+      return '';
+    }
     let era: string;
     let eraYear: number;
     if (year >= 2019) {
@@ -274,10 +350,16 @@ export class QualificationChangeAlertListComponent {
     salaryItemData?: { [key: string]: { [itemId: string]: number } },
     salaryItems?: SalaryItem[]
   ): number {
+    if (!monthData || !key) {
+      return 0;
+    }
     const total = monthData.totalSalary ?? monthData.total ?? 0;
+    if (isNaN(total)) {
+      return 0;
+    }
 
     // 給与項目マスタがある場合は、控除項目と賞与を除外
-    if (salaryItemData && salaryItems) {
+    if (salaryItemData && salaryItems && Array.isArray(salaryItems)) {
       const itemData = salaryItemData[key];
       if (itemData) {
         let absenceDeduction = 0;
@@ -285,21 +367,27 @@ export class QualificationChangeAlertListComponent {
 
         // 給与項目マスタから「欠勤控除」種別の項目を探す
         const deductionItems = salaryItems.filter(
-          (item) => item.type === 'deduction'
+          (item) => item && item.type === 'deduction'
         );
         for (const item of deductionItems) {
-          absenceDeduction += itemData[item.id] || 0;
+          if (item && item.id) {
+            absenceDeduction += itemData[item.id] || 0;
+          }
         }
 
         // 給与項目マスタから「賞与」という名前の項目を探す
         const bonusItems = salaryItems.filter(
           (item) =>
-            item.name === '賞与' ||
-            item.name.includes('賞与') ||
-            item.name.includes('ボーナス')
+            item &&
+            item.name &&
+            (item.name === '賞与' ||
+              item.name.includes('賞与') ||
+              item.name.includes('ボーナス'))
         );
         for (const item of bonusItems) {
-          bonusAmount += itemData[item.id] || 0;
+          if (item && item.id) {
+            bonusAmount += itemData[item.id] || 0;
+          }
         }
 
         // 報酬月額 = 総支給額 - 欠勤控除 - 賞与

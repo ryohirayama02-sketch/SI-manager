@@ -348,11 +348,24 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 年齢到達アラートを読み込む
    */
   async loadAgeAlerts(): Promise<void> {
-    const deletedIds = await this.alertDeletionService.getDeletedIds('age');
-    const result = await this.alertsDashboardUiService.loadAgeAlerts(
-      this.employees
-    );
-    this.state.ageAlerts = result.filter((a) => !deletedIds.has(a.id));
+    try {
+      const deletedIds = await this.alertDeletionService.getDeletedIds('age');
+      if (!this.employees || !Array.isArray(this.employees)) {
+        this.state.ageAlerts = [];
+        return;
+      }
+      const result = await this.alertsDashboardUiService.loadAgeAlerts(
+        this.employees
+      );
+      if (result && Array.isArray(result)) {
+        this.state.ageAlerts = result.filter((a) => a && a.id && !deletedIds.has(a.id));
+      } else {
+        this.state.ageAlerts = [];
+      }
+    } catch (error) {
+      console.error('[AlertsDashboardPage] loadAgeAlertsエラー:', error);
+      this.state.ageAlerts = [];
+    }
   }
 
   /**
@@ -360,16 +373,29 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
    * 従業員データの変更履歴を確認してアラートを生成
    */
   async loadQualificationChangeAlerts(): Promise<void> {
-    const deletedIds = await this.alertDeletionService.getDeletedIds(
-      'qualification'
-    );
-    const result =
-      await this.alertsDashboardUiService.loadQualificationChangeAlerts(
-        this.employees
+    try {
+      const deletedIds = await this.alertDeletionService.getDeletedIds(
+        'qualification'
       );
-    this.state.qualificationChangeAlerts = result.filter(
-      (a) => !deletedIds.has(a.id)
-    );
+      if (!this.employees || !Array.isArray(this.employees)) {
+        this.state.qualificationChangeAlerts = [];
+        return;
+      }
+      const result =
+        await this.alertsDashboardUiService.loadQualificationChangeAlerts(
+          this.employees
+        );
+      if (result && Array.isArray(result)) {
+        this.state.qualificationChangeAlerts = result.filter(
+          (a) => a && a.id && !deletedIds.has(a.id)
+        );
+      } else {
+        this.state.qualificationChangeAlerts = [];
+      }
+    } catch (error) {
+      console.error('[AlertsDashboardPage] loadQualificationChangeAlertsエラー:', error);
+      this.state.qualificationChangeAlerts = [];
+    }
   }
 
   /**
