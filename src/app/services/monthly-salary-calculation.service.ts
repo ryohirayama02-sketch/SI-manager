@@ -45,9 +45,6 @@ export class MonthlySalaryCalculationService {
       currentStandardMonthlyRemuneration,
       employee
     );
-// // console.log(
-//       `[monthly-salaries] 定時決定計算: 従業員ID=${employeeId}, 年度=${year}, 等級=${result.grade}, 標準報酬=${result.standardMonthlyRemuneration}, 等級表件数=${gradeTable.length}`
-//     );
     return result;
   }
 

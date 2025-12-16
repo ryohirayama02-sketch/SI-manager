@@ -19,6 +19,9 @@ export class EmployeeWorkCategoryService {
    * @returns 労働カテゴリ属性
    */
   getWorkCategory(employee: Employee): WorkCategory {
+    if (!employee) {
+      return 'non-insured';
+    }
     const category = employee.weeklyWorkHoursCategory;
 
     // 30時間以上：フルタイム
@@ -34,7 +37,7 @@ export class EmployeeWorkCategoryService {
     // 20-30時間：条件により短時間労働者または非加入
     if (category === '20-30hours') {
       // 月額賃金88000以上かつ予定雇用月数2か月超かつ学生でない場合に短時間労働者
-      const monthlyWage = employee.monthlyWage ?? 0;
+      const monthlyWage = (employee.monthlyWage !== undefined && employee.monthlyWage !== null && !isNaN(employee.monthlyWage)) ? employee.monthlyWage : 0;
       const isOverTwoMonths =
         employee.expectedEmploymentMonths === 'over-2months';
       const isStudent = employee.isStudent || false;
@@ -57,6 +60,9 @@ export class EmployeeWorkCategoryService {
    * @returns フルタイムの場合true
    */
   isFullTime(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
     return this.getWorkCategory(employee) === 'full-time';
   }
 
@@ -66,6 +72,9 @@ export class EmployeeWorkCategoryService {
    * @returns 短時間労働者の場合true
    */
   isShortTimeWorker(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
     return this.getWorkCategory(employee) === 'short-time-worker';
   }
 
@@ -75,6 +84,9 @@ export class EmployeeWorkCategoryService {
    * @returns 保険未加入者の場合true
    */
   isNonInsured(employee: Employee): boolean {
+    if (!employee) {
+      return true;
+    }
     return this.getWorkCategory(employee) === 'non-insured';
   }
 
@@ -84,6 +96,9 @@ export class EmployeeWorkCategoryService {
    * @returns 保険加入必須の場合true
    */
   isInsuranceRequired(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
     const category = this.getWorkCategory(employee);
     return category === 'full-time' || category === 'short-time-worker';
   }
@@ -94,6 +109,9 @@ export class EmployeeWorkCategoryService {
    * @returns 産休取得可能な場合true
    */
   canTakeMaternityLeave(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
     return this.isInsuranceRequired(employee);
   }
 
@@ -103,6 +121,9 @@ export class EmployeeWorkCategoryService {
    * @returns 免除される場合true
    */
   isExemptFromPremiumsDuringMaternityLeave(employee: Employee): boolean {
+    if (!employee) {
+      return false;
+    }
     return this.isInsuranceRequired(employee);
   }
 }

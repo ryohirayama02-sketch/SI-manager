@@ -204,6 +204,9 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async onYearChange(): Promise<void> {
+    if (isNaN(this.year) || this.year < 1900 || this.year > 2100) {
+      return;
+    }
     // サービスに年度変更処理を委譲
     const result = await this.monthlySalaryUIService.onYearChange(
       this.roomIdService.requireRoomId(),
@@ -250,6 +253,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     itemId: string;
     value: string | number;
   }): Promise<void> {
+    if (!event || !event.employeeId || !event.itemId) {
+      return;
+    }
+    if (isNaN(event.month) || event.month < 1 || event.month > 12) {
+      return;
+    }
     // サービスに処理を委譲
     const result = await this.editUiService.handleSalaryItemChange(
       event,
@@ -297,9 +306,7 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       value: string | number;
     }>
   ): Promise<void> {
-    console.log(`[MonthlySalariesPage] バッチ更新開始: ${events.length}件`);
-
-    if (events.length === 0) {
+    if (!events || events.length === 0) {
       return;
     }
 
@@ -310,6 +317,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
     // 給与項目データを更新（salaryItemDataのキーはgetSalaryItemKeyを使用）
     for (const event of events) {
+      if (!event || !event.employeeId || !event.itemId) {
+        continue;
+      }
+      if (isNaN(event.month) || event.month < 1 || event.month > 12) {
+        continue;
+      }
       const { employeeId, month, itemId, value } = event;
       affectedEmployeeIds.add(employeeId);
 
@@ -381,8 +394,6 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
         this.updateRehabSuiji(employeeId);
       }
     }
-
-    console.log(`[MonthlySalariesPage] バッチ更新完了`);
   }
 
   async onWorkingDaysChange(event: {
@@ -390,6 +401,15 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     month: number;
     value: number;
   }): Promise<void> {
+    if (!event || !event.employeeId) {
+      return;
+    }
+    if (isNaN(event.month) || event.month < 1 || event.month > 12) {
+      return;
+    }
+    if (isNaN(event.value) || event.value < 0 || event.value > 31) {
+      return;
+    }
     // サービスに処理を委譲
     this.workingDaysData =
       this.salaryEditHandlerService.handleWorkingDaysChange(
@@ -422,10 +442,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
 
       // 保存後に標準報酬履歴を再生成（月次給与の変更を反映）
       for (const emp of this.employees) {
-        await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
-          emp.id,
-          emp
-        );
+        if (emp && emp.id) {
+          await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+            emp.id,
+            emp
+          );
+        }
       }
 
       // 保存後に画面の状態を再読み込み（データベースから最新データを取得）
@@ -488,6 +510,9 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   updateRehabSuiji(employeeId: string): void {
+    if (!employeeId) {
+      return;
+    }
     this.rehabSuijiCandidates = this.suijiUiService.updateRehabSuiji(
       employeeId,
       this.salaries,

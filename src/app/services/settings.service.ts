@@ -89,12 +89,21 @@ export class SettingsService {
   async getRateVersionInfo(
     year: string
   ): Promise<{ applyFromMonth: number; versionId: string }> {
+    if (!year) {
+      return { applyFromMonth: 3, versionId: `v${year || 'unknown'}-03` };
+    }
     const roomId = this.roomIdService.requireRoomId();
     const ref = doc(this.firestore, `rooms/${roomId}/rates/${year}`);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
+      if (!data) {
+        return { applyFromMonth: 3, versionId: `v${year}-03` };
+      }
       const applyFromMonth = data['applyFromMonth'] || 4;
+      if (isNaN(applyFromMonth) || applyFromMonth < 1 || applyFromMonth > 12) {
+        return { applyFromMonth: 3, versionId: `v${year}-03` };
+      }
       const versionId =
         data['versionId'] ||
         `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
@@ -113,6 +122,12 @@ export class SettingsService {
     year: string,
     applyFromMonth: number
   ): Promise<void> {
+    if (!year) {
+      throw new Error('年度が指定されていません');
+    }
+    if (isNaN(applyFromMonth) || applyFromMonth < 1 || applyFromMonth > 12) {
+      throw new Error(`無効な改定月が指定されました: ${applyFromMonth}`);
+    }
     const roomId = this.roomIdService.requireRoomId();
     const versionId = `v${year}-${applyFromMonth.toString().padStart(2, '0')}`;
     const ref = doc(this.firestore, `rooms/${roomId}/rates/${year}`);
@@ -132,14 +147,20 @@ export class SettingsService {
     prefecture: string,
     payMonth?: string
   ): Promise<any | null> {
+    if (!year || !prefecture) {
+      return null;
+    }
     const roomId = this.roomIdService.requireRoomId();
 
     // 月から適用年度（3月始まり）を判定
     const baseYear = parseInt(year, 10);
+    if (isNaN(baseYear) || baseYear < 1900 || baseYear > 2100) {
+      return null;
+    }
     const monthNum = payMonth ? parseInt(payMonth, 10) : NaN;
     // 3月〜12月はその年、1〜2月は前年の年度を使う
     const targetYear =
-      !isNaN(monthNum) && monthNum > 0
+      !isNaN(monthNum) && monthNum > 0 && monthNum <= 12
         ? monthNum >= 3
           ? baseYear
           : baseYear - 1
@@ -192,6 +213,10 @@ export class SettingsService {
     );
 
     if (payMonth) {
+      const payMonthNum = parseInt(payMonth, 10);
+      if (isNaN(payMonthNum) || payMonthNum < 1 || payMonthNum > 12) {
+        return null;
+      }
       // 支給月に応じて適切なレコードを選択
       // effectiveFrom <= payMonth の中で最も新しいものを選択
       const q = query(
@@ -201,15 +226,17 @@ export class SettingsService {
         limit(1)
       );
       const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs[0].data();
+      if (!snap.empty && snap.docs[0]) {
+        const data = snap.docs[0].data();
+        return data || null;
       }
     } else {
       // payMonthが指定されていない場合は最新のレコードを取得
       const q = query(versionsRef, orderBy('effectiveFrom', 'desc'), limit(1));
       const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs[0].data();
+      if (!snap.empty && snap.docs[0]) {
+        const data = snap.docs[0].data();
+        return data || null;
       }
     }
 
@@ -217,10 +244,19 @@ export class SettingsService {
   }
 
   async saveRates(year: string, prefecture: string, data: Rate): Promise<void> {
+    if (!year || !prefecture) {
+      throw new Error('年度または都道府県が指定されていません');
+    }
+    if (!data) {
+      throw new Error('料率データが指定されていません');
+    }
     const roomId = this.roomIdService.requireRoomId();
 
     // バージョン情報を取得
     const versionInfo = await this.getRateVersionInfo(year);
+    if (!versionInfo || !versionInfo.versionId) {
+      throw new Error('バージョン情報の取得に失敗しました');
+    }
     const versionId = versionInfo.versionId;
 
     // 変更前の値を取得
@@ -355,6 +391,9 @@ export class SettingsService {
   }
 
   async getStandardTable(year: number): Promise<any[]> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return [];
+    }
     const roomId = this.roomIdService.requireRoomId();
 
     const ref = collection(
@@ -364,6 +403,9 @@ export class SettingsService {
     const snap = await getDocs(ref);
     const rows = snap.docs.map((d) => {
       const data = d.data();
+      if (!data) {
+        return null;
+      }
       // Firestoreのフィールド名（grade, remuneration）を既存コードのフィールド名（rank, standard）にマッピング
       return {
         id: d.id,
@@ -373,13 +415,14 @@ export class SettingsService {
         standard: data['remuneration'] || data['standard'],
         year,
       };
-    });
+    }).filter((row): row is any => row !== null);
 
     // 等級で重複を排除（同じ等級が複数ある場合は、最新のもの（idが大きいもの）を優先）
     const rankMap = new Map<number, any>();
     for (const row of rows) {
+      if (!row) continue;
       const rank = row.rank;
-      if (rank !== null && rank !== undefined) {
+      if (rank !== null && rank !== undefined && !isNaN(rank)) {
         const existing = rankMap.get(rank);
         if (!existing || (row.id && existing.id && row.id > existing.id)) {
           rankMap.set(rank, row);
@@ -389,7 +432,14 @@ export class SettingsService {
 
     // 等級順にソートして返す
     return Array.from(rankMap.values()).sort(
-      (a, b) => (a.rank || 0) - (b.rank || 0)
+      (a, b) => {
+        const rankA = a?.rank ?? 0;
+        const rankB = b?.rank ?? 0;
+        if (isNaN(rankA) || isNaN(rankB)) {
+          return 0;
+        }
+        return rankA - rankB;
+      }
     );
   }
 
@@ -399,20 +449,37 @@ export class SettingsService {
    * @param month 月（1-12）※3月〜翌2月で年度判定
    */
   async getStandardTableForMonth(year: number, month: number): Promise<any[]> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return [];
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return [];
+    }
     const roomId = this.roomIdService.requireRoomId();
     const fiscalYear = getFiscalYearByMonth(year, month);
+    if (isNaN(fiscalYear) || fiscalYear < 1900 || fiscalYear > 2100) {
+      return [];
+    }
     const cacheKey = `${roomId}_${fiscalYear}`;
     const cached = this.gradeTableCache.get(cacheKey);
-    if (cached) {
+    if (cached && Array.isArray(cached)) {
       return cached;
     }
 
     const table = await this.getStandardTable(fiscalYear);
-    this.gradeTableCache.set(cacheKey, table);
-    return table;
+    if (table && Array.isArray(table)) {
+      this.gradeTableCache.set(cacheKey, table);
+    }
+    return table || [];
   }
 
   async saveStandardTable(year: number, rows: any[]): Promise<void> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (!rows || !Array.isArray(rows)) {
+      throw new Error('標準報酬等級表のデータが指定されていません');
+    }
     const roomId = this.roomIdService.requireRoomId();
     const basePath = `rooms/${roomId}/grades/${year}/table`;
 
@@ -421,19 +488,24 @@ export class SettingsService {
     const existingSnap = await getDocs(existingRef);
     const existingRows = existingSnap.docs.map((d) => {
       const data = d.data();
+      if (!data) {
+        return null;
+      }
       return {
         id: d.id,
         rank: data['grade'] || data['rank'],
         standard: data['remuneration'] || data['standard'],
       };
-    });
+    }).filter((row): row is { id: string; rank: number | null; standard: number | null } => row !== null);
     const deletePromises = existingSnap.docs.map((d) => deleteDoc(d.ref));
     await Promise.all(deletePromises);
 
     // 新しいデータを保存
     for (const row of rows) {
+      if (!row) continue;
       // 既存コードのフィールド名（rank, standard）をFirestoreのフィールド名（grade, remuneration）にマッピング
       const gradeId = row.id || row.rank?.toString() || `grade_${row.rank}`;
+      if (!gradeId) continue;
       const ref = doc(this.firestore, `${basePath}/${gradeId}`);
       await setDoc(ref, {
         roomId, // roomIdを自動付与
@@ -448,16 +520,17 @@ export class SettingsService {
     // 変更点を差分としてまとめる（標準報酬月額の変更のみを抽出）
     const existingMap = new Map<number, number>();
     existingRows.forEach((r) => {
-      if (r.rank !== undefined && r.rank !== null) {
-        existingMap.set(r.rank, r.standard ?? null);
+      if (r.rank !== undefined && r.rank !== null && r.standard !== null && r.standard !== undefined) {
+        existingMap.set(r.rank, r.standard);
       }
     });
 
     const changes: string[] = [];
     for (const row of rows) {
+      if (!row) continue;
       const rank = row.rank;
       const newStd = row.standard;
-      if (rank === undefined || rank === null) continue;
+      if (rank === undefined || rank === null || isNaN(rank)) continue;
       const oldStd = existingMap.has(rank) ? existingMap.get(rank) : null;
       if (oldStd === undefined) continue;
       if (oldStd !== newStd) {
@@ -560,6 +633,9 @@ export class SettingsService {
   }
 
   async loadSalaryItems(year: number): Promise<SalaryItem[]> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return [];
+    }
     const roomId = this.roomIdService.requireRoomId();
 
     const ref = collection(
@@ -567,21 +643,34 @@ export class SettingsService {
       `rooms/${roomId}/settings/${year}/salaryItems`
     );
     const snap = await getDocs(ref);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SalaryItem));
+    return snap.docs.map((d) => {
+      const data = d.data();
+      if (!data) {
+        return null;
+      }
+      return { id: d.id, ...data } as SalaryItem;
+    }).filter((item): item is SalaryItem => item !== null);
   }
 
   async saveSalaryItems(year: number, items: SalaryItem[]): Promise<void> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (!items || !Array.isArray(items)) {
+      throw new Error('給与項目マスタのデータが指定されていません');
+    }
     const roomId = this.roomIdService.requireRoomId();
     const basePath = `rooms/${roomId}/settings/${year}/salaryItems`;
 
     // 現在保存する項目のIDリスト
-    const currentItemIds = new Set(items.map((item) => item.id));
+    const currentItemIds = new Set(items.filter((item) => item && item.id).map((item) => item.id));
 
     // 既存のすべての項目を取得
     const existingItems = await this.loadSalaryItems(year);
 
     // 削除された項目（現在のリストにない項目）を削除
     for (const existingItem of existingItems) {
+      if (!existingItem || !existingItem.id) continue;
       if (!currentItemIds.has(existingItem.id)) {
         await this.deleteSalaryItem(year, existingItem.id);
       }
@@ -589,6 +678,7 @@ export class SettingsService {
 
     // 現在の項目を保存
     for (const item of items) {
+      if (!item || !item.id) continue;
       const ref = doc(this.firestore, `${basePath}/${item.id}`);
       // roomIdを自動付与
       const itemWithRoomId = { ...item, roomId };
@@ -606,6 +696,12 @@ export class SettingsService {
   }
 
   async deleteSalaryItem(year: number, itemId: string): Promise<void> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (!itemId) {
+      throw new Error('給与項目IDが指定されていません');
+    }
     const roomId = this.roomIdService.requireRoomId();
 
     const ref = doc(
@@ -617,6 +713,9 @@ export class SettingsService {
     const existingDoc = await getDoc(ref);
     if (existingDoc.exists()) {
       const existingData = existingDoc.data();
+      if (!existingData) {
+        throw new Error('給与項目データが見つかりません');
+      }
       if (existingData['roomId'] !== roomId) {
         throw new Error('この給与項目データを削除する権限がありません');
       }

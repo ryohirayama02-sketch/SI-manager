@@ -18,16 +18,35 @@ export class ExemptionDeterminationService {
    * @returns 年齢
    */
   calculateAgeForMonth(birthDate: string, year: number, month: number): number {
+    if (!birthDate) {
+      return 0;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return 0;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return 0;
+    }
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return 0;
+    }
     const birthYear = birth.getFullYear();
     const birthMonth = birth.getMonth() + 1;
     const birthDay = birth.getDate();
 
     // その月の1日時点の年齢を計算
     const checkDate = new Date(year, month - 1, 1);
+    if (isNaN(checkDate.getTime())) {
+      return 0;
+    }
     let age = year - birthYear;
     if (month < birthMonth || (month === birthMonth && 1 < birthDay)) {
       age--;
+    }
+    // 年齢の範囲チェック（0-150歳）
+    if (age < 0 || age > 150) {
+      return 0;
     }
     return age;
   }
@@ -44,6 +63,15 @@ export class ExemptionDeterminationService {
     year: number,
     month: number
   ): boolean {
+    if (!birthDate) {
+      return false;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
     const careType = this.getCareInsuranceType(birthDate, year, month);
     return careType === 'type2';
   }
@@ -63,22 +91,28 @@ export class ExemptionDeterminationService {
     year: number,
     month: number
   ): 'none' | 'type1' | 'type2' {
-    console.log(
-      '[ExemptionDeterminationService] getCareInsuranceType 呼び出し',
-      {
-        birthDate,
-        year,
-        month,
-        callStack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-      }
-    );
+    if (!birthDate) {
+      return 'none';
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return 'none';
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return 'none';
+    }
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return 'none';
+    }
     const birthYear = birth.getFullYear();
     const birthMonth = birth.getMonth() + 1;
     const birthDay = birth.getDate();
 
     // その月の1日時点の年齢を計算
     const age = this.calculateAgeForMonth(birthDate, year, month);
+    if (age < 0 || age > 150) {
+      return 'none';
+    }
 
     // 40歳到達月の判定（誕生日の前日が属する月から）
     // 8/1生まれ → 40歳の誕生日は8/1、前日は7/31 → 7月から発生
@@ -104,22 +138,6 @@ export class ExemptionDeterminationService {
         (year === birthYear + 40 && month >= birthMonth) ||
         year > birthYear + 40;
     }
-
-    console.log('[ExemptionDeterminationService] getCareInsuranceType', {
-      birthDate,
-      birthYear,
-      birthMonth,
-      birthDay,
-      year,
-      month,
-      age,
-      isAge40Month,
-      birthYearPlus40: birthYear + 40,
-      monthCondition:
-        birthDay === 1
-          ? `month >= ${birthMonth - 1}`
-          : `month >= ${birthMonth}`,
-    });
     // 65歳到達月の判定（誕生日の前日が属する月から）
     // 8/1生まれ → 65歳の誕生日は8/1、前日は7/31 → 7月から終了
     // 8/2生まれ → 65歳の誕生日は8/2、前日は8/1 → 8月から終了
@@ -165,8 +183,17 @@ export class ExemptionDeterminationService {
   }
 
   calculateAge(birthDate: string): number {
+    if (!birthDate) {
+      return 0;
+    }
     const today = new Date();
+    if (isNaN(today.getTime())) {
+      return 0;
+    }
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return 0;
+    }
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (
@@ -174,6 +201,10 @@ export class ExemptionDeterminationService {
       (monthDiff === 0 && today.getDate() < birth.getDate())
     ) {
       age--;
+    }
+    // 年齢の範囲チェック（0-150歳）
+    if (age < 0 || age > 150) {
+      return 0;
     }
     return age;
   }
@@ -186,6 +217,15 @@ export class ExemptionDeterminationService {
    * @returns 免除月の場合true、それ以外false
    */
   isExemptMonth(emp: Employee, year: number, month: number): boolean {
+    if (!emp) {
+      return false;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
     // 月単位の免除判定はEmployeeLifecycleServiceの月判定ロジックに統一
     const isMaternity = this.employeeLifecycleService.isMaternityLeave(
       emp,
@@ -212,6 +252,15 @@ export class ExemptionDeterminationService {
     year: number,
     month: number
   ): { exempt: boolean; reason: string } {
+    if (!emp) {
+      return { exempt: false, reason: '' };
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return { exempt: false, reason: '' };
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return { exempt: false, reason: '' };
+    }
     const isMaternity = this.employeeLifecycleService.isMaternityLeave(
       emp,
       year,

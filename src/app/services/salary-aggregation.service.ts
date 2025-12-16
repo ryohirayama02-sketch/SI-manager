@@ -51,15 +51,29 @@ export class SalaryAggregationService {
     let variableTotal = 0;
     let deductionTotal = 0;
 
+    if (!salaryItems || !Array.isArray(salaryItems)) {
+      return { fixedTotal: 0, variableTotal: 0, deductionTotal: 0, total: 0 };
+    }
+    if (!salaryItemMaster || !Array.isArray(salaryItemMaster)) {
+      return { fixedTotal: 0, variableTotal: 0, deductionTotal: 0, total: 0 };
+    }
+
     for (const entry of salaryItems) {
-      const master = salaryItemMaster.find((item) => item.id === entry.itemId);
-      if (master) {
+      if (!entry || !entry.itemId) {
+        continue;
+      }
+      const amount = entry.amount ?? 0;
+      if (isNaN(amount)) {
+        continue;
+      }
+      const master = salaryItemMaster.find((item) => item && item.id === entry.itemId);
+      if (master && master.type) {
         if (master.type === 'fixed') {
-          fixedTotal += entry.amount;
+          fixedTotal += amount;
         } else if (master.type === 'variable') {
-          variableTotal += entry.amount;
+          variableTotal += amount;
         } else if (master.type === 'deduction') {
-          deductionTotal += entry.amount;
+          deductionTotal += amount;
         }
       }
     }
@@ -118,11 +132,20 @@ export class SalaryAggregationService {
       excludedMonths: number[]
     ) => { averageSalary: number; usedMonths: number[]; reasons: string[] }
   ): number | null {
+    if (!employeeId) {
+      return null;
+    }
+    if (!salaries) {
+      return null;
+    }
+    if (!calculateAverage) {
+      return null;
+    }
     const values: number[] = [];
     for (const month of [4, 5, 6]) {
       const key = `${employeeId}_${month}`;
       const salaryData = salaries[key];
-      if (salaryData && salaryData.total > 0) {
+      if (salaryData && salaryData.total && !isNaN(salaryData.total) && salaryData.total > 0) {
         values.push(salaryData.total);
       }
     }
@@ -136,6 +159,9 @@ export class SalaryAggregationService {
       variable: 0,
     }));
     const result = calculateAverage(salaryDataArray, []);
+    if (!result || !result.averageSalary || isNaN(result.averageSalary)) {
+      return null;
+    }
     return result.averageSalary > 0 ? result.averageSalary : null;
   }
 

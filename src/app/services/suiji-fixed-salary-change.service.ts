@@ -23,6 +23,12 @@ export class SuijiFixedSalaryChangeService {
    * 給与データのキーを作成
    */
   private getSalaryKey(employeeId: string, month: number): string {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     return `${employeeId}_${month}`;
   }
 
@@ -36,6 +42,21 @@ export class SuijiFixedSalaryChangeService {
     gradeTable: any[],
     currentGrade: number
   ): FixedSalaryChangeSuijiResult {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(changeMonth) || changeMonth < 1 || changeMonth > 12) {
+      throw new Error(`無効な変更月が指定されました: ${changeMonth}`);
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      throw new Error('給与データが指定されていません');
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      throw new Error('標準報酬等級表が指定されていません');
+    }
+    if (isNaN(currentGrade) || currentGrade < 0) {
+      throw new Error(`無効な現在等級が指定されました: ${currentGrade}`);
+    }
     const reasons: string[] = [];
 
     // 変動月 + 前後3ヶ月（変動月・翌月・翌々月）で平均報酬を取得
@@ -67,7 +88,7 @@ export class SuijiFixedSalaryChangeService {
       const salaryData = salaries[key];
       const total =
         this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総額）
-      totalSalaryValues.push(total);
+      totalSalaryValues.push(isNaN(total) ? 0 : total);
     }
 
     // 3ヶ月揃わない場合は算定不可
@@ -86,9 +107,22 @@ export class SuijiFixedSalaryChangeService {
     }
 
     // 平均報酬を計算（総支給額で平均）
-    const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
+    const total = totalSalaryValues.reduce((sum, v) => (isNaN(v) ? sum : sum + v), 0);
     // 円未満は切り捨て
-    const averageSalary = Math.floor(total / totalSalaryValues.length);
+    const averageSalary = totalSalaryValues.length > 0 ? Math.floor(total / totalSalaryValues.length) : 0;
+    if (isNaN(averageSalary) || averageSalary < 0) {
+      reasons.push('平均報酬の計算に失敗しました');
+      return {
+        changeMonth,
+        averageSalary: 0,
+        currentGrade,
+        newGrade: 0,
+        diff: 0,
+        willApply: false,
+        applyMonth: null,
+        reasons,
+      };
+    }
     reasons.push(
       `${targetMonths.join(
         '・'
@@ -100,7 +134,7 @@ export class SuijiFixedSalaryChangeService {
       gradeTable,
       averageSalary
     );
-    if (!gradeResult) {
+    if (!gradeResult || isNaN(gradeResult.grade)) {
       reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
       return {
         changeMonth,
@@ -115,6 +149,19 @@ export class SuijiFixedSalaryChangeService {
     }
 
     const newGrade = gradeResult.grade;
+    if (isNaN(newGrade) || isNaN(currentGrade)) {
+      reasons.push('等級の計算に失敗しました');
+      return {
+        changeMonth,
+        averageSalary,
+        currentGrade: 0,
+        newGrade: 0,
+        diff: 0,
+        willApply: false,
+        applyMonth: null,
+        reasons,
+      };
+    }
     const diff = Math.abs(newGrade - currentGrade);
 
     // 2等級以上の差 → 随時改定成立
@@ -136,9 +183,14 @@ export class SuijiFixedSalaryChangeService {
       if (applyMonth > 12) {
         applyMonth = applyMonth - 12;
       }
-      reasons.push(
-        `適用開始月: ${applyMonth}月（変動月${changeMonth}月の3ヶ月後）`
-      );
+      if (applyMonth < 1 || applyMonth > 12) {
+        applyMonth = null;
+        reasons.push('適用開始月の計算に失敗しました');
+      } else {
+        reasons.push(
+          `適用開始月: ${applyMonth}月（変動月${changeMonth}月の3ヶ月後）`
+        );
+      }
     }
 
     return {

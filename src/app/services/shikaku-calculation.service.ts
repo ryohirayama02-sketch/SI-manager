@@ -27,6 +27,12 @@ export class ShikakuCalculationService {
    * 給与データのキーを作成
    */
   private getSalaryKey(employeeId: string, month: number): string {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     return `${employeeId}_${month}`;
   }
 
@@ -44,6 +50,21 @@ export class ShikakuCalculationService {
     salaries: { [key: string]: SalaryData },
     gradeTable: any[]
   ): Promise<ShikakuShutokuResult | null> {
+    if (!employee) {
+      throw new Error('従業員情報が指定されていません');
+    }
+    if (!employee.id) {
+      throw new Error('従業員IDが設定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      throw new Error('給与データが指定されていません');
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      throw new Error('標準報酬等級表が指定されていません');
+    }
     const reasons: string[] = [];
 
     // 入社日の取得
@@ -59,6 +80,16 @@ export class ShikakuCalculationService {
     }
 
     const joinDate = new Date(employee.joinDate);
+    if (isNaN(joinDate.getTime())) {
+      reasons.push('入社日が無効な日付のため資格取得時決定不可');
+      return {
+        baseSalary: 0,
+        grade: 0,
+        standardMonthlyRemuneration: 0,
+        usedMonth: 0,
+        reasons,
+      };
+    }
     const joinYear = this.monthHelper.getPayYear(joinDate);
     const joinMonth = this.monthHelper.getPayMonth(joinDate);
 

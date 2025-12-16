@@ -35,6 +35,12 @@ export class SuijiCalculationService {
     employeeId: string,
     salaries: { [key: string]: SalaryData }
   ): number[] {
+    if (!employeeId) {
+      return [];
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return [];
+    }
     return this.suijiDetectionService.detectFixedSalaryChanges(employeeId, salaries);
   }
 
@@ -46,6 +52,15 @@ export class SuijiCalculationService {
     changedMonth: number,
     salaries: { [key: string]: SalaryData }
   ): number[] {
+    if (!employeeId) {
+      return [];
+    }
+    if (isNaN(changedMonth) || changedMonth < 1 || changedMonth > 12) {
+      return [];
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return [];
+    }
     return this.suijiCalculationCoreService.getFixed3Months(employeeId, changedMonth, salaries);
   }
 
@@ -57,6 +72,15 @@ export class SuijiCalculationService {
     months: number[],
     salaries: { [key: string]: SalaryData }
   ): number[] {
+    if (!employeeId) {
+      return [];
+    }
+    if (!months || !Array.isArray(months)) {
+      return [];
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return [];
+    }
     return this.suijiCalculationCoreService.getExcludedMonthsForSuiji(employeeId, months, salaries);
   }
 
@@ -70,6 +94,21 @@ export class SuijiCalculationService {
     gradeTable: any[],
     currentGrade: number
   ): FixedSalaryChangeSuijiResult {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(changeMonth) || changeMonth < 1 || changeMonth > 12) {
+      throw new Error(`無効な変更月が指定されました: ${changeMonth}`);
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      throw new Error('給与データが指定されていません');
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      throw new Error('標準報酬等級表が指定されていません');
+    }
+    if (isNaN(currentGrade) || currentGrade < 0) {
+      throw new Error(`無効な現在等級が指定されました: ${currentGrade}`);
+    }
     return this.suijiCalculationCoreService.calculateFixedSalaryChangeSuiji(
       employeeId,
       changeMonth,
@@ -88,6 +127,18 @@ export class SuijiCalculationService {
     employees: Employee[],
     year: string
   ): boolean {
+    if (!employeeId) {
+      return false;
+    }
+    if (isNaN(changedMonth) || changedMonth < 1 || changedMonth > 12) {
+      return false;
+    }
+    if (!employees || !Array.isArray(employees)) {
+      return false;
+    }
+    if (!year) {
+      return false;
+    }
     return this.suijiDetectionService.isWithin3MonthsAfterJoin(employeeId, changedMonth, employees, year);
   }
 
@@ -106,6 +157,27 @@ export class SuijiCalculationService {
     candidate: SuijiCandidate | null;
     excludedReason: ExcludedSuijiReason | null;
   } {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(changedMonth) || changedMonth < 1 || changedMonth > 12) {
+      throw new Error(`無効な変更月が指定されました: ${changedMonth}`);
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      throw new Error('給与データが指定されていません');
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      throw new Error('標準報酬等級表が指定されていません');
+    }
+    if (!employees || !Array.isArray(employees)) {
+      throw new Error('従業員データが指定されていません');
+    }
+    if (!year) {
+      throw new Error('年が指定されていません');
+    }
+    if (!currentResults || typeof currentResults !== 'object') {
+      throw new Error('定時決定結果が指定されていません');
+    }
     return this.suijiKetteiCalculationService.calculateSuijiKetteiCore(
       employeeId,
       changedMonth,
@@ -128,6 +200,24 @@ export class SuijiCalculationService {
     year: string,
     currentResults: { [employeeId: string]: TeijiKetteiResult }
   ): SuijiKouhoResult[] {
+    if (!employeeId) {
+      return [];
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return [];
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      return [];
+    }
+    if (!employees || !Array.isArray(employees)) {
+      return [];
+    }
+    if (!year) {
+      return [];
+    }
+    if (!currentResults || typeof currentResults !== 'object') {
+      return [];
+    }
     return this.suijiRehabService.checkRehabSuiji(
       employeeId,
       salaries,
@@ -142,6 +232,12 @@ export class SuijiCalculationService {
    * 復職月のハイライト月を取得する
    */
   getRehabHighlightMonths(employee: Employee, year: string): number[] {
+    if (!employee) {
+      return [];
+    }
+    if (!year) {
+      return [];
+    }
     return this.suijiRehabService.getRehabHighlightMonths(employee, year);
   }
 }

@@ -42,6 +42,9 @@ export class SuijiService {
     salaryData: { [key: string]: MonthlySalaryData },
     salaryItemMaster: SalaryItem[]
   ): FixedChangeResult[] {
+    if (!salaryData) {
+      return [];
+    }
     const results: FixedChangeResult[] = [];
     const employeeMonths: {
       [employeeId: string]: { [month: number]: number };
@@ -49,15 +52,18 @@ export class SuijiService {
 
     // 給与データを従業員IDと月ごとに整理
     for (const key in salaryData) {
+      if (!key) continue;
       const parts = key.split('_');
       if (parts.length !== 2) continue;
 
       const employeeId = parts[0];
+      if (!employeeId) continue;
       const month = parseInt(parts[1], 10);
 
       if (isNaN(month) || month < 1 || month > 12) continue;
 
       const data = salaryData[key];
+      if (!data) continue;
       const fixedTotal = data.fixedTotal ?? data.fixed ?? data.fixedSalary ?? 0;
 
       if (!employeeMonths[employeeId]) {
@@ -122,6 +128,12 @@ export class SuijiService {
     salaryItemData?: { [key: string]: { [itemId: string]: number } },
     salaryItems?: SalaryItem[]
   ): number | null {
+    if (!salaryData || !employeeId) {
+      return null;
+    }
+    if (isNaN(changeMonth) || changeMonth < 1 || changeMonth > 12) {
+      return null;
+    }
     // M, M+1, M+2の月を取得
     const month1 = changeMonth;
     const month2 = changeMonth + 1;
@@ -196,6 +208,9 @@ export class SuijiService {
     salaryItemData?: { [key: string]: { [itemId: string]: number } },
     salaryItems?: SalaryItem[]
   ): number | null {
+    if (!salaryData || !key) {
+      return null;
+    }
     // 総支給額を取得
     const totalSalary = salaryData.total ?? salaryData.totalSalary ?? 0;
 
@@ -209,20 +224,24 @@ export class SuijiService {
       if (itemData) {
         // 給与項目マスタから「欠勤控除」種別の項目を探す
         const deductionItems = salaryItems.filter(
-          (item) => item.type === 'deduction'
+          (item) => item && item.type === 'deduction'
         );
         for (const item of deductionItems) {
+          if (!item || !item.id) continue;
           absenceDeduction += itemData[item.id] || 0;
         }
 
         // 給与項目マスタから「賞与」という名前の項目を探す（随時改定の計算から除外）
         const bonusItems = salaryItems.filter(
           (item) =>
-            item.name === '賞与' ||
-            item.name.includes('賞与') ||
-            item.name.includes('ボーナス')
+            item &&
+            item.name &&
+            (item.name === '賞与' ||
+              item.name.includes('賞与') ||
+              item.name.includes('ボーナス'))
         );
         for (const item of bonusItems) {
+          if (!item || !item.id) continue;
           bonusAmount += itemData[item.id] || 0;
         }
       }
@@ -240,16 +259,19 @@ export class SuijiService {
    * @returns 等級（rank）、該当しない場合はnull
    */
   getGradeFromAverage(average: number, standardTable: any[]): number | null {
+    if (isNaN(average) || average < 0) {
+      return null;
+    }
     if (!standardTable || standardTable.length === 0) {
       return null;
     }
 
     // lower <= average < upper に該当する行を検索
     const row = standardTable.find(
-      (r: any) => average >= r.lower && average < r.upper
+      (r: any) => r && !isNaN(r.lower) && !isNaN(r.upper) && average >= r.lower && average < r.upper
     );
 
-    return row ? row.rank : null;
+    return row && !isNaN(row.rank) ? row.rank : null;
   }
 
   /**
@@ -266,8 +288,17 @@ export class SuijiService {
     newGrade: number | null,
     average: number | null
   ): SuijiKouhoResult | null {
+    if (!change || !change.employeeId) {
+      return null;
+    }
+    if (isNaN(change.changeMonth) || change.changeMonth < 1 || change.changeMonth > 12) {
+      return null;
+    }
     // currentGradeまたはnewGradeがnullの場合は判定不可
     if (currentGrade === null || newGrade === null || average === null) {
+      return null;
+    }
+    if (isNaN(currentGrade) || isNaN(newGrade) || isNaN(average)) {
       return null;
     }
 
@@ -317,20 +348,28 @@ export class SuijiService {
     last3MonthsRemunerations: number[],
     gradeTable: any[]
   ): boolean {
-    if (currentGrade === null || last3MonthsRemunerations.length !== 3) {
+    if (currentGrade === null || isNaN(currentGrade)) {
+      return false;
+    }
+    if (!last3MonthsRemunerations || !Array.isArray(last3MonthsRemunerations) || last3MonthsRemunerations.length !== 3) {
+      return false;
+    }
+    if (!gradeTable || !Array.isArray(gradeTable) || gradeTable.length === 0) {
       return false;
     }
 
     // 3ヶ月平均を計算
-    const average =
-      (last3MonthsRemunerations[0] +
-        last3MonthsRemunerations[1] +
-        last3MonthsRemunerations[2]) /
-      3;
+    const val1 = last3MonthsRemunerations[0] ?? 0;
+    const val2 = last3MonthsRemunerations[1] ?? 0;
+    const val3 = last3MonthsRemunerations[2] ?? 0;
+    if (isNaN(val1) || isNaN(val2) || isNaN(val3)) {
+      return false;
+    }
+    const average = (val1 + val2 + val3) / 3;
 
     // 平均から等級を求める
     const newGrade = this.getGradeFromAverage(average, gradeTable);
-    if (newGrade === null) {
+    if (newGrade === null || isNaN(newGrade)) {
       return false;
     }
 
@@ -345,6 +384,18 @@ export class SuijiService {
    * @param result 随時改定候補結果
    */
   async saveSuijiKouho(year: number, result: SuijiKouhoResult): Promise<void> {
+    if (!result) {
+      throw new Error('随時改定候補結果が指定されていません');
+    }
+    if (!result.employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(result.changeMonth) || result.changeMonth < 1 || result.changeMonth > 12) {
+      throw new Error(`無効な変動月が指定されました: ${result.changeMonth}`);
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
     const roomId = this.roomIdService.requireRoomId();
     const docId = `${result.employeeId}_${result.changeMonth}`;
     const ref = doc(
@@ -362,6 +413,9 @@ export class SuijiService {
   async loadAlerts(
     year: number
   ): Promise<(SuijiKouhoResult & { id: string })[]> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return [];
+    }
     const roomId = this.roomIdService.requireRoomId();
     const ref = collection(
       this.firestore,
@@ -369,8 +423,12 @@ export class SuijiService {
     );
     const snap = await getDocs(ref);
     return snap.docs.map(
-      (d) => ({ ...d.data(), id: d.id } as SuijiKouhoResult & { id: string })
-    );
+      (d) => {
+        const data = d.data();
+        if (!data) return null;
+        return { ...data, id: d.id } as SuijiKouhoResult & { id: string };
+      }
+    ).filter((item): item is SuijiKouhoResult & { id: string } => item !== null);
   }
 
   /**
@@ -381,10 +439,16 @@ export class SuijiService {
   async loadAllAlerts(
     years: number[]
   ): Promise<(SuijiKouhoResult & { id: string; year: number })[]> {
+    if (!years || !Array.isArray(years) || years.length === 0) {
+      return [];
+    }
     const roomId = this.roomIdService.requireRoomId();
     const allAlerts: (SuijiKouhoResult & { id: string; year: number })[] = [];
 
     for (const year of years) {
+      if (isNaN(year) || year < 1900 || year > 2100) {
+        continue;
+      }
       try {
         const ref = collection(
           this.firestore,
@@ -392,13 +456,16 @@ export class SuijiService {
         );
         const snap = await getDocs(ref);
         const yearAlerts = snap.docs.map(
-          (d) =>
-            ({
-              ...d.data(),
+          (d) => {
+            const data = d.data();
+            if (!data) return null;
+            return {
+              ...data,
               id: d.id,
               year: year,
-            } as SuijiKouhoResult & { id: string; year: number })
-        );
+            } as SuijiKouhoResult & { id: string; year: number };
+          }
+        ).filter((item): item is SuijiKouhoResult & { id: string; year: number } => item !== null);
         allAlerts.push(...yearAlerts);
       } catch (error) {
         // 年度のコレクションが存在しない場合はスキップ
@@ -423,6 +490,15 @@ export class SuijiService {
     employeeId: string,
     changeMonth: number
   ): Promise<void> {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (isNaN(changeMonth) || changeMonth < 1 || changeMonth > 12) {
+      throw new Error(`無効な変動月が指定されました: ${changeMonth}`);
+    }
     const roomId = this.roomIdService.requireRoomId();
     const docId = `${employeeId}_${changeMonth}`;
     const ref = doc(
@@ -449,6 +525,18 @@ export class SuijiService {
     employee: Employee | null = null,
     employeeName: string = ''
   ): Promise<{ hasChange: boolean; warningMessage?: string }> {
+    if (!employeeId) {
+      return { hasChange: false };
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return { hasChange: false };
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return { hasChange: false };
+    }
+    if (!salaries) {
+      return { hasChange: false };
+    }
     // 年度テーブルを取得
     const prefecture = employee
       ? (employee as any).prefecture || 'tokyo'
@@ -480,17 +568,23 @@ export class SuijiService {
     // 前月から遡って、支払基礎日数17日以上の月の固定費を基準にする
     let prev = 0;
     for (let checkMonth = month - 1; checkMonth >= 1; checkMonth--) {
+      if (isNaN(checkMonth) || checkMonth < 1 || checkMonth > 12) {
+        break;
+      }
       const checkKey = `${employeeId}_${checkMonth}`;
       const checkSalaryData = salaries[checkKey];
-      const checkWorkingDays = checkSalaryData?.workingDays;
+      if (!checkSalaryData) {
+        continue;
+      }
+      const checkWorkingDays = checkSalaryData.workingDays;
       
       // 支払基礎日数が17日未満の月はスキップ
-      if (checkWorkingDays !== undefined && checkWorkingDays < 17) {
+      if (checkWorkingDays !== undefined && (isNaN(checkWorkingDays) || checkWorkingDays < 17)) {
         continue;
       }
       
       // 有効な月の固定費を基準にする
-      prev = checkSalaryData?.fixed || 0;
+      prev = checkSalaryData.fixed || 0;
       break;
     }
 

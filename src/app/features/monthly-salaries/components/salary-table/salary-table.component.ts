@@ -43,6 +43,12 @@ export class SalaryTableComponent {
     month: number,
     itemId: string
   ): number {
+    if (!employeeId || !itemId) {
+      return 0;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return 0;
+    }
     // 免除月の場合は0を返す
     if (this.isExemptMonth(employeeId, month)) {
       return 0;
@@ -71,7 +77,16 @@ export class SalaryTableComponent {
     itemId: string,
     event: Event
   ): void {
+    if (!employeeId || !itemId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     const value = input.value;
     const numValue = this.parseAmount(value);
     this.onSalaryItemChange(employeeId, month, itemId, numValue);
@@ -90,8 +105,17 @@ export class SalaryTableComponent {
     itemId: string,
     event: Event
   ): void {
+    if (!employeeId || !itemId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     // IME終了時（全角→半角に切り替わったとき）にフォーカスを再設定
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     // フォーカスを維持するために、一度フォーカスを外してから再度設定
     setTimeout(() => {
       input.focus();
@@ -121,7 +145,16 @@ export class SalaryTableComponent {
     itemId: string,
     event: Event
   ): void {
+    if (!employeeId || !itemId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     const numValue = this.parseAmount(input.value);
     input.value = this.formatAmount(numValue);
   }
@@ -132,18 +165,39 @@ export class SalaryTableComponent {
     itemId: string,
     value: string | number
   ): void {
+    if (!employeeId || !itemId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     this.salaryItemChange.emit({ employeeId, month, itemId, value });
   }
 
   getRehabHighlightMonths(employee: Employee): number[] {
+    if (!employee || !employee.id) {
+      return [];
+    }
     return this.rehabHighlightMonths[employee.id] || [];
   }
 
   isExemptMonth(empId: string, month: number): boolean {
+    if (!empId) {
+      return false;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return false;
+    }
     return this.exemptMonths[empId]?.includes(month) ?? false;
   }
 
   getExemptLabel(empId: string, month: number): string {
+    if (!empId) {
+      return '免除中';
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return '免除中';
+    }
     const key = `${empId}_${month}`;
     const reason = this.exemptReasons[key] || '';
     // 理由から「産休中」「育休中」を判定
@@ -160,6 +214,12 @@ export class SalaryTableComponent {
   }
 
   getWorkingDays(employeeId: string, month: number): number {
+    if (!employeeId) {
+      return 0;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return 0;
+    }
     const key = this.getWorkingDaysKey(employeeId, month);
     const value = this.workingDaysData[key];
     // undefinedの場合は0を返す（0も有効な値）
@@ -171,7 +231,16 @@ export class SalaryTableComponent {
   }
 
   onWorkingDaysInput(employeeId: string, month: number, event: Event): void {
+    if (!employeeId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     let value = parseInt(input.value, 10);
     // 空文字列やNaNの場合は0として扱う
     if (isNaN(value)) {
@@ -191,8 +260,17 @@ export class SalaryTableComponent {
     month: number,
     event: Event
   ): void {
+    if (!employeeId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     // IME終了時（全角→半角に切り替わったとき）にフォーカスを再設定
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     setTimeout(() => {
       input.focus();
     }, 0);
@@ -212,7 +290,16 @@ export class SalaryTableComponent {
   }
 
   onWorkingDaysBlur(employeeId: string, month: number, event: Event): void {
+    if (!employeeId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     let value = parseInt(input.value, 10);
     // 空文字列やNaNの場合は0として扱う
     if (isNaN(value)) {
@@ -225,6 +312,15 @@ export class SalaryTableComponent {
   }
 
   onWorkingDaysChange(employeeId: string, month: number, value: number): void {
+    if (!employeeId) {
+      return;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return;
+    }
+    if (isNaN(value) || value < 0 || value > 31) {
+      return;
+    }
     this.workingDaysChange.emit({ employeeId, month, value });
   }
 }

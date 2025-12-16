@@ -47,15 +47,29 @@ export class SalaryCsvImportComponent {
   constructor(private salaryCalculationService: SalaryCalculationService) {}
 
   onCsvFileSelected(event: Event): void {
+    if (!event) {
+      return;
+    }
     const input = event.target as HTMLInputElement;
+    if (!input) {
+      return;
+    }
     const file = input.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      this.csvImportText = text;
-      this.showCsvImportDialog = true;
+      if (!e || !e.target) {
+        return;
+      }
+      const text = e.target.result as string;
+      if (text) {
+        this.csvImportText = text;
+        this.showCsvImportDialog = true;
+      }
+    };
+    reader.onerror = () => {
+      // ファイル読み込みエラーは無視（ユーザーに通知しない）
     };
     reader.readAsText(file);
   }
@@ -169,21 +183,6 @@ export class SalaryCsvImportComponent {
         value: number;
       }> = [];
 
-      // デバッグ: 給与項目マスタの一覧をログ出力
-      console.log(
-        '[CSV Import] 給与項目マスタ:',
-        this.salaryItems.map((item) => ({
-          id: item.id,
-          name: item.name,
-          type: item.type,
-        }))
-      );
-      console.log('[CSV Import] CSVヘッダー:', headerParts);
-      console.log(
-        '[CSV Import] 給与項目列:',
-        salaryItemColumns.map((col) => col.name)
-      );
-
       for (const line of dataLines) {
         const parts = line.split(',').map((p) => p.trim());
 
@@ -196,7 +195,17 @@ export class SalaryCsvImportComponent {
         }
 
         // 月を取得
+        if (monthIndex < 0 || monthIndex >= parts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 月の列インデックスが不正です`);
+          continue;
+        }
         const monthStr = parts[monthIndex];
+        if (!monthStr) {
+          errorCount++;
+          errors.push(`行「${line}」: 月が空です`);
+          continue;
+        }
         const month = parseInt(monthStr, 10);
 
         if (isNaN(month) || month < 1 || month > 12) {
@@ -208,7 +217,17 @@ export class SalaryCsvImportComponent {
         }
 
         // 従業員名を取得
+        if (employeeIndex < 0 || employeeIndex >= parts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員の列インデックスが不正です`);
+          continue;
+        }
         const employeeName = parts[employeeIndex];
+        if (!employeeName) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員名が空です`);
+          continue;
+        }
         const employee = this.employees.find(
           (emp) => emp.name === employeeName
         );
@@ -223,8 +242,14 @@ export class SalaryCsvImportComponent {
           continue;
         }
 
+        if (!employee.id) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員「${employeeName}」のIDが設定されていません`);
+          continue;
+        }
+
         // 支払基礎日数を取得（オプション）
-        if (workingDaysIndex !== -1 && parts[workingDaysIndex]) {
+        if (workingDaysIndex !== -1 && workingDaysIndex >= 0 && workingDaysIndex < parts.length && parts[workingDaysIndex]) {
           const workingDaysStr = parts[workingDaysIndex];
           const workingDays = parseInt(workingDaysStr, 10);
           if (!isNaN(workingDays) && workingDays >= 0 && workingDays <= 31) {
@@ -238,8 +263,13 @@ export class SalaryCsvImportComponent {
 
         // 各給与項目の金額を設定
         for (const itemColumn of salaryItemColumns) {
+          if (itemColumn.index < 0 || itemColumn.index >= parts.length) {
+            errorCount++;
+            errors.push(`行「${line}」: 給与項目「${itemColumn.name}」の列インデックスが不正です`);
+            continue;
+          }
           const amountStr = parts[itemColumn.index];
-          const amount = parseFloat(amountStr.replace(/,/g, '')) || 0;
+          const amount = parseFloat(amountStr ? amountStr.replace(/,/g, '') : '0') || 0;
 
           // 給与項目名から給与項目IDを取得（完全一致）
           let salaryItem = this.salaryItems.find(
@@ -320,6 +350,12 @@ export class SalaryCsvImportComponent {
             continue;
           }
 
+          if (!salaryItem.id) {
+            errorCount++;
+            errors.push(`行「${line}」: 給与項目「${itemColumn.name}」のIDが設定されていません`);
+            continue;
+          }
+
           // バッチ処理用にイベントを配列に追加
           batchEvents.push({
             employeeId: employee.id,
@@ -333,21 +369,10 @@ export class SalaryCsvImportComponent {
       }
 
       // バッチ処理: すべてのイベントを一度に発火
-      console.log(
-        `[CSV Import] バッチ処理開始: ${batchEvents.length}件のイベント`
-      );
       if (batchEvents.length > 0) {
         // バッチ更新イベントを発火（親コンポーネントで一括処理）
         this.salaryItemBatchChange.emit(batchEvents);
       }
-      console.log(`[CSV Import] バッチ処理完了`);
-
-      // 結果メッセージ
-      console.log('[CSV Import] 処理結果:', {
-        successCount,
-        errorCount,
-        errors,
-      });
 
       if (errorCount > 0) {
         const errorMessages = errors.slice(0, 10).join('\n');

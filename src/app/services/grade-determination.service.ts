@@ -23,28 +23,46 @@ export class GradeDeterminationService {
     gradeTable: any[],
     average: number
   ): { grade: number; remuneration: number } | null {
+    if (isNaN(average) || average < 0) {
+      return null;
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      // Firestoreから読み込めない場合はハードコードされたテーブルを使用
+      const row = this.STANDARD_TABLE.find(
+        (r) => r && !isNaN(r.lower) && !isNaN(r.upper) && average >= r.lower && average < r.upper
+      );
+      return row && !isNaN(row.rank) && !isNaN(row.standard) ? { grade: row.rank, remuneration: row.standard } : null;
+    }
+
     if (gradeTable.length === 0) {
       // Firestoreから読み込めない場合はハードコードされたテーブルを使用
       const row = this.STANDARD_TABLE.find(
-        (r) => average >= r.lower && average < r.upper
+        (r) => r && !isNaN(r.lower) && !isNaN(r.upper) && average >= r.lower && average < r.upper
       );
-      return row ? { grade: row.rank, remuneration: row.standard } : null;
+      return row && !isNaN(row.rank) && !isNaN(row.standard) ? { grade: row.rank, remuneration: row.standard } : null;
     }
 
     // Firestoreから読み込んだテーブルを使用
     const row = gradeTable.find(
-      (r: any) => average >= r.lower && average < r.upper
+      (r: any) => r && !isNaN(r.lower) && !isNaN(r.upper) && average >= r.lower && average < r.upper
     );
-    return row ? { grade: row.rank, remuneration: row.standard } : null;
+    return row && !isNaN(row.rank) && !isNaN(row.standard) ? { grade: row.rank, remuneration: row.standard } : null;
   }
 
   getStandardMonthlyRemuneration(
     avg: number | null,
     gradeTable: any[]
   ): { rank: number; standard: number } | null {
-    if (avg === null) return null;
+    if (avg === null || isNaN(avg) || avg < 0) {
+      return null;
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      return null;
+    }
     const result = this.findGrade(gradeTable, avg);
-    if (!result) return null;
+    if (!result || isNaN(result.grade) || isNaN(result.remuneration)) {
+      return null;
+    }
     return { rank: result.grade, standard: result.remuneration };
   }
 }

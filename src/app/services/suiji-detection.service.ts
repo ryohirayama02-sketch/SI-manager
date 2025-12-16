@@ -23,6 +23,12 @@ export class SuijiDetectionService {
    * 給与データのキーを作成
    */
   private getSalaryKey(employeeId: string, month: number): string {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     return `${employeeId}_${month}`;
   }
 
@@ -36,6 +42,12 @@ export class SuijiDetectionService {
     employeeId: string,
     salaries: { [key: string]: SalaryData }
   ): number[] {
+    if (!employeeId) {
+      return [];
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return [];
+    }
     const changeMonths: number[] = [];
     let prevFixed = 0; // 基準固定費（支払基礎日数17日未満の月はスキップして維持）
 
@@ -48,21 +60,21 @@ export class SuijiDetectionService {
       const workingDays = salaryData?.workingDays;
 
       // 支払基礎日数が17日未満の月は固定費のチェックをスキップ（基準固定費は維持）
-      if (workingDays !== undefined && workingDays < 17) {
+      if (workingDays !== undefined && !isNaN(workingDays) && workingDays < 17) {
         // この月はスキップ。prevFixedは維持されたまま次の月へ
         continue;
       }
 
       // 前月と比較して変動があったか判定
-      if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
+      if (month > 1 && !isNaN(prevFixed) && prevFixed > 0 && !isNaN(currentFixed) && currentFixed !== prevFixed) {
         changeMonths.push(month);
       }
 
       // 初月または前月のfixedが0の場合は、現在のfixedを記録
       if (month === 1 || prevFixed === 0) {
-        prevFixed = currentFixed;
+        prevFixed = isNaN(currentFixed) ? 0 : currentFixed;
       } else {
-        prevFixed = currentFixed;
+        prevFixed = isNaN(currentFixed) ? prevFixed : currentFixed;
       }
     }
 
@@ -78,16 +90,32 @@ export class SuijiDetectionService {
     employees: Employee[],
     year: string
   ): boolean {
-    const emp = employees.find((e) => e.id === employeeId);
+    if (!employeeId) {
+      return false;
+    }
+    if (isNaN(changedMonth) || changedMonth < 1 || changedMonth > 12) {
+      return false;
+    }
+    if (!employees || !Array.isArray(employees)) {
+      return false;
+    }
+    if (!year) {
+      return false;
+    }
+    const emp = employees.find((e) => e && e.id === employeeId);
     if (!emp || !emp.joinDate) return false;
 
     const joinDate = new Date(emp.joinDate);
+    if (isNaN(joinDate.getTime())) {
+      return false;
+    }
     const joinYear = this.monthHelper.getPayYear(joinDate);
     const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
     // 追加：資格取得時決定 資格取得月〜その後3ヶ月間は随時改定対象外
     // 変動月が入社年と同じ場合のみ判定
-    if (parseInt(year) === joinYear) {
+    const yearNum = parseInt(year, 10);
+    if (!isNaN(yearNum) && yearNum === joinYear) {
       const monthsDiff = changedMonth - joinMonth;
       // 資格取得月（monthsDiff === 0）から3ヶ月後（monthsDiff === 3）まで除外
       return monthsDiff >= 0 && monthsDiff <= 3;
@@ -108,6 +136,27 @@ export class SuijiDetectionService {
     year: string,
     currentResults: { [employeeId: string]: any }
   ): SuijiKouhoResult | null {
+    if (!employeeId) {
+      return null;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return null;
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return null;
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      return null;
+    }
+    if (!employees || !Array.isArray(employees)) {
+      return null;
+    }
+    if (!year) {
+      return null;
+    }
+    if (!currentResults || typeof currentResults !== 'object') {
+      return null;
+    }
     const reasons: string[] = [];
 
     // 追加：資格取得時決定 資格取得直後なら除外
@@ -138,13 +187,16 @@ export class SuijiDetectionService {
         const checkWorkingDays = checkSalaryData?.workingDays;
         
         // 支払基礎日数が17日未満の月はスキップ
-        if (checkWorkingDays !== undefined && checkWorkingDays < 17) {
+        if (checkWorkingDays !== undefined && !isNaN(checkWorkingDays) && checkWorkingDays < 17) {
           continue;
         }
         
         // 有効な月の固定費を基準にする
         prevFixed =
           this.salaryAggregationService.getFixedSalaryPublic(checkSalaryData); // fixedSalary を優先
+        if (isNaN(prevFixed)) {
+          prevFixed = 0;
+        }
         break;
       }
     }
@@ -157,7 +209,11 @@ export class SuijiDetectionService {
     const currentWorkingDays = currentSalaryData?.workingDays;
 
     // 当月の支払基礎日数が17日未満の場合はスキップ
-    if (currentWorkingDays !== undefined && currentWorkingDays < 17) {
+    if (currentWorkingDays !== undefined && !isNaN(currentWorkingDays) && currentWorkingDays < 17) {
+      return null;
+    }
+    
+    if (isNaN(currentFixed)) {
       return null;
     }
 
@@ -202,14 +258,18 @@ export class SuijiDetectionService {
       const salaryData = salaries[key];
       const total =
         this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総支給）
-      totalSalaryValues.push(total);
+      if (!isNaN(total)) {
+        totalSalaryValues.push(total);
+      } else {
+        totalSalaryValues.push(0);
+      }
       const workingDays = salaryData?.workingDays;
-      workingDaysList.push(workingDays ?? 0);
+      workingDaysList.push((workingDays !== undefined && !isNaN(workingDays)) ? workingDays : 0);
     }
 
     // 支払基礎日数17日未満（0日を含む）が1つでもあれば随時改定無効
     const invalidByWorkingDays = workingDaysList.some(
-      (wd) => wd < 17
+      (wd) => !isNaN(wd) && wd < 17
     );
     if (invalidByWorkingDays) {
       reasons.push('支払基礎日数17日未満の月が含まれるため随時改定対象外');
@@ -227,9 +287,23 @@ export class SuijiDetectionService {
     }
 
     // 3ヶ月平均を計算（総支給額で平均）
-    const total = totalSalaryValues.reduce((sum, v) => sum + v, 0);
+    const total = totalSalaryValues.reduce((sum, v) => (isNaN(v) ? sum : sum + v), 0);
     // 円未満は切り捨て
-    const averageSalary = Math.floor(total / totalSalaryValues.length);
+    const averageSalary = totalSalaryValues.length > 0 ? Math.floor(total / totalSalaryValues.length) : 0;
+    if (isNaN(averageSalary) || averageSalary < 0) {
+      reasons.push('平均報酬の計算に失敗しました');
+      return {
+        employeeId,
+        changeMonth: month,
+        averageSalary: 0,
+        currentGrade: 0,
+        newGrade: 0,
+        diff: 0,
+        applyStartMonth: 0,
+        reasons,
+        isEligible: false,
+      };
+    }
     reasons.push(
       `${targetMonths.join(
         '・'
@@ -238,14 +312,14 @@ export class SuijiDetectionService {
 
     // 現行等級を取得
     const currentResult = currentResults[employeeId];
-    const currentGrade = currentResult?.grade || 0;
+    const currentGrade = (currentResult && !isNaN(currentResult.grade)) ? currentResult.grade : 0;
 
     // 新等級を判定
     const gradeResult = this.gradeDeterminationService.findGrade(
       gradeTable,
       averageSalary
     );
-    if (!gradeResult) {
+    if (!gradeResult || isNaN(gradeResult.grade)) {
       reasons.push('標準報酬月額テーブルに該当する等級が見つかりません');
       return {
         employeeId,
@@ -261,6 +335,20 @@ export class SuijiDetectionService {
     }
 
     const newGrade = gradeResult.grade;
+    if (isNaN(newGrade) || isNaN(currentGrade)) {
+      reasons.push('等級の計算に失敗しました');
+      return {
+        employeeId,
+        changeMonth: month,
+        averageSalary,
+        currentGrade: 0,
+        newGrade: 0,
+        diff: 0,
+        applyStartMonth: 0,
+        reasons,
+        isEligible: false,
+      };
+    }
     const diff = Math.abs(newGrade - currentGrade);
 
     // 2等級以上の差 → 随時改定成立

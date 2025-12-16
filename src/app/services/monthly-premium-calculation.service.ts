@@ -50,6 +50,18 @@ export class MonthlyPremiumCalculationService {
     rates: any,
     prefecture?: string
   ): Promise<MonthlyPremiumRow> {
+    if (!emp) {
+      throw new Error('従業員データが指定されていません');
+    }
+    if (!emp.id) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     // 従業員データにcurrentStandardMonthlyRemunerationがない場合、salaryDataから定時決定を計算して取得
     // empのidが確実に含まれるようにする
     let employeeWithStandard = { ...emp };
@@ -90,6 +102,9 @@ export class MonthlyPremiumCalculationService {
             (emp as any).roomId || this.roomIdService.requireRoomId();
           const yearMap: any = {};
           for (let m = 1; m <= 12; m++) {
+            if (!emp.id) {
+              continue;
+            }
             const md = await this.monthlySalaryService.getEmployeeSalary(
               roomId,
               emp.id,
@@ -202,8 +217,15 @@ export class MonthlyPremiumCalculationService {
         (r) => r.includes('産前産後休業') || r.includes('育児休業')
       );
 
+      if (!emp.birthDate) {
+        throw new Error('従業員の生年月日が設定されていません');
+      }
+      const birthDate = new Date(emp.birthDate);
+      if (isNaN(birthDate.getTime())) {
+        throw new Error(`無効な生年月日が設定されています: ${emp.birthDate}`);
+      }
       const ageForStopping = this.employeeLifecycleService.getAgeAtMonth(
-        new Date(emp.birthDate),
+        birthDate,
         year,
         month
       );
@@ -263,8 +285,9 @@ export class MonthlyPremiumCalculationService {
         year
       );
       const monthBonusesForBonus = bonusesForBonus.filter((bonus) => {
-        if (!bonus.payDate) return false;
+        if (!bonus || !bonus.payDate) return false;
         const payDateObj = new Date(bonus.payDate);
+        if (isNaN(payDateObj.getTime())) return false;
         const payYear = payDateObj.getFullYear();
         const payMonth = payDateObj.getMonth() + 1;
         return (
@@ -330,6 +353,9 @@ export class MonthlyPremiumCalculationService {
           (emp as any).roomId || this.roomIdService.requireRoomId();
         const fetchedSalaryData: any = {};
         for (let m = 1; m <= 12; m++) {
+          if (!emp.id) {
+            continue;
+          }
           const md = await this.monthlySalaryService.getEmployeeSalary(
             roomId,
             emp.id,
@@ -385,12 +411,19 @@ export class MonthlyPremiumCalculationService {
           gradeTable
         );
 
+      if (!emp.birthDate) {
+        throw new Error('従業員の生年月日が設定されていません');
+      }
+      const birthDateForStopping = new Date(emp.birthDate);
+      if (isNaN(birthDateForStopping.getTime())) {
+        throw new Error(`無効な生年月日が設定されています: ${emp.birthDate}`);
+      }
       const stopping = this.premiumStoppingRuleService.applyStoppingRules(
         emp,
         year,
         month,
         this.employeeLifecycleService.getAgeAtMonth(
-          new Date(emp.birthDate),
+          birthDateForStopping,
           year,
           month
         ),
@@ -439,8 +472,9 @@ export class MonthlyPremiumCalculationService {
         year
       );
       const monthBonusForBonus = bonusesForBonus.find((bonus) => {
-        if (!bonus.payDate) return false;
+        if (!bonus || !bonus.payDate) return false;
         const payDateObj = new Date(bonus.payDate);
+        if (isNaN(payDateObj.getTime())) return false;
         const payYear = payDateObj.getFullYear();
         const payMonth = payDateObj.getMonth() + 1;
         return payYear === year && payMonth === month;
@@ -496,11 +530,26 @@ export class MonthlyPremiumCalculationService {
     gradeTable: any[],
     monthlyPremiumRows: MonthlyPremiumRow[]
   ): Promise<void> {
+    if (!emp) {
+      return;
+    }
+    if (!emp.id) {
+      return;
+    }
     if (!emp.joinDate || !salaryData) {
+      return;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return;
+    }
+    if (!monthlyPremiumRows || !Array.isArray(monthlyPremiumRows)) {
       return;
     }
 
     const joinDate = new Date(emp.joinDate);
+    if (isNaN(joinDate.getTime())) {
+      return;
+    }
     const joinYear = this.monthHelper.getPayYear(joinDate);
     const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
@@ -512,6 +561,9 @@ export class MonthlyPremiumCalculationService {
     const salaries: {
       [key: string]: { total: number; fixed: number; variable: number };
     } = {};
+    if (!emp.id) {
+      return;
+    }
     for (let month = 1; month <= 12; month++) {
       const monthKey = this.salaryCalculationService.getSalaryKey(
         emp.id,

@@ -15,6 +15,12 @@ export class TeijiCalculationService {
    * 給与データのキーを作成
    */
   private getSalaryKey(employeeId: string, month: number): string {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     return `${employeeId}_${month}`;
   }
 
@@ -23,6 +29,12 @@ export class TeijiCalculationService {
     employeeId: string,
     salaries: { [key: string]: SalaryData }
   ): { total: number; fixed: number; variable: number }[] {
+    if (!employeeId) {
+      return [];
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return [];
+    }
     const values: { total: number; fixed: number; variable: number }[] = [];
     for (const month of [4, 5, 6]) {
       const key = this.getSalaryKey(employeeId, month);
@@ -43,6 +55,15 @@ export class TeijiCalculationService {
     values: { total: number; fixed: number; variable: number }[],
     salaries: { [key: string]: SalaryData }
   ): { excluded: number[]; reasons: string[] } {
+    if (!employeeId) {
+      return { excluded: [], reasons: [] };
+    }
+    if (!values || !Array.isArray(values) || values.length !== 3) {
+      return { excluded: [], reasons: [] };
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      return { excluded: [], reasons: [] };
+    }
     const excluded: number[] = [];
     const reasons: string[] = [];
     const months = [4, 5, 6];
@@ -50,6 +71,7 @@ export class TeijiCalculationService {
     // 4-6月それぞれについて、支払基礎日数が17日未満の場合は算定除外
     for (let i = 0; i < months.length; i++) {
       const month = months[i];
+      if (i >= values.length) break;
       const key = this.getSalaryKey(employeeId, month);
       const salaryData = salaries[key];
 
@@ -57,7 +79,7 @@ export class TeijiCalculationService {
       const workingDays = salaryData?.workingDays;
 
       // 支払基礎日数が17日未満の場合は算定除外
-      if (workingDays !== undefined && workingDays < 17) {
+      if (workingDays !== undefined && !isNaN(workingDays) && workingDays < 17) {
         excluded.push(month);
         reasons.push(
           `${month}月: 支払基礎日数${workingDays}日（17日未満）のため算定除外`
@@ -66,10 +88,10 @@ export class TeijiCalculationService {
       }
 
       // 固定的賃金の15%超の欠勤控除がある場合は算定除外
-      const fixed = values[i].fixed;
+      const fixed = values[i]?.fixed ?? 0;
       const absenceDeduction = salaryData?.deductionTotal ?? 0;
 
-      if (fixed > 0 && absenceDeduction > fixed * 0.15) {
+      if (!isNaN(fixed) && !isNaN(absenceDeduction) && fixed > 0 && absenceDeduction > fixed * 0.15) {
         excluded.push(month);
         reasons.push(
           `${month}月: 欠勤控除${absenceDeduction.toLocaleString()}円が固定的賃金${fixed.toLocaleString()}円の15%超（${Math.round(
@@ -86,15 +108,22 @@ export class TeijiCalculationService {
     values: { total: number; fixed: number; variable: number }[],
     excludedMonths: number[]
   ): { averageSalary: number; usedMonths: number[]; reasons: string[] } {
+    if (!values || !Array.isArray(values) || values.length !== 3) {
+      return { averageSalary: 0, usedMonths: [], reasons: ['給与データが不正です'] };
+    }
+    if (!excludedMonths || !Array.isArray(excludedMonths)) {
+      return { averageSalary: 0, usedMonths: [], reasons: ['除外月データが不正です'] };
+    }
     const months = [4, 5, 6];
     const validValues: number[] = [];
     const usedMonths: number[] = [];
     const reasons: string[] = [];
 
-    for (let i = 0; i < values.length; i++) {
+    for (let i = 0; i < values.length && i < months.length; i++) {
       const month = months[i];
-      if (!excludedMonths.includes(month) && values[i].total > 0) {
-        validValues.push(values[i].total);
+      const total = values[i]?.total ?? 0;
+      if (!excludedMonths.includes(month) && !isNaN(total) && total > 0) {
+        validValues.push(total);
         usedMonths.push(month);
       }
     }
@@ -107,29 +136,34 @@ export class TeijiCalculationService {
 
     // 除外なし → 3ヶ月平均（円未満切り捨て）
     if (validValues.length === 3) {
-      const total = validValues.reduce((sum, v) => sum + v, 0);
-      const average = Math.floor(total / validValues.length);
+      const total = validValues.reduce((sum, v) => (isNaN(v) ? sum : sum + v), 0);
+      const average = validValues.length > 0 ? Math.floor(total / validValues.length) : 0;
       reasons.push('4〜6月の3ヶ月平均で算定');
       return { averageSalary: average, usedMonths, reasons };
     }
 
     // 除外1ヶ月 → 残り2ヶ月平均（円未満切り捨て）
     if (validValues.length === 2) {
-      const total = validValues.reduce((sum, v) => sum + v, 0);
-      const average = Math.floor(total / validValues.length);
+      const total = validValues.reduce((sum, v) => (isNaN(v) ? sum : sum + v), 0);
+      const average = validValues.length > 0 ? Math.floor(total / validValues.length) : 0;
       reasons.push(`${usedMonths.join('・')}月の2ヶ月平均で算定`);
       return { averageSalary: average, usedMonths, reasons };
     }
 
     // 除外2ヶ月 → 残り1ヶ月のみで決定
     if (validValues.length === 1) {
+      const value = validValues[0];
+      if (isNaN(value)) {
+        reasons.push('有効な給与データがありません');
+        return { averageSalary: 0, usedMonths, reasons };
+      }
       reasons.push(`${usedMonths[0]}月のみで算定（特例）`);
-      return { averageSalary: validValues[0], usedMonths, reasons };
+      return { averageSalary: value, usedMonths, reasons };
     }
 
     // フォールバック（通常は到達しない、円未満切り捨て）
-    const total = validValues.reduce((sum, v) => sum + v, 0);
-    const average = Math.floor(total / validValues.length);
+    const total = validValues.reduce((sum, v) => (isNaN(v) ? sum : sum + v), 0);
+    const average = validValues.length > 0 ? Math.floor(total / validValues.length) : 0;
     return { averageSalary: average, usedMonths, reasons };
   }
 
@@ -141,6 +175,18 @@ export class TeijiCalculationService {
     currentStandardMonthlyRemuneration?: number,
     employee?: Employee
   ): TeijiKetteiResult {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (!salaries || typeof salaries !== 'object') {
+      throw new Error('給与データが指定されていません');
+    }
+    if (!gradeTable || !Array.isArray(gradeTable)) {
+      throw new Error('標準報酬等級表が指定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
     // 入退社日による定時決定対象外判定（算定基礎）
     if (employee) {
       const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
@@ -151,13 +197,14 @@ export class TeijiCalculationService {
       const june30 = new Date(year, 5, 30); // 6月30日
       const reasons: string[] = [];
 
-      if (joinDate && joinDate >= june1 && joinDate.getFullYear() === year) {
+      if (joinDate && !isNaN(joinDate.getTime()) && joinDate >= june1 && joinDate.getFullYear() === year) {
         reasons.push(
           '6/1以降に資格取得（入社/加入）のため算定基礎の定時決定対象外'
         );
       }
       if (
         retireDate &&
+        !isNaN(retireDate.getTime()) &&
         retireDate <= june30 &&
         retireDate.getFullYear() === year
       ) {

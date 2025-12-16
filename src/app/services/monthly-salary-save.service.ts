@@ -58,13 +58,28 @@ export class MonthlySalarySaveService {
   ): Promise<{
     suijiAlerts: SuijiKouhoResult[];
   }> {
+    if (!employees || employees.length === 0) {
+      return { suijiAlerts: [] };
+    }
+    if (!months || months.length === 0) {
+      return { suijiAlerts: [] };
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return { suijiAlerts: [] };
+    }
     const roomId = this.roomIdService.requireRoomId();
     for (const emp of employees) {
+      if (!emp || !emp.id) {
+        continue;
+      }
       const payload: any = {};
 
       // 既存データを取得して、0に変更された項目を検出するために使用（月別取得）
       const existingMonthDataMap: { [month: string]: any } = {};
       for (const month of months) {
+        if (isNaN(month) || month < 1 || month > 12) {
+          continue;
+        }
         const existingMonthData =
           await this.monthlySalaryService.getEmployeeSalary(
             roomId,
@@ -78,6 +93,9 @@ export class MonthlySalarySaveService {
       }
 
       for (const month of months) {
+        if (isNaN(month) || month < 1 || month > 12) {
+          continue;
+        }
         // 支払基礎日数を取得（免除月でも取得）
         const workingDaysKey = this.state.getWorkingDaysKey(emp.id, month);
         const workingDays =
@@ -232,7 +250,13 @@ export class MonthlySalarySaveService {
     // 報酬月額ベースの随時改定判定（給与項目別データから直接計算）
     const salaryDataForDetection: { [key: string]: MonthlySalaryData } = {};
     for (const emp of employees) {
+      if (!emp || !emp.id) {
+        continue;
+      }
       for (const month of months) {
+        if (isNaN(month) || month < 1 || month > 12) {
+          continue;
+        }
         const detectionKey = `${emp.id}_${month}`;
         const itemKey = this.state.getSalaryItemKey(emp.id, month);
 
@@ -289,49 +313,31 @@ export class MonthlySalarySaveService {
       }
     }
 
-    console.log(
-      `[monthly-salary-save] salaryDataForDetection生成完了`,
-      {
-        employeesCount: employees.length,
-        monthsCount: months.length,
-        salaryDataForDetectionKeys: Object.keys(salaryDataForDetection),
-      }
-    );
-
     // 随時改定アラートをリセット（既存のアラートを削除）
     // まず、該当従業員の全年度の既存アラートを全て削除
     // 従業員基本情報画面では前年、当年、翌年のアラートを表示するため、それらも含めて削除
     const yearsToCheck = [year - 1, year, year + 1]; // 前年、当年、翌年
     for (const emp of employees) {
+      if (!emp || !emp.id) {
+        continue;
+      }
       for (const checkYear of yearsToCheck) {
+        if (isNaN(checkYear) || checkYear < 1900 || checkYear > 2100) {
+          continue;
+        }
         try {
           // 既存のアラートを取得して削除
           const existingAlerts = await this.suijiService.loadAlerts(checkYear);
-          const employeeAlerts = existingAlerts.filter(
-            (alert) => alert.employeeId === emp.id
-          );
-          if (employeeAlerts.length > 0) {
-            console.log(
-              `[monthly-salary-save] ${emp.name} (${checkYear}年): 既存の随時改定アラートを削除`,
-              {
-                employeeId: emp.id,
-                checkYear,
-                existingAlertsCount: existingAlerts.length,
-                employeeAlertsCount: employeeAlerts.length,
-                alerts: employeeAlerts.map((a) => ({
-                  changeMonth: a.changeMonth,
-                  applyStartMonth: a.applyStartMonth,
-                  applyStartYear: a.applyStartMonth
-                    ? checkYear + (a.changeMonth + 3 > 12 ? 1 : 0)
-                    : checkYear,
-                  currentGrade: a.currentGrade,
-                  newGrade: a.newGrade,
-                  isEligible: a.isEligible,
-                })),
-              }
-            );
+          if (!existingAlerts || !Array.isArray(existingAlerts)) {
+            continue;
           }
+          const employeeAlerts = existingAlerts.filter(
+            (alert) => alert && alert.employeeId === emp.id
+          );
           for (const alert of employeeAlerts) {
+            if (!alert || !alert.employeeId || alert.changeMonth === undefined) {
+              continue;
+            }
             await this.suijiService.deleteAlert(
               checkYear,
               alert.employeeId,
@@ -352,6 +358,9 @@ export class MonthlySalarySaveService {
 
     // 各従業員について随時改定を判定
     for (const emp of employees) {
+      if (!emp || !emp.id) {
+        continue;
+      }
       // 従業員の現在の標準報酬月額から現行等級を取得
       // まず従業員データから取得を試みる
       const employee = await this.employeeService.getEmployeeById(emp.id);
@@ -367,6 +376,9 @@ export class MonthlySalarySaveService {
           [key: string]: { total: number; fixed: number; variable: number };
         } = {};
         for (const month of months) {
+          if (isNaN(month) || month < 1 || month > 12) {
+            continue;
+          }
           const key = this.state.getSalaryKey(emp.id, month);
           const salaryData = salaries[key];
           if (salaryData) {
@@ -391,19 +403,8 @@ export class MonthlySalarySaveService {
 
         if (teijiResult && teijiResult.standardMonthlyRemuneration > 0) {
           currentStandard = teijiResult.standardMonthlyRemuneration;
-          // // console.log(
-          //             `[随時改定判定] ${
-          //               emp.name || emp.id
-          //             }: 定時決定から標準報酬を取得: ${currentStandard}`
-          //           );
         }
       }
-
-      // // console.log(
-      //         `[随時改定判定] ${
-      //           emp.name || emp.id
-      //         }: currentStandard=${currentStandard}`
-      //       );
 
       const hasCurrentStandard = !!currentStandard && currentStandard > 0;
       if (hasCurrentStandard) {
@@ -414,23 +415,15 @@ export class MonthlySalarySaveService {
         );
         if (currentGradeResult) {
           const currentGrade = currentGradeResult.grade;
-          // // console.log(
-          //             `[随時改定判定] ${emp.name || emp.id}: 現行等級=${currentGrade}`
-          //           );
 
           // 固定的賃金が変動した月を検出（前月と比較、支払基礎日数17日未満の月はスキップ）
           const changedMonths: number[] = [];
           let prevFixed = 0; // 基準固定費（支払基礎日数17日未満の月はスキップして維持）
 
-          console.log(
-            `[monthly-salary-save] ${emp.name} (${year}年): 固定費変動チェック開始`,
-            {
-              employeeId: emp.id,
-              year,
-            }
-          );
-
           for (let month = 1; month <= 12; month++) {
+            if (isNaN(month) || month < 1 || month > 12) {
+              continue;
+            }
             const currentMonthKey = `${emp.id}_${month}`;
             const currentMonthData = salaryDataForDetection[currentMonthKey];
 
@@ -441,8 +434,11 @@ export class MonthlySalarySaveService {
             // 支払基礎日数を取得
             const workingDaysKey = this.state.getWorkingDaysKey(emp.id, month);
             let workingDays = workingDaysData[workingDaysKey];
-            if (workingDays === undefined) {
+            if (workingDays === undefined || isNaN(workingDays)) {
               workingDays = new Date(year, month, 0).getDate();
+            }
+            if (isNaN(workingDays) || workingDays < 0 || workingDays > 31) {
+              continue;
             }
 
             // 固定費を取得
@@ -454,15 +450,6 @@ export class MonthlySalarySaveService {
 
             // 支払基礎日数が17日未満の月は固定費のチェックをスキップ（基準固定費は維持）
             if (workingDays < 17) {
-              console.log(
-                `[monthly-salary-save] ${emp.name} (${year}年${month}月): 支払基礎日数${workingDays}日（17日未満）のためスキップ。基準固定費${prevFixed.toLocaleString()}円を維持`,
-                {
-                  month,
-                  workingDays,
-                  currentFixed,
-                  prevFixed,
-                }
-              );
               // この月はスキップ。prevFixedは維持されたまま次の月へ
               continue;
             }
@@ -470,25 +457,7 @@ export class MonthlySalarySaveService {
             // 前月と比較して変動があったか判定
             // 前月が支払基礎日数17日未満でスキップされた場合、prevFixedはその前の有効な月の固定費を保持している
             if (month > 1 && prevFixed > 0 && currentFixed !== prevFixed) {
-              console.log(
-                `[monthly-salary-save] ${emp.name} (${year}年${month}月): 固定費変動検出`,
-                {
-                  month,
-                  prevFixed,
-                  currentFixed,
-                  diff: currentFixed - prevFixed,
-                }
-              );
               changedMonths.push(month);
-            } else if (month > 1 && prevFixed > 0) {
-              console.log(
-                `[monthly-salary-save] ${emp.name} (${year}年${month}月): 固定費変動なし`,
-                {
-                  month,
-                  prevFixed,
-                  currentFixed,
-                }
-              );
             }
 
             // 基準固定費を更新（初月または前月のfixedが0の場合は、現在のfixedを記録）
@@ -496,27 +465,26 @@ export class MonthlySalarySaveService {
             prevFixed = currentFixed;
           }
 
-          console.log(
-            `[monthly-salary-save] ${emp.name} (${year}年): 固定費変動チェック完了`,
-            {
-              changedMonths,
-            }
-          );
-
           // 報酬月額が変動した月について随時改定を判定
           // 変動月を含む3ヶ月（変動月、変動月+1、変動月+2）のデータがあれば判定可能
           for (const month of changedMonths) {
+            if (isNaN(month) || month < 1 || month > 12) {
+              continue;
+            }
             // 支払基礎日数17日未満のチェック（変動月を含む3ヶ月）
             const targetMonths = [month, month + 1, month + 2];
             const hasInvalidWorkingDays = targetMonths.some((targetMonth) => {
-              if (targetMonth > 12) return false; // 12月を超える場合はスキップ
+              if (targetMonth > 12 || targetMonth < 1) return false; // 12月を超える、または1月未満の場合はスキップ
               const workingDaysKey = this.state.getWorkingDaysKey(emp.id, targetMonth);
               let workingDays = workingDaysData[workingDaysKey];
               
               // workingDaysDataに値がない場合、その月の日数をデフォルトとして使用
               // （saveAllSalariesの80-84行目と同じロジック）
-              if (workingDays === undefined) {
+              if (workingDays === undefined || isNaN(workingDays)) {
                 workingDays = new Date(year, targetMonth, 0).getDate();
+              }
+              if (isNaN(workingDays) || workingDays < 0 || workingDays > 31) {
+                return true; // 無効な値の場合は無効として扱う
               }
               
               // 支払基礎日数が17日未満（0日を含む）の場合は無効
@@ -525,18 +493,6 @@ export class MonthlySalarySaveService {
 
             // 支払基礎日数17日未満の月が1つでもあれば随時改定をスキップ
             if (hasInvalidWorkingDays) {
-              console.log(
-                `[monthly-salary-save] ${emp.name} (${year}年${month}月): 支払基礎日数17日未満の月が含まれるため随時改定をスキップ`,
-                {
-                  targetMonths,
-                  workingDays: targetMonths.map((m) => {
-                    if (m > 12) return null;
-                    const key = this.state.getWorkingDaysKey(emp.id, m);
-                    const wd = workingDaysData[key];
-                    return wd !== undefined ? wd : new Date(year, m, 0).getDate();
-                  }),
-                }
-              );
               continue;
             }
 
@@ -547,6 +503,9 @@ export class MonthlySalarySaveService {
 
             // 変動月の前月から遡って、支払基礎日数17日以上の月の給与データから標準報酬を計算
             for (let checkMonth = month - 1; checkMonth >= 1; checkMonth--) {
+              if (isNaN(checkMonth) || checkMonth < 1 || checkMonth > 12) {
+                break;
+              }
               const checkMonthKey = `${emp.id}_${checkMonth}`;
               const checkMonthData = salaryDataForDetection[checkMonthKey];
               
@@ -557,8 +516,11 @@ export class MonthlySalarySaveService {
               // 支払基礎日数を取得
               const checkWorkingDaysKey = this.state.getWorkingDaysKey(emp.id, checkMonth);
               let checkWorkingDays = workingDaysData[checkWorkingDaysKey];
-              if (checkWorkingDays === undefined) {
+              if (checkWorkingDays === undefined || isNaN(checkWorkingDays)) {
                 checkWorkingDays = new Date(year, checkMonth, 0).getDate();
+              }
+              if (isNaN(checkWorkingDays) || checkWorkingDays < 0 || checkWorkingDays > 31) {
+                continue;
               }
 
               // 支払基礎日数が17日未満の月はスキップ
@@ -637,35 +599,8 @@ export class MonthlySalarySaveService {
                       isEligible: true,
                     };
 
-                    console.log(
-                      `[monthly-salary-save] ${emp.name} (${year}年): 随時改定アラートを保存`,
-                      {
-                        employeeId: emp.id,
-                        year,
-                        changeMonth: month,
-                        applyStartYear,
-                        applyStartMonth,
-                        currentGrade: prevGrade,
-                        newGrade: newGrade,
-                        diff,
-                        averageSalary: average,
-                      }
-                    );
-
                     await this.suijiService.saveSuijiKouho(year, suijiResult);
                     suijiAlerts.push(suijiResult);
-                  } else {
-                    console.log(
-                      `[monthly-salary-save] ${emp.name} (${year}年${month}月): 等級差不足のため随時改定不成立`,
-                      {
-                        employeeId: emp.id,
-                        year,
-                        month,
-                        prevGrade,
-                        newGrade,
-                        diff,
-                      }
-                    );
                   }
                 }
               }
@@ -684,6 +619,9 @@ export class MonthlySalarySaveService {
 
     if (rates) {
       for (const emp of employees) {
+        if (!emp || !emp.id) {
+          continue;
+        }
         const updatedEmployee = await this.employeeService.getEmployeeById(
           emp.id
         );
@@ -695,6 +633,9 @@ export class MonthlySalarySaveService {
 
           // 保存された給与データを取得
           for (const month of months) {
+            if (isNaN(month) || month < 1 || month > 12) {
+              continue;
+            }
             const monthKeyString = month.toString();
             const monthSalaryData =
               await this.monthlySalaryService.getEmployeeSalary(

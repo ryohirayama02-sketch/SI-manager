@@ -133,6 +133,12 @@ export class SalaryCalculationService {
 
   /** 給与データのキーを作成（外部から呼ばれるため公開） */
   getSalaryKey(employeeId: string, month: number): string {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     return `${employeeId}_${month}`;
   }
 
@@ -316,6 +322,18 @@ export class SalaryCalculationService {
     month: number,
     standardBonus: number
   ): Promise<void> {
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
+    if (isNaN(standardBonus) || standardBonus < 0) {
+      throw new Error(`無効な標準賞与額が指定されました: ${standardBonus}`);
+    }
     const roomId = this.roomIdService.requireRoomId();
     const monthData =
       (await this.monthlySalaryService.getEmployeeSalary(
@@ -336,6 +354,9 @@ export class SalaryCalculationService {
       (monthData as any).fixedSalary ?? (monthData as any).fixed ?? 0;
     const currentVariable =
       (monthData as any).variableSalary ?? (monthData as any).variable ?? 0;
+    if (isNaN(currentFixed) || isNaN(currentVariable)) {
+      throw new Error('給与データに無効な数値が含まれています');
+    }
     const newTotal = currentFixed + currentVariable + standardBonus;
 
     await this.monthlySalaryService.saveEmployeeSalary(

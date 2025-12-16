@@ -33,8 +33,27 @@ export class ValidationService {
     const errors: string[] = [];
     const warnings: string[] = [];
 
+    if (!employeeId) {
+      return { errors, warnings };
+    }
+    if (!employee) {
+      return { errors, warnings };
+    }
+    if (!salaries) {
+      return { errors, warnings };
+    }
+    if (!months || !Array.isArray(months) || months.length === 0) {
+      return { errors, warnings };
+    }
+    if (!getStandardMonthlyRemuneration) {
+      return { errors, warnings };
+    }
+
     // 各月の給与データをチェック
     for (const month of months) {
+      if (isNaN(month) || month < 1 || month > 12) {
+        continue;
+      }
       const key = `${employeeId}_${month}`;
       const salaryData = salaries[key];
       if (!salaryData) continue;
@@ -42,6 +61,15 @@ export class ValidationService {
       const total = salaryData.total || 0;
       const fixed = salaryData.fixed || 0;
       const variable = salaryData.variable || 0;
+
+      // NaNチェック
+      if (isNaN(total) || isNaN(fixed) || isNaN(variable)) {
+        const errorMsg = `${month}月：給与データに無効な数値が含まれています`;
+        if (!errors.includes(errorMsg)) {
+          errors.push(errorMsg);
+        }
+        continue;
+      }
 
       // 報酬月額の整合性チェック（固定+非固定=総支給）
       if (total > 0 && Math.abs(fixed + variable - total) > 1) {
@@ -84,8 +112,19 @@ export class ValidationService {
     const errors: string[] = [];
     const warnings: string[] = [];
 
+    if (!employee) {
+      return { errors, warnings };
+    }
+    if (isNaN(age) || age < 0 || age > 150) {
+      return { errors, warnings };
+    }
+    if (!premiums) {
+      return { errors, warnings };
+    }
+
     // 70歳以上なのに厚生年金の保険料が計算されている
-    if (age >= 70 && premiums && premiums.pension_employee > 0) {
+    const pensionEmployee = premiums.pension_employee ?? 0;
+    if (age >= 70 && !isNaN(pensionEmployee) && pensionEmployee > 0) {
       const errorMsg = `70歳以上は厚生年金保険料は発生しません`;
       if (!errors.includes(errorMsg)) {
         errors.push(errorMsg);
@@ -93,10 +132,12 @@ export class ValidationService {
     }
 
     // 75歳以上なのに健康保険・介護保険が計算されている
+    const healthEmployee = premiums.health_employee ?? 0;
+    const careEmployee = premiums.care_employee ?? 0;
     if (
       age >= 75 &&
-      premiums &&
-      (premiums.health_employee > 0 || premiums.care_employee > 0)
+      ((!isNaN(healthEmployee) && healthEmployee > 0) ||
+        (!isNaN(careEmployee) && careEmployee > 0))
     ) {
       const errorMsg = `75歳以上は健康保険・介護保険は発生しません`;
       if (!errors.includes(errorMsg)) {

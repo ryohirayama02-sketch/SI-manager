@@ -15,6 +15,12 @@ export class MonthHelperService {
    * @returns 給与月（1〜12）
    */
   getPayMonth(payDate: Date): number {
+    if (!payDate) {
+      throw new Error('支給日が指定されていません');
+    }
+    if (isNaN(payDate.getTime())) {
+      throw new Error('無効な支給日が指定されました');
+    }
     return payDate.getMonth() + 1;
   }
 
@@ -24,6 +30,12 @@ export class MonthHelperService {
    * @returns 年
    */
   getPayYear(payDate: Date): number {
+    if (!payDate) {
+      throw new Error('支給日が指定されていません');
+    }
+    if (isNaN(payDate.getTime())) {
+      throw new Error('無効な支給日が指定されました');
+    }
     return payDate.getFullYear();
   }
 
@@ -34,6 +46,12 @@ export class MonthHelperService {
    * @returns "2025-01" 形式のキー
    */
   getYearMonthKey(year: number, month: number): string {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     const monthStr = month.toString().padStart(2, '0');
     return `${year}-${monthStr}`;
   }
@@ -44,6 +62,12 @@ export class MonthHelperService {
    * @returns 給与月情報
    */
   getPayMonthInfo(payDate: Date): PayMonthResult {
+    if (!payDate) {
+      throw new Error('支給日が指定されていません');
+    }
+    if (isNaN(payDate.getTime())) {
+      throw new Error('無効な支給日が指定されました');
+    }
     const year = this.getPayYear(payDate);
     const month = this.getPayMonth(payDate);
     const key = this.getYearMonthKey(year, month);

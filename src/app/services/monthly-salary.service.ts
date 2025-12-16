@@ -39,6 +39,18 @@ export class MonthlySalaryService {
     month: number,
     payload: any
   ): Promise<void> {
+    if (!roomId) {
+      throw new Error('ルームIDが指定されていません');
+    }
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     // 従業員のroomIdを確認（セキュリティチェック）
     const employee = await this.employeeService.getEmployeeById(employeeId);
     if (!employee) {
@@ -135,6 +147,18 @@ export class MonthlySalaryService {
     year: number,
     month: number
   ): Promise<any | null> {
+    if (!roomId) {
+      return null;
+    }
+    if (!employeeId) {
+      return null;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return null;
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      return null;
+    }
     const ref = doc(
       this.firestore,
       `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months/${month}`
@@ -150,6 +174,18 @@ export class MonthlySalaryService {
     year: number,
     month: number
   ): Promise<void> {
+    if (!roomId) {
+      throw new Error('ルームIDが指定されていません');
+    }
+    if (!employeeId) {
+      throw new Error('従業員IDが指定されていません');
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      throw new Error(`無効な年が指定されました: ${year}`);
+    }
+    if (isNaN(month) || month < 1 || month > 12) {
+      throw new Error(`無効な月が指定されました: ${month}`);
+    }
     const ref = doc(
       this.firestore,
       `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months/${month}`
@@ -162,6 +198,12 @@ export class MonthlySalaryService {
     employeeId: string,
     year: number
   ): Promise<string[]> {
+    if (!roomId || !employeeId) {
+      return [];
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return [];
+    }
     const col = collection(
       this.firestore,
       `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months`
@@ -176,6 +218,11 @@ export class MonthlySalaryService {
    * @returns Observable<void>
    */
   observeMonthlySalaries(year: number): Observable<void> {
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return new Observable<void>((observer) => {
+        observer.complete();
+      });
+    }
     const roomId = this.roomIdService.requireRoomId();
     // 指定ルームの指定年度の給与データのみを監視
     const colGroup = query(
