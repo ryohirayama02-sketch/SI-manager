@@ -116,12 +116,6 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
       this.employees.map((emp) => emp.id).filter((id) => id)
     );
 
-    console.log(
-      `[alert-family-tab] loadSupportAlerts開始: 今日=${this.formatDate(
-        today
-      )}, 従業員数=${this.employees.length}`
-    );
-
     try {
       for (const emp of this.employees) {
         // 従業員IDが有効でない場合はスキップ
@@ -140,10 +134,6 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
             currentRoomEmployeeIds.has(member.employeeId)
         );
 
-        console.log(
-          `[alert-family-tab] 従業員=${emp.name}, 家族数=${familyMembers.length}, 有効な家族数=${validFamilyMembers.length}`
-        );
-
         for (const member of validFamilyMembers) {
           const birthDate = new Date(member.birthDate);
           birthDate.setHours(0, 0, 0, 0);
@@ -154,10 +144,6 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
             member.expectedIncome !== undefined
               ? member.expectedIncome
               : null;
-
-          console.log(
-            `[alert-family-tab] 家族チェック: 従業員=${emp.name}, 家族=${member.name}, 続柄=${relationship}, 生年月日=${member.birthDate}, 現在年齢=${age}`
-          );
 
           // 【1】配偶者に関するアラート
           if (
