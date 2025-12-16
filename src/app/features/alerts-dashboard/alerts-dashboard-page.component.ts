@@ -56,6 +56,7 @@ import { FamilyMemberService } from '../../services/family-member.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { RoomIdService } from '../../services/room-id.service';
+import { getJSTDate } from '../../utils/alerts-helper';
 
 export interface AlertItem {
   id: string;
@@ -925,15 +926,14 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
   async loadTeijiKetteiData(): Promise<void> {
     // 既にローディング中の場合はスキップ（重複実行を防ぐ）
     if (this.isLoadingTeijiKettei) {
-      console.log(
-        '[alerts-dashboard] loadTeijiKetteiData: 既にローディング中のためスキップ'
-      );
       return;
     }
 
     try {
       this.isLoadingTeijiKettei = true;
-      const targetYear = this.state.teijiYear;
+      const targetYear = this.state.teijiYear && !isNaN(this.state.teijiYear) && this.state.teijiYear >= 1900 && this.state.teijiYear <= 2100
+        ? this.state.teijiYear
+        : getJSTDate().getFullYear();
       // 3月始まりの年度に合わせ、4月の月で標準報酬等級表を取得
       this.gradeTable = await this.settingsService.getStandardTableForMonth(
         targetYear,
@@ -950,34 +950,38 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       // 7月、8月、9月に随時改定の適用開始があるかチェック
       const suijiAlerts = await this.suijiService.loadAlerts(targetYear);
 
-      console.log(
-        `[alerts-dashboard] loadTeijiKetteiData開始: 年度=${targetYear}, 従業員数=${this.employees.length}`
-      );
+      if (!this.employees || !Array.isArray(this.employees)) {
+        return;
+      }
 
       for (const emp of this.employees) {
         // 従業員IDが無い場合はスキップ（重複/不正データ防止）
-        if (!emp.id) {
-          console.warn('[alerts-dashboard] 従業員ID未設定のためスキップ', emp);
+        if (!emp || !emp.id) {
           continue;
         }
 
         // 既に同じ従業員IDが追加済みなら上書きせずスキップ
         if (teijiResultsMap.has(emp.id)) {
-          console.warn(
-            `[alerts-dashboard] 重複した従業員IDを検出: ${emp.name} (${emp.id})`
-          );
           continue;
         }
 
         // 7月、8月、9月に随時改定の適用開始があるかチェック
-        const employeeSuijiAlerts = suijiAlerts.filter(
-          (alert) => alert.employeeId === emp.id && alert.isEligible
-        );
+        const employeeSuijiAlerts = suijiAlerts && Array.isArray(suijiAlerts)
+          ? suijiAlerts.filter(
+              (alert) => alert && alert.employeeId === emp.id && alert.isEligible
+            )
+          : [];
 
         // 随時改定の適用開始月が7月、8月、9月のいずれかであるかをチェック
         let hasSuijiIn789 = false;
         for (const suijiAlert of employeeSuijiAlerts) {
+          if (!suijiAlert || !suijiAlert.changeMonth) {
+            continue;
+          }
           const changeMonth = suijiAlert.changeMonth;
+          if (isNaN(changeMonth) || changeMonth < 1 || changeMonth > 12) {
+            continue;
+          }
           const applyStartMonthRaw = changeMonth + 3;
           let applyStartYear = targetYear;
           let applyStartMonth = applyStartMonthRaw;
@@ -1003,9 +1007,6 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
         // 7月、8月、9月に随時改定の適用開始がある場合、算定基礎届アラートを生成しない
         if (hasSuijiIn789) {
-          console.log(
-            `[alerts-dashboard] 従業員${emp.name} (${emp.id})は${targetYear}年の7-9月に随時改定の適用開始があるため、算定基礎届アラートをスキップ`
-          );
           continue;
         }
 
@@ -1175,13 +1176,10 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       const deletedIds = await this.alertDeletionService.getDeletedIds('teiji');
       this.state.teijiKetteiResults = Array.from(
         teijiResultsMap.values()
-      ).filter((r) => !deletedIds.has(r.employeeId));
-
-      console.log(
-        `[alerts-dashboard] loadTeijiKetteiData完了: 結果数=${this.state.teijiKetteiResults.length}`
-      );
+      ).filter((r) => r && r.employeeId && !deletedIds.has(r.employeeId));
     } catch (error) {
       console.error('[alerts-dashboard] loadTeijiKetteiDataエラー:', error);
+      this.state.teijiKetteiResults = [];
     } finally {
       this.isLoadingTeijiKettei = false;
     }

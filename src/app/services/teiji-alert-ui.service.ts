@@ -10,8 +10,19 @@ export class TeijiAlertUiService {
    * 期日は7月10日
    */
   getTeijiReportDeadline(year: number): string {
-    const deadlineDate = new Date(year, 6, 10); // 7月 = 6 (0-indexed)
-    return formatDate(deadlineDate);
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return '-';
+    }
+    try {
+      const deadlineDate = new Date(year, 6, 10); // 7月 = 6 (0-indexed)
+      if (isNaN(deadlineDate.getTime())) {
+        return '-';
+      }
+      return formatDate(deadlineDate);
+    } catch (error) {
+      console.error('[TeijiAlertUiService] getTeijiReportDeadlineエラー:', error);
+      return '-';
+    }
   }
 
   /**

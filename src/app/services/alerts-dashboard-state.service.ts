@@ -242,6 +242,9 @@ export class AlertsDashboardStateService {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !event.alertId) {
+      return;
+    }
     if (event.selected) {
       this.selectedTeijiAlertIds.add(event.alertId);
     } else {
@@ -253,10 +256,17 @@ export class AlertsDashboardStateService {
     checked: boolean,
     getTeijiAlertId: (result: TeijiKetteiResultData) => string
   ): void {
+    if (!this.teijiKetteiResults || !Array.isArray(this.teijiKetteiResults)) {
+      return;
+    }
     if (checked) {
       this.teijiKetteiResults.forEach((result) => {
-        const alertId = getTeijiAlertId(result);
-        this.selectedTeijiAlertIds.add(alertId);
+        if (result) {
+          const alertId = getTeijiAlertId(result);
+          if (alertId) {
+            this.selectedTeijiAlertIds.add(alertId);
+          }
+        }
       });
     } else {
       this.selectedTeijiAlertIds.clear();
@@ -264,6 +274,9 @@ export class AlertsDashboardStateService {
   }
 
   deleteSelectedTeijiAlerts(): void {
+    if (!this.selectedTeijiAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(this.selectedTeijiAlertIds);
     if (selectedIds.length === 0) {
       return;
@@ -274,9 +287,11 @@ export class AlertsDashboardStateService {
       return;
     }
 
-    this.teijiKetteiResults = this.teijiKetteiResults.filter(
-      (result) => !selectedIds.includes(result.employeeId)
-    );
+    if (this.teijiKetteiResults && Array.isArray(this.teijiKetteiResults)) {
+      this.teijiKetteiResults = this.teijiKetteiResults.filter(
+        (result) => result && result.employeeId && !selectedIds.includes(result.employeeId)
+      );
+    }
     this.selectedTeijiAlertIds.clear();
     this.updateScheduleData();
   }
