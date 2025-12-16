@@ -83,7 +83,7 @@ export class AlertsDashboardStateService {
    */
   getTabColor(tabId: string): string {
     const colorMap: { [key: string]: string } = {
-      schedule: '#6c757d',
+      schedule: '#343a40', // より濃いグレー（視認性向上）
       bonus: '#0056b3', // より濃い青
       suiji: '#1e7e34', // より濃い緑
       teiji: '#ffc107', // 明るい黄色（UI的にポジティブな印象）
@@ -93,7 +93,7 @@ export class AlertsDashboardStateService {
       uncollected: '#c2185b', // より濃いピンク
       payment: '#e64a19', // より濃いオレンジ/赤
     };
-    return colorMap[tabId] || '#6c757d';
+    return colorMap[tabId] || '#343a40';
   }
 
   /**
