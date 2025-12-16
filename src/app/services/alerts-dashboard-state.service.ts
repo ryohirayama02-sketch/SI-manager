@@ -125,7 +125,6 @@ export class AlertsDashboardStateService {
     selected: boolean;
   }): void {
     if (!event || !event.alertId) {
-      console.warn('[alerts-dashboard-state] onBonusAlertSelectionChange: eventが無効です');
       return;
     }
     if (!this.selectedBonusReportAlertIds) {

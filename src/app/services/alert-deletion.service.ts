@@ -26,14 +26,22 @@ export class AlertDeletionService {
    * @param alertId アラートID
    */
   async markAsDeleted(type: string, alertId: string): Promise<void> {
-    const roomId = this.roomIdService.requireRoomId();
-    const docId = `${type}_${alertId}`;
-    const ref = doc(this.firestore, `rooms/${roomId}/alertDeletions/${docId}`);
-    await setDoc(ref, {
-      type,
-      alertId,
-      deletedAt: new Date(),
-    });
+    if (!type || !alertId) {
+      return;
+    }
+    try {
+      const roomId = this.roomIdService.requireRoomId();
+      const docId = `${type}_${alertId}`;
+      const ref = doc(this.firestore, `rooms/${roomId}/alertDeletions/${docId}`);
+      await setDoc(ref, {
+        type,
+        alertId,
+        deletedAt: new Date(),
+      });
+    } catch (error) {
+      console.error(`[AlertDeletionService] markAsDeletedエラー: type=${type}, alertId=${alertId}`, error);
+      throw error;
+    }
   }
 
   /**
@@ -41,18 +49,31 @@ export class AlertDeletionService {
    * @param type アラート種別
    */
   async getDeletedIds(type: string): Promise<Set<string>> {
-    const roomId = this.roomIdService.requireRoomId();
-    const col = collection(this.firestore, `rooms/${roomId}/alertDeletions`);
-    const q = query(col, where('type', '==', type));
-    const snap = await getDocs(q);
-    const ids = new Set<string>();
-    snap.docs.forEach((d) => {
-      const data = d.data();
-      if (data['alertId']) {
-        ids.add(data['alertId']);
+    if (!type) {
+      return new Set<string>();
+    }
+    try {
+      const roomId = this.roomIdService.requireRoomId();
+      const col = collection(this.firestore, `rooms/${roomId}/alertDeletions`);
+      const q = query(col, where('type', '==', type));
+      const snap = await getDocs(q);
+      const ids = new Set<string>();
+      if (snap && snap.docs) {
+        snap.docs.forEach((d) => {
+          if (!d || !d.exists()) {
+            return;
+          }
+          const data = d.data();
+          if (data && data['alertId'] && typeof data['alertId'] === 'string') {
+            ids.add(data['alertId']);
+          }
+        });
       }
-    });
-    return ids;
+      return ids;
+    } catch (error) {
+      console.error(`[AlertDeletionService] getDeletedIdsエラー: type=${type}`, error);
+      return new Set<string>();
+    }
   }
 }
 

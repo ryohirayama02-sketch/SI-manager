@@ -48,16 +48,54 @@ export function formatDate(date: Date): string {
  * 提出期限を計算（基準日から5日後）
  */
 export function calculateSubmitDeadline(baseDate: Date): Date {
-  const deadline = new Date(baseDate);
-  deadline.setDate(deadline.getDate() + 5);
-  return deadline;
+  if (!baseDate || !(baseDate instanceof Date) || isNaN(baseDate.getTime())) {
+    const now = getJSTDate();
+    const deadline = new Date(now);
+    deadline.setDate(deadline.getDate() + 5);
+    return deadline;
+  }
+  try {
+    const deadline = new Date(baseDate);
+    deadline.setDate(deadline.getDate() + 5);
+    // 無効な日付が生成されていないかチェック
+    if (isNaN(deadline.getTime())) {
+      const now = getJSTDate();
+      const fallbackDeadline = new Date(now);
+      fallbackDeadline.setDate(fallbackDeadline.getDate() + 5);
+      return fallbackDeadline;
+    }
+    return deadline;
+  } catch (error) {
+    console.error('[alerts-helper] calculateSubmitDeadlineエラー:', error);
+    const now = getJSTDate();
+    const deadline = new Date(now);
+    deadline.setDate(deadline.getDate() + 5);
+    return deadline;
+  }
 }
 
 /**
  * 提出期限までの日数を計算
  */
 export function calculateDaysUntilDeadline(deadline: Date, today: Date): number {
-  return Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (!deadline || !(deadline instanceof Date) || isNaN(deadline.getTime())) {
+    return 0;
+  }
+  if (!today || !(today instanceof Date) || isNaN(today.getTime())) {
+    today = getJSTDate();
+  }
+  try {
+    const diffMs = deadline.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    // NaNや無限大の値をチェック
+    if (isNaN(diffDays) || !isFinite(diffDays)) {
+      return 0;
+    }
+    return diffDays;
+  } catch (error) {
+    console.error('[alerts-helper] calculateDaysUntilDeadlineエラー:', error);
+    return 0;
+  }
 }
 
 /**

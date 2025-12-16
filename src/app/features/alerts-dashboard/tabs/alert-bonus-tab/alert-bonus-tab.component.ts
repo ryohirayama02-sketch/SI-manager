@@ -79,7 +79,6 @@ export class AlertBonusTabComponent {
    */
   toggleBonusReportAlertSelection(alertId: string): void {
     if (!alertId) {
-      console.warn('[alert-bonus-tab] toggleBonusReportAlertSelection: alertIdが無効です');
       return;
     }
     if (!this.selectedBonusReportAlertIds) {
@@ -91,7 +90,6 @@ export class AlertBonusTabComponent {
 
   toggleAllBonusReportAlertsChange(event: Event): void {
     if (!event || !event.target) {
-      console.warn('[alert-bonus-tab] toggleAllBonusReportAlertsChange: eventが無効です');
       return;
     }
     const target = event.target as HTMLInputElement;
@@ -137,13 +135,11 @@ export class AlertBonusTabComponent {
       for (let i = 0; i < this.bonusReportAlerts.length; i++) {
         const alert = this.bonusReportAlerts[i];
         if (!alert || !alert.employeeId) {
-          console.warn(`[alert-bonus-tab] 無効なアラート: インデックス=${i}`);
           continue;
         }
 
         const employee = this.employees.find((e) => e.id === alert.employeeId);
         if (!employee) {
-          console.warn(`[alert-bonus-tab] 従業員が見つかりません: ID=${alert.employeeId}`);
           continue;
         }
 
@@ -178,25 +174,30 @@ export class AlertBonusTabComponent {
             : officeCodeStr || officeNumberStr || '';
 
         // 支給日を令和YYMMDD形式に変換
+        if (!alert.payDate || typeof alert.payDate !== 'string') {
+          continue;
+        }
         const payDateObj = new Date(alert.payDate);
         if (isNaN(payDateObj.getTime())) {
-          console.error(`[alert-bonus-tab] 無効な支給日: ${alert.payDate}`);
           continue;
         }
         const year = payDateObj.getFullYear();
+        if (year < 1900 || year > 2100) {
+          continue;
+        }
         const month = String(payDateObj.getMonth() + 1).padStart(2, '0');
         const day = String(payDateObj.getDate()).padStart(2, '0');
         // 令和年を計算（2019年が令和1年）
         const reiwaYear = year >= 2019 ? year - 2018 : 0;
-        if (reiwaYear <= 0) {
-          console.error(`[alert-bonus-tab] 無効な年: ${year}`);
+        if (reiwaYear <= 0 || reiwaYear > 99) {
           continue;
         }
         const reiwaYearStr = String(reiwaYear).padStart(2, '0');
         const payDateFormatted = `R${reiwaYearStr}${month}${day}`;
 
         // 賞与データを取得（1000円未満切り捨て額を取得）
-        let standardBonusAmount = Math.floor(alert.bonusAmount / 1000) * 1000;
+        const bonusAmount = alert.bonusAmount && !isNaN(alert.bonusAmount) ? alert.bonusAmount : 0;
+        let standardBonusAmount = Math.floor(bonusAmount / 1000) * 1000;
         try {
           const bonuses = await this.bonusService.listBonuses(
             roomId,
@@ -205,7 +206,7 @@ export class AlertBonusTabComponent {
           );
           if (bonuses && Array.isArray(bonuses)) {
             const bonus = bonuses.find((b) => b && b.payDate === alert.payDate);
-            if (bonus && bonus.standardBonusAmount !== undefined) {
+            if (bonus && bonus.standardBonusAmount !== undefined && !isNaN(bonus.standardBonusAmount)) {
               standardBonusAmount = bonus.standardBonusAmount;
             }
           }
@@ -218,10 +219,10 @@ export class AlertBonusTabComponent {
         }
 
         // 生年月日を和暦形式に変換
-        const birthDate = this.formatBirthDateToEra(employee.birthDate);
+        const birthDate = employee.birthDate ? this.formatBirthDateToEra(employee.birthDate) : '';
 
         // 年齢を計算
-        const age = this.calculateAge(employee.birthDate, alert.payDate);
+        const age = employee.birthDate && alert.payDate ? this.calculateAge(employee.birthDate, alert.payDate) : 0;
 
         // 被保険者整理番号（従業員の被保険者整理番号フィールドを使用）
         const insuredNumber = employee.insuredNumber || '';
@@ -241,7 +242,7 @@ export class AlertBonusTabComponent {
         csvLines.push(`被保険者氏名,${employee.name || ''}`);
         csvLines.push(`被保険者氏名（カナ）,${employee.nameKana || ''}`);
         csvLines.push(`生年月日,${birthDate}`);
-        csvLines.push(`賞与額,${String(alert.bonusAmount)}`);
+        csvLines.push(`賞与額,${String(bonusAmount)}`);
         csvLines.push(
           `賞与額（1000円未満切り捨て）,${String(standardBonusAmount)}`
         );
@@ -309,22 +310,22 @@ export class AlertBonusTabComponent {
       const month = date.getMonth() + 1;
       const day = date.getDate();
 
-    let era = '';
-    let eraYear = 0;
+      let era = '';
+      let eraYear = 0;
 
-    if (year >= 2019) {
-      era = '令和';
-      eraYear = year - 2018;
-    } else if (year >= 1989) {
-      era = '平成';
-      eraYear = year - 1988;
-    } else if (year >= 1926) {
-      era = '昭和';
-      eraYear = year - 1925;
-    } else {
-      era = '大正';
-      eraYear = year - 1911;
-    }
+      if (year >= 2019) {
+        era = '令和';
+        eraYear = year - 2018;
+      } else if (year >= 1989) {
+        era = '平成';
+        eraYear = year - 1988;
+      } else if (year >= 1926) {
+        era = '昭和';
+        eraYear = year - 1925;
+      } else {
+        era = '大正';
+        eraYear = year - 1911;
+      }
 
       return `${era}${eraYear}年${month}月${day}日`;
     } catch (error) {

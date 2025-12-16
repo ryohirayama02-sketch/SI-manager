@@ -472,64 +472,20 @@ export class AlertGenerationService {
           month: checkDate.getMonth() + 1,
         });
       }
-      console.log(
-        `[alert-generation] 非加入者収入超過アラート: チェック対象月`,
-        {
-          currentYear,
-          currentMonth,
-          monthsToCheck,
-        }
-      );
-
       for (const emp of employees) {
         // 社会保険未加入のみ対象
         const isNonInsured = this.employeeWorkCategoryService.isNonInsured(emp);
-        console.log(
-          `[alert-generation] 非加入者チェック: ${emp.name} (${emp.id}), weeklyWorkHoursCategory=${emp.weeklyWorkHoursCategory}, isNonInsured=${isNonInsured}`
-        );
         if (!isNonInsured) continue;
-
-        console.log(
-          `[alert-generation] 非加入者として処理開始: ${emp.name} (${emp.id}), チェック対象月数=${monthsToCheck.length}`,
-          { monthsToCheck }
-        );
 
         // 過去3ヶ月分をチェック
         for (const { year, month } of monthsToCheck) {
-          console.log(
-            `[alert-generation] 月次給与データ取得開始: ${emp.name} (${emp.id}), ${year}年${month}月`
-          );
           const monthData = await this.monthlySalaryService.getEmployeeSalary(
             roomId,
             emp.id,
             year,
             month
           );
-          const monthDataSummary = monthData ? {
-            totalSalary: monthData.totalSalary,
-            total: monthData.total,
-            fixedSalary: monthData.fixedSalary,
-            fixed: monthData.fixed,
-            variableSalary: monthData.variableSalary,
-            variable: monthData.variable,
-            fixedTotal: monthData.fixedTotal,
-            variableTotal: monthData.variableTotal,
-            salaryItems: monthData.salaryItems,
-            allKeys: Object.keys(monthData),
-            fullMonthData: monthData, // デバッグ用：全データを表示
-          } : null;
-          console.log(
-            `[alert-generation] 月次給与データ取得完了: ${emp.name} (${emp.id}), ${year}年${month}月`,
-            {
-              monthData: monthDataSummary,
-              hasMonthData: !!monthData,
-              rawMonthData: monthData, // 生データを確認
-            }
-          );
           if (!monthData) {
-            console.log(
-              `[alert-generation] 月次給与データなしのためスキップ: ${emp.name} (${emp.id}), ${year}年${month}月`
-            );
             continue;
           }
 
@@ -547,27 +503,7 @@ export class AlertGenerationService {
             monthData.total ??
             calculatedTotal;
 
-          console.log(
-            `[alert-generation] 収入チェック: ${emp.name} (${emp.id}), ${year}年${month}月`,
-            {
-              totalSalary: monthData.totalSalary,
-              total: monthData.total,
-              fixedSalary: monthData.fixedSalary,
-              fixed: monthData.fixed,
-              variableSalary: monthData.variableSalary,
-              variable: monthData.variable,
-              fixedTotal: monthData.fixedTotal,
-              variableTotal: monthData.variableTotal,
-              calculatedTotal: total,
-              threshold: 88000,
-              isOverThreshold: total > 88000,
-            }
-          );
-
           if (total <= 88000) {
-            console.log(
-              `[alert-generation] 収入が88000円以下のためスキップ: ${emp.name} (${emp.id}), ${year}年${month}月, total=${total}`
-            );
             continue;
           }
 
@@ -576,15 +512,6 @@ export class AlertGenerationService {
             (a) => a.id === alertId
           );
           const isDeleted = deletedAlertIds.has(alertId);
-          console.log(
-            `[alert-generation] アラート生成チェック: ${emp.name} (${emp.id}), ${year}年${month}月`,
-            {
-              alertId,
-              existingAlert: existingAlert ? existingAlert.id : null,
-              isDeleted,
-              willCreate: !existingAlert && !isDeleted,
-            }
-          );
 
           if (existingAlert || isDeleted) {
             continue;
@@ -596,10 +523,6 @@ export class AlertGenerationService {
           const daysUntilDeadline = calculateDaysUntilDeadline(
             submitDeadline,
             today
-          );
-
-          console.log(
-            `[alert-generation] 非加入者収入超過アラートを生成: ${emp.name} (${emp.id}), ${year}年${month}月, total=${total}`
           );
 
           qualificationChangeAlerts.push({
@@ -804,7 +727,6 @@ export class AlertGenerationService {
     const bonusReportAlerts: BonusReportAlert[] = [];
 
     if (!employees || !Array.isArray(employees)) {
-      console.warn('[alert-generation] generateBonusReportAlerts: employeesが無効です');
       return bonusReportAlerts;
     }
 
@@ -841,7 +763,7 @@ export class AlertGenerationService {
               }
             } catch (error) {
               console.error(
-                `[alert-generation] 賞与取得エラー: 従業員ID=${emp.id}, 年度=${year}`,
+                `[alert-generation] 賞与取得エラー: 従業員ID=${emp?.id || '不明'}, 年度=${year}`,
                 error
               );
               // エラーが発生しても処理を継続
@@ -853,20 +775,18 @@ export class AlertGenerationService {
               continue;
             }
 
-            if (!bonus.amount || bonus.amount === 0 || isNaN(bonus.amount)) {
+            // bonus.amountのバリデーション
+            if (bonus.amount === null || bonus.amount === undefined || bonus.amount === 0 || isNaN(bonus.amount)) {
               continue;
             }
 
-            if (!bonus.payDate) {
+            if (!bonus.payDate || typeof bonus.payDate !== 'string') {
               continue;
             }
 
             try {
               const payDate = normalizeDate(new Date(bonus.payDate));
               if (isNaN(payDate.getTime())) {
-                console.warn(
-                  `[alert-generation] 無効な支給日: ${bonus.payDate}, 従業員ID=${bonus.employeeId}`
-                );
                 continue;
               }
 
@@ -877,20 +797,24 @@ export class AlertGenerationService {
                 today
               );
 
-              const alertId = `${bonus.employeeId}_${bonus.payDate}`;
+              const employeeId = bonus.employeeId || emp.id;
+              if (!employeeId) {
+                continue;
+              }
+              const alertId = `${employeeId}_${bonus.payDate}`;
 
               bonusReportAlerts.push({
                 id: alertId,
-                employeeId: bonus.employeeId || emp.id,
-                employeeName: emp.name || '',
-                bonusAmount: bonus.amount,
+                employeeId: employeeId,
+                employeeName: emp.name || '不明',
+                bonusAmount: bonus.amount || 0,
                 payDate: bonus.payDate,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
               });
             } catch (error) {
               console.error(
-                `[alert-generation] 賞与アラート生成エラー: 従業員ID=${bonus.employeeId}, 支給日=${bonus.payDate}`,
+                `[alert-generation] 賞与アラート生成エラー: 従業員ID=${bonus?.employeeId || emp?.id || '不明'}, 支給日=${bonus?.payDate || '不明'}`,
                 error
               );
               // エラーが発生しても処理を継続
@@ -898,7 +822,7 @@ export class AlertGenerationService {
           }
         } catch (error) {
           console.error(
-            `[alert-generation] 従業員処理エラー: ID=${emp.id}, 名前=${emp.name}`,
+            `[alert-generation] 従業員処理エラー: ID=${emp?.id || '不明'}, 名前=${emp?.name || '不明'}`,
             error
           );
           // エラーが発生しても処理を継続

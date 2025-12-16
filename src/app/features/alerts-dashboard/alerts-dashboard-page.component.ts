@@ -1263,14 +1263,23 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
     alertId: string;
     selected: boolean;
   }): void {
+    if (!event || !this.state) {
+      return;
+    }
     this.state.onBonusAlertSelectionChange(event);
   }
 
   onBonusSelectAllChange(checked: boolean): void {
+    if (!this.state) {
+      return;
+    }
     this.state.onBonusSelectAllChange(checked);
   }
 
   deleteSelectedBonusReportAlerts(): void {
+    if (!this.state || !this.state.selectedBonusReportAlertIds) {
+      return;
+    }
     const selectedIds = Array.from(this.state.selectedBonusReportAlertIds);
     if (selectedIds.length === 0) {
       return;
@@ -1281,12 +1290,26 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    selectedIds.forEach((id) =>
-      this.alertDeletionService.markAsDeleted('bonus', id)
-    );
-
-    this.state.deleteSelectedBonusReportAlerts();
-    this.loadScheduleData();
+    // エラーハンドリング付きで削除処理を実行
+    Promise.all(
+      selectedIds.map((id) => {
+        if (!id) {
+          return Promise.resolve();
+        }
+        return this.alertDeletionService.markAsDeleted('bonus', id).catch((error) => {
+          console.error(`[AlertsDashboardPage] アラート削除エラー: id=${id}`, error);
+          // エラーが発生しても処理を継続
+        });
+      })
+    ).then(() => {
+      this.state.deleteSelectedBonusReportAlerts();
+      this.loadScheduleData();
+    }).catch((error) => {
+      console.error('[AlertsDashboardPage] deleteSelectedBonusReportAlertsエラー:', error);
+      // エラーが発生しても状態を更新
+      this.state.deleteSelectedBonusReportAlerts();
+      this.loadScheduleData();
+    });
   }
 
   onSuijiAlertSelectionChange(event: {

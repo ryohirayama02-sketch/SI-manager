@@ -125,7 +125,15 @@ export class AlertsDashboardUiService {
   async loadBonusReportAlerts(
     employees: Employee[]
   ): Promise<BonusReportAlert[]> {
-    return await this.alertGenerationService.generateBonusReportAlerts(employees);
+    if (!employees || !Array.isArray(employees)) {
+      return [];
+    }
+    try {
+      return await this.alertGenerationService.generateBonusReportAlerts(employees);
+    } catch (error) {
+      console.error('[alerts-dashboard-ui] loadBonusReportAlertsエラー:', error);
+      return [];
+    }
   }
 }
 

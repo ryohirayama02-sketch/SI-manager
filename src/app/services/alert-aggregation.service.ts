@@ -62,18 +62,34 @@ export class AlertAggregationService {
         if (!alert || !alert.submitDeadline) {
           continue;
         }
-        const dateKey = this.formatDateKey(alert.submitDeadline);
-        const year = alert.submitDeadline.getFullYear();
-        if (year >= 1900 && year <= 2100) {
-          yearsForFixedEvents.add(year);
+        // submitDeadlineがDateオブジェクトであることを確認
+        if (!(alert.submitDeadline instanceof Date)) {
+          continue;
         }
-        if (!scheduleData[dateKey]) {
-          scheduleData[dateKey] = {};
+        // 無効な日付でないかチェック
+        if (isNaN(alert.submitDeadline.getTime())) {
+          continue;
         }
-        if (!scheduleData[dateKey]['賞与支払届']) {
-          scheduleData[dateKey]['賞与支払届'] = 0;
+        try {
+          const dateKey = this.formatDateKey(alert.submitDeadline);
+          if (!dateKey) {
+            continue;
+          }
+          const year = alert.submitDeadline.getFullYear();
+          if (year >= 1900 && year <= 2100) {
+            yearsForFixedEvents.add(year);
+          }
+          if (!scheduleData[dateKey]) {
+            scheduleData[dateKey] = {};
+          }
+          if (!scheduleData[dateKey]['賞与支払届']) {
+            scheduleData[dateKey]['賞与支払届'] = 0;
+          }
+          scheduleData[dateKey]['賞与支払届']++;
+        } catch (error) {
+          console.error('[AlertAggregationService] 賞与支払届アラート処理エラー:', error, alert);
+          // エラーが発生しても処理を継続
         }
-        scheduleData[dateKey]['賞与支払届']++;
       }
     }
 
