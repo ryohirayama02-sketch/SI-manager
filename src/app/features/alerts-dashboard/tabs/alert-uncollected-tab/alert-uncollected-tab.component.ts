@@ -71,8 +71,12 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
     const summaryMap = new Map<string, UncollectedPremiumSummary>();
 
     for (const premium of premiums) {
-      if (premium.resolved || premium.amount <= 0) {
+      if (!premium || premium.resolved || premium.amount <= 0) {
         continue;
+      }
+
+      if (!premium.employeeId) {
+        continue; // employeeIdが無い場合はスキップ
       }
 
       if (!summaryMap.has(premium.employeeId)) {
@@ -94,10 +98,13 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
     // 月順にソート
     for (const summary of summaryMap.values()) {
       summary.monthlyDetails.sort((a, b) => {
-        if (a.year !== b.year) {
-          return a.year - b.year;
+        if (!a || !b) {
+          return 0;
         }
-        return a.month - b.month;
+        if (a.year !== b.year) {
+          return (a.year || 0) - (b.year || 0);
+        }
+        return (a.month || 0) - (b.month || 0);
       });
     }
 
@@ -172,7 +179,11 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
   }
 
   toggleSelectAll(event: Event): void {
-    const checked = (event.target as HTMLInputElement).checked;
+    const target = event.target as HTMLInputElement;
+    if (!target) {
+      return;
+    }
+    const checked = target.checked;
     if (checked) {
       // 全選択
       for (const summary of this.summaries) {

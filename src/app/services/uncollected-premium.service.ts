@@ -48,24 +48,10 @@ export class UncollectedPremiumService {
     // 条件：総支給額 < 本人負担保険料
     // 本人負担保険料は、確定した標準報酬月額（定時決定・随時改定・資格取得時決定）に基づいて計算される
 
-// // console.log(`[徴収不能保存] 従業員ID: ${employeeId}, ${year}年${month}月`, {
-//       totalSalary,
-//       employeeTotalPremium,
-//       condition: totalSalary < employeeTotalPremium,
-//       uncollectedAmount:
-//         totalSalary < employeeTotalPremium
-//           ? employeeTotalPremium - totalSalary
-//           : 0,
-//     });
-
     const roomId = this.roomIdService.requireRoomId();
 
     if (totalSalary < employeeTotalPremium) {
       const uncollectedAmount = employeeTotalPremium - totalSalary;
-
-// // console.log(
-//         `[徴収不能保存] アラート生成: ${year}年${month}月, 徴収不能額=${uncollectedAmount}円`
-//       );
 
       // ドキュメントIDを生成（employeeId_year_month）
       const docId = `${employeeId}_${year}_${month}`;
@@ -85,14 +71,7 @@ export class UncollectedPremiumService {
       };
 
       await setDoc(ref, data, { merge: true });
-// // console.log(
-//         `[徴収不能保存] Firestoreに保存完了: docId=${docId}, amount=${uncollectedAmount}円`
-//       );
     } else {
-// // console.log(
-//         `[徴収不能保存] アラートなし: 総支給額(${totalSalary}円) >= 本人負担保険料(${employeeTotalPremium}円)`
-//       );
-
       // 徴収不能額が0以下の場合は、既存データがあれば削除
       const docId = `${employeeId}_${year}_${month}`;
       const ref = doc(
@@ -106,9 +85,6 @@ export class UncollectedPremiumService {
         )
       );
       if (!snapshot.empty) {
-// // console.log(
-//           `[徴収不能保存] 既存データを解消済みに更新: docId=${docId}`
-//         );
         // 金額を0に更新してresolvedをtrueにする（削除ではなく更新）
         await setDoc(
           ref,

@@ -676,7 +676,6 @@ export class MonthlySalarySaveService {
     }
 
     // 保存後に各月の保険料計算を実行して徴収不能アラートをチェック
-    // // console.log('[徴収不能チェック] 保存後の保険料計算開始');
     const prefecture = 'tokyo'; // TODO: 設定から取得する場合は差し替え
     const rates = await this.settingsService.getRates(
       year.toString(),
@@ -720,9 +719,6 @@ export class MonthlySalarySaveService {
           }
         }
       }
-    } else {
-      // // console.log('[徴収不能チェック] 保険料率が取得できないためスキップ');
-      // return { suijiAlerts };
     }
 
     return { suijiAlerts };
