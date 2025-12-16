@@ -39,9 +39,7 @@ export class EditLogService {
   ): Promise<void> {
     const currentUser = this.authService.getCurrentUser();
     if (!currentUser) {
-      console.warn(
-        '[EditLogService] ユーザーがログインしていないため、ログを記録できません'
-      );
+      // ユーザーがログインしていない場合はログを記録しない（エラーは静かに処理）
       return;
     }
 
@@ -67,7 +65,7 @@ export class EditLogService {
         editLog
       );
     } catch (error) {
-      console.error('[EditLogService] ログ記録エラー:', error);
+      // エラーは静かに処理（ログ記録の失敗はアプリケーションの動作に影響しないため）
     }
   }
 
@@ -86,36 +84,58 @@ export class EditLogService {
       );
 
       const snapshot = await getDocs(q);
+      if (!snapshot || !snapshot.docs) {
+        return [];
+      }
       const logs = snapshot.docs.map((doc) => {
-        const data = doc.data();
-        let timestamp: Date;
-
-        if (data['timestamp']) {
-          if (typeof data['timestamp'].toDate === 'function') {
-            timestamp = data['timestamp'].toDate();
-          } else if (data['timestamp'] instanceof Date) {
-            timestamp = data['timestamp'];
-          } else {
-            timestamp = new Date(data['timestamp']);
+        try {
+          const data = doc.data();
+          if (!data) {
+            return null;
           }
-        } else {
-          timestamp = new Date();
-        }
+          let timestamp: Date;
 
-        return {
-          id: doc.id,
-          ...data,
-          timestamp,
-        } as EditLog;
-      });
+          if (data['timestamp']) {
+            if (typeof data['timestamp'].toDate === 'function') {
+              timestamp = data['timestamp'].toDate();
+            } else if (data['timestamp'] instanceof Date) {
+              timestamp = data['timestamp'];
+            } else {
+              timestamp = new Date(data['timestamp']);
+            }
+            // 無効な日付の場合は現在日時を使用
+            if (isNaN(timestamp.getTime())) {
+              timestamp = new Date();
+            }
+          } else {
+            timestamp = new Date();
+          }
+
+          return {
+            id: doc.id,
+            ...data,
+            timestamp,
+          } as EditLog;
+        } catch (error) {
+          return null;
+        }
+      }).filter((log): log is EditLog => log !== null);
 
       // クライアント側で日時順にソート（降順）
-      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      logs.sort((a, b) => {
+        try {
+          const timeA = a?.timestamp?.getTime() ?? 0;
+          const timeB = b?.timestamp?.getTime() ?? 0;
+          return timeB - timeA;
+        } catch (error) {
+          return 0;
+        }
+      });
 
       // 最大件数まで返す
       return logs.slice(0, maxCount);
     } catch (error) {
-      console.error('[EditLogService] ログ取得エラー:', error);
+      // エラーが発生した場合は空配列を返す
       return [];
     }
   }

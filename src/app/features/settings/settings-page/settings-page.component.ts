@@ -598,14 +598,26 @@ export class SettingsPageComponent {
     } catch (error) {
       // エラーはloadSalaryItems内で処理されているため、ここでは何もしない
     }
-    await this.loadOffices();
-    await this.loadUserRoomInfo();
+    try {
+      await this.loadOffices();
+    } catch (error) {
+      // エラーはloadOffices内で処理されているため、ここでは何もしない
+    }
+    try {
+      await this.loadUserRoomInfo();
+    } catch (error) {
+      // エラーはloadUserRoomInfo内で処理されているため、ここでは何もしない
+    }
   }
 
   // 編集ログタブがクリックされたときの処理
   async onEditLogTabClick(): Promise<void> {
-    this.activeTab = 'editLog';
-    await this.loadEditLogs();
+    try {
+      this.activeTab = 'editLog';
+      await this.loadEditLogs();
+    } catch (error) {
+      // エラーはloadEditLogs内で処理されているため、ここでは何もしない
+    }
   }
 
   // 編集ログを読み込む
@@ -614,13 +626,21 @@ export class SettingsPageComponent {
     try {
       this.editLogs = await this.editLogService.getEditLogs(100);
       // ユーザー名のリストを取得
-      this.availableUserNames = [
-        ...new Set(this.editLogs.map((log) => log.userName)),
-      ].sort();
+      if (this.editLogs && Array.isArray(this.editLogs)) {
+        this.availableUserNames = [
+          ...new Set(this.editLogs.map((log) => log?.userName).filter((name) => name)),
+        ].sort();
+      } else {
+        this.editLogs = [];
+        this.availableUserNames = [];
+      }
       // フィルターを適用
       this.applyFilters();
     } catch (error) {
-      console.error('[SettingsPage] 編集ログの読み込みエラー:', error);
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+      this.editLogs = [];
+      this.filteredEditLogs = [];
+      this.availableUserNames = [];
     } finally {
       this.isLoadingLogs = false;
     }
@@ -628,213 +648,321 @@ export class SettingsPageComponent {
 
   // フィルターを適用
   applyFilters(): void {
-    let filtered = [...this.editLogs];
+    try {
+      if (!this.editLogs || !Array.isArray(this.editLogs)) {
+        this.filteredEditLogs = [];
+        return;
+      }
 
-    // 日付フィルター
-    if (this.filterDate) {
-      const filterDateObj = new Date(this.filterDate);
-      filterDateObj.setHours(0, 0, 0, 0);
-      const filterDateEnd = new Date(filterDateObj);
-      filterDateEnd.setHours(23, 59, 59, 999);
+      let filtered = [...this.editLogs];
 
-      filtered = filtered.filter((log) => {
-        const logDate = new Date(log.timestamp);
-        return logDate >= filterDateObj && logDate <= filterDateEnd;
-      });
+      // 日付フィルター
+      if (this.filterDate) {
+        try {
+          const filterDateObj = new Date(this.filterDate);
+          if (isNaN(filterDateObj.getTime())) {
+            // 無効な日付の場合はフィルターをスキップ
+          } else {
+            filterDateObj.setHours(0, 0, 0, 0);
+            const filterDateEnd = new Date(filterDateObj);
+            filterDateEnd.setHours(23, 59, 59, 999);
+
+            filtered = filtered.filter((log) => {
+              if (!log || !log.timestamp) {
+                return false;
+              }
+              try {
+                const logDate = new Date(log.timestamp);
+                if (isNaN(logDate.getTime())) {
+                  return false;
+                }
+                return logDate >= filterDateObj && logDate <= filterDateEnd;
+              } catch (error) {
+                return false;
+              }
+            });
+          }
+        } catch (error) {
+          // 日付フィルターのエラーは無視
+        }
+      }
+
+      // ユーザーフィルター
+      if (this.filterUserName) {
+        filtered = filtered.filter((log) => {
+          if (!log || !log.userName) {
+            return false;
+          }
+          return log.userName === this.filterUserName;
+        });
+      }
+
+      this.filteredEditLogs = filtered;
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+      this.filteredEditLogs = [];
     }
-
-    // ユーザーフィルター
-    if (this.filterUserName) {
-      filtered = filtered.filter((log) => log.userName === this.filterUserName);
-    }
-
-    this.filteredEditLogs = filtered;
   }
 
   // 日付フィルターをクリア
   clearDateFilter(): void {
-    this.filterDate = '';
-    this.applyFilters();
+    try {
+      this.filterDate = '';
+      this.applyFilters();
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   // アクション名を日本語に変換
   getActionLabel(action: string): string {
-    switch (action) {
-      case 'create':
-        return '追加';
-      case 'update':
-        return '編集';
-      case 'delete':
-        return '削除';
-      default:
-        return action;
+    try {
+      if (!action) {
+        return '';
+      }
+      switch (action) {
+        case 'create':
+          return '追加';
+        case 'update':
+          return '編集';
+        case 'delete':
+          return '削除';
+        default:
+          return action;
+      }
+    } catch (error) {
+      return '';
     }
   }
 
   // エンティティタイプ名を日本語に変換
   getEntityTypeLabel(entityType: string): string {
-    const labels: { [key: string]: string } = {
-      employee: '従業員',
-      office: '事業所',
-      settings: '設定',
-      salary: '給与',
-      bonus: '賞与',
-      insurance: '保険料',
-    };
-    return labels[entityType] || entityType;
+    try {
+      if (!entityType) {
+        return '';
+      }
+      const labels: { [key: string]: string } = {
+        employee: '従業員',
+        office: '事業所',
+        settings: '設定',
+        salary: '給与',
+        bonus: '賞与',
+        insurance: '保険料',
+      };
+      return labels[entityType] || entityType;
+    } catch (error) {
+      return '';
+    }
   }
 
   // 日時をフォーマット
   formatDateTime(date: Date): string {
-    if (!date) return '';
-    const d = date instanceof Date ? date : new Date(date);
-    return d.toLocaleString('ja-JP', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    try {
+      if (!date) {
+        return '';
+      }
+      const d = date instanceof Date ? date : new Date(date);
+      if (isNaN(d.getTime())) {
+        return '';
+      }
+      return d.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch (error) {
+      return '';
+    }
   }
 
   // 説明文をフォーマット（変更前・変更後の情報を含む）
   formatDescription(log: EditLog): string {
-    if (!log.oldValue || !log.newValue) {
-      return log.description;
-    }
+    try {
+      if (!log) {
+        return '';
+      }
+      if (!log.oldValue || !log.newValue) {
+        return log.description || '';
+      }
 
-    // 料率の更新の場合
-    if (log.entityType === 'settings' && log.entityName?.includes('の料率')) {
-      // 健保本人と健保会社の値を抽出
-      const oldMatch = log.oldValue.match(
-        /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
-      );
-      const newMatch = log.newValue.match(
-        /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
-      );
+      // 料率の更新の場合
+      if (log.entityType === 'settings' && log.entityName?.includes('の料率')) {
+        try {
+          // 健保本人と健保会社の値を抽出
+          const oldMatch = log.oldValue.match(
+            /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
+          );
+          const newMatch = log.newValue.match(
+            /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
+          );
 
-      if (oldMatch && newMatch) {
-        const oldHealth = parseFloat(oldMatch[1]);
-        const oldEmployer = parseFloat(oldMatch[2]);
-        const newHealth = parseFloat(newMatch[1]);
-        const newEmployer = parseFloat(newMatch[2]);
+          if (oldMatch && newMatch && oldMatch.length >= 3 && newMatch.length >= 3) {
+            const oldHealth = parseFloat(oldMatch[1]);
+            const oldEmployer = parseFloat(oldMatch[2]);
+            const newHealth = parseFloat(newMatch[1]);
+            const newEmployer = parseFloat(newMatch[2]);
 
-        // 変更があった項目のみ表示
-        const changes: string[] = [];
-        if (Math.abs(oldHealth - newHealth) > 0.0001) {
-          changes.push(`${oldHealth.toFixed(3)}→${newHealth.toFixed(3)}`);
-        }
-        if (Math.abs(oldEmployer - newEmployer) > 0.0001) {
-          changes.push(`${oldEmployer.toFixed(3)}→${newEmployer.toFixed(3)}`);
-        }
+            // NaNチェック
+            if (isNaN(oldHealth) || isNaN(oldEmployer) || isNaN(newHealth) || isNaN(newEmployer)) {
+              return `${log.description || ''}（${log.oldValue}→${log.newValue}）`;
+            }
 
-        if (changes.length > 0) {
-          // 料率の表示形式を統一
-          return `${log.description}（${changes.join('、')}）`;
+            // 変更があった項目のみ表示
+            const changes: string[] = [];
+            if (Math.abs(oldHealth - newHealth) > 0.0001) {
+              changes.push(`${oldHealth.toFixed(3)}→${newHealth.toFixed(3)}`);
+            }
+            if (Math.abs(oldEmployer - newEmployer) > 0.0001) {
+              changes.push(`${oldEmployer.toFixed(3)}→${newEmployer.toFixed(3)}`);
+            }
+
+            if (changes.length > 0) {
+              // 料率の表示形式を統一
+              return `${log.description || ''}（${changes.join('、')}）`;
+            }
+          }
+        } catch (error) {
+          // 料率フォーマットのエラーは無視して、デフォルト形式で表示
         }
       }
-    }
 
-    // その他の場合は変更前→変更後の形式で表示
-    return `${log.description}（${log.oldValue}→${log.newValue}）`;
+      // その他の場合は変更前→変更後の形式で表示
+      return `${log.description || ''}（${log.oldValue}→${log.newValue}）`;
+    } catch (error) {
+      return '';
+    }
   }
 
   // ユーザー・ルーム情報を読み込む
   async loadUserRoomInfo(): Promise<void> {
-    // 現在のユーザー情報を取得
-    this.currentUser = this.authService.getCurrentUser();
+    try {
+      // 現在のユーザー情報を取得
+      this.currentUser = this.authService.getCurrentUser();
 
-    // ルーム情報を取得
-    const roomId = sessionStorage.getItem('roomId');
-    if (roomId) {
-      try {
-        const roomData = await this.roomService.getRoom(roomId);
-        if (roomData) {
-          this.roomInfo = {
-            id: roomId,
-            name: roomData.companyName || '未設定',
-            password: roomData.password,
-          };
+      // ルーム情報を取得
+      const roomId = sessionStorage.getItem('roomId');
+      if (roomId) {
+        try {
+          const roomData = await this.roomService.getRoom(roomId);
+          if (roomData) {
+            this.roomInfo = {
+              id: roomId,
+              name: roomData.companyName || '未設定',
+              password: roomData.password || '',
+            };
+          } else {
+            // ルームデータが取得できなかった場合はnullに設定
+            this.roomInfo = null;
+          }
+        } catch (error) {
+          // エラーは静かに処理（ユーザー体験を損なわないため）
+          this.roomInfo = null;
         }
-      } catch (error) {
-        console.error('[SettingsPage] ルーム情報の取得エラー:', error);
+      } else {
+        // roomIdが存在しない場合はnullに設定
+        this.roomInfo = null;
       }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+      this.roomInfo = null;
     }
   }
 
   // 事業所マスタ関連メソッド
   async loadOffices(): Promise<void> {
-    const roomId = this.roomIdService.requireRoomId();
-    const officesData = await firstValueFrom(
-      this.officeService.getOfficesByRoom(roomId)
-    );
-    this.offices = (officesData as any[]).map((o) => ({
-      roomId,
-      ...o,
-    })) as Office[];
+    try {
+      const roomId = this.roomIdService.requireRoomId();
+      const officesData = await firstValueFrom(
+        this.officeService.getOfficesByRoom(roomId)
+      );
+      if (officesData && Array.isArray(officesData)) {
+        this.offices = (officesData as any[]).map((o) => ({
+          roomId,
+          ...o,
+        })) as Office[];
+      } else {
+        this.offices = [];
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+      this.offices = [];
+    }
   }
 
   selectOffice(office: Office | null): void {
-    this.selectedOffice = office;
-    if (office) {
-      this.officeForm.patchValue({
-        officeCode: office.officeCode || '',
-        officeNumber: office.officeNumber || '',
-        corporateNumber: office.corporateNumber || '',
-        prefecture: office.prefecture || 'tokyo',
-        address: office.address || '',
-        officeName: office.officeName || '',
-        phoneNumber: office.phoneNumber || '',
-        ownerName: office.ownerName || '',
-      });
-    } else {
-      this.officeForm.reset({
-        prefecture: 'tokyo', // リセット時もデフォルト値を設定
-      });
+    try {
+      this.selectedOffice = office;
+      if (office) {
+        this.officeForm.patchValue({
+          officeCode: office.officeCode || '',
+          officeNumber: office.officeNumber || '',
+          corporateNumber: office.corporateNumber || '',
+          prefecture: office.prefecture || 'tokyo',
+          address: office.address || '',
+          officeName: office.officeName || '',
+          phoneNumber: office.phoneNumber || '',
+          ownerName: office.ownerName || '',
+        });
+      } else {
+        this.officeForm.reset({
+          prefecture: 'tokyo', // リセット時もデフォルト値を設定
+        });
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
     }
   }
 
   async saveOffice(): Promise<void> {
-    const value = this.officeForm.value;
-    const roomId = this.roomIdService.requireRoomId();
-    const office: Office = {
-      id: this.selectedOffice?.id,
-      roomId: roomId,
-      officeCode: value.officeCode || undefined,
-      officeNumber: value.officeNumber || undefined,
-      corporateNumber: value.corporateNumber || undefined,
-      prefecture: value.prefecture || undefined,
-      address: value.address || undefined,
-      officeName: value.officeName || undefined,
-      phoneNumber: value.phoneNumber || undefined,
-      ownerName: value.ownerName || undefined,
-      createdAt: this.selectedOffice?.createdAt || new Date(),
-    };
+    try {
+      // officeFormの存在確認
+      if (!this.officeForm || !this.officeForm.value) {
+        alert('事業所マスタのデータが存在しません');
+        return;
+      }
 
-    // 既存の事業所の場合、都道府県が変更されたかチェック
-    const oldPrefecture = this.selectedOffice?.prefecture;
-    const newPrefecture = office.prefecture;
-    const officeNumber = office.officeNumber;
-    const isPrefectureChanged =
-      this.selectedOffice?.id &&
-      officeNumber &&
-      oldPrefecture &&
-      newPrefecture &&
-      oldPrefecture !== newPrefecture;
+      const value = this.officeForm.value;
+      const roomId = this.roomIdService.requireRoomId();
+      const office: Office = {
+        id: this.selectedOffice?.id,
+        roomId: roomId,
+        officeCode: value.officeCode || undefined,
+        officeNumber: value.officeNumber || undefined,
+        corporateNumber: value.corporateNumber || undefined,
+        prefecture: value.prefecture || undefined,
+        address: value.address || undefined,
+        officeName: value.officeName || undefined,
+        phoneNumber: value.phoneNumber || undefined,
+        ownerName: value.ownerName || undefined,
+        createdAt: this.selectedOffice?.createdAt || new Date(),
+      };
 
-    if (!this.selectedOffice?.id) {
-      const savedId = await this.officeService.createOfficeInRoom(
-        roomId,
-        office
-      );
-      office.id = savedId;
-    } else {
-      await this.officeService.updateOfficeInRoom(
-        roomId,
-        this.selectedOffice.id,
-        office
-      );
-    }
+      // 既存の事業所の場合、都道府県が変更されたかチェック
+      const oldPrefecture = this.selectedOffice?.prefecture;
+      const newPrefecture = office.prefecture;
+      const officeNumber = office.officeNumber;
+      const isPrefectureChanged =
+        this.selectedOffice?.id &&
+        officeNumber &&
+        oldPrefecture &&
+        newPrefecture &&
+        oldPrefecture !== newPrefecture;
+
+      if (!this.selectedOffice?.id) {
+        const savedId = await this.officeService.createOfficeInRoom(
+          roomId,
+          office
+        );
+        office.id = savedId;
+      } else {
+        await this.officeService.updateOfficeInRoom(
+          roomId,
+          this.selectedOffice.id,
+          office
+        );
+      }
 
     // 都道府県が変更された場合、その事業所に紐づく従業員の都道府県も自動更新
     if (isPrefectureChanged && officeNumber && newPrefecture) {
@@ -845,10 +973,6 @@ export class SettingsPageComponent {
             newPrefecture
           );
       } catch (error) {
-        console.error(
-          '[settings-page] 従業員の都道府県更新中にエラーが発生しました:',
-          error
-        );
         // エラーが発生しても事業所の保存は成功しているため、警告のみ表示
         alert(
           `事業所マスタを保存しましたが、従業員の都道府県更新中にエラーが発生しました。\n従業員の都道府県を手動で更新してください。`
@@ -868,36 +992,53 @@ export class SettingsPageComponent {
       }
     }
 
-    alert('事業所マスタを保存しました');
-    await this.loadOffices();
-    // 保存した事業所を選択状態に保つ
-    if (office.id) {
-      const savedOffice = this.offices.find((o) => o.id === office.id);
-      if (savedOffice) {
-        this.selectOffice(savedOffice);
+      alert('事業所マスタを保存しました');
+      await this.loadOffices();
+      // 保存した事業所を選択状態に保つ
+      if (office.id) {
+        const savedOffice = this.offices.find((o) => o.id === office.id);
+        if (savedOffice) {
+          this.selectOffice(savedOffice);
+        } else {
+          this.selectOffice(null);
+        }
       } else {
         this.selectOffice(null);
       }
-    } else {
-      this.selectOffice(null);
+    } catch (error) {
+      alert('事業所マスタの保存に失敗しました');
     }
   }
 
   async deleteOffice(officeId: string): Promise<void> {
+    if (!officeId) {
+      alert('事業所IDが指定されていません');
+      return;
+    }
+
     if (!confirm('この事業所マスタを削除しますか？')) {
       return;
     }
-    const roomId = this.roomIdService.requireRoomId();
-    await this.officeService.deleteOfficeInRoom(roomId, officeId);
-    alert('事業所マスタを削除しました');
-    await this.loadOffices();
-    if (this.selectedOffice?.id === officeId) {
-      this.selectOffice(null);
+
+    try {
+      const roomId = this.roomIdService.requireRoomId();
+      await this.officeService.deleteOfficeInRoom(roomId, officeId);
+      alert('事業所マスタを削除しました');
+      await this.loadOffices();
+      if (this.selectedOffice?.id === officeId) {
+        this.selectOffice(null);
+      }
+    } catch (error) {
+      alert('事業所マスタの削除に失敗しました');
     }
   }
 
   addNewOffice(): void {
-    this.selectOffice(null);
+    try {
+      this.selectOffice(null);
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   async loadAllRates(): Promise<void> {
