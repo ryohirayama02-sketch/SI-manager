@@ -82,12 +82,3 @@ export class PaymentSummaryFormatService {
 
 
 
-
-
-
-
-
-
-
-
-

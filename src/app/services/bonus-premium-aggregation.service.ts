@@ -45,6 +45,10 @@ export class BonusPremiumAggregationService {
     }
     for (const bonus of bonuses) {
       if (!bonus || !bonus.employeeId) continue;
+      // 免除された賞与や給与代替の賞与は除外
+      if (bonus.isExempted || bonus.isSalaryInsteadOfBonus) {
+        continue;
+      }
       const bonusMonth = bonus.month;
       if (isNaN(bonusMonth) || bonusMonth < 1 || bonusMonth > 12) {
         continue;

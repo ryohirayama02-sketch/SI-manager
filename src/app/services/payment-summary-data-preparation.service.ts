@@ -62,9 +62,3 @@ export class PaymentSummaryDataPreparationService {
     return ageCacheByEmployee;
   }
 }
-
-
-
-
-
-

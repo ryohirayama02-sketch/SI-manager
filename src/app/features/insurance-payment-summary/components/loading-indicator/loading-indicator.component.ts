@@ -21,12 +21,3 @@ export class LoadingIndicatorComponent {
 
 
 
-
-
-
-
-
-
-
-
-

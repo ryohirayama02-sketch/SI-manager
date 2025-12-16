@@ -89,18 +89,10 @@ export class PaymentSummaryDataService {
         this.state.year
       );
       bonuses.push(...employeeBonuses);
-      // console.log(
-      //   `[payment-summary] 賞与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, 賞与件数=${employeeBonuses.length}`,
-      //   employeeBonuses
-      // );
     });
 
     await Promise.all(bonusPromises);
 
-    // console.log(
-    //   `[payment-summary] 全賞与データ: 年度=${this.state.year}, 総件数=${bonuses.length}`,
-    //   bonuses
-    // );
     return bonuses;
   }
 
@@ -129,10 +121,6 @@ export class PaymentSummaryDataService {
         }
         await Promise.all(monthPromises);
         salaryDataByEmployeeId[emp.id] = monthMap;
-        // console.log(
-        //   `[payment-summary] 給与データ取得: 従業員=${emp.name}, 年度=${this.state.year}, データ=`,
-        //   monthMap
-        // );
       })
     );
     return salaryDataByEmployeeId;

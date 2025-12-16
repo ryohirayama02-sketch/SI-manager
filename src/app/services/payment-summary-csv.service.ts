@@ -78,7 +78,11 @@ export class PaymentSummaryCsvService {
     }
 
     // 賞与保険料を月次合計に加算（全従業員）
+    // 免除された賞与や給与代替の賞与は除外
     for (const bonus of this.stateService.currentYearBonuses) {
+      if (bonus.isExempted || bonus.isSalaryInsteadOfBonus) {
+        continue;
+      }
       const bonusMonth = bonus.month;
       if (bonusMonth >= 1 && bonusMonth <= 12) {
         monthlyTotalsByMonth[bonusMonth].healthEmployee += bonus.healthEmployee || 0;
@@ -133,9 +137,3 @@ export class PaymentSummaryCsvService {
     document.body.removeChild(link);
   }
 }
-
-
-
-
-
-
