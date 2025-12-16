@@ -77,6 +77,9 @@ export class BonusCalculationService {
     year: number
   ): Promise<BonusCalculationResult | null> {
     // バリデーション
+    if (!employee || !employeeId) {
+      return null;
+    }
     if (
       !this.preparationService.validateInput(
         employeeId,
@@ -89,6 +92,9 @@ export class BonusCalculationService {
     }
 
     const payDate = new Date(paymentDate);
+    if (isNaN(payDate.getTime())) {
+      return null;
+    }
     const payYear = payDate.getFullYear();
     const payMonth = payDate.getMonth() + 1;
 
@@ -160,8 +166,9 @@ export class BonusCalculationService {
     currentPayDate.setHours(0, 0, 0, 0);
     
     const sameMonthExistingBonuses = sameMonthBonuses.filter((bonus) => {
-      if (!bonus.payDate) return false;
+      if (!bonus || !bonus.payDate) return false;
       const bonusPayDate = new Date(bonus.payDate);
+      if (isNaN(bonusPayDate.getTime())) return false;
       bonusPayDate.setHours(0, 0, 0, 0);
       const bonusYear = bonusPayDate.getFullYear();
       const bonusMonth = bonusPayDate.getMonth() + 1;
@@ -175,7 +182,14 @@ export class BonusCalculationService {
 
     // 同じ月の既存賞与の金額を合算
     const sameMonthTotalAmount = sameMonthExistingBonuses.reduce(
-      (sum, bonus) => sum + (bonus.amount || 0),
+      (sum, bonus) => {
+        if (!bonus) return sum;
+        const amount = bonus.amount;
+        if (amount === null || amount === undefined || isNaN(amount) || amount < 0) {
+          return sum;
+        }
+        return sum + amount;
+      },
       0
     );
 
@@ -185,16 +199,6 @@ export class BonusCalculationService {
     // 合算後の金額を標準賞与額に変換（1000円未満切捨て）
     const standardBonus =
       this.preparationService.calculateStandardBonus(totalAmountForMonth);
-
-    console.log('[BonusCalculationService] 上限適用前', {
-      employeeId,
-      employeeName: employee.name,
-      bonusAmount,
-      sameMonthTotalAmount,
-      totalAmountForMonth,
-      standardBonus,
-      payDate: payDate.toISOString(),
-    });
 
     const caps = await this.preparationService.applyBonusCaps(
       standardBonus,
@@ -207,16 +211,6 @@ export class BonusCalculationService {
       reason_upper_limit_health,
       reason_upper_limit_pension,
     } = caps;
-
-    console.log('[BonusCalculationService] 上限適用後', {
-      employeeId,
-      employeeName: employee.name,
-      standardBonus,
-      cappedBonusHealth,
-      cappedBonusPension,
-      reason_upper_limit_health,
-      reason_upper_limit_pension,
-    });
 
     // 退職月チェック
     const isRetiredNoLastDay = this.exemptionCheckService.checkRetirement(
@@ -263,12 +257,6 @@ export class BonusCalculationService {
     exemptReasons.push(...maternityChildcareExemptReasons);
 
     // 年齢チェック
-    console.log('[BonusCalculationService] 年齢チェック開始', {
-      employeeId: employee.id,
-      employeeName: employee.name,
-      birthDate: employee.birthDate,
-      payDate: payDate.toISOString(),
-    });
     const ageResult = this.exemptionCheckService.checkAge(employee, payDate);
     const {
       age,
@@ -278,22 +266,17 @@ export class BonusCalculationService {
       reason_age75,
       ageFlags,
     } = ageResult;
-    console.log('[BonusCalculationService] 年齢チェック結果', {
-      age,
-      ageFlags,
-      isCare2: ageFlags.isCare2,
-      isCare1: ageFlags.isCare1,
-      isNoPension: ageFlags.isNoPension,
-      isNoHealth: ageFlags.isNoHealth,
-    });
 
     // 賞与支給回数の取得（表示用）
     // roomIdは既に151行目で宣言済み
     const targetYears = [payDate.getFullYear() - 1, payDate.getFullYear()];
     let bonusesLast12Months: any[] = [];
     for (const y of targetYears) {
+      if (isNaN(y) || y < 1900 || y > 2100) continue;
       const list = await this.bonusService.listBonuses(roomId, employeeId, y);
-      bonusesLast12Months.push(...list);
+      if (list && Array.isArray(list)) {
+        bonusesLast12Months.push(...list);
+      }
     }
     const bonusCountLast12Months = bonusesLast12Months.length;
     const bonusCount = bonusCountLast12Months;
@@ -303,16 +286,6 @@ export class BonusCalculationService {
     const reason_bonus_to_salary = false;
 
     // 保険料計算のベース額を決定
-    console.log('[BonusCalculationService] ベース額決定前', {
-      employeeId,
-      employeeName: employee.name,
-      isRetiredNoLastDay,
-      isExempted,
-      isSalaryInsteadOfBonus,
-      cappedBonusHealth,
-      cappedBonusPension,
-    });
-
     const { healthBase, pensionBase } =
       this.premiumOrchestrationService.determinePremiumBases(
         isRetiredNoLastDay,
@@ -322,25 +295,7 @@ export class BonusCalculationService {
         cappedBonusPension
       );
 
-    console.log('[BonusCalculationService] ベース額決定後', {
-      employeeId,
-      employeeName: employee.name,
-      healthBase,
-      pensionBase,
-    });
-
     // 保険料を計算
-    console.log('[BonusCalculationService] 保険料計算開始', {
-      healthBase,
-      pensionBase,
-      age,
-      ageFlags,
-      isCare2: ageFlags.isCare2,
-      rates: {
-        health_employee: rates.health_employee,
-        care_employee: rates.care_employee,
-      },
-    });
     const premiums = this.premiumOrchestrationService.calculatePremiums(
       healthBase,
       pensionBase,
@@ -348,10 +303,6 @@ export class BonusCalculationService {
       ageFlags,
       rates
     );
-    console.log('[BonusCalculationService] 保険料計算結果', {
-      healthEmployee: premiums.healthEmployee,
-      careEmployee: premiums.careEmployee,
-    });
     const {
       healthEmployee,
       healthEmployer,

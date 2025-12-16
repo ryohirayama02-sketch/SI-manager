@@ -96,9 +96,12 @@ export class BonusEditPageComponent implements OnInit {
       const preferredYear = queryParams['year']
         ? parseInt(queryParams['year'], 10)
         : undefined;
+      if (preferredYear !== undefined && (isNaN(preferredYear) || preferredYear < 1900 || preferredYear > 2100)) {
+        console.error(`[bonus-edit-page] 無効な年度: ${preferredYear}`);
+      }
       const currentYear = new Date().getFullYear();
       const searchYears: number[] = [];
-      if (preferredYear !== undefined) {
+      if (preferredYear !== undefined && !isNaN(preferredYear) && preferredYear >= 1900 && preferredYear <= 2100) {
         searchYears.push(preferredYear);
       }
       for (let year = currentYear - 2; year <= currentYear + 2; year++) {
@@ -109,6 +112,7 @@ export class BonusEditPageComponent implements OnInit {
       let foundBonus: Bonus | null = null;
       let foundYear: number | null = null;
       for (const year of searchYears) {
+        if (isNaN(year) || year < 1900 || year > 2100) continue;
         const bonus = await this.bonusService.getBonus(
           roomId,
           this.employeeId,
@@ -171,6 +175,7 @@ export class BonusEditPageComponent implements OnInit {
 
   onBonusAmountInput(event: Event): void {
     const input = event.target as HTMLInputElement;
+    if (!input) return;
     const value = input.value;
     const numValue = this.parseAmount(value);
     this.form.patchValue({ amount: numValue });
@@ -181,6 +186,7 @@ export class BonusEditPageComponent implements OnInit {
 
   onBonusAmountBlur(event: Event): void {
     const input = event.target as HTMLInputElement;
+    if (!input) return;
     const numValue = this.parseAmount(input.value);
     this.form.patchValue({ amount: numValue });
     this.bonusAmountDisplay = this.formatAmount(numValue);
@@ -194,6 +200,7 @@ export class BonusEditPageComponent implements OnInit {
   async updateBonusCalculation(): Promise<void> {
     if (
       !this.employee ||
+      !this.employeeId ||
       !this.form.value.amount ||
       this.form.value.amount < 0 ||
       !this.rates
@@ -202,8 +209,21 @@ export class BonusEditPageComponent implements OnInit {
       return;
     }
 
+    if (isNaN(this.year) || this.year < 1900 || this.year > 2100) {
+      console.error(`[bonus-edit-page] 無効な年度: ${this.year}`);
+      this.calculationResult = null;
+      return;
+    }
+
     const payDate = this.form.value.payDate || this.bonus?.payDate || '';
     if (!payDate) {
+      this.calculationResult = null;
+      return;
+    }
+
+    const payDateObj = new Date(payDate);
+    if (isNaN(payDateObj.getTime())) {
+      console.error(`[bonus-edit-page] 無効な支給日: ${payDate}`);
       this.calculationResult = null;
       return;
     }

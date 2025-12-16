@@ -141,13 +141,16 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
       // 各従業員の該当する賞与データを削除
       for (const emp of this.employees) {
+        if (!emp.id) continue;
         const bonuses = await this.bonusService.listBonuses(
           this.roomId,
           emp.id,
           year
         );
         const bonusToDelete = bonuses.find((b) => {
+          if (!b.payDate) return false;
           const bPayDate = new Date(b.payDate);
+          if (isNaN(bPayDate.getTime())) return false;
           return bPayDate.getTime() === payDate.getTime();
         });
 
@@ -167,6 +170,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
     // 関連する賞与データも削除
     for (const emp of this.employees) {
+      if (!emp.id) continue;
       const key = this.getBonusKey(columnId, emp.id);
       delete this.bonusData[key];
     }
@@ -222,6 +226,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    */
   onBonusInput(columnId: string, employeeId: string, event: Event): void {
     const input = event.target as HTMLInputElement;
+    if (!input || !columnId || !employeeId) return;
     const value = input.value;
     const numValue = this.parseAmount(value);
     this.onBonusChange(columnId, employeeId, numValue);
@@ -235,6 +240,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    */
   onBonusBlur(columnId: string, employeeId: string, event: Event): void {
     const input = event.target as HTMLInputElement;
+    if (!input || !columnId || !employeeId) return;
     const numValue = this.parseAmount(input.value);
     input.value = this.formatAmount(numValue);
   }
@@ -243,10 +249,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与の免除判定（産休/育休）を支給日ベースで確認
    */
   isBonusExempt(employeeId: string, payDate: string): boolean {
-    if (!payDate) return false;
+    if (!payDate || !employeeId) return false;
     const employee = this.employees.find((e) => e.id === employeeId);
     if (!employee) return false;
     const date = new Date(payDate);
+    if (isNaN(date.getTime())) return false;
     const maternity = this.bonusExemptionService.checkMaternityExemption(
       employee,
       date
@@ -262,10 +269,11 @@ export class BonusPageComponent implements OnInit, OnDestroy {
    * 賞与の免除理由ラベル（UI表示用）
    */
   getBonusExemptReason(employeeId: string, payDate: string): string {
-    if (!payDate) return '';
+    if (!payDate || !employeeId) return '';
     const employee = this.employees.find((e) => e.id === employeeId);
     if (!employee) return '';
     const date = new Date(payDate);
+    if (isNaN(date.getTime())) return '';
     const maternity = this.bonusExemptionService.checkMaternityExemption(
       employee,
       date
@@ -281,6 +289,10 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
   async onYearChange(): Promise<void> {
     // 年度変更時にデータを再読み込み
+    if (isNaN(this.year) || this.year < 1900 || this.year > 2100) {
+      console.error(`[bonus-page] 無効な年度: ${this.year}`);
+      return;
+    }
     this.rates = await this.settingsService.getRates(
       this.year.toString(),
       this.prefecture
@@ -301,6 +313,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
     const payDateSet = new Set<string>();
 
     for (const emp of this.employees) {
+      if (!emp.id) continue;
       const bonuses = await this.bonusService.listBonuses(
         this.roomId,
         emp.id,
@@ -404,6 +417,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
 
       // 各従業員について処理
       for (const emp of this.employees) {
+        if (!emp.id) continue;
         // 既存の賞与データを取得
         const existingBonuses = await this.bonusService.listBonuses(
           this.roomId,
@@ -432,6 +446,10 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           if (!column.payDate) continue;
 
           const payDate = new Date(column.payDate);
+          if (isNaN(payDate.getTime())) {
+            console.error(`[bonus-page] 無効な支給日: ${column.payDate}`);
+            continue;
+          }
           const year = payDate.getFullYear();
           const month = payDate.getMonth() + 1;
 
@@ -447,6 +465,7 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           const existingBonus = existingBonuses.find((b) => {
             if (!b.payDate) return false;
             const bPayDate = new Date(b.payDate);
+            if (isNaN(bPayDate.getTime())) return false;
             return bPayDate.getTime() === payDate.getTime();
           });
 
@@ -598,8 +617,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       const headerLine = lines[0];
       const headerParts = headerLine.split(',').map((p) => p.trim());
 
-      console.log('[bonus-page] CSVヘッダー:', headerParts);
-
       if (headerParts.length < 3) {
         this.csvImportResult = {
           type: 'error',
@@ -612,12 +629,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       const payDateIndex = headerParts.indexOf('支給日');
       const employeeIndex = headerParts.indexOf('従業員');
       const bonusAmountIndex = headerParts.indexOf('賞与額');
-
-      console.log('[bonus-page] CSV列インデックス:', {
-        payDateIndex,
-        employeeIndex,
-        bonusAmountIndex,
-      });
 
       if (
         payDateIndex === -1 ||
@@ -638,16 +649,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
       const errors: string[] = [];
       const payDateColumns: { [payDate: string]: BonusColumn } = {};
 
-      console.log(
-        '[bonus-page] 従業員リスト:',
-        this.employees.map((emp) => emp.name)
-      );
-      console.log('[bonus-page] 処理するデータ行数:', dataLines.length);
-
       for (const line of dataLines) {
         const parts = line.split(',').map((p) => p.trim());
-
-        console.log('[bonus-page] 処理中の行:', line, '→ パース結果:', parts);
 
         if (parts.length < headerParts.length) {
           errorCount++;
@@ -658,8 +661,12 @@ export class BonusPageComponent implements OnInit, OnDestroy {
         }
 
         // 支給日を取得
+        if (payDateIndex < 0 || payDateIndex >= parts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 支給日の列が見つからないか、データが不足しています`);
+          continue;
+        }
         const payDateStr = parts[payDateIndex];
-        console.log('[bonus-page] 支給日文字列:', payDateStr);
 
         if (!payDateStr || !payDateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
           errorCount++;
@@ -695,14 +702,8 @@ export class BonusPageComponent implements OnInit, OnDestroy {
                   delete this.bonusData[oldKey];
                 }
               }
-
-              console.log('[bonus-page] 既存の列のIDを更新:', {
-                oldId,
-                newId: correctId,
-              });
             }
             payDateColumns[payDateStr] = column;
-            console.log('[bonus-page] 既存の列を使用:', column);
           } else {
             // 新しい列を作成
             column = {
@@ -711,13 +712,16 @@ export class BonusPageComponent implements OnInit, OnDestroy {
             };
             payDateColumns[payDateStr] = column;
             this.bonusColumns.push(column);
-            console.log('[bonus-page] 新しい列を追加:', column);
           }
         }
 
         // 従業員名を取得
+        if (employeeIndex < 0 || employeeIndex >= parts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員の列が見つからないか、データが不足しています`);
+          continue;
+        }
         const employeeName = parts[employeeIndex];
-        console.log('[bonus-page] 従業員名:', employeeName);
 
         const employee = this.employees.find(
           (emp) => emp.name === employeeName
@@ -734,16 +738,20 @@ export class BonusPageComponent implements OnInit, OnDestroy {
           continue;
         }
 
+        if (!employee.id) {
+          errorCount++;
+          errors.push(`行「${line}」: 従業員「${employeeName}」のIDが設定されていません`);
+          continue;
+        }
+
         // 賞与額を取得
+        if (bonusAmountIndex < 0 || bonusAmountIndex >= parts.length) {
+          errorCount++;
+          errors.push(`行「${line}」: 賞与額の列が見つからないか、データが不足しています`);
+          continue;
+        }
         const bonusAmountStr = parts[bonusAmountIndex];
         const bonusAmount = this.parseAmount(bonusAmountStr);
-
-        console.log(
-          '[bonus-page] 賞与額文字列:',
-          bonusAmountStr,
-          '→ 数値:',
-          bonusAmount
-        );
 
         if (isNaN(bonusAmount) || bonusAmount < 0) {
           errorCount++;
@@ -756,12 +764,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
         // bonusDataに値を設定
         const key = this.getBonusKey(column.id, employee.id);
         this.bonusData[key] = bonusAmount;
-        console.log('[bonus-page] 賞与データを設定:', {
-          key,
-          amount: bonusAmount,
-          employeeName: employee.name,
-          payDate: payDateStr,
-        });
 
         successCount++;
       }
@@ -784,12 +786,6 @@ export class BonusPageComponent implements OnInit, OnDestroy {
         };
         this.csvImportText = '';
       }
-
-      console.log('[bonus-page] CSVインポート完了:', {
-        successCount,
-        errorCount,
-        errors,
-      });
     } catch (error) {
       console.error('CSVインポートエラー:', error);
       this.csvImportResult = {

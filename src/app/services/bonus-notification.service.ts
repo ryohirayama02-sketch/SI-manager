@@ -28,10 +28,27 @@ export class BonusNotificationService {
     bonusCount: number;
     salaryInsteadReasons: string[];
   }> {
+    if (!employeeId) {
+      return {
+        isSalaryInsteadOfBonus: false,
+        bonusCountLast12Months: 0,
+        bonusCount: 0,
+        salaryInsteadReasons: [],
+      };
+    }
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return {
+        isSalaryInsteadOfBonus: false,
+        bonusCountLast12Months: 0,
+        bonusCount: 0,
+        salaryInsteadReasons: [],
+      };
+    }
     const roomId = this.roomIdService.requireRoomId();
     const targetYears = [payDate.getFullYear() - 1, payDate.getFullYear()];
     let bonusesLast12Months: any[] = [];
     for (const y of targetYears) {
+      if (isNaN(y) || y < 1900 || y > 2100) continue;
       const list = await this.bonusService.listBonuses(roomId, employeeId, y);
       bonusesLast12Months.push(...list);
     }
@@ -70,6 +87,14 @@ export class BonusNotificationService {
     let requireReport = true;
     let reportReason = '';
     let reportDeadline: string | null = null;
+
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return {
+        requireReport: false,
+        reportReason: '支給日が無効です',
+        reportDeadline: null,
+      };
+    }
 
     if (isRetiredNoLastDay) {
       requireReport = false;

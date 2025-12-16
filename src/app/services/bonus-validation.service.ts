@@ -32,16 +32,26 @@ export class BonusValidationService {
     const errorMessages: string[] = [];
     const warningMessages: string[] = [];
 
+    if (!employee || !payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      errorMessages.push('従業員情報または支給日が無効です');
+      return { errorMessages, warningMessages };
+    }
+
+    if (isNaN(age) || age < 0 || age > 150) {
+      errorMessages.push('年齢が無効です');
+      return { errorMessages, warningMessages };
+    }
+
     // 1. 賞与の支給日が入社前または退職後
     if (employee.joinDate) {
       const joinDate = new Date(employee.joinDate);
-      if (payDate < joinDate) {
+      if (!isNaN(joinDate.getTime()) && payDate < joinDate) {
         errorMessages.push('支給日が在籍期間外です（入社前）');
       }
     }
     if (employee.retireDate) {
       const retireDate = new Date(employee.retireDate);
-      if (payDate > retireDate) {
+      if (!isNaN(retireDate.getTime()) && payDate > retireDate) {
         errorMessages.push('支給日が在籍期間外です（退職後）');
       }
     }
@@ -58,11 +68,18 @@ export class BonusValidationService {
       const childStart = new Date(employee.childcareLeaveStart);
       const childEnd = new Date(employee.childcareLeaveEnd);
 
-      if (matStart <= childEnd && matEnd >= childStart) {
-        const daysBetween =
-          (childStart.getTime() - matEnd.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysBetween > 30) {
-          errorMessages.push('産休・育休の設定が矛盾しています');
+      if (
+        !isNaN(matStart.getTime()) &&
+        !isNaN(matEnd.getTime()) &&
+        !isNaN(childStart.getTime()) &&
+        !isNaN(childEnd.getTime())
+      ) {
+        if (matStart <= childEnd && matEnd >= childStart) {
+          const daysBetween =
+            (childStart.getTime() - matEnd.getTime()) / (1000 * 60 * 60 * 24);
+          if (daysBetween > 30) {
+            errorMessages.push('産休・育休の設定が矛盾しています');
+          }
         }
       }
     }
@@ -71,7 +88,12 @@ export class BonusValidationService {
     if (employee.childcareLeaveStart && employee.childcareLeaveEnd) {
       const childStart = new Date(employee.childcareLeaveStart);
       const childEnd = new Date(employee.childcareLeaveEnd);
-      if (payDate >= childStart && payDate <= childEnd) {
+      if (
+        !isNaN(childStart.getTime()) &&
+        !isNaN(childEnd.getTime()) &&
+        payDate >= childStart &&
+        payDate <= childEnd
+      ) {
         const isNotificationSubmitted =
           employee.childcareNotificationSubmitted === true;
         const isLivingTogether = employee.childcareLivingTogether === true;
@@ -88,12 +110,22 @@ export class BonusValidationService {
     }
 
     // 4. 70歳以上なのに厚生年金の保険料が計算されている
-    if (age >= 70 && pensionEmployee > 0 && !isOverAge70) {
+    if (
+      age >= 70 &&
+      !isNaN(pensionEmployee) &&
+      pensionEmployee > 0 &&
+      !isOverAge70
+    ) {
       errorMessages.push('70歳以上は厚生年金保険料は発生しません');
     }
 
     // 5. 75歳以上なのに健康保険・介護保険が計算されている
-    if (age >= 75 && (healthEmployee > 0 || careEmployee > 0) && !isOverAge75) {
+    if (
+      age >= 75 &&
+      ((!isNaN(healthEmployee) && healthEmployee > 0) ||
+        (!isNaN(careEmployee) && careEmployee > 0)) &&
+      !isOverAge75
+    ) {
       errorMessages.push('75歳以上は健康保険・介護保険は発生しません');
     }
 
@@ -101,6 +133,8 @@ export class BonusValidationService {
     if (
       bonusCount !== undefined &&
       bonusCountLast12Months !== undefined &&
+      !isNaN(bonusCount) &&
+      !isNaN(bonusCountLast12Months) &&
       Math.abs(bonusCount - (bonusCountLast12Months + 1)) > 2
     ) {
       errorMessages.push('賞与の支給回数ロジックに矛盾があります');

@@ -33,6 +33,13 @@ export class BonusCalculationResultBuilderService {
     reportReason: string;
     reportDeadline: string | null;
   } {
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return {
+        requireReport: false,
+        reportReason: '支給日が無効です',
+        reportDeadline: null,
+      };
+    }
     return this.notificationService.determineReportRequirement(
       isRetiredNoLastDay,
       isExempted,
@@ -48,11 +55,17 @@ export class BonusCalculationResultBuilderService {
    * 提出期限を計算
    */
   calculateDeadline(payDate: Date): string {
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return '';
+    }
     const deadline = new Date(
       payDate.getFullYear(),
       payDate.getMonth() + 1,
       10
     );
+    if (isNaN(deadline.getTime())) {
+      return '';
+    }
     return deadline.toISOString().split('T')[0];
   }
 
@@ -76,6 +89,12 @@ export class BonusCalculationResultBuilderService {
     errorMessages: string[];
     warningMessages: string[];
   } {
+    if (!employee || !payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return {
+        errorMessages: ['従業員情報または支給日が無効です'],
+        warningMessages: [],
+      };
+    }
     return this.validationService.checkErrors(
       employee,
       payDate,
@@ -99,6 +118,9 @@ export class BonusCalculationResultBuilderService {
     standardBonus: number,
     isRetiredNoLastDay: boolean
   ): boolean {
+    if (isNaN(standardBonus) || standardBonus < 0) {
+      return false;
+    }
     return this.notificationService.checkReportRequired(
       standardBonus,
       isRetiredNoLastDay

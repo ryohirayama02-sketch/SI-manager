@@ -21,14 +21,19 @@ export class BonusCsvImportComponent {
 
   onCsvFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
+    if (!input) return;
     const file = input.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      this.csvImportText = text;
-      this.showCsvImportDialog = true;
+      if (text) {
+        this.csvImportText = text;
+        this.showCsvImportDialog = true;
+      } else {
+        console.error('CSVファイルの内容が空です。');
+      }
     };
     reader.readAsText(file);
   }

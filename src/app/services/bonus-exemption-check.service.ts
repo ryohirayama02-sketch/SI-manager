@@ -22,6 +22,15 @@ export class BonusExemptionCheckService {
     payYear: number,
     payMonth: number
   ): boolean {
+    if (!employee || !payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return false;
+    }
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return false;
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
+      return false;
+    }
     return this.exemptionService.checkRetirement(
       employee,
       payDate,
@@ -43,6 +52,15 @@ export class BonusExemptionCheckService {
     exemptReason: string | undefined;
     exemptReasons: string[];
   } {
+    if (!employee || !payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return {
+        reason_exempt_maternity: false,
+        reason_exempt_childcare: false,
+        isExempted: false,
+        exemptReason: undefined,
+        exemptReasons: [],
+      };
+    }
     const maternityResult = this.exemptionService.checkMaternityExemption(
       employee,
       payDate
@@ -89,20 +107,45 @@ export class BonusExemptionCheckService {
     reason_age75: boolean;
     ageFlags: AgeFlags;
   } {
+    if (!employee || !payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return {
+        age: 0,
+        isOverAge70: false,
+        isOverAge75: false,
+        reason_age70: false,
+        reason_age75: false,
+        ageFlags: {
+          isCare2: false,
+          isCare1: false,
+          isNoPension: false,
+          isNoHealth: false,
+        },
+      };
+    }
     // ageFlags と同じ日付（payDate）で年齢を計算する
-    console.log('[BonusExemptionCheckService] checkAge 開始', {
-      employeeId: employee.id,
-      employeeName: employee.name,
-      birthDate: employee.birthDate,
-      payDate: payDate.toISOString(),
-    });
     const ageFlags = this.exemptionService.getAgeFlags(employee, payDate);
-    console.log('[BonusExemptionCheckService] getAgeFlags 結果', {
-      ageFlags,
-      isCare2: ageFlags.isCare2,
-    });
     // ageFlags は payDate で年齢を計算しているので、同じ日付で年齢を計算する
+    if (!employee.birthDate) {
+      return {
+        age: 0,
+        isOverAge70: false,
+        isOverAge75: false,
+        reason_age70: false,
+        reason_age75: false,
+        ageFlags,
+      };
+    }
     const birth = new Date(employee.birthDate);
+    if (isNaN(birth.getTime())) {
+      return {
+        age: 0,
+        isOverAge70: false,
+        isOverAge75: false,
+        reason_age70: false,
+        reason_age75: false,
+        ageFlags,
+      };
+    }
     let age = payDate.getFullYear() - birth.getFullYear();
     const monthDiff = payDate.getMonth() - birth.getMonth();
     if (
@@ -111,11 +154,10 @@ export class BonusExemptionCheckService {
     ) {
       age--;
     }
-    console.log('[BonusExemptionCheckService] 計算された年齢', {
-      age,
-      birthDate: birth.toISOString(),
-      payDate: payDate.toISOString(),
-    });
+    // 年齢の範囲チェック（0-150歳）
+    if (age < 0 || age > 150) {
+      age = 0;
+    }
     const isOverAge70 = ageFlags.isNoPension;
     const isOverAge75 = ageFlags.isNoHealth;
 

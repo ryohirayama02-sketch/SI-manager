@@ -41,9 +41,11 @@ export class BonusPremiumCalculationOrchestrationService {
       return { healthBase: 0, pensionBase: 0 };
     }
     // 通常の場合（上限適用済みの標準賞与額を使用）
+    const healthBase = isNaN(cappedBonusHealth) || cappedBonusHealth < 0 ? 0 : cappedBonusHealth;
+    const pensionBase = isNaN(cappedBonusPension) || cappedBonusPension < 0 ? 0 : cappedBonusPension;
     return {
-      healthBase: cappedBonusHealth,
-      pensionBase: cappedBonusPension,
+      healthBase,
+      pensionBase,
     };
   }
 
@@ -64,10 +66,23 @@ export class BonusPremiumCalculationOrchestrationService {
     pensionEmployee: number;
     pensionEmployer: number;
   } {
+    if (!rates) {
+      return {
+        healthEmployee: 0,
+        healthEmployer: 0,
+        careEmployee: 0,
+        careEmployer: 0,
+        pensionEmployee: 0,
+        pensionEmployer: 0,
+      };
+    }
+    const safeHealthBase = isNaN(healthBase) || healthBase < 0 ? 0 : healthBase;
+    const safePensionBase = isNaN(pensionBase) || pensionBase < 0 ? 0 : pensionBase;
+    const safeAge = isNaN(age) || age < 0 || age > 150 ? 0 : age;
     return this.premiumCalculationCore.calculatePremiums(
-      healthBase,
-      pensionBase,
-      age,
+      safeHealthBase,
+      safePensionBase,
+      safeAge,
       ageFlags,
       rates
     );

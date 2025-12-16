@@ -67,10 +67,22 @@ export class BonusExemptionService {
     payYear: number,
     payMonth: number
   ): boolean {
-    if (!employee.retireDate) {
+    if (!employee || !employee.retireDate) {
+      return false;
+    }
+    if (!payDate || !(payDate instanceof Date) || isNaN(payDate.getTime())) {
+      return false;
+    }
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return false;
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
       return false;
     }
     const retireDate = new Date(employee.retireDate);
+    if (isNaN(retireDate.getTime())) {
+      return false;
+    }
     const retireYear = retireDate.getFullYear();
     const retireMonth = retireDate.getMonth() + 1;
     const retireDay = retireDate.getDate();
@@ -232,7 +244,19 @@ export class BonusExemptionService {
     payYear: number,
     payMonth: number
   ): boolean {
+    if (!employee || !employee.birthDate) {
+      return false;
+    }
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return false;
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
+      return false;
+    }
     const birthDate = new Date(employee.birthDate);
+    if (isNaN(birthDate.getTime())) {
+      return false;
+    }
     const birthYear = birthDate.getFullYear();
     const birthMonth = birthDate.getMonth() + 1;
     const age70Year = birthYear + 70;
@@ -247,7 +271,19 @@ export class BonusExemptionService {
     payYear: number,
     payMonth: number
   ): boolean {
+    if (!employee || !employee.birthDate) {
+      return false;
+    }
+    if (isNaN(payYear) || payYear < 1900 || payYear > 2100) {
+      return false;
+    }
+    if (isNaN(payMonth) || payMonth < 1 || payMonth > 12) {
+      return false;
+    }
     const birthDate = new Date(employee.birthDate);
+    if (isNaN(birthDate.getTime())) {
+      return false;
+    }
     const birthYear = birthDate.getFullYear();
     const birthMonth = birthDate.getMonth() + 1;
     const age75Year = birthYear + 75;

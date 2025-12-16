@@ -68,19 +68,6 @@ export class BonusPremiumCalculationCoreService {
     const insuranceYearStart = payMonth >= 4 ? payYear : payYear - 1;
     const insuranceYearEnd = insuranceYearStart + 1;
 
-    console.log(
-      '[BonusPremiumCalculationCoreService] applyBonusCaps: 保険年度判定',
-      {
-        employeeId,
-        payDate: payDate.toISOString(),
-        payYear,
-        payMonth,
-        insuranceYearStart,
-        insuranceYearEnd,
-        insuranceYearRange: `${insuranceYearStart}年4月1日〜${insuranceYearEnd}年3月31日`,
-      }
-    );
-
     // 保険年度に含まれる年度の賞与を取得（開始年度と終了年度の両方）
     const bonusesYearStart = await this.bonusService.listBonuses(
       roomId,
@@ -124,60 +111,6 @@ export class BonusPremiumCalculationCoreService {
       );
     });
 
-    const currentPayDateStr = currentPayDate.toISOString().split('T')[0]; // ログ用
-    console.log(
-      '[BonusPremiumCalculationCoreService] applyBonusCaps: 既存賞与データ',
-      {
-        employeeId,
-        payDate: payDate.toISOString(),
-        currentPayDateStr,
-        insuranceYearStart,
-        insuranceYearEnd,
-        insuranceYearRange: `${insuranceYearStart}年4月1日〜${insuranceYearEnd}年3月31日`,
-        bonusesYearStartCount: bonusesYearStart.length,
-        bonusesYearEndCount: bonusesYearEnd.length,
-        allBonusesCount: allBonuses.length,
-        existingBonusesCount: existingBonuses.length,
-        otherBonusesCount: otherBonuses.length,
-        standardBonus,
-        existingBonuses: existingBonuses.map((b) => {
-          if (!b.payDate) {
-            return {
-              id: b.id,
-              payDate: b.payDate,
-              amount: b.amount,
-              standardBonusAmount: b.standardBonusAmount,
-              bonusPayDate: null,
-              isInInsuranceYear: false,
-              isExcluded: false,
-              isBeforeCurrent: false,
-            };
-          }
-          const bonusPayDate = new Date(b.payDate);
-          bonusPayDate.setHours(0, 0, 0, 0);
-          const isBeforeCurrent = bonusPayDate < currentPayDate;
-          return {
-            id: b.id,
-            payDate: b.payDate,
-            amount: b.amount,
-            standardBonusAmount: b.standardBonusAmount,
-            bonusPayDate: bonusPayDate,
-            isInInsuranceYear:
-              bonusPayDate >= insuranceYearStartDate &&
-              bonusPayDate <= insuranceYearEndDate,
-            isExcluded: !isBeforeCurrent,
-            isBeforeCurrent,
-          };
-        }),
-        otherBonuses: otherBonuses.map((b) => ({
-          id: b.id,
-          payDate: b.payDate,
-          amount: b.amount,
-          standardBonusAmount: b.standardBonusAmount,
-        })),
-      }
-    );
-
     const existingTotal = otherBonuses.reduce((sum, bonus) => {
       // 上限適用後の値（cappedBonusHealth）が保存されている場合はそれを使用
       // なければstandardBonusAmountを使用、それもなければamountから計算
@@ -196,20 +129,6 @@ export class BonusPremiumCalculationCoreService {
         existingCapped = Math.floor((bonus.amount || 0) / 1000) * 1000;
       }
 
-      console.log(
-        '[BonusPremiumCalculationCoreService] applyBonusCaps: 累計に加算',
-        {
-          employeeId,
-          bonusPayDate: bonus.payDate,
-          bonusAmount: bonus.amount,
-          standardBonusAmount: bonus.standardBonusAmount,
-          cappedBonusHealth: bonus.cappedBonusHealth,
-          existingCapped,
-          sumBefore: sum,
-          sumAfter: sum + existingCapped,
-        }
-      );
-
       return sum + existingCapped;
     }, 0);
 
@@ -222,24 +141,6 @@ export class BonusPremiumCalculationCoreService {
     );
     const cappedBonusHealth = Math.min(standardBonus, remainingLimit);
     const reason_upper_limit_health = standardBonus > remainingLimit;
-
-    console.log(
-      '[BonusPremiumCalculationCoreService] applyBonusCaps: 上限適用結果',
-      {
-        employeeId,
-        payDate: payDate.toISOString(),
-        standardBonus,
-        HEALTH_CARE_ANNUAL_LIMIT,
-        existingTotal,
-        totalExistingForHealth,
-        remainingLimit,
-        cappedBonusHealth,
-        reason_upper_limit_health,
-        PENSION_MONTHLY_LIMIT,
-        cappedBonusPension,
-        reason_upper_limit_pension,
-      }
-    );
 
     return {
       cappedBonusHealth,
@@ -272,13 +173,6 @@ export class BonusPremiumCalculationCoreService {
 
     // 介護保険は40〜64歳のみ（ageFlags.isCare2）
     const isCareEligible = ageFlags.isCare2;
-    console.log('[BonusPremiumCalculationCoreService] 介護保険加入判定', {
-      age,
-      ageFlags,
-      isCare2: ageFlags.isCare2,
-      isCareEligible,
-      healthBase,
-    });
 
     // 保険料計算
     // 健康保険の計算方法：
@@ -288,12 +182,6 @@ export class BonusPremiumCalculationCoreService {
     const healthRateEmployee = isCareEligible
       ? rates.health_employee + rates.care_employee
       : rates.health_employee;
-    console.log('[BonusPremiumCalculationCoreService] 健康保険料率', {
-      isCareEligible,
-      healthRateEmployee,
-      health_employee_rate: rates.health_employee,
-      care_employee_rate: rates.care_employee,
-    });
     const healthRateEmployer = isCareEligible
       ? rates.health_employer + rates.care_employer
       : rates.health_employer;
@@ -374,14 +262,6 @@ export class BonusPremiumCalculationCoreService {
           }
         );
       }
-
-      console.log('[BonusPremiumCalculationCoreService] 65歳以上検証結果', {
-        age,
-        isCare2: ageFlags.isCare2,
-        calculatedHealthEmployee: healthEmployee,
-        expectedHealthEmployee,
-        difference: Math.abs(healthEmployee - expectedHealthEmployee),
-      });
     }
 
     return {

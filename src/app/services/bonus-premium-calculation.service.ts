@@ -38,10 +38,35 @@ export class BonusPremiumCalculationService {
     },
     ageCache: { [month: number]: number }
   ): void {
+    if (!emp || !emp.id) {
+      return;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return;
+    }
+    if (!employeeBonuses || !Array.isArray(employeeBonuses)) {
+      return;
+    }
+    if (!monthlyPremiumRows || !Array.isArray(monthlyPremiumRows)) {
+      return;
+    }
+    if (!monthlyPremiums || typeof monthlyPremiums !== 'object') {
+      return;
+    }
+    if (!ageCache || typeof ageCache !== 'object') {
+      return;
+    }
     for (const bonus of employeeBonuses) {
+      if (!bonus) continue;
       const bonusMonth = bonus.month;
+      if (isNaN(bonusMonth) || bonusMonth < 1 || bonusMonth > 12) {
+        continue;
+      }
 
       const age = ageCache[bonusMonth];
+      if (age === undefined || age === null || isNaN(age) || age < 0 || age > 150) {
+        continue;
+      }
 
       let bonusHealthEmployee = bonus.healthEmployee || 0;
       let bonusHealthEmployer = bonus.healthEmployer || 0;
@@ -74,16 +99,19 @@ export class BonusPremiumCalculationService {
 
       // 月次給与の保険料に賞与分を加算（該当月の保険料に加算）
       if (monthlyPremiums[bonusMonth]) {
-        monthlyPremiums[bonusMonth].healthEmployee += bonusHealthEmployee;
-        monthlyPremiums[bonusMonth].healthEmployer += bonusHealthEmployer;
-        monthlyPremiums[bonusMonth].careEmployee += bonusCareEmployee;
-        monthlyPremiums[bonusMonth].careEmployer += bonusCareEmployer;
-        monthlyPremiums[bonusMonth].pensionEmployee += bonusPensionEmployee;
-        monthlyPremiums[bonusMonth].pensionEmployer += bonusPensionEmployer;
+        const monthlyPremium = monthlyPremiums[bonusMonth];
+        if (monthlyPremium) {
+          monthlyPremium.healthEmployee = (monthlyPremium.healthEmployee ?? 0) + bonusHealthEmployee;
+          monthlyPremium.healthEmployer = (monthlyPremium.healthEmployer ?? 0) + bonusHealthEmployer;
+          monthlyPremium.careEmployee = (monthlyPremium.careEmployee ?? 0) + bonusCareEmployee;
+          monthlyPremium.careEmployer = (monthlyPremium.careEmployer ?? 0) + bonusCareEmployer;
+          monthlyPremium.pensionEmployee = (monthlyPremium.pensionEmployee ?? 0) + bonusPensionEmployee;
+          monthlyPremium.pensionEmployer = (monthlyPremium.pensionEmployer ?? 0) + bonusPensionEmployer;
+        }
       }
 
       // 月次保険料一覧にも加算
-      const premiumRow = monthlyPremiumRows.find((r) => r.month === bonusMonth);
+      const premiumRow = monthlyPremiumRows.find((r) => r && r.month === bonusMonth);
       if (premiumRow) {
         // 停止情報を反映
         premiumRow.isRetired = stopping.isRetired;
@@ -92,12 +120,12 @@ export class BonusPremiumCalculationService {
         premiumRow.isPensionStopped = stopping.isPensionStopped;
         premiumRow.isHealthStopped = stopping.isHealthStopped;
 
-        premiumRow.healthEmployee += bonusHealthEmployee;
-        premiumRow.healthEmployer += bonusHealthEmployer;
-        premiumRow.careEmployee += bonusCareEmployee;
-        premiumRow.careEmployer += bonusCareEmployer;
-        premiumRow.pensionEmployee += bonusPensionEmployee;
-        premiumRow.pensionEmployer += bonusPensionEmployer;
+        premiumRow.healthEmployee = (premiumRow.healthEmployee ?? 0) + bonusHealthEmployee;
+        premiumRow.healthEmployer = (premiumRow.healthEmployer ?? 0) + bonusHealthEmployer;
+        premiumRow.careEmployee = (premiumRow.careEmployee ?? 0) + bonusCareEmployee;
+        premiumRow.careEmployer = (premiumRow.careEmployer ?? 0) + bonusCareEmployer;
+        premiumRow.pensionEmployee = (premiumRow.pensionEmployee ?? 0) + bonusPensionEmployee;
+        premiumRow.pensionEmployer = (premiumRow.pensionEmployer ?? 0) + bonusPensionEmployer;
       }
     }
   }
@@ -123,15 +151,33 @@ export class BonusPremiumCalculationService {
       total: 0,
     };
 
+    if (!bonuses || !Array.isArray(bonuses)) {
+      return bonusAnnualTotals;
+    }
+    if (!employees || !Array.isArray(employees)) {
+      return bonusAnnualTotals;
+    }
+    if (isNaN(year) || year < 1900 || year > 2100) {
+      return bonusAnnualTotals;
+    }
+    if (!ageCacheByEmployee || typeof ageCacheByEmployee !== 'object') {
+      return bonusAnnualTotals;
+    }
+
     for (const bonus of bonuses) {
-      const bonusEmployee = employees.find((e) => e.id === bonus.employeeId);
-      if (!bonusEmployee) continue;
+      if (!bonus || !bonus.employeeId) continue;
+      const bonusEmployee = employees.find((e) => e && e.id === bonus.employeeId);
+      if (!bonusEmployee || !bonusEmployee.id) continue;
 
       const bonusMonth = bonus.month;
-      if (bonusMonth < 1 || bonusMonth > 12) continue;
+      if (isNaN(bonusMonth) || bonusMonth < 1 || bonusMonth > 12) continue;
 
       const bonusAgeCache = ageCacheByEmployee[bonusEmployee.id];
+      if (!bonusAgeCache || typeof bonusAgeCache !== 'object') continue;
       const age = bonusAgeCache[bonusMonth];
+      if (age === undefined || age === null || isNaN(age) || age < 0 || age > 150) {
+        continue;
+      }
       const pensionStopped = age >= 70;
       const healthStopped = age >= 75;
       const retired = this.employeeLifecycleService.isRetiredInMonth(
@@ -140,12 +186,20 @@ export class BonusPremiumCalculationService {
         bonusMonth
       );
 
-      let bonusHealthEmployee = bonus.healthEmployee || 0;
-      let bonusHealthEmployer = bonus.healthEmployer || 0;
-      let bonusCareEmployee = bonus.careEmployee || 0;
-      let bonusCareEmployer = bonus.careEmployer || 0;
-      let bonusPensionEmployee = bonus.pensionEmployee || 0;
-      let bonusPensionEmployer = bonus.pensionEmployer || 0;
+      let bonusHealthEmployee = bonus.healthEmployee ?? 0;
+      let bonusHealthEmployer = bonus.healthEmployer ?? 0;
+      let bonusCareEmployee = bonus.careEmployee ?? 0;
+      let bonusCareEmployer = bonus.careEmployer ?? 0;
+      let bonusPensionEmployee = bonus.pensionEmployee ?? 0;
+      let bonusPensionEmployer = bonus.pensionEmployer ?? 0;
+
+      // NaNチェック
+      if (isNaN(bonusHealthEmployee) || bonusHealthEmployee < 0) bonusHealthEmployee = 0;
+      if (isNaN(bonusHealthEmployer) || bonusHealthEmployer < 0) bonusHealthEmployer = 0;
+      if (isNaN(bonusCareEmployee) || bonusCareEmployee < 0) bonusCareEmployee = 0;
+      if (isNaN(bonusCareEmployer) || bonusCareEmployer < 0) bonusCareEmployer = 0;
+      if (isNaN(bonusPensionEmployee) || bonusPensionEmployee < 0) bonusPensionEmployee = 0;
+      if (isNaN(bonusPensionEmployer) || bonusPensionEmployer < 0) bonusPensionEmployer = 0;
 
       // 退職月判定（最優先）
       if (retired) {
