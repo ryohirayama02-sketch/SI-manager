@@ -66,6 +66,7 @@ export class SettingsPageComponent {
   showImportDialog: boolean = false;
   csvImportText: string = '';
   importResult: { type: 'success' | 'error'; message: string } | null = null;
+  isImportingRates: boolean = false;
 
   // CSVインポート関連（標準報酬月額テーブル用）
   showStandardTableImportDialog: boolean = false;
@@ -1011,6 +1012,9 @@ export class SettingsPageComponent {
   }
 
   async importFromCsvText(csvText: string): Promise<void> {
+    if (this.isImportingRates) return;
+    this.isImportingRates = true;
+    this.cdr.detectChanges(); // 変更検知を強制してローディング状態を即座に反映
     try {
       // 対象期間が変更された直後の場合に備えて、最新の料率データを読み込む
       // これにより、this.prefectureRatesが現在の年度のデータで初期化される
@@ -1139,6 +1143,8 @@ export class SettingsPageComponent {
         type: 'error',
         message: `インポート中にエラーが発生しました: ${error}`,
       };
+    } finally {
+      this.isImportingRates = false;
     }
   }
 

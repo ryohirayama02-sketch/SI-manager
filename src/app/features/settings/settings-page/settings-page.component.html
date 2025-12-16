@@ -374,8 +374,13 @@
           >
           </textarea>
           <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem">
-            <button (click)="importFromText()" class="btn-success">
-              インポート
+            <button
+              (click)="importFromText()"
+              class="btn-success"
+              [ngClass]="{ 'btn-saving': isImportingRates }"
+              [disabled]="isImportingRates"
+            >
+              {{ isImportingRates ? "インポート中..." : "インポート" }}
             </button>
           </div>
         </div>
