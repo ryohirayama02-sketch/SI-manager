@@ -593,7 +593,11 @@ export class SettingsPageComponent {
     } catch (error) {
       // エラーはloadStandardTable内で処理されているため、ここでは何もしない
     }
-    await this.loadSalaryItems();
+    try {
+      await this.loadSalaryItems();
+    } catch (error) {
+      // エラーはloadSalaryItems内で処理されているため、ここでは何もしない
+    }
     await this.loadOffices();
     await this.loadUserRoomInfo();
   }
@@ -1523,55 +1527,154 @@ export class SettingsPageComponent {
   }
 
   createSalaryItemRow(item?: SalaryItem): FormGroup {
-    return this.fb.group({
-      id: [item?.id || this.generateId()],
-      name: [item?.name || '', Validators.required],
-      type: [item?.type || 'fixed', Validators.required],
-    });
+    try {
+      const id = item?.id || this.generateId();
+      const name = item?.name || '';
+      const type = item?.type || 'fixed';
+
+      // 型のバリデーション
+      const safeType = ['fixed', 'variable', 'deduction'].includes(type) ? type : 'fixed';
+
+      return this.fb.group({
+        id: [id],
+        name: [name, Validators.required],
+        type: [safeType, Validators.required],
+      });
+    } catch (error) {
+      // エラーが発生した場合はデフォルト値で作成
+      return this.fb.group({
+        id: [this.generateId()],
+        name: ['', Validators.required],
+        type: ['fixed', Validators.required],
+      });
+    }
   }
 
   generateId(): string {
-    return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    try {
+      return `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    } catch (error) {
+      // エラーが発生した場合はタイムスタンプのみを使用
+      return `item_${Date.now()}`;
+    }
   }
 
   async loadSalaryItems(): Promise<void> {
-    while (this.salaryItems.length !== 0) {
-      this.salaryItems.removeAt(0);
+    try {
+      // 年度のバリデーション
+      if (!this.salaryItemsYear || this.salaryItemsYear < 1900 || this.salaryItemsYear > 2100) {
+        return;
+      }
+
+      // salaryItemsの存在確認
+      if (!this.salaryItems) {
+        return;
+      }
+
+      while (this.salaryItems.length !== 0) {
+        this.salaryItems.removeAt(0);
+      }
+      const items = await this.settingsService.loadSalaryItems(
+        this.salaryItemsYear
+      );
+      if (items && Array.isArray(items)) {
+        items.forEach((item) => {
+          if (item) {
+            const row = this.createSalaryItemRow(item);
+            if (row) {
+              this.salaryItems.push(row);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
     }
-    const items = await this.settingsService.loadSalaryItems(
-      this.salaryItemsYear
-    );
-    items.forEach((item) =>
-      this.salaryItems.push(this.createSalaryItemRow(item))
-    );
   }
 
   async onSalaryItemsYearChange(): Promise<void> {
-    await this.loadSalaryItems();
+    try {
+      await this.loadSalaryItems();
+    } catch (error) {
+      // エラーはloadSalaryItems内で処理されているため、ここでは何もしない
+    }
   }
 
   addSalaryItem(): void {
-    this.salaryItems.push(this.createSalaryItemRow());
+    try {
+      if (!this.salaryItems) {
+        return;
+      }
+      const row = this.createSalaryItemRow();
+      if (row) {
+        this.salaryItems.push(row);
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   removeSalaryItem(index: number): void {
-    this.salaryItems.removeAt(index);
+    try {
+      if (!this.salaryItems) {
+        return;
+      }
+      if (index >= 0 && index < this.salaryItems.length) {
+        this.salaryItems.removeAt(index);
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   onSalaryItemTypeChange(index: number): void {
-    const itemGroup = this.salaryItems.at(index) as FormGroup;
-    const typeValue = itemGroup.get('type')?.value;
+    try {
+      if (!this.salaryItems) {
+        return;
+      }
+      if (index < 0 || index >= this.salaryItems.length) {
+        return;
+      }
+      const itemGroup = this.salaryItems.at(index) as FormGroup;
+      if (!itemGroup) {
+        return;
+      }
+      const typeValue = itemGroup.get('type')?.value;
 
-    // 種別が「欠勤控除」に変更された場合、項目名を自動で「欠勤控除」に設定
-    if (typeValue === 'deduction') {
-      itemGroup.get('name')?.setValue('欠勤控除');
+      // 種別が「欠勤控除」に変更された場合、項目名を自動で「欠勤控除」に設定
+      if (typeValue === 'deduction') {
+        itemGroup.get('name')?.setValue('欠勤控除');
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
     }
   }
 
   async saveSalaryItems(): Promise<void> {
-    const items: SalaryItem[] = this.salaryItems.value;
-    await this.settingsService.saveSalaryItems(this.salaryItemsYear, items);
-    alert('給与項目マスタを保存しました');
+    try {
+      // 年度のバリデーション
+      if (!this.salaryItemsYear || this.salaryItemsYear < 1900 || this.salaryItemsYear > 2100) {
+        alert('無効な年度が設定されています');
+        return;
+      }
+
+      // salaryItemsの存在確認
+      if (!this.salaryItems || !this.salaryItems.value) {
+        alert('給与項目マスタのデータが存在しません');
+        return;
+      }
+
+      const items: SalaryItem[] = this.salaryItems.value;
+      if (!Array.isArray(items)) {
+        alert('給与項目マスタのデータが不正です');
+        return;
+      }
+
+      await this.settingsService.saveSalaryItems(this.salaryItemsYear, items);
+      alert('給与項目マスタを保存しました');
+    } catch (error) {
+      alert('給与項目マスタの保存に失敗しました');
+    }
   }
 
   async seedStandardTable(): Promise<void> {

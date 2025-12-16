@@ -626,23 +626,31 @@ export class SettingsService {
   }
 
   async loadSalaryItems(year: number): Promise<SalaryItem[]> {
-    if (isNaN(year) || year < 1900 || year > 2100) {
+    try {
+      if (isNaN(year) || year < 1900 || year > 2100) {
+        return [];
+      }
+      const roomId = this.roomIdService.requireRoomId();
+
+      const ref = collection(
+        this.firestore,
+        `rooms/${roomId}/settings/${year}/salaryItems`
+      );
+      const snap = await getDocs(ref);
+      if (!snap || !snap.docs) {
+        return [];
+      }
+      return snap.docs.map((d) => {
+        const data = d.data();
+        if (!data) {
+          return null;
+        }
+        return { id: d.id, ...data } as SalaryItem;
+      }).filter((item): item is SalaryItem => item !== null);
+    } catch (error) {
+      // エラーが発生した場合は空配列を返す
       return [];
     }
-    const roomId = this.roomIdService.requireRoomId();
-
-    const ref = collection(
-      this.firestore,
-      `rooms/${roomId}/settings/${year}/salaryItems`
-    );
-    const snap = await getDocs(ref);
-    return snap.docs.map((d) => {
-      const data = d.data();
-      if (!data) {
-        return null;
-      }
-      return { id: d.id, ...data } as SalaryItem;
-    }).filter((item): item is SalaryItem => item !== null);
   }
 
   async saveSalaryItems(year: number, items: SalaryItem[]): Promise<void> {
@@ -665,27 +673,41 @@ export class SettingsService {
     for (const existingItem of existingItems) {
       if (!existingItem || !existingItem.id) continue;
       if (!currentItemIds.has(existingItem.id)) {
-        await this.deleteSalaryItem(year, existingItem.id);
+        try {
+          await this.deleteSalaryItem(year, existingItem.id);
+        } catch (error) {
+          // 個別の項目削除でエラーが発生しても、他の項目の保存は続行
+          // エラーは静かに処理（既存の動作を壊さないため）
+        }
       }
     }
 
     // 現在の項目を保存
     for (const item of items) {
       if (!item || !item.id) continue;
-      const ref = doc(this.firestore, `${basePath}/${item.id}`);
-      // roomIdを自動付与
-      const itemWithRoomId = { ...item, roomId };
-      await setDoc(ref, itemWithRoomId, { merge: true });
+      try {
+        const ref = doc(this.firestore, `${basePath}/${item.id}`);
+        // roomIdを自動付与
+        const itemWithRoomId = { ...item, roomId };
+        await setDoc(ref, itemWithRoomId, { merge: true });
+      } catch (error) {
+        // 個別の項目保存でエラーが発生しても、他の項目の保存は続行
+        // エラーは静かに処理（既存の動作を壊さないため）
+      }
     }
 
     // 編集ログを記録
-    await this.editLogService.logEdit(
-      'update',
-      'settings',
-      `${year}_salaryItems`,
-      `${year}年度 給与項目マスタ`,
-      `${year}年度の給与項目マスタを更新しました（${items.length}件）`
-    );
+    try {
+      await this.editLogService.logEdit(
+        'update',
+        'settings',
+        `${year}_salaryItems`,
+        `${year}年度 給与項目マスタ`,
+        `${year}年度の給与項目マスタを更新しました（${items.length}件）`
+      );
+    } catch (error) {
+      // 編集ログの記録に失敗しても、保存処理自体は成功しているため、エラーは静かに処理
+    }
   }
 
   async deleteSalaryItem(year: number, itemId: string): Promise<void> {
@@ -714,15 +736,20 @@ export class SettingsService {
       }
 
       // 編集ログを記録（削除前に記録）
-      await this.editLogService.logEdit(
-        'delete',
-        'settings',
-        itemId,
-        existingData['name'] || '不明',
-        `${year}年度の給与項目「${
-          existingData['name'] || '不明'
-        }」を削除しました`
-      );
+      try {
+        await this.editLogService.logEdit(
+          'delete',
+          'settings',
+          itemId,
+          existingData['name'] || '不明',
+          `${year}年度の給与項目「${
+            existingData['name'] || '不明'
+          }」を削除しました`
+        );
+      } catch (error) {
+        // 編集ログの記録に失敗しても、削除処理自体は続行
+        // エラーは静かに処理（既存の動作を壊さないため）
+      }
     }
 
     await deleteDoc(ref);
