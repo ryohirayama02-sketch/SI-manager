@@ -403,14 +403,7 @@ export class EmployeeListPageComponent implements OnInit, OnDestroy {
       )}円${gradeText}`;
     }
 
-    // 資格取得時決定の標準報酬月額
-    if (info.employee.currentStandardMonthlyRemuneration) {
-      return `${info.employee.currentStandardMonthlyRemuneration.toLocaleString(
-        'ja-JP'
-      )}円（資格取得時決定）`;
-    }
-
-    // 通常の標準報酬月額（従業員データに保存されている値）
+    // 資格取得時決定または通常の標準報酬月額（従業員データに保存されている値）
     if (info.employee.currentStandardMonthlyRemuneration) {
       return `${info.employee.currentStandardMonthlyRemuneration.toLocaleString(
         'ja-JP'

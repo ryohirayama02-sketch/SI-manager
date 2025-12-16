@@ -73,7 +73,6 @@ export class EmployeeService {
 
   // 全従業員を取得（roomIdでフィルタリング）
   async getAllEmployees(): Promise<any[]> {
-    console.log('[employee.service] getAllEmployees 呼び出し');
     const roomId = this.roomIdService.requireRoomId();
     const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
     const snap = await getDocs(colRef);
@@ -82,15 +81,6 @@ export class EmployeeService {
       id: doc.id,
       ...doc.data(),
     }));
-
-    console.log('[employee.service] getAllEmployees 完了', {
-      count: employees.length,
-      employees: employees.map((emp: any) => ({
-        id: emp.id,
-        name: emp.name,
-        birthDate: emp.birthDate,
-      })),
-    });
 
     return employees;
   }
@@ -154,24 +144,7 @@ export class EmployeeService {
     // roomIdは変更不可（セキュリティのため）
     delete cleanData.roomId;
 
-    console.log('[employee.service] updateEmployee:', {
-      id,
-      cleanData,
-      officeNumber: cleanData.officeNumber,
-      prefecture: cleanData.prefecture,
-      department: cleanData.department,
-    });
-
     await updateDoc(ref, cleanData);
-
-    // 保存後に確認
-    const savedDoc = await getDoc(ref);
-    const savedData = savedDoc.data();
-    console.log('[employee.service] 保存後の確認:', {
-      officeNumber: savedData?.['officeNumber'],
-      prefecture: savedData?.['prefecture'],
-      department: savedData?.['department'],
-    });
 
     // 編集ログを記録
     await this.editLogService.logEdit(
@@ -368,13 +341,6 @@ export class EmployeeService {
         prefecture: newPrefecture,
       }).then(() => {
         updateCount++;
-        console.log(
-          `[EmployeeService] 従業員 ${
-            employeeData['name'] || employeeId
-          } の都道府県を ${
-            employeeData['prefecture']
-          } → ${newPrefecture} に更新`
-        );
       });
 
       updatePromises.push(updatePromise);
