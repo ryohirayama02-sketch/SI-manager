@@ -21,6 +21,8 @@ import { EmployeeService } from '../../../../../../services/employee.service';
 import { SuijiService } from '../../../../../../services/suiji.service';
 import { SalaryAggregationService } from '../../../../../../services/salary-aggregation.service';
 import { RoomIdService } from '../../../../../../services/room-id.service';
+import { StandardRemunerationHistoryService } from '../../../../../../services/standard-remuneration-history.service';
+import { StandardRemunerationHistory } from '../../../../../../models/standard-remuneration-history.model';
 
 @Component({
   selector: 'app-employee-basic-info-standard-remuneration',
@@ -41,6 +43,7 @@ export class EmployeeBasicInfoStandardRemunerationComponent
   currentYear: number = new Date().getFullYear();
   isLoading: boolean = false;
   currentLatestResult: { type: 'teiji' | 'suiji' | null; teijiResult?: TeijiKetteiResult | null; suijiResult?: any | null } = { type: null }; // 現在採用されている最新の結果
+  latestHistory: StandardRemunerationHistory | null = null; // 最新の標準報酬履歴
   private routerSubscription: Subscription | null = null;
   private previousEmployeeId: string | null = null;
 
@@ -52,7 +55,8 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     private suijiService: SuijiService,
     private salaryAggregationService: SalaryAggregationService,
     private router: Router,
-    private roomIdService: RoomIdService
+    private roomIdService: RoomIdService,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -86,17 +90,26 @@ export class EmployeeBasicInfoStandardRemunerationComponent
    */
   getDeterminationReasonLabel(): string {
     const reason = this.form.get('determinationReason')?.value;
+    return this.getDeterminationReasonLabelForHistory(reason);
+  }
+
+  /**
+   * 決定理由の値を表示用のラベルに変換（履歴用）
+   */
+  getDeterminationReasonLabelForHistory(reason: string | null | undefined): string {
+    if (!reason) return '-';
     switch (reason) {
       case 'teiji':
         return '定時決定';
       case 'suiji':
         return '随時改定';
+      case 'acquisition':
       case 'shikaku':
         return '資格取得時決定';
       case 'other':
         return 'その他';
       default:
-        return '-';
+        return reason;
     }
   }
 
@@ -109,7 +122,6 @@ export class EmployeeBasicInfoStandardRemunerationComponent
       if (newEmployeeId !== oldEmployeeId) {
         this.previousEmployeeId = oldEmployeeId;
         await this.loadCalculationResults();
-        await this.applyLatestResult();
         await this.setStandardFromMonthlyWageIfEmpty();
       }
     }
@@ -120,121 +132,72 @@ export class EmployeeBasicInfoStandardRemunerationComponent
 
     this.isLoading = true;
     try {
-      const currentYear = new Date().getFullYear();
-      const roomId = this.roomIdService.requireRoomId();
-
-      // 給与項目マスタを取得（欠勤控除を取得するため）
-      const salaryItems = await this.settingsService.loadSalaryItems(
-        currentYear
-      );
-
-      // 給与データを変換（月次報酬入力画面と同じ形式に変換）
-      // SalaryAggregationServiceを使用して、月次報酬入力画面と同じロジックで取得
-      const salaries: { [key: string]: SalaryData } = {};
-      for (let month = 1; month <= 12; month++) {
-        const monthData = await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          this.employeeId,
-          currentYear,
-          month
-        );
-        const key = `${this.employeeId}_${month}`;
-
-        if (monthData) {
-          // SalaryAggregationServiceと同じロジックで取得
-          const fixed = this.salaryAggregationService.getFixedSalaryPublic(
-            monthData as SalaryData
-          );
-          const variable =
-            this.salaryAggregationService.getVariableSalaryPublic(
-              monthData as SalaryData
-            );
-          const total = this.salaryAggregationService.getTotalSalaryPublic(
-            monthData as SalaryData
-          );
-
-          // 欠勤控除を取得（給与項目マスタから）
-          let deductionTotal = 0;
-          if (monthData.salaryItems && monthData.salaryItems.length > 0) {
-            const deductionItems = salaryItems.filter(
-              (item) => item.type === 'deduction'
-            );
-            for (const entry of monthData.salaryItems) {
-              const deductionItem = deductionItems.find(
-                (item) => item.id === entry.itemId
-              );
-              if (deductionItem) {
-                deductionTotal += entry.amount || 0;
-              }
-            }
-          }
-
-          salaries[key] = {
-            total: total,
-            fixed: fixed,
-            variable: variable,
-            workingDays: monthData.workingDays,
-            deductionTotal: deductionTotal,
-          } as SalaryData;
-        } else {
-          // データがない月は0で初期化（定時決定の計算で必要）
-          salaries[key] = {
-            total: 0,
-            fixed: 0,
-            variable: 0,
-            deductionTotal: 0,
-          } as SalaryData;
-        }
-      }
-
-      // 等級表を取得
-      const gradeTable = await this.settingsService.getStandardTable(
-        currentYear
-      );
-
-      // 従業員情報を取得（現在の標準報酬月額を取得するため）
-      const employee = await this.employeeService.getEmployeeById(
+      // 標準報酬履歴から最新の履歴を取得
+      const histories = await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
         this.employeeId
       );
-      const currentStandard =
-        (employee as any)?.currentStandardMonthlyRemuneration ||
-        (employee as any)?.standardMonthlyRemuneration ||
-        (employee as any)?.acquisitionStandard ||
-        null;
 
-      // 定時決定を計算
-      this.teijiResult = this.salaryCalculationService.calculateTeijiKettei(
-        this.employeeId,
-        salaries,
-        gradeTable,
-        currentYear,
-        currentStandard || undefined,
-        employee || undefined
-      );
+      // 最新の履歴を取得（適用開始年月が最新のもの）
+      if (histories && histories.length > 0) {
+        // 適用開始年月で降順ソート（最新が先頭）
+        const sortedHistories = [...histories].sort((a, b) => {
+          if (a.applyStartYear !== b.applyStartYear) {
+            return b.applyStartYear - a.applyStartYear;
+          }
+          return b.applyStartMonth - a.applyStartMonth;
+        });
+        this.latestHistory = sortedHistories[0];
 
-      // 随時改定アラートを取得（複数年度を考慮）
-      const yearsToCheck = [currentYear - 1, currentYear, currentYear + 1]; // 前年、当年、翌年
-      const allSuijiAlerts = await this.suijiService.loadAllAlerts(
-        yearsToCheck
-      );
-      const filteredSuijiAlerts = allSuijiAlerts
-        .filter(
-          (alert) => alert.employeeId === this.employeeId && alert.isEligible
-        )
-        .map((alert) => ({ ...alert, year: alert.year || currentYear })); // 年度情報を保持
+        // 最新の履歴をフォームに適用
+        if (this.latestHistory) {
+          const determinationReason = this.latestHistory.determinationReason || 'other';
+          this.form.patchValue({
+            currentStandardMonthlyRemuneration: this.latestHistory.standardMonthlyRemuneration,
+            determinationReason: determinationReason,
+          });
 
-      // 最新の随時改定を1つだけ取得（適用開始年月が最新のもの）
-      this.latestSuijiResult = this.getLatestSuijiResult(
-        filteredSuijiAlerts,
-        currentYear
-      );
-      this.suijiResults = filteredSuijiAlerts; // 後方互換性のため残す
-
-      // 最新の結果を判定して表示用に設定
-      await this.applyLatestResult();
+          // 表示用の結果を設定
+          if (determinationReason === 'teiji') {
+            this.currentLatestResult = {
+              type: 'teiji',
+              teijiResult: {
+                standardMonthlyRemuneration: this.latestHistory.standardMonthlyRemuneration,
+                grade: this.latestHistory.grade || 0,
+                averageSalary: 0,
+                excludedMonths: [],
+                usedMonths: [],
+                reasons: [],
+                startApplyYearMonth: {
+                  year: this.latestHistory.applyStartYear,
+                  month: this.latestHistory.applyStartMonth,
+                },
+              },
+              suijiResult: null,
+            };
+          } else if (determinationReason === 'suiji') {
+            this.currentLatestResult = {
+              type: 'suiji',
+              teijiResult: null,
+              suijiResult: {
+                newGrade: this.latestHistory.grade || 0,
+                applyStartMonth: this.latestHistory.applyStartMonth,
+                applyStartYear: this.latestHistory.applyStartYear,
+                changeMonth: (this.latestHistory as any).changeMonth || 0,
+              },
+            };
+          } else {
+            this.currentLatestResult = { type: null };
+          }
+        } else {
+          this.currentLatestResult = { type: null };
+        }
+      } else {
+        this.latestHistory = null;
+        this.currentLatestResult = { type: null };
+      }
     } catch (error) {
       console.error(
-        '[EmployeeBasicInfoStandardRemuneration] 計算結果の取得エラー:',
+        '[EmployeeBasicInfoStandardRemuneration] 履歴の取得エラー:',
         error
       );
     } finally {
@@ -263,8 +226,74 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     };
     let latestResult: LatestResult | null = null;
 
+    // 7月、8月、9月に随時改定の適用開始があるかチェック
+    let hasSuijiIn789 = false;
+
+    // 随時改定の適用開始月（変動月+3ヶ月後）を先にチェック
+    for (const suiji of this.suijiResults) {
+      if (suiji.newGrade && suiji.averageSalary > 0) {
+        // 随時改定の年度を取得（アラートに含まれる年度情報を使用）
+        const suijiYear = (suiji as any).year || currentYear;
+        const gradeTable = await this.settingsService.getStandardTable(
+          suijiYear
+        );
+        const gradeRow = gradeTable.find((r: any) => r.rank === suiji.newGrade);
+
+        if (gradeRow) {
+          // 適用開始月を計算（変動月+3ヶ月後）。保存済みのapplyStartMonthに依存せず再計算する。
+          const rawApplyMonth = suiji.changeMonth + 3;
+          let suijiApplyYear = suijiYear;
+          let suijiApplyMonth =
+            rawApplyMonth > 12 ? rawApplyMonth - 12 : rawApplyMonth;
+          if (rawApplyMonth > 12) {
+            suijiApplyYear = suijiYear + 1;
+          }
+
+          // 適用開始日を計算
+          const suijiApplyDate = new Date(
+            suijiApplyYear,
+            suijiApplyMonth - 1,
+            1
+          );
+
+          // 7月、8月、9月に随時改定の適用開始があるかチェック
+          if (suijiApplyYear === currentYear && (suijiApplyMonth === 7 || suijiApplyMonth === 8 || suijiApplyMonth === 9)) {
+            hasSuijiIn789 = true;
+          }
+
+          // 現在の日付より過去または現在の場合は適用対象
+          if (suijiApplyDate <= now) {
+            const suijiResult: LatestResult = {
+              standard: gradeRow.standard,
+              reason: 'suiji',
+              year: suijiApplyYear,
+              month: suijiApplyMonth,
+              type: 'suiji',
+              suijiChangeMonth: suiji.changeMonth,
+            };
+            
+            if (!latestResult) {
+              latestResult = suijiResult;
+            } else {
+              // latestResultがnullでないことを確認
+              const currentLatest: LatestResult = latestResult;
+              const latestDate = new Date(
+                currentLatest.year,
+                currentLatest.month - 1,
+                1
+              );
+              if (suijiApplyDate > latestDate) {
+                latestResult = suijiResult;
+              }
+            }
+          }
+        }
+      }
+    }
+
     // 定時決定の適用開始月（9月）
-    if (this.teijiResult && this.teijiResult.standardMonthlyRemuneration > 0) {
+    // 7月、8月、9月に随時改定の適用開始がある場合、定時決定を実施しない
+    if (!hasSuijiIn789 && this.teijiResult && this.teijiResult.standardMonthlyRemuneration > 0) {
       const teijiApplyYear =
         this.teijiResult.startApplyYearMonth?.year || currentYear;
       const teijiApplyMonth = this.teijiResult.startApplyYearMonth?.month || 9;
@@ -298,68 +327,6 @@ export class EmployeeBasicInfoStandardRemunerationComponent
               month: teijiApplyMonth,
               type: 'teiji',
             };
-          }
-        }
-      }
-    }
-
-    // 随時改定の適用開始月（変動月+3ヶ月後）
-    for (const suiji of this.suijiResults) {
-      if (suiji.newGrade && suiji.averageSalary > 0) {
-        // 随時改定の年度を取得（アラートに含まれる年度情報を使用）
-        const suijiYear = (suiji as any).year || currentYear;
-        const gradeTable = await this.settingsService.getStandardTable(
-          suijiYear
-        );
-        const gradeRow = gradeTable.find((r: any) => r.rank === suiji.newGrade);
-
-        if (gradeRow) {
-          // 適用開始月を計算（変動月+3ヶ月後）。保存済みのapplyStartMonthに依存せず再計算する。
-          const rawApplyMonth = suiji.changeMonth + 3;
-          let suijiApplyYear = suijiYear;
-          let suijiApplyMonth =
-            rawApplyMonth > 12 ? rawApplyMonth - 12 : rawApplyMonth;
-          if (rawApplyMonth > 12) {
-            suijiApplyYear = suijiYear + 1;
-          }
-
-          // 適用開始日を計算
-          const suijiApplyDate = new Date(
-            suijiApplyYear,
-            suijiApplyMonth - 1,
-            1
-          );
-
-          // 現在の日付より過去または現在の場合は適用対象
-          if (suijiApplyDate <= now) {
-            if (!latestResult) {
-              latestResult = {
-                standard: gradeRow.standard,
-                reason: 'suiji',
-                year: suijiApplyYear,
-                month: suijiApplyMonth,
-                type: 'suiji',
-                suijiChangeMonth: suiji.changeMonth,
-              };
-            } else {
-              // latestResultがnullでないことを確認
-              const currentLatest: LatestResult = latestResult;
-              const latestDate = new Date(
-                currentLatest.year,
-                currentLatest.month - 1,
-                1
-              );
-              if (suijiApplyDate > latestDate) {
-                latestResult = {
-                  standard: gradeRow.standard,
-                  reason: 'suiji',
-                  year: suijiApplyYear,
-                  month: suijiApplyMonth,
-                  type: 'suiji',
-                  suijiChangeMonth: suiji.changeMonth,
-                };
-              }
-            }
           }
         }
       }

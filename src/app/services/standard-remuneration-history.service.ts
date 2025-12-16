@@ -195,10 +195,16 @@ export class StandardRemunerationHistoryService {
 
   /**
    * 月次給与データから標準報酬履歴を自動生成
+   * @param employeeId 従業員ID
+   * @param employee 従業員情報
+   * @param fromYear 処理開始年（指定されない場合は現在年-2）
+   * @param toYear 処理終了年（指定されない場合は現在年+1）
    */
   async generateStandardRemunerationHistory(
     employeeId: string,
-    employee: Employee
+    employee: Employee,
+    fromYear?: number,
+    toYear?: number
   ): Promise<void> {
     if (!employeeId) {
       throw new Error('従業員IDが設定されていません');
@@ -207,12 +213,28 @@ export class StandardRemunerationHistoryService {
       throw new Error('従業員情報が設定されていません');
     }
     const currentYear = new Date().getFullYear();
-    const years = [
-      currentYear - 2,
-      currentYear - 1,
-      currentYear,
-      currentYear + 1,
-    ]; // 過去2年から将来1年まで
+    
+    // 処理範囲を決定
+    let startYear: number;
+    let endYear: number;
+    
+    if (fromYear !== undefined && toYear !== undefined) {
+      // 指定された範囲を使用
+      startYear = fromYear;
+      endYear = toYear;
+    } else {
+      // デフォルト：過去2年から将来1年まで
+      startYear = currentYear - 2;
+      endYear = currentYear + 1;
+    }
+    
+    // 年度の配列を生成
+    const years: number[] = [];
+    for (let y = startYear; y <= endYear; y++) {
+      if (y >= 1900 && y <= 2100) {
+        years.push(y);
+      }
+    }
 
     // 資格取得時決定（入社時）の履歴を先に登録
     let joinDate: Date | null = employee.joinDate ? new Date(employee.joinDate) : null;
@@ -310,6 +332,7 @@ export class StandardRemunerationHistoryService {
           fixed: number;
           variable: number;
           workingDays?: number;
+          deductionTotal?: number; // 欠勤控除
         };
       } = {};
       for (let month = 1; month <= 12; month++) {
@@ -320,11 +343,17 @@ export class StandardRemunerationHistoryService {
             employeeId,
             month
           );
+          const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+          const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+          const deductionTotal = monthData.deductionTotal ?? 0;
+          // 総支給額から欠勤控除を引いた値（固定+非固定-欠勤控除）
+          const total = (monthData.totalSalary ?? monthData.total ?? (fixed + variable)) - deductionTotal;
           salaries[key] = {
-            total: monthData.totalSalary ?? monthData.total ?? 0,
-            fixed: monthData.fixedSalary ?? monthData.fixed ?? 0,
-            variable: monthData.variableSalary ?? monthData.variable ?? 0,
+            total: total,
+            fixed: fixed,
+            variable: variable,
             workingDays: monthData.workingDays, // 支払基礎日数
+            deductionTotal: deductionTotal, // 欠勤控除
           };
         }
       }
@@ -333,13 +362,24 @@ export class StandardRemunerationHistoryService {
       const gradeTable = await this.settingsService.getStandardTable(year);
 
       // 7月、8月、9月に随時改定の適用開始があるかチェック
-      const suijiAlerts = await this.suijiService.loadAlerts(year);
-      const employeeSuijiAlerts = suijiAlerts.filter(
+      // 前年度と当年度の両方をチェック（年度をまたぐ場合があるため）
+      const suijiAlertsCurrentYear = await this.suijiService.loadAlerts(year);
+      const suijiAlertsPrevYear = year > 1900 ? await this.suijiService.loadAlerts(year - 1) : [];
+      const allSuijiAlerts = [...suijiAlertsCurrentYear, ...suijiAlertsPrevYear];
+      const employeeSuijiAlerts = allSuijiAlerts.filter(
         (alert) => alert.employeeId === employeeId && alert.isEligible
       );
 
+      // 既存の履歴を確認（随時改定の適用開始月をチェックするため）
+      const existingHistories = await this.getStandardRemunerationHistories(
+        employeeId
+      );
+
       // 随時改定の適用開始月が7月、8月、9月のいずれかであるかをチェック
+      // 既存の随時改定履歴も確認（アラートが削除されていても履歴が残っている場合がある）
       let hasSuijiIn789 = false;
+      
+      // アラートからチェック
       for (const suijiAlert of employeeSuijiAlerts) {
         const changeMonth = suijiAlert.changeMonth;
         const applyStartMonthRaw = changeMonth + 3;
@@ -356,6 +396,21 @@ export class StandardRemunerationHistoryService {
           break;
         }
       }
+      
+      // 既存の随時改定履歴からもチェック（アラートが削除されていても履歴が残っている場合がある）
+      if (!hasSuijiIn789) {
+        const existingSuijiHistories = existingHistories.filter(
+          (h) => h.determinationReason === 'suiji'
+        );
+        for (const suijiHistory of existingSuijiHistories) {
+          // 適用開始月が7月、8月、9月のいずれかで、かつ適用開始年がその年度の場合
+          if (suijiHistory.applyStartYear === year && 
+              (suijiHistory.applyStartMonth === 7 || suijiHistory.applyStartMonth === 8 || suijiHistory.applyStartMonth === 9)) {
+            hasSuijiIn789 = true;
+            break;
+          }
+        }
+      }
 
       // 定時決定を計算
       const teijiResult = this.salaryCalculationService.calculateTeijiKettei(
@@ -365,10 +420,6 @@ export class StandardRemunerationHistoryService {
         year
       );
 
-      // 既存の履歴を確認
-      const existingHistories = await this.getStandardRemunerationHistories(
-        employeeId
-      );
       const existingTeijiHistory = existingHistories.find(
         (h) =>
           h.applyStartYear === year &&
@@ -382,6 +433,7 @@ export class StandardRemunerationHistoryService {
           // 既存の定時決定履歴を削除
           await this.deleteStandardRemunerationHistory(existingTeijiHistory.id!, employeeId);
         }
+        // 定時決定は実施しない（スキップ）
       } else if (teijiResult.standardMonthlyRemuneration > 0) {
         // 7月、8月、9月に随時改定がない場合のみ定時決定を保存
         // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
@@ -408,8 +460,8 @@ export class StandardRemunerationHistoryService {
 
       // 随時改定の履歴を生成
       // 変動月+3か月目が適用開始月（変動月が10月なら、適用開始月は1月）
-      // 注意: suijiAlertsは上で既に取得済み
-      const employeeSuijiAlertsForHistory = suijiAlerts.filter(
+      // 注意: allSuijiAlertsは上で既に取得済み
+      const employeeSuijiAlertsForHistory = allSuijiAlerts.filter(
         (alert) => alert.employeeId === employeeId && alert.isEligible
       );
 

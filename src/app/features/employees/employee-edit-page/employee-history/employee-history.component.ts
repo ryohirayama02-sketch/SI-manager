@@ -32,6 +32,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
   insuranceStatusHistories: InsuranceStatusHistory[] = [];
   selectedHistoryYear: number = new Date().getFullYear();
   isLoadingHistories: boolean = false;
+  isUpdatingHistory: boolean = false;
   availableHistoryYears: number[] = [];
   joinDate?: string;
   joinYear?: number | null;
@@ -129,9 +130,12 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
           this.employeeId
         );
-      
+
       // 標準報酬履歴が空で、従業員に月額賃金がある場合は、再度生成を試みる
-      if (this.standardRemunerationHistories.length === 0 && employee.monthlyWage) {
+      if (
+        this.standardRemunerationHistories.length === 0 &&
+        employee.monthlyWage
+      ) {
         await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
           this.employeeId,
           employee
@@ -141,7 +145,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             this.employeeId
           );
       }
-      
+
       await this.computeGradesFromHistories();
 
       // 社保加入履歴を読み込み
@@ -183,6 +187,75 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
     await this.loadHistories();
     alert('履歴を自動生成しました');
+  }
+
+  async updateHistory(): Promise<void> {
+    if (!this.employeeId || this.isUpdatingHistory) {
+      return;
+    }
+
+    this.isUpdatingHistory = true;
+
+    try {
+      // 従業員情報を取得
+      const employee = await this.employeeService.getEmployeeById(
+        this.employeeId
+      );
+      if (!employee) {
+        alert('従業員情報を取得できませんでした');
+        return;
+      }
+
+      // 入社日を確認
+      if (!employee.joinDate) {
+        alert('入社日が設定されていません');
+        return;
+      }
+
+      const joinDate = new Date(employee.joinDate);
+      if (isNaN(joinDate.getTime())) {
+        alert('入社日が無効です');
+        return;
+      }
+
+      const joinYear = joinDate.getFullYear();
+      const joinMonth = joinDate.getMonth() + 1;
+
+      // 現在の年月を取得
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1;
+
+      // 入社年から現在年まで処理（入社日から現在までの最新の月次入力情報を確認）
+      await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+        this.employeeId,
+        employee,
+        joinYear, // 処理開始年：入社年
+        currentYear // 処理終了年：現在年
+      );
+
+      // 社保加入履歴も更新（入社年から現在年まで）
+      const years: number[] = [];
+      for (let y = joinYear; y <= currentYear; y++) {
+        if (y >= 1900 && y <= 2100) {
+          years.push(y);
+        }
+      }
+      await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
+        this.employeeId,
+        employee,
+        years
+      );
+
+      // 履歴を再読み込み
+      await this.loadHistories();
+
+      alert('標準報酬履歴・社保加入履歴を更新しました');
+    } catch (error) {
+      alert('履歴の更新に失敗しました');
+    } finally {
+      this.isUpdatingHistory = false;
+    }
   }
 
   getDeterminationReasonLabel(reason: string): string {
@@ -275,7 +348,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
           await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
             this.employeeId
           );
-        
+
         await this.computeGradesFromHistories();
         // 統合履歴を更新
         await this.updateMergedHistories();
@@ -287,9 +360,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
   getFilteredInsuranceHistories(): InsuranceStatusHistory[] {
     // selectedHistoryYearを数値として確実に扱う
-    const selectedYear = typeof this.selectedHistoryYear === 'string' 
-      ? parseInt(this.selectedHistoryYear, 10) 
-      : this.selectedHistoryYear;
+    const selectedYear =
+      typeof this.selectedHistoryYear === 'string'
+        ? parseInt(this.selectedHistoryYear, 10)
+        : this.selectedHistoryYear;
 
     if (isNaN(selectedYear) || selectedYear < 1900 || selectedYear > 2100) {
       return [];
@@ -297,7 +371,8 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
     // 入社日前は表示しない
     const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
-    const hasJoinMonth = this.joinMonth !== null && this.joinMonth !== undefined;
+    const hasJoinMonth =
+      this.joinMonth !== null && this.joinMonth !== undefined;
     if (hasJoinYear) {
       if (selectedYear < (this.joinYear as number)) {
         return [];
@@ -393,9 +468,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     }
 
     // selectedHistoryYearを数値として確実に扱う
-    const selectedYear = typeof this.selectedHistoryYear === 'string' 
-      ? parseInt(this.selectedHistoryYear, 10) 
-      : this.selectedHistoryYear;
+    const selectedYear =
+      typeof this.selectedHistoryYear === 'string'
+        ? parseInt(this.selectedHistoryYear, 10)
+        : this.selectedHistoryYear;
 
     if (isNaN(selectedYear) || selectedYear < 1900 || selectedYear > 2100) {
       this.mergedHistories = [];
@@ -423,13 +499,17 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     // 選択年度の12ヶ月分のデータを作成
     for (let month = 12; month >= 1; month--) {
       // 現在の年月より未来の場合はスキップ
-      if (selectedYear > currentYear || (selectedYear === currentYear && month > currentMonth)) {
+      if (
+        selectedYear > currentYear ||
+        (selectedYear === currentYear && month > currentMonth)
+      ) {
         continue;
       }
 
       // 入社月より前の月は除外（入社年のみ）
       const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
-      const hasJoinMonth = this.joinMonth !== null && this.joinMonth !== undefined;
+      const hasJoinMonth =
+        this.joinMonth !== null && this.joinMonth !== undefined;
       if (
         hasJoinYear &&
         hasJoinMonth &&
@@ -449,10 +529,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       const applicableStandardHistory = this.standardRemunerationHistories
         .filter((h) => {
           if (h.applyStartYear < selectedYear) return true;
-          if (
-            h.applyStartYear === selectedYear &&
-            h.applyStartMonth <= month
-          )
+          if (h.applyStartYear === selectedYear && h.applyStartMonth <= month)
             return true;
           return false;
         })
@@ -472,76 +549,93 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
           )
         : null;
 
-            // 標準報酬等級を取得
-            let grade: number | null = null;
-            let standardMonthlyRemuneration: number | null = null;
-            let determinationReason: string | null = null;
+      // 標準報酬等級を取得
+      let grade: number | null = null;
+      let standardMonthlyRemuneration: number | null = null;
+      let determinationReason: string | null = null;
 
-            // 標準報酬履歴を優先表示（その年月に適用されていた標準報酬月額）
-            if (applicableStandardHistory) {
-              const key = this.getHistoryKey(applicableStandardHistory);
-              grade = this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
-              standardMonthlyRemuneration = applicableStandardHistory.standardMonthlyRemuneration;
-              
-              // 決定理由は、標準報酬履歴の適用開始月と一致する場合のみ設定
-              // それ以外の月はハイフン（-）を表示
-              if (
-                applicableStandardHistory.applyStartYear === selectedYear &&
-                applicableStandardHistory.applyStartMonth === month
-              ) {
-                determinationReason = this.getDeterminationReasonLabel(
-                  applicableStandardHistory.determinationReason
+      // 標準報酬履歴を優先表示（その年月に適用されていた標準報酬月額）
+      if (applicableStandardHistory) {
+        const key = this.getHistoryKey(applicableStandardHistory);
+        grade =
+          this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
+        standardMonthlyRemuneration =
+          applicableStandardHistory.standardMonthlyRemuneration;
+
+        // 決定理由は、標準報酬履歴の適用開始月と一致する場合のみ設定
+        // それ以外の月はハイフン（-）を表示
+        if (
+          applicableStandardHistory.applyStartYear === selectedYear &&
+          applicableStandardHistory.applyStartMonth === month
+        ) {
+          determinationReason = this.getDeterminationReasonLabel(
+            applicableStandardHistory.determinationReason
+          );
+        } else {
+          determinationReason = null; // ハイフンを表示
+        }
+      }
+
+      // 標準報酬履歴がない場合のみ、最新の月次給与データから計算
+      if (standardMonthlyRemuneration === null && this.employeeId) {
+        // 最新の月次給与データを取得
+        const roomId =
+          (this.employee as any).roomId || this.roomIdService.requireRoomId();
+        const monthSalaryData =
+          await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            this.employeeId,
+            selectedYear,
+            month
+          );
+
+        // 最新の月次給与データがある場合は、その月の給与データから標準報酬月額を計算
+        if (monthSalaryData) {
+          const fixedSalary =
+            monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0;
+          const variableSalary =
+            monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0;
+          const totalSalary =
+            monthSalaryData.totalSalary ??
+            monthSalaryData.total ??
+            fixedSalary + variableSalary;
+
+          // 給与データが存在する場合（0円でない場合）は、その月の給与データから標準報酬月額を計算
+          if (totalSalary > 0) {
+            const gradeTable = await this.settingsService.getStandardTable(
+              selectedYear
+            );
+            if (gradeTable && gradeTable.length > 0) {
+              const result =
+                this.salaryCalculationService.getStandardMonthlyRemuneration(
+                  totalSalary,
+                  gradeTable
                 );
-              } else {
-                determinationReason = null; // ハイフンを表示
+              if (result) {
+                standardMonthlyRemuneration = result.standard;
+                grade = result.rank || null;
+                // 標準報酬履歴がない場合は決定理由を設定しない（ハイフンを表示）
+                determinationReason = null;
               }
             }
+          }
+        }
+      }
 
-            // 標準報酬履歴がない場合のみ、最新の月次給与データから計算
-            if (standardMonthlyRemuneration === null && this.employeeId) {
-              // 最新の月次給与データを取得
-              const roomId = (this.employee as any).roomId || this.roomIdService.requireRoomId();
-              const monthSalaryData = await this.monthlySalaryService.getEmployeeSalary(
-                roomId,
-                this.employeeId,
-                selectedYear,
-                month
-              );
-
-              // 最新の月次給与データがある場合は、その月の給与データから標準報酬月額を計算
-              if (monthSalaryData) {
-                const fixedSalary = monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0;
-                const variableSalary = monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0;
-                const totalSalary = monthSalaryData.totalSalary ?? monthSalaryData.total ?? (fixedSalary + variableSalary);
-
-                // 給与データが存在する場合（0円でない場合）は、その月の給与データから標準報酬月額を計算
-                if (totalSalary > 0) {
-                  const gradeTable = await this.settingsService.getStandardTable(selectedYear);
-                  if (gradeTable && gradeTable.length > 0) {
-                    const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
-                      totalSalary,
-                      gradeTable
-                    );
-                    if (result) {
-                      standardMonthlyRemuneration = result.standard;
-                      grade = result.rank || null;
-                      // 標準報酬履歴がない場合は決定理由を設定しない（ハイフンを表示）
-                      determinationReason = null;
-                    }
-                  }
-                }
-              }
-            }
-
-            // 標準報酬履歴も最新の月次給与データもない場合
-            if (standardMonthlyRemuneration === null) {
+      // 標準報酬履歴も最新の月次給与データもない場合
+      if (standardMonthlyRemuneration === null) {
         // 標準報酬履歴が見つからない場合、従業員情報から月額賃金を使って計算
         // 入社年月が選択年度の該当月以前の場合のみ
-        const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
-        const hasJoinMonth = this.joinMonth !== null && this.joinMonth !== undefined;
-        const isAfterJoin = !hasJoinYear || !hasJoinMonth ||
+        const hasJoinYear =
+          this.joinYear !== null && this.joinYear !== undefined;
+        const hasJoinMonth =
+          this.joinMonth !== null && this.joinMonth !== undefined;
+        const isAfterJoin =
+          !hasJoinYear ||
+          !hasJoinMonth ||
           selectedYear > (this.joinYear as number) ||
-          (selectedYear === (this.joinYear as number) && month >= (this.joinMonth as number));
+          (selectedYear === (this.joinYear as number) &&
+            month >= (this.joinMonth as number));
 
         if (isAfterJoin) {
           // まず従業員情報のmonthlyWageを確認
@@ -565,23 +659,29 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             );
             if (joinMonthHistory) {
               const key = this.getHistoryKey(joinMonthHistory);
-              grade = this.computedGrades[key] ?? joinMonthHistory.grade ?? null;
-              standardMonthlyRemuneration = joinMonthHistory.standardMonthlyRemuneration;
+              grade =
+                this.computedGrades[key] ?? joinMonthHistory.grade ?? null;
+              standardMonthlyRemuneration =
+                joinMonthHistory.standardMonthlyRemuneration;
               determinationReason = this.getDeterminationReasonLabel(
                 joinMonthHistory.determinationReason
               );
             }
           } else {
             // monthlyWageから標準報酬月額と等級を計算
-            const yearToUse = hasJoinYear && (this.joinYear as number) <= selectedYear
-              ? (this.joinYear as number)
-              : selectedYear;
-            const gradeTable = await this.settingsService.getStandardTable(yearToUse);
+            const yearToUse =
+              hasJoinYear && (this.joinYear as number) <= selectedYear
+                ? (this.joinYear as number)
+                : selectedYear;
+            const gradeTable = await this.settingsService.getStandardTable(
+              yearToUse
+            );
             if (gradeTable && gradeTable.length > 0) {
-              const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
-                wage,
-                gradeTable
-              );
+              const result =
+                this.salaryCalculationService.getStandardMonthlyRemuneration(
+                  wage,
+                  gradeTable
+                );
               if (result) {
                 standardMonthlyRemuneration = result.standard;
                 grade = result.rank || null;

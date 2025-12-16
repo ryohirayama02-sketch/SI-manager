@@ -1,18 +1,29 @@
 <h3>標準報酬履歴・社保加入履歴</h3>
 
-<div style="margin-bottom: 1rem">
-  <label for="historyYear">表示年度:</label>
-  <select
-    id="historyYear"
-    [ngModel]="selectedHistoryYear"
-    (ngModelChange)="onHistoryYearChange($event)"
-    class="form-control"
-    style="display: inline-block; width: auto; margin-left: 0.5rem"
+<div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem">
+  <div>
+    <label for="historyYear">表示年度:</label>
+    <select
+      id="historyYear"
+      [ngModel]="selectedHistoryYear"
+      (ngModelChange)="onHistoryYearChange($event)"
+      class="form-control"
+      style="display: inline-block; width: auto; margin-left: 0.5rem"
+    >
+      <option *ngFor="let year of availableHistoryYears" [value]="year">
+        {{ year }}年
+      </option>
+    </select>
+  </div>
+  <button
+    type="button"
+    class="btn-primary"
+    (click)="updateHistory()"
+    [disabled]="isUpdatingHistory"
+    style="margin-left: auto"
   >
-    <option *ngFor="let year of availableHistoryYears" [value]="year">
-      {{ year }}年
-    </option>
-  </select>
+    {{ isUpdatingHistory ? "更新中..." : "更新" }}
+  </button>
 </div>
 
 <p *ngIf="isLoadingHistories" class="info-text">読み込み中...</p>
@@ -21,7 +32,11 @@
   *ngIf="
     !isLoadingHistories &&
     mergedHistories.length > 0 &&
-    !(joinYear !== null && joinYear !== undefined && selectedHistoryYear < joinYear)
+    !(
+      joinYear !== null &&
+      joinYear !== undefined &&
+      selectedHistoryYear < joinYear
+    )
   "
 >
   <thead>
@@ -70,7 +85,11 @@
   *ngIf="
     !isLoadingHistories &&
     mergedHistories.length === 0 &&
-    !(joinYear !== null && joinYear !== undefined && selectedHistoryYear < joinYear)
+    !(
+      joinYear !== null &&
+      joinYear !== undefined &&
+      selectedHistoryYear < joinYear
+    )
   "
   class="info-text"
 >
