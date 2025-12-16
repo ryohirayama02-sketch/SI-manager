@@ -24,6 +24,21 @@ export class FamilyMemberService {
    * 家族情報を保存
    */
   async saveFamilyMember(familyMember: FamilyMember): Promise<string> {
+    if (!familyMember) {
+      throw new Error('家族情報が設定されていません');
+    }
+    if (!familyMember.employeeId) {
+      throw new Error('従業員IDが設定されていません');
+    }
+    if (!familyMember.name) {
+      throw new Error('氏名が設定されていません');
+    }
+    if (!familyMember.birthDate) {
+      throw new Error('生年月日が設定されていません');
+    }
+    if (!familyMember.relationship) {
+      throw new Error('続柄が設定されていません');
+    }
     // IDが存在しない場合は新規作成（Firestoreが自動生成）
     let docId: string;
     if (familyMember.id) {
@@ -72,6 +87,9 @@ export class FamilyMemberService {
    * 家族情報を取得
    */
   async getFamilyMember(familyMemberId: string): Promise<FamilyMember | null> {
+    if (!familyMemberId) {
+      return null;
+    }
     const ref = doc(this.firestore, 'familyMembers', familyMemberId);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
@@ -86,6 +104,9 @@ export class FamilyMemberService {
   async getFamilyMembersByEmployeeId(
     employeeId: string
   ): Promise<FamilyMember[]> {
+    if (!employeeId) {
+      return [];
+    }
     const ref = collection(this.firestore, 'familyMembers');
     const q = query(ref, where('employeeId', '==', employeeId));
     const snapshot = await getDocs(q);
@@ -130,6 +151,9 @@ export class FamilyMemberService {
    * 家族情報を削除
    */
   async deleteFamilyMember(familyMemberId: string): Promise<void> {
+    if (!familyMemberId) {
+      throw new Error('家族情報IDが設定されていません');
+    }
     const ref = doc(this.firestore, 'familyMembers', familyMemberId);
     await deleteDoc(ref);
   }
@@ -138,6 +162,9 @@ export class FamilyMemberService {
    * 従業員IDで全ての家族情報を削除
    */
   async deleteFamilyMembersByEmployeeId(employeeId: string): Promise<void> {
+    if (!employeeId) {
+      throw new Error('従業員IDが設定されていません');
+    }
     const ref = collection(this.firestore, 'familyMembers');
     const q = query(ref, where('employeeId', '==', employeeId));
     const snapshot = await getDocs(q);
@@ -181,6 +208,9 @@ export class FamilyMemberService {
   async getFamilyMemberHistories(
     familyMemberId: string
   ): Promise<FamilyMemberHistory[]> {
+    if (!familyMemberId) {
+      return [];
+    }
     const ref = collection(this.firestore, 'familyMemberHistories');
     const q = query(ref, where('familyMemberId', '==', familyMemberId));
     const snapshot = await getDocs(q);
@@ -207,6 +237,11 @@ export class FamilyMemberService {
     });
     // クライアント側でソート（changeDateで降順ソート）
     return histories.sort((a, b) => {
+      if (!a.changeDate || !b.changeDate) {
+        if (!a.changeDate && !b.changeDate) return 0;
+        if (!a.changeDate) return 1;
+        if (!b.changeDate) return -1;
+      }
       return b.changeDate.localeCompare(a.changeDate);
     });
   }
@@ -215,8 +250,14 @@ export class FamilyMemberService {
    * 子の年齢を計算して扶養見直しアラートを判定
    */
   calculateAge(birthDate: string): number {
+    if (!birthDate) {
+      return 0;
+    }
     const today = new Date();
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime()) || isNaN(today.getTime())) {
+      return 0;
+    }
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
     if (
@@ -225,6 +266,10 @@ export class FamilyMemberService {
     ) {
       age--;
     }
+    // 年齢の範囲チェック（0-150歳）
+    if (age < 0 || age > 150) {
+      return 0;
+    }
     return age;
   }
 
@@ -232,7 +277,13 @@ export class FamilyMemberService {
    * 扶養見直しアラートを取得
    */
   getSupportReviewAlerts(familyMembers: FamilyMember[]): FamilyMember[] {
+    if (!familyMembers || !Array.isArray(familyMembers)) {
+      return [];
+    }
     return familyMembers.filter((member) => {
+      if (!member || !member.birthDate || !member.relationship) {
+        return false;
+      }
       const age = this.calculateAge(member.birthDate);
       const relationship = member.relationship.toLowerCase();
       // 子の場合、18歳または22歳で扶養見直し

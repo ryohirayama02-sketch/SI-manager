@@ -93,12 +93,19 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       if (!employee) return;
       this.employee = employee;
       this.joinDate = employee.joinDate;
-      this.joinYear = this.joinDate
-        ? new Date(this.joinDate).getFullYear()
-        : null;
-      this.joinMonth = this.joinDate
-        ? new Date(this.joinDate).getMonth() + 1
-        : null;
+      if (this.joinDate) {
+        const joinDateObj = new Date(this.joinDate);
+        if (!isNaN(joinDateObj.getTime())) {
+          this.joinYear = joinDateObj.getFullYear();
+          this.joinMonth = joinDateObj.getMonth() + 1;
+        } else {
+          this.joinYear = null;
+          this.joinMonth = null;
+        }
+      } else {
+        this.joinYear = null;
+        this.joinMonth = null;
+      }
 
       // 常に最新の履歴を自動生成
       await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
@@ -116,17 +123,8 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
           this.employeeId
         );
       
-      console.log('[employee-history] 標準報酬履歴読み込み後', {
-        employeeId: this.employeeId,
-        historiesCount: this.standardRemunerationHistories.length,
-        histories: this.standardRemunerationHistories,
-        employeeMonthlyWage: employee.monthlyWage,
-        joinDate: employee.joinDate,
-      });
-      
       // 標準報酬履歴が空で、従業員に月額賃金がある場合は、再度生成を試みる
       if (this.standardRemunerationHistories.length === 0 && employee.monthlyWage) {
-        console.log('[employee-history] 標準報酬履歴が空のため再生成を試みます');
         await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
           this.employeeId,
           employee
@@ -135,10 +133,6 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
           await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
             this.employeeId
           );
-        console.log('[employee-history] 再生成後の標準報酬履歴', {
-          historiesCount: this.standardRemunerationHistories.length,
-          histories: this.standardRemunerationHistories,
-        });
       }
       
       await this.computeGradesFromHistories();
@@ -225,7 +219,11 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     if (!this.employeeId) return;
 
     // 年度を数値に変換
-    this.selectedHistoryYear = typeof year === 'string' ? parseInt(year, 10) : year;
+    const parsedYear = typeof year === 'string' ? parseInt(year, 10) : year;
+    if (isNaN(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
+      return;
+    }
+    this.selectedHistoryYear = parsedYear;
 
     this.isLoadingHistories = true;
     try {
@@ -236,12 +234,19 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         // 従業員情報を更新（最新の情報を取得）
         this.employee = employee;
         this.joinDate = employee.joinDate;
-        this.joinYear = this.joinDate
-          ? new Date(this.joinDate).getFullYear()
-          : null;
-        this.joinMonth = this.joinDate
-          ? new Date(this.joinDate).getMonth() + 1
-          : null;
+        if (this.joinDate) {
+          const joinDateObj = new Date(this.joinDate);
+          if (!isNaN(joinDateObj.getTime())) {
+            this.joinYear = joinDateObj.getFullYear();
+            this.joinMonth = joinDateObj.getMonth() + 1;
+          } else {
+            this.joinYear = null;
+            this.joinMonth = null;
+          }
+        } else {
+          this.joinYear = null;
+          this.joinMonth = null;
+        }
 
         // 選択年度の履歴を生成
         await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
@@ -264,14 +269,6 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             this.employeeId
           );
         
-        console.log('[employee-history] 年度変更後の標準報酬履歴', {
-          selectedHistoryYear: this.selectedHistoryYear,
-          historiesCount: this.standardRemunerationHistories.length,
-          histories: this.standardRemunerationHistories,
-          employeeMonthlyWage: employee.monthlyWage,
-          joinDate: employee.joinDate,
-        });
-        
         await this.computeGradesFromHistories();
         // 統合履歴を更新
         await this.updateMergedHistories();
@@ -286,6 +283,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     const selectedYear = typeof this.selectedHistoryYear === 'string' 
       ? parseInt(this.selectedHistoryYear, 10) 
       : this.selectedHistoryYear;
+
+    if (isNaN(selectedYear) || selectedYear < 1900 || selectedYear > 2100) {
+      return [];
+    }
 
     // 入社日前は表示しない
     const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
@@ -379,7 +380,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
    * 統合された履歴データを更新
    */
   private async updateMergedHistories(): Promise<void> {
-    if (!this.employee) {
+    if (!this.employee || !this.employeeId) {
       this.mergedHistories = [];
       return;
     }
@@ -388,6 +389,11 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     const selectedYear = typeof this.selectedHistoryYear === 'string' 
       ? parseInt(this.selectedHistoryYear, 10) 
       : this.selectedHistoryYear;
+
+    if (isNaN(selectedYear) || selectedYear < 1900 || selectedYear > 2100) {
+      this.mergedHistories = [];
+      return;
+    }
 
     // 現在の年月を取得
     const currentDate = new Date();
@@ -450,23 +456,6 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
           return b.applyStartMonth - a.applyStartMonth;
         })[0];
 
-      // デバッグログ（2024年1月の場合のみ）
-      if (selectedYear === 2024 && month === 1) {
-        console.log('[employee-history] 2024年1月の標準報酬履歴検索', {
-          selectedYear,
-          selectedHistoryYear: this.selectedHistoryYear,
-          month,
-          standardRemunerationHistories: this.standardRemunerationHistories,
-          applicableStandardHistory,
-          employee: {
-            monthlyWage: this.employee.monthlyWage,
-            joinDate: this.employee.joinDate,
-            joinYear: this.joinYear,
-            joinMonth: this.joinMonth,
-          },
-        });
-      }
-
       // 年齢を計算
       const age = this.employee.birthDate
         ? this.employeeLifecycleService.getAgeAtMonth(
@@ -502,12 +491,12 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             }
 
             // 標準報酬履歴がない場合のみ、最新の月次給与データから計算
-            if (standardMonthlyRemuneration === null) {
+            if (standardMonthlyRemuneration === null && this.employeeId) {
               // 最新の月次給与データを取得
               const roomId = (this.employee as any).roomId || this.roomIdService.requireRoomId();
               const monthSalaryData = await this.monthlySalaryService.getEmployeeSalary(
                 roomId,
-                this.employeeId!,
+                this.employeeId,
                 selectedYear,
                 month
               );

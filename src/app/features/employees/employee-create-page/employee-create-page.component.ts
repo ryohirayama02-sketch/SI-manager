@@ -680,6 +680,20 @@ export class EmployeeCreatePageComponent implements OnInit {
 
     try {
       const value = this.familyForm.value;
+      const incomeNum =
+        value.expectedIncome === null || value.expectedIncome === undefined
+          ? null
+          : Number(value.expectedIncome);
+      const age = this.getFamilyMemberAge(value.birthDate);
+      const isSpouse = value.relationship === '配偶者';
+      const isThirdAuto =
+        isSpouse &&
+        incomeNum !== null &&
+        incomeNum !== undefined &&
+        incomeNum < 1060000 &&
+        age >= 20 &&
+        age < 60;
+
       const familyMember: FamilyMember = {
         id: this.editingFamilyMember?.id,
         employeeId: '', // 従業員登録前は空（登録後に設定）
@@ -687,8 +701,10 @@ export class EmployeeCreatePageComponent implements OnInit {
         birthDate: value.birthDate,
         relationship: value.relationship,
         livingTogether: value.livingTogether,
-        expectedIncome: value.expectedIncome || null,
-        isThirdCategory: value.isThirdCategory,
+        expectedIncome:
+          incomeNum === null || incomeNum === undefined ? undefined : incomeNum,
+        // 配偶者のみ自動判定: 20-59歳かつ見込年収<1,060,000で第3号、それ以外はハイフン扱い
+        isThirdCategory: isSpouse ? isThirdAuto : value.isThirdCategory,
         supportStartDate: value.supportStartDate || undefined,
         supportEndDate: value.supportEndDate || undefined,
       };
@@ -733,17 +749,26 @@ export class EmployeeCreatePageComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
     }
-    if (!confirm('この家族情報を削除しますか？')) return;
-
-    // 従業員がまだ登録されていない場合は、配列から削除
-    if (!this.employeeId) {
-      this.familyMembers = this.familyMembers.filter((m) => m.id !== memberId);
+    if (!memberId) {
+      alert('家族情報IDが設定されていません');
       return;
     }
+    if (!confirm('この家族情報を削除しますか？')) return;
 
-    // 従業員が登録済みの場合は、Firestoreから削除
-    await this.familyMemberService.deleteFamilyMember(memberId);
-    await this.loadFamilyMembers();
+    try {
+      // 従業員がまだ登録されていない場合は、配列から削除
+      if (!this.employeeId) {
+        this.familyMembers = this.familyMembers.filter((m) => m.id !== memberId);
+        return;
+      }
+
+      // 従業員が登録済みの場合は、Firestoreから削除
+      await this.familyMemberService.deleteFamilyMember(memberId);
+      await this.loadFamilyMembers();
+    } catch (error) {
+      console.error('家族情報の削除エラー:', error);
+      alert('家族情報の削除に失敗しました: ' + (error as Error).message);
+    }
   }
 
   getFamilyMemberAge(birthDate: string): number {
@@ -767,6 +792,9 @@ export class EmployeeCreatePageComponent implements OnInit {
   getAge18Date(birthDate: string): string {
     if (!birthDate) return '-';
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return '-';
+    }
     // 満18歳になる年を計算
     const age18Year = birth.getFullYear() + 18;
     // その年の3月31日（年度末）を返す
@@ -779,6 +807,9 @@ export class EmployeeCreatePageComponent implements OnInit {
   getAge22Date(birthDate: string): string {
     if (!birthDate) return '-';
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return '-';
+    }
     // 満22歳になる年を計算
     const age22Year = birth.getFullYear() + 22;
     // その年の3月31日（年度末）を返す

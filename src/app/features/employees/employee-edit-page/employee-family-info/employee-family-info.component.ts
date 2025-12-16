@@ -46,6 +46,9 @@ export class EmployeeFamilyInfoComponent implements OnInit {
    */
   onExpectedIncomeInput(event: Event): void {
     const inputEl = event.target as HTMLInputElement;
+    if (!inputEl) {
+      return;
+    }
     const raw = inputEl.value.replace(/,/g, '').trim();
     if (raw === '') {
       this.familyForm
@@ -210,9 +213,18 @@ export class EmployeeFamilyInfoComponent implements OnInit {
       event.preventDefault();
       event.stopPropagation();
     }
+    if (!memberId) {
+      alert('家族情報IDが設定されていません');
+      return;
+    }
     if (!confirm('この家族情報を削除しますか？')) return;
-    await this.familyMemberService.deleteFamilyMember(memberId);
-    await this.loadFamilyMembers();
+    try {
+      await this.familyMemberService.deleteFamilyMember(memberId);
+      await this.loadFamilyMembers();
+    } catch (error) {
+      console.error('家族情報の削除エラー:', error);
+      alert('家族情報の削除に失敗しました: ' + (error as Error).message);
+    }
   }
 
   getFamilyMemberAge(birthDate: string): number {
@@ -236,6 +248,9 @@ export class EmployeeFamilyInfoComponent implements OnInit {
   getAge18Date(birthDate: string): string {
     if (!birthDate) return '-';
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return '-';
+    }
     // 満18歳になる年を計算
     const age18Year = birth.getFullYear() + 18;
     // その年の3月31日（年度末）を返す
@@ -248,6 +263,9 @@ export class EmployeeFamilyInfoComponent implements OnInit {
   getAge22Date(birthDate: string): string {
     if (!birthDate) return '-';
     const birth = new Date(birthDate);
+    if (isNaN(birth.getTime())) {
+      return '-';
+    }
     // 満22歳になる年を計算
     const age22Year = birth.getFullYear() + 22;
     // その年の3月31日（年度末）を返す
