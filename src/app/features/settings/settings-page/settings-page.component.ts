@@ -259,6 +259,9 @@ export class SettingsPageComponent {
     if (value === null || value === undefined || value === 0) {
       return '';
     }
+    if (isNaN(value) || !isFinite(value)) {
+      return '';
+    }
     return value.toLocaleString('ja-JP');
   }
 
@@ -266,107 +269,187 @@ export class SettingsPageComponent {
     // カンマを削除して数値に変換
     const numStr = value.replace(/,/g, '');
     const num = parseInt(numStr, 10);
-    return isNaN(num) ? 0 : num;
+    if (isNaN(num) || !isFinite(num)) {
+      return 0;
+    }
+    return num;
   }
 
   onAmountInput(index: number, field: string, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const value = input.value;
-    const numValue = this.parseAmount(value);
-    const row = this.standardTable.at(index);
-    row.get(field)?.setValue(numValue, { emitEvent: false });
+    try {
+      const input = event.target as HTMLInputElement;
+      const value = input.value;
+      const numValue = this.parseAmount(value);
+      const row = this.standardTable.at(index);
+      if (row) {
+        row.get(field)?.setValue(numValue, { emitEvent: false });
 
-    // カンマ付きで表示を更新
-    input.value = this.formatAmount(numValue);
+        // カンマ付きで表示を更新
+        input.value = this.formatAmount(numValue);
 
-    // バリデーション実行
-    this.validateStandardTable();
+        // バリデーション実行
+        this.validateStandardTable();
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   onAmountBlur(index: number, field: string, event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const numValue = this.parseAmount(input.value);
-    const row = this.standardTable.at(index);
-    row.get(field)?.setValue(numValue, { emitEvent: false });
-    input.value = this.formatAmount(numValue);
+    try {
+      const input = event.target as HTMLInputElement;
+      const numValue = this.parseAmount(input.value);
+      const row = this.standardTable.at(index);
+      if (row) {
+        row.get(field)?.setValue(numValue, { emitEvent: false });
+        input.value = this.formatAmount(numValue);
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
+    }
   }
 
   getAmountDisplayValue(index: number, field: string): string {
-    const row = this.standardTable.at(index);
-    const value = row.get(field)?.value;
-    return this.formatAmount(value);
+    try {
+      const row = this.standardTable.at(index);
+      if (!row) {
+        return '';
+      }
+      const value = row.get(field)?.value;
+      return this.formatAmount(value);
+    } catch (error) {
+      return '';
+    }
   }
 
   createRow(row: any): FormGroup {
+    // デフォルト値を設定して、nullやundefinedを防ぐ
+    const rank = row?.rank ?? 0;
+    const lower = row?.lower ?? 0;
+    const upper = row?.upper ?? 0;
+    const standard = row?.standard ?? 0;
+    const id = row?.id ?? `grade-${rank}`;
+
+    // NaNや無限大のチェック
+    const safeRank = isNaN(rank) || !isFinite(rank) ? 0 : rank;
+    const safeLower = isNaN(lower) || !isFinite(lower) ? 0 : lower;
+    const safeUpper = isNaN(upper) || !isFinite(upper) ? 0 : upper;
+    const safeStandard = isNaN(standard) || !isFinite(standard) ? 0 : standard;
+
     return this.fb.group({
-      id: [row.id],
-      rank: [row.rank],
-      lower: [row.lower],
-      upper: [row.upper],
-      standard: [row.standard],
+      id: [id],
+      rank: [safeRank],
+      lower: [safeLower],
+      upper: [safeUpper],
+      standard: [safeStandard],
     });
   }
 
   async loadStandardTable(): Promise<void> {
-    // 既存のデータをクリア
-    while (this.standardTable.length !== 0) {
-      this.standardTable.removeAt(0);
+    try {
+      // 既存のデータをクリア
+      while (this.standardTable.length !== 0) {
+        this.standardTable.removeAt(0);
+      }
+      const rows = await this.settingsService.getStandardTable(
+        this.standardTableYear
+      );
+      if (rows && Array.isArray(rows)) {
+        rows.forEach((r) => {
+          if (r) {
+            const row = this.createRow(r);
+            if (row) {
+              this.standardTable.push(row);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
     }
-    const rows = await this.settingsService.getStandardTable(
-      this.standardTableYear
-    );
-    rows.forEach((r) => this.standardTable.push(this.createRow(r)));
   }
 
   async onStandardTableYearChange(): Promise<void> {
     // 年度を変更した際に、前のインポート結果メッセージをクリア
     this.standardTableImportResult = null;
-    await this.loadStandardTable();
+    try {
+      await this.loadStandardTable();
+    } catch (error) {
+      // エラーはloadStandardTable内で処理されているため、ここでは何もしない
+    }
   }
 
   async onGradeYearChange(): Promise<void> {
-    const yearNum = parseInt(this.gradeYear, 10);
-    this.standardTableYear = yearNum;
-    // 年度を変更した際に、前のインポート結果メッセージをクリア
-    this.standardTableImportResult = null;
-    await this.loadStandardTable();
+    try {
+      const yearNum = parseInt(this.gradeYear, 10);
+      if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+        alert('無効な年度が設定されています');
+        return;
+      }
+      this.standardTableYear = yearNum;
+      // 年度を変更した際に、前のインポート結果メッセージをクリア
+      this.standardTableImportResult = null;
+      await this.loadStandardTable();
+    } catch (error) {
+      // エラーはloadStandardTable内で処理されているため、ここでは何もしない
+    }
   }
 
   validateStandardTable(): void {
     this.errorMessages = [];
     this.warningMessages = [];
 
-    for (let i = 0; i < this.standardTable.length; i++) {
-      const row = this.standardTable.at(i);
-      const lower = row.get('lower')?.value;
-      const upper = row.get('upper')?.value;
-      const standard = row.get('standard')?.value;
-      const rank = row.get('rank')?.value;
+    try {
+      for (let i = 0; i < this.standardTable.length; i++) {
+        const row = this.standardTable.at(i);
+        if (!row) {
+          continue;
+        }
+        const lower = row.get('lower')?.value;
+        const upper = row.get('upper')?.value;
+        const standard = row.get('standard')?.value;
+        const rank = row.get('rank')?.value;
 
-      if (lower !== null && upper !== null && lower >= upper) {
-        this.errorMessages.push(
-          `等級${rank}: 下限は上限より小さくする必要があります`
-        );
-      }
+        // NaNや無限大のチェック
+        if (
+          (lower !== null && (isNaN(lower) || !isFinite(lower))) ||
+          (upper !== null && (isNaN(upper) || !isFinite(upper))) ||
+          (standard !== null && (isNaN(standard) || !isFinite(standard))) ||
+          (rank !== null && (isNaN(rank) || !isFinite(rank)))
+        ) {
+          this.errorMessages.push(`等級${rank}: 数値が不正です`);
+          continue;
+        }
 
-      if (standard !== null && (standard < lower || standard >= upper)) {
-        this.warningMessages.push(
-          `等級${rank}: 標準報酬月額が範囲外です（下限: ${lower}, 上限: ${upper}）`
-        );
-      }
-
-      // テーブルが昇順になっているかのチェック（前の等級の上限 = 次の等級の下限）
-      if (i > 0) {
-        const prevRow = this.standardTable.at(i - 1);
-        const prevUpper = prevRow.get('upper')?.value;
-        if (prevUpper !== null && lower !== null && prevUpper !== lower) {
+        if (lower !== null && upper !== null && lower >= upper) {
           this.errorMessages.push(
-            `等級${
-              prevRow.get('rank')?.value
-            }と等級${rank}の範囲に不整合があります（前等級の上限: ${prevUpper}, 当等級の下限: ${lower}）`
+            `等級${rank}: 下限は上限より小さくする必要があります`
           );
         }
+
+        if (standard !== null && (standard < lower || standard >= upper)) {
+          this.warningMessages.push(
+            `等級${rank}: 標準報酬月額が範囲外です（下限: ${lower}, 上限: ${upper}）`
+          );
+        }
+
+        // テーブルが昇順になっているかのチェック（前の等級の上限 = 次の等級の下限）
+        if (i > 0) {
+          const prevRow = this.standardTable.at(i - 1);
+          if (prevRow) {
+            const prevUpper = prevRow.get('upper')?.value;
+            if (prevUpper !== null && lower !== null && prevUpper !== lower) {
+              this.errorMessages.push(
+                `等級${
+                  prevRow.get('rank')?.value
+                }と等級${rank}の範囲に不整合があります（前等級の上限: ${prevUpper}, 当等級の下限: ${lower}）`
+              );
+            }
+          }
+        }
       }
+    } catch (error) {
+      // エラーは静かに処理（ユーザー体験を損なわないため）
     }
   }
 
@@ -392,6 +475,18 @@ export class SettingsPageComponent {
   async saveStandardTable(): Promise<void> {
     if (this.isSavingStandardTable) return;
 
+    // 年度のバリデーション
+    if (!this.standardTableYear || this.standardTableYear < 1900 || this.standardTableYear > 2100) {
+      alert('無効な年度が設定されています');
+      return;
+    }
+
+    // standardTableの存在確認
+    if (!this.standardTable || !this.standardTable.value) {
+      alert('標準報酬月額テーブルのデータが存在しません');
+      return;
+    }
+
     this.validateStandardTable();
     if (this.errorMessages.length > 0) {
       alert('エラーがあります。修正してください。');
@@ -400,13 +495,17 @@ export class SettingsPageComponent {
 
     this.isSavingStandardTable = true;
     try {
+      const tableValue = this.standardTable.value;
+      if (!Array.isArray(tableValue) || tableValue.length === 0) {
+        alert('標準報酬月額テーブルにデータがありません');
+        return;
+      }
       await this.settingsService.saveStandardTable(
         this.standardTableYear,
-        this.standardTable.value
+        tableValue
       );
       alert('標準報酬月額テーブルを保存しました');
     } catch (error) {
-      console.error('標準報酬月額テーブルの保存エラー:', error);
       alert('標準報酬月額テーブルの保存に失敗しました');
     } finally {
       this.isSavingStandardTable = false;
@@ -489,7 +588,11 @@ export class SettingsPageComponent {
         }
       });
 
-    await this.loadStandardTable();
+    try {
+      await this.loadStandardTable();
+    } catch (error) {
+      // エラーはloadStandardTable内で処理されているため、ここでは何もしない
+    }
     await this.loadSalaryItems();
     await this.loadOffices();
     await this.loadUserRoomInfo();
@@ -1472,6 +1575,12 @@ export class SettingsPageComponent {
   }
 
   async seedStandardTable(): Promise<void> {
+    // 年度のバリデーション
+    if (!this.standardTableYear || this.standardTableYear < 1900 || this.standardTableYear > 2100) {
+      alert('無効な年度が設定されています');
+      return;
+    }
+
     if (
       !confirm(
         `${this.standardTableYear}年度の標準報酬等級表（50等級）を一括登録しますか？\n既存のデータは上書きされます。`
@@ -1488,7 +1597,6 @@ export class SettingsPageComponent {
       // テーブルを再読み込み
       await this.loadStandardTable();
     } catch (error) {
-      console.error('標準報酬等級表の一括登録エラー:', error);
       alert('標準報酬等級表の一括登録に失敗しました');
     }
   }
@@ -1501,9 +1609,29 @@ export class SettingsPageComponent {
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-      const text = e.target?.result as string;
-      this.standardTableCsvImportText = text;
-      await this.importStandardTableFromCsvText(text);
+      try {
+        const text = e.target?.result as string;
+        if (text) {
+          this.standardTableCsvImportText = text;
+          await this.importStandardTableFromCsvText(text);
+        } else {
+          this.standardTableImportResult = {
+            type: 'error',
+            message: 'ファイルの読み込みに失敗しました',
+          };
+        }
+      } catch (error) {
+        this.standardTableImportResult = {
+          type: 'error',
+          message: 'ファイルの読み込み中にエラーが発生しました',
+        };
+      }
+    };
+    reader.onerror = () => {
+      this.standardTableImportResult = {
+        type: 'error',
+        message: 'ファイルの読み込みに失敗しました',
+      };
     };
     reader.readAsText(file);
   }
@@ -1524,6 +1652,13 @@ export class SettingsPageComponent {
       // 現在選択されている年度を standardTableYear に同期
       // これにより、インポート時に選択されている年度が確実に反映される
       const yearNum = parseInt(this.gradeYear, 10);
+      if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
+        this.standardTableImportResult = {
+          type: 'error',
+          message: '無効な年度が設定されています',
+        };
+        return;
+      }
       this.standardTableYear = yearNum;
 
       const lines = csvText.split('\n').filter((line) => line.trim());
@@ -1564,7 +1699,16 @@ export class SettingsPageComponent {
         const lower = parseInt(lowerStr.replace(/,/g, ''), 10);
         const upper = parseInt(upperStr.replace(/,/g, ''), 10);
 
-        if (isNaN(rank) || isNaN(standard) || isNaN(lower) || isNaN(upper)) {
+        if (
+          isNaN(rank) ||
+          isNaN(standard) ||
+          isNaN(lower) ||
+          isNaN(upper) ||
+          !isFinite(rank) ||
+          !isFinite(standard) ||
+          !isFinite(lower) ||
+          !isFinite(upper)
+        ) {
           errorCount++;
           errors.push(`行「${line}」: 数値が不正です`);
           continue;
@@ -1600,9 +1744,16 @@ export class SettingsPageComponent {
       }
 
       // 等級順にソート
-      const sortedRows = Array.from(rowsToAdd.values()).sort(
-        (a, b) => a.rank - b.rank
-      );
+      const sortedRows = Array.from(rowsToAdd.values())
+        .filter((row) => row !== null && row !== undefined)
+        .sort((a, b) => {
+          const rankA = a?.rank ?? 0;
+          const rankB = b?.rank ?? 0;
+          if (isNaN(rankA) || isNaN(rankB)) {
+            return 0;
+          }
+          return rankA - rankB;
+        });
 
       // 既存のテーブルをクリア
       while (this.standardTable.length !== 0) {
@@ -1611,8 +1762,12 @@ export class SettingsPageComponent {
 
       // ソート済みデータをFormArrayに追加
       sortedRows.forEach((rowData) => {
-        const row = this.createRow(rowData);
-        this.standardTable.push(row);
+        if (rowData) {
+          const row = this.createRow(rowData);
+          if (row) {
+            this.standardTable.push(row);
+          }
+        }
       });
 
       // バリデーション実行
@@ -1640,9 +1795,17 @@ export class SettingsPageComponent {
       } else {
         // Firestoreに保存（現在選択されている年度に対して）
         try {
+          const tableValue = this.standardTable?.value;
+          if (!Array.isArray(tableValue) || tableValue.length === 0) {
+            this.standardTableImportResult = {
+              type: 'error',
+              message: '標準報酬月額テーブルにデータがありません',
+            };
+            return;
+          }
           await this.settingsService.saveStandardTable(
             this.standardTableYear,
-            this.standardTable.value
+            tableValue
           );
 
           // 画面表示を更新するためにloadStandardTable()を呼び出す
@@ -1656,18 +1819,16 @@ export class SettingsPageComponent {
           this.showStandardTableImportDialog = false;
           this.standardTableCsvImportText = '';
         } catch (saveError) {
-          console.error('標準報酬月額テーブルの保存エラー:', saveError);
           this.standardTableImportResult = {
             type: 'error',
-            message: `インポートは成功しましたが、保存に失敗しました: ${saveError}`,
+            message: `インポートは成功しましたが、保存に失敗しました`,
           };
         }
       }
     } catch (error) {
-      console.error('CSVインポートエラー:', error);
       this.standardTableImportResult = {
         type: 'error',
-        message: `インポート中にエラーが発生しました: ${error}`,
+        message: `インポート中にエラーが発生しました`,
       };
     }
   }
