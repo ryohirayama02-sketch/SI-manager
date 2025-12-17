@@ -254,8 +254,23 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         years
       );
 
-      // 履歴を再読み込み
-      await this.loadHistories();
+      // 履歴を再読み込み（loadHistories内でgenerateStandardRemunerationHistoryが呼ばれるため、直接履歴を取得）
+      // 標準報酬履歴を読み込み
+      this.standardRemunerationHistories =
+        await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+          this.employeeId
+        );
+
+      await this.computeGradesFromHistories();
+
+      // 社保加入履歴を読み込み
+      this.insuranceStatusHistories =
+        await this.standardRemunerationHistoryService.getInsuranceStatusHistories(
+          this.employeeId
+        );
+
+      // 統合履歴を更新
+      await this.updateMergedHistories();
 
       alert('標準報酬履歴・社保加入履歴を更新しました');
     } catch (error) {

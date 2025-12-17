@@ -165,7 +165,16 @@ export class MonthlySalaryService {
     );
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return this.normalizeSalaryData(snap.data());
+    const rawData = snap.data();
+    const normalizedData = this.normalizeSalaryData(rawData);
+    console.log(`[monthly-salary] getEmployeeSalary: ${year}年${month}月`, {
+      roomId,
+      employeeId,
+      path: `rooms/${roomId}/monthlySalaries/${employeeId}/years/${year}/months/${month}`,
+      rawData,
+      normalizedData,
+    });
+    return normalizedData;
   }
 
   async deleteEmployeeSalary(
