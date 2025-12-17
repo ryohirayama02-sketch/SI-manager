@@ -51,6 +51,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     pensionInsurance: string;
   }> = [];
   private routerSubscription: Subscription | null = null;
+  private isGeneratingHistory: boolean = false; // 標準報酬履歴生成中のフラグ
 
   constructor(
     private employeeService: EmployeeService,
@@ -74,12 +75,24 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     await this.loadHistories();
 
     // ルーターイベントを購読（画面遷移後に再読み込み）
+    // 注意：標準報酬履歴の再生成は行わず、既存の履歴を読み込むのみ
     this.routerSubscription = this.router.events
       .pipe(filter((event) => event instanceof NavigationEnd))
       .subscribe(async () => {
         // 従業員編集画面に戻ってきた場合、データを再読み込み
-        if (this.employeeId) {
-          await this.loadHistories();
+        // ただし、標準報酬履歴の再生成は行わない（重複実行を防ぐ）
+        if (this.employeeId && !this.isLoadingHistories) {
+          // 標準報酬履歴を再生成せず、既存の履歴を読み込むのみ
+          this.standardRemunerationHistories =
+            await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
+              this.employeeId
+            );
+          this.insuranceStatusHistories =
+            await this.standardRemunerationHistoryService.getInsuranceStatusHistories(
+              this.employeeId
+            );
+          await this.computeGradesFromHistories();
+          await this.updateMergedHistories();
         }
       });
   }
@@ -115,15 +128,23 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         this.joinMonth = null;
       }
 
-      // 常に最新の履歴を自動生成
-      await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
-        this.employeeId,
-        employee
-      );
-      await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
-        this.employeeId,
-        employee
-      );
+      // 標準報酬履歴の生成中でない場合のみ生成（重複実行を防ぐ）
+      if (!this.isGeneratingHistory) {
+        this.isGeneratingHistory = true;
+        try {
+          // 常に最新の履歴を自動生成
+          await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+            this.employeeId,
+            employee
+          );
+          await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
+            this.employeeId,
+            employee
+          );
+        } finally {
+          this.isGeneratingHistory = false;
+        }
+      }
 
       // 標準報酬履歴を読み込み
       this.standardRemunerationHistories =
@@ -350,17 +371,13 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
           this.joinMonth = null;
         }
 
-        // 選択年度の履歴を生成
+        // 選択年度の社保加入履歴を生成
         await this.standardRemunerationHistoryService.generateInsuranceStatusHistory(
           this.employeeId,
           employee,
           [this.selectedHistoryYear]
         );
-        // 標準報酬履歴も再生成（年度変更時）
-        await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
-          this.employeeId,
-          employee
-        );
+        // 標準報酬履歴は再生成しない（loadHistoriesで既に生成済みのため、重複を避ける）
         // 履歴を再読み込み
         this.insuranceStatusHistories =
           await this.standardRemunerationHistoryService.getInsuranceStatusHistories(
@@ -562,24 +579,35 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
       // 標準報酬履歴から該当月に適用される履歴を取得
       // 適用開始年月がその月以前で、かつ最も新しいものを取得
+      // applyStartYearは実際の年として記録されているので、直接比較する
+      // 同じ適用開始年月の標準報酬履歴が複数存在する場合、随時改定を優先する
       const applicableStandardHistory = this.standardRemunerationHistories
         .filter((h) => {
-          // 標準報酬履歴のapplyStartYearは年度を表す可能性があるため、
-          // 年度と月から実際の年を計算して比較
-          const historyCalendarYear = h.applyStartMonth >= 3 ? h.applyStartYear : h.applyStartYear + 1;
-          if (historyCalendarYear < selectedYear) return true;
-          if (historyCalendarYear === selectedYear && h.applyStartMonth <= month)
+          // 適用開始年が選択年より前の場合
+          if (h.applyStartYear < selectedYear) return true;
+          // 適用開始年が選択年と同じで、適用開始月がその月以前の場合
+          if (h.applyStartYear === selectedYear && h.applyStartMonth <= month)
             return true;
           return false;
         })
         .sort((a, b) => {
-          // 年度と月から実際の年を計算して比較
-          const aCalendarYear = a.applyStartMonth >= 3 ? a.applyStartYear : a.applyStartYear + 1;
-          const bCalendarYear = b.applyStartMonth >= 3 ? b.applyStartYear : b.applyStartYear + 1;
-          if (aCalendarYear !== bCalendarYear) {
-            return bCalendarYear - aCalendarYear;
+          // 適用開始年で降順ソート
+          if (a.applyStartYear !== b.applyStartYear) {
+            return b.applyStartYear - a.applyStartYear;
           }
-          return b.applyStartMonth - a.applyStartMonth;
+          // 適用開始月で降順ソート
+          if (a.applyStartMonth !== b.applyStartMonth) {
+            return b.applyStartMonth - a.applyStartMonth;
+          }
+          // 同じ適用開始年月の場合、随時改定を優先（'suiji' > 'teiji' > 'acquisition'）
+          const priorityMap: { [key: string]: number } = {
+            suiji: 3,
+            teiji: 2,
+            acquisition: 1,
+          };
+          const aPriority = priorityMap[a.determinationReason] || 0;
+          const bPriority = priorityMap[b.determinationReason] || 0;
+          return bPriority - aPriority;
         })[0];
 
       // 年齢を計算
@@ -606,11 +634,9 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
         // 決定理由は、標準報酬履歴の適用開始月と一致する場合のみ設定
         // それ以外の月はハイフン（-）を表示
-        const historyCalendarYear = applicableStandardHistory.applyStartMonth >= 3
-          ? applicableStandardHistory.applyStartYear
-          : applicableStandardHistory.applyStartYear + 1;
+        // applyStartYearは実際の年として記録されているので、直接比較する
         if (
-          historyCalendarYear === selectedYear &&
+          applicableStandardHistory.applyStartYear === selectedYear &&
           applicableStandardHistory.applyStartMonth === month
         ) {
           determinationReason = this.getDeterminationReasonLabel(
@@ -621,55 +647,8 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         }
       }
 
-      // 標準報酬履歴がない場合のみ、最新の月次給与データから計算
-      if (standardMonthlyRemuneration === null && this.employeeId) {
-        // 最新の月次給与データを取得（選択年を使用）
-        const roomId =
-          (this.employee as any).roomId || this.roomIdService.requireRoomId();
-        const monthSalaryData =
-          await this.monthlySalaryService.getEmployeeSalary(
-            roomId,
-            this.employeeId,
-            selectedYear,
-            month
-          );
-
-        // 最新の月次給与データがある場合は、その月の給与データから標準報酬月額を計算
-        if (monthSalaryData) {
-          const fixedSalary =
-            monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0;
-          const variableSalary =
-            monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0;
-          const totalSalary =
-            monthSalaryData.totalSalary ??
-            monthSalaryData.total ??
-            fixedSalary + variableSalary;
-
-          // 給与データが存在する場合（0円でない場合）は、その月の給与データから標準報酬月額を計算
-          if (totalSalary > 0) {
-            // 標準報酬等級表は年度ベースで取得（3月開始の年度）
-            const fiscalYear = month >= 3 ? selectedYear : selectedYear - 1;
-            const gradeTable = await this.settingsService.getStandardTable(
-              fiscalYear
-            );
-            if (gradeTable && gradeTable.length > 0) {
-              const result =
-                this.salaryCalculationService.getStandardMonthlyRemuneration(
-                  totalSalary,
-                  gradeTable
-                );
-              if (result) {
-                standardMonthlyRemuneration = result.standard;
-                grade = result.rank || null;
-                // 標準報酬履歴がない場合は決定理由を設定しない（ハイフンを表示）
-                determinationReason = null;
-              }
-            }
-          }
-        }
-      }
-
-      // 標準報酬履歴も最新の月次給与データもない場合
+      // 標準報酬履歴がない場合のみ、従業員情報から月額賃金を使って計算
+      // 注意：標準報酬履歴が正しく生成されていれば、この処理は実行されない
       if (standardMonthlyRemuneration === null) {
         // 標準報酬履歴が見つからない場合、従業員情報から月額賃金を使って計算
         // 入社年月が選択年の該当月以前の場合のみ

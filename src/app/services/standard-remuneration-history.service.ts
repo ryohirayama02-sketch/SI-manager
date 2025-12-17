@@ -254,29 +254,69 @@ export class StandardRemunerationHistoryService {
       // 無効な日付の場合はnullに設定
       joinDate = null;
     }
-    const acquisitionStandard =
-      (employee as any).currentStandardMonthlyRemuneration ||
-      (employee as any).acquisitionStandard ||
-      null;
-    let effectiveAcquisitionStandard = acquisitionStandard;
-    // currentStandardMonthlyRemunerationが無い場合、月額賃金から算定して補完
-    if (
-      (!effectiveAcquisitionStandard ||
-        effectiveAcquisitionStandard === 0 ||
-        Number.isNaN(effectiveAcquisitionStandard)) &&
-      (employee as any).monthlyWage
-    ) {
-      const wage = Number((employee as any).monthlyWage);
-      if (!Number.isNaN(wage) && wage > 0 && joinDate) {
-        const table = await this.settingsService.getStandardTable(
-          joinDate.getFullYear()
+
+    let effectiveAcquisitionStandard: number | null = null;
+    if (joinDate) {
+      const acquisitionYear = joinDate.getFullYear();
+      const acquisitionMonth = joinDate.getMonth() + 1;
+      
+      // 資格取得月の月次給与入力の「総支給額（固定+非固定-欠勤控除）」を優先
+      const roomId =
+        (employee as any).roomId || this.roomIdService.requireRoomId();
+      const monthSalaryData =
+        await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employeeId,
+          acquisitionYear,
+          acquisitionMonth
         );
-        const res =
-          this.salaryCalculationService.getStandardMonthlyRemuneration(
-            wage,
-            table || []
+
+      if (monthSalaryData) {
+        const fixedSalary =
+          monthSalaryData.fixedSalary ?? monthSalaryData.fixed ?? 0;
+        const variableSalary =
+          monthSalaryData.variableSalary ?? monthSalaryData.variable ?? 0;
+        const deductionTotal = monthSalaryData.deductionTotal ?? 0;
+        // 総支給額から欠勤控除を引いた値（固定+非固定-欠勤控除）
+        const totalSalary =
+          (monthSalaryData.totalSalary ??
+            monthSalaryData.total ??
+            fixedSalary + variableSalary) - deductionTotal;
+
+        if (totalSalary > 0) {
+          const gradeTable = await this.settingsService.getStandardTable(
+            acquisitionYear
           );
-        effectiveAcquisitionStandard = res?.standard ?? wage;
+          const result =
+            this.salaryCalculationService.getStandardMonthlyRemuneration(
+              totalSalary,
+              gradeTable || []
+            );
+          effectiveAcquisitionStandard = result?.standard ?? null;
+        }
+      }
+
+      // 月次給与入力がない場合、従業員情報のmonthlyWageから決定
+      if (
+        !effectiveAcquisitionStandard ||
+        effectiveAcquisitionStandard === 0 ||
+        Number.isNaN(effectiveAcquisitionStandard)
+      ) {
+        const monthlyWage = (employee as any).monthlyWage;
+        if (monthlyWage) {
+          const wage = Number(monthlyWage);
+          if (!Number.isNaN(wage) && wage > 0) {
+            const gradeTable = await this.settingsService.getStandardTable(
+              acquisitionYear
+            );
+            const res =
+              this.salaryCalculationService.getStandardMonthlyRemuneration(
+                wage,
+                gradeTable || []
+              );
+            effectiveAcquisitionStandard = res?.standard ?? wage;
+          }
+        }
       }
     }
 
@@ -395,6 +435,26 @@ export class StandardRemunerationHistoryService {
           deductionTotal?: number; // 欠勤控除
         };
       } = {};
+      
+      // 年度をまたぐ固定賃金の変動検出のため、前年度の12月のデータも取得
+      let prevYearDecFixed = 0;
+      if (year > 1900) {
+        const prevYear = year - 1;
+        const prevYearDecData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employeeId,
+          prevYear,
+          12
+        );
+        if (prevYearDecData) {
+          const prevYearDecWorkingDays = prevYearDecData.workingDays;
+          // 支払基礎日数が17日未満の場合はスキップ
+          if (prevYearDecWorkingDays === undefined || prevYearDecWorkingDays >= 17) {
+            prevYearDecFixed = prevYearDecData.fixedSalary ?? prevYearDecData.fixed ?? 0;
+          }
+        }
+      }
+      
       for (let month = 1; month <= 12; month++) {
         const monthKey = month.toString();
         const monthData = salaryData[monthKey];
@@ -417,6 +477,26 @@ export class StandardRemunerationHistoryService {
             workingDays: monthData.workingDays, // 支払基礎日数
             deductionTotal: deductionTotal, // 欠勤控除
           };
+        }
+      }
+      
+      // 年度をまたぐ固定賃金の変動検出（2024年12月→2025年1月も連続的にチェック）
+      // 1月の変動検出時に前年度の12月のデータを使用
+      if (prevYearDecFixed > 0) {
+        const janKey = this.salaryCalculationService.getSalaryKey(employeeId, 1);
+        const janData = salaries[janKey];
+        if (janData) {
+          const janWorkingDays = janData.workingDays;
+          // 1月の支払基礎日数が17日未満の場合はスキップ
+          if (janWorkingDays === undefined || janWorkingDays >= 17) {
+            const janFixed = janData.fixed;
+            // 前年度の12月と当年度の1月で固定賃金が変動している場合、1月を変動月として追加
+            if (janFixed !== prevYearDecFixed) {
+              // detectFixedSalaryChangesの結果に1月が含まれていない場合、手動で追加
+              // ただし、detectFixedSalaryChangesは年度内の変動を検出するため、
+              // 年度をまたぐ変動は別途処理する必要がある
+            }
+          }
         }
       }
       console.log(
@@ -749,6 +829,29 @@ export class StandardRemunerationHistoryService {
           employeeId,
           salaries
         );
+      
+      // 年度をまたぐ固定賃金の変動検出（2024年12月→2025年1月も連続的にチェック）
+      // 1月の変動検出時に前年度の12月のデータを使用
+      if (prevYearDecFixed > 0) {
+        const janKey = this.salaryCalculationService.getSalaryKey(employeeId, 1);
+        const janData = salaries[janKey];
+        if (janData) {
+          const janWorkingDays = janData.workingDays;
+          // 1月の支払基礎日数が17日未満の場合はスキップ
+          if (janWorkingDays === undefined || janWorkingDays >= 17) {
+            const janFixed = janData.fixed;
+            // 前年度の12月と当年度の1月で固定賃金が変動している場合、1月を変動月として追加
+            if (janFixed !== prevYearDecFixed && !changeMonths.includes(1)) {
+              changeMonths.push(1);
+              console.log(
+                `[standard-remuneration-history] ${year}年: 年度をまたぐ変動検出（前年度12月→当年度1月）`,
+                { prevYearDecFixed, janFixed }
+              );
+            }
+          }
+        }
+      }
+      
       console.log(
         `[standard-remuneration-history] ${year}年: 検出された変動月`,
         changeMonths
