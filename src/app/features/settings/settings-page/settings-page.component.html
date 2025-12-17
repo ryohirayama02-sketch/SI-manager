@@ -38,7 +38,9 @@
       　・事業所マスタ
     </p>
     <div style="text-align: right">
-      <button class="btn-primary" (click)="closeOnboardingGuide()">閉じる</button>
+      <button class="btn-primary" (click)="closeOnboardingGuide()">
+        閉じる
+      </button>
     </div>
   </div>
 </div>
@@ -59,7 +61,7 @@
     [class.active]="activeTab === 'standard'"
     (click)="activeTab = 'standard'"
   >
-    標準報酬月額テーブル
+    標準報酬等級表
   </button>
   <button
     type="button"
