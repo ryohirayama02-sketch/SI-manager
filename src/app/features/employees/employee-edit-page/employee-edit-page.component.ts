@@ -33,9 +33,10 @@ export class EmployeeEditPageComponent implements OnInit {
   }
 
   onSaved(): void {
-    // 基本情報が保存されたとき、履歴を再読み込み
+    // 基本情報が保存されたとき、履歴を再読み込み（標準報酬履歴の再生成は行わない）
     if (this.historyComponent) {
-      this.historyComponent.loadHistories();
+      // 標準報酬履歴を再生成せず、既存の履歴を読み込むのみ
+      this.historyComponent.reloadHistoriesWithoutRegeneration();
     }
   }
 

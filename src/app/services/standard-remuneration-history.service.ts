@@ -1142,6 +1142,7 @@ export class StandardRemunerationHistoryService {
 
         // 2. 後続の随時改定履歴がある場合、前の履歴を削除
         // この年度で検出された変動月の適用開始年月より前の履歴を全て削除
+        // ただし、既存の履歴が処理対象年度より前の年度の場合は削除しない（年度をまたいだ削除を防ぐ）
         if (!shouldDelete && applyStartMonthsForYear.length > 0) {
           const existingApplyStart = {
             year: existingSuijiHistory.applyStartYear,
@@ -1163,10 +1164,12 @@ export class StandardRemunerationHistoryService {
           );
 
           // 既存の履歴の適用開始年月が、新しい履歴の適用開始年月より前の場合、削除
+          // ただし、同じ年度内でのみ削除する（年度をまたいだ削除は行わない）
+          // 既存の履歴が処理対象年度より前の年度の場合は削除しない
           if (
-            existingApplyStart.year < earliestApplyStart.year ||
-            (existingApplyStart.year === earliestApplyStart.year &&
-              existingApplyStart.month < earliestApplyStart.month)
+            existingApplyStart.year >= year &&
+            existingApplyStart.year === earliestApplyStart.year &&
+            existingApplyStart.month < earliestApplyStart.month
           ) {
             // 既存の履歴を削除（後続の履歴で上書きされる）
             shouldDelete = true;
