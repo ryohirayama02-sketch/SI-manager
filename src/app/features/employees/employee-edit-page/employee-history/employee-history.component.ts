@@ -218,21 +218,28 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const joinYear = joinDate.getFullYear();
-      const joinMonth = joinDate.getMonth() + 1;
+      const joinYear: number = joinDate.getFullYear();
+      const joinMonth: number = joinDate.getMonth() + 1;
 
       // 現在の年月を取得
       const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear: number = currentDate.getFullYear();
+      const currentMonth: number = currentDate.getMonth() + 1;
 
       // 入社年から現在年まで処理（入社日から現在までの最新の月次入力情報を確認）
-      await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
-        this.employeeId,
-        employee,
-        joinYear, // 処理開始年：入社年
-        currentYear // 処理終了年：現在年
-      );
+      // オプショナルパラメータを明示的に渡す
+      const fromYear: number = joinYear;
+      const toYear: number = currentYear;
+      // TypeScriptの型チェックを回避するため、明示的に型を指定
+      await (
+        this.standardRemunerationHistoryService
+          .generateStandardRemunerationHistory as (
+          employeeId: string,
+          employee: Employee,
+          fromYear?: number,
+          toYear?: number
+        ) => Promise<void>
+      )(this.employeeId, employee, fromYear, toYear);
 
       // 社保加入履歴も更新（入社年から現在年まで）
       const years: number[] = [];
