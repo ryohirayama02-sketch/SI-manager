@@ -101,10 +101,14 @@ export class AlertsDashboardStateService {
    */
   updateScheduleData(): void {
     // scheduleYearのバリデーション
-    const targetYear = this.scheduleYear && !isNaN(this.scheduleYear) && this.scheduleYear >= 1900 && this.scheduleYear <= 2100
-      ? this.scheduleYear
-      : getJSTDate().getFullYear();
-    
+    const targetYear =
+      this.scheduleYear &&
+      !isNaN(this.scheduleYear) &&
+      this.scheduleYear >= 1900 &&
+      this.scheduleYear <= 2100
+        ? this.scheduleYear
+        : getJSTDate().getFullYear();
+
     this.scheduleData = this.alertAggregationService.aggregateScheduleData(
       this.bonusReportAlerts || [],
       this.suijiAlerts || [],
@@ -159,7 +163,10 @@ export class AlertsDashboardStateService {
   }
 
   deleteSelectedBonusReportAlerts(): void {
-    if (!this.selectedBonusReportAlertIds || this.selectedBonusReportAlertIds.size === 0) {
+    if (
+      !this.selectedBonusReportAlertIds ||
+      this.selectedBonusReportAlertIds.size === 0
+    ) {
       return;
     }
     if (!this.bonusReportAlerts || !Array.isArray(this.bonusReportAlerts)) {
@@ -286,7 +293,10 @@ export class AlertsDashboardStateService {
 
     if (this.teijiKetteiResults && Array.isArray(this.teijiKetteiResults)) {
       this.teijiKetteiResults = this.teijiKetteiResults.filter(
-        (result) => result && result.employeeId && !selectedIds.includes(result.employeeId)
+        (result) =>
+          result &&
+          result.employeeId &&
+          !selectedIds.includes(result.employeeId)
       );
     }
     this.selectedTeijiAlertIds.clear();
@@ -356,7 +366,10 @@ export class AlertsDashboardStateService {
   }
 
   onQualificationChangeSelectAllChange(checked: boolean): void {
-    if (!this.qualificationChangeAlerts || !Array.isArray(this.qualificationChangeAlerts)) {
+    if (
+      !this.qualificationChangeAlerts ||
+      !Array.isArray(this.qualificationChangeAlerts)
+    ) {
       return;
     }
     if (checked) {
@@ -378,7 +391,10 @@ export class AlertsDashboardStateService {
     if (selectedIds.length === 0) {
       return;
     }
-    if (this.qualificationChangeAlerts && Array.isArray(this.qualificationChangeAlerts)) {
+    if (
+      this.qualificationChangeAlerts &&
+      Array.isArray(this.qualificationChangeAlerts)
+    ) {
       this.qualificationChangeAlerts = this.qualificationChangeAlerts.filter(
         (alert) => alert && alert.id && !selectedIds.includes(alert.id)
       );
@@ -403,7 +419,10 @@ export class AlertsDashboardStateService {
   }
 
   onMaternityChildcareSelectAllChange(checked: boolean): void {
-    if (!this.maternityChildcareAlerts || !Array.isArray(this.maternityChildcareAlerts)) {
+    if (
+      !this.maternityChildcareAlerts ||
+      !Array.isArray(this.maternityChildcareAlerts)
+    ) {
       return;
     }
     if (checked) {
@@ -425,7 +444,10 @@ export class AlertsDashboardStateService {
     if (selectedIds.length === 0) {
       return;
     }
-    if (this.maternityChildcareAlerts && Array.isArray(this.maternityChildcareAlerts)) {
+    if (
+      this.maternityChildcareAlerts &&
+      Array.isArray(this.maternityChildcareAlerts)
+    ) {
       this.maternityChildcareAlerts = this.maternityChildcareAlerts.filter(
         (alert) => alert && alert.id && !selectedIds.includes(alert.id)
       );

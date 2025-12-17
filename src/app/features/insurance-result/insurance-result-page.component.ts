@@ -625,7 +625,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         emp
       );
 
-
       // 月次給与の保険料を計算
       const monthlyPremiums: MonthlyPremiumData[] = [];
       let monthlyTotal = {

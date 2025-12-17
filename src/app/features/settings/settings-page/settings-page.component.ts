@@ -206,7 +206,10 @@ export class SettingsPageComponent {
     }
     const currentYear = new Date().getFullYear();
     // 現在年度が範囲内の場合は現在年度を、範囲外の場合は2020年をデフォルトに設定
-    this.year = (currentYear >= 2020 && currentYear <= 2029) ? currentYear.toString() : '2020';
+    this.year =
+      currentYear >= 2020 && currentYear <= 2029
+        ? currentYear.toString()
+        : '2020';
     // 標準報酬等級表の年度選択用リストを初期化（2020〜2029年：2020/3-2021/2から2029/3-2030/2まで）
     this.availableGradeYears = [];
     for (let y = 2020; y <= 2029; y++) {
@@ -471,7 +474,11 @@ export class SettingsPageComponent {
     if (this.isSavingStandardTable) return;
 
     // 年度のバリデーション
-    if (!this.standardTableYear || this.standardTableYear < 1900 || this.standardTableYear > 2100) {
+    if (
+      !this.standardTableYear ||
+      this.standardTableYear < 1900 ||
+      this.standardTableYear > 2100
+    ) {
       alert('無効な年度が設定されています');
       return;
     }
@@ -623,7 +630,9 @@ export class SettingsPageComponent {
       // ユーザー名のリストを取得
       if (this.editLogs && Array.isArray(this.editLogs)) {
         this.availableUserNames = [
-          ...new Set(this.editLogs.map((log) => log?.userName).filter((name) => name)),
+          ...new Set(
+            this.editLogs.map((log) => log?.userName).filter((name) => name)
+          ),
         ].sort();
       } else {
         this.editLogs = [];
@@ -793,15 +802,27 @@ export class SettingsPageComponent {
             /健保本人:([\d.]+)%, 健保会社:([\d.]+)%/
           );
 
-          if (oldMatch && newMatch && oldMatch.length >= 3 && newMatch.length >= 3) {
+          if (
+            oldMatch &&
+            newMatch &&
+            oldMatch.length >= 3 &&
+            newMatch.length >= 3
+          ) {
             const oldHealth = parseFloat(oldMatch[1]);
             const oldEmployer = parseFloat(oldMatch[2]);
             const newHealth = parseFloat(newMatch[1]);
             const newEmployer = parseFloat(newMatch[2]);
 
             // NaNチェック
-            if (isNaN(oldHealth) || isNaN(oldEmployer) || isNaN(newHealth) || isNaN(newEmployer)) {
-              return `${log.description || ''}（${log.oldValue}→${log.newValue}）`;
+            if (
+              isNaN(oldHealth) ||
+              isNaN(oldEmployer) ||
+              isNaN(newHealth) ||
+              isNaN(newEmployer)
+            ) {
+              return `${log.description || ''}（${log.oldValue}→${
+                log.newValue
+              }）`;
             }
 
             // 変更があった項目のみ表示
@@ -810,7 +831,9 @@ export class SettingsPageComponent {
               changes.push(`${oldHealth.toFixed(3)}→${newHealth.toFixed(3)}`);
             }
             if (Math.abs(oldEmployer - newEmployer) > 0.0001) {
-              changes.push(`${oldEmployer.toFixed(3)}→${newEmployer.toFixed(3)}`);
+              changes.push(
+                `${oldEmployer.toFixed(3)}→${newEmployer.toFixed(3)}`
+              );
             }
 
             if (changes.length > 0) {
@@ -959,33 +982,33 @@ export class SettingsPageComponent {
         );
       }
 
-    // 都道府県が変更された場合、その事業所に紐づく従業員の都道府県も自動更新
-    if (isPrefectureChanged && officeNumber && newPrefecture) {
-      try {
-        const updateCount =
-          await this.employeeService.updateEmployeesPrefectureByOfficeNumber(
-            officeNumber,
-            newPrefecture
+      // 都道府県が変更された場合、その事業所に紐づく従業員の都道府県も自動更新
+      if (isPrefectureChanged && officeNumber && newPrefecture) {
+        try {
+          const updateCount =
+            await this.employeeService.updateEmployeesPrefectureByOfficeNumber(
+              officeNumber,
+              newPrefecture
+            );
+        } catch (error) {
+          // エラーが発生しても事業所の保存は成功しているため、警告のみ表示
+          alert(
+            `事業所マスタを保存しましたが、従業員の都道府県更新中にエラーが発生しました。\n従業員の都道府県を手動で更新してください。`
           );
-      } catch (error) {
-        // エラーが発生しても事業所の保存は成功しているため、警告のみ表示
-        alert(
-          `事業所マスタを保存しましたが、従業員の都道府県更新中にエラーが発生しました。\n従業員の都道府県を手動で更新してください。`
-        );
-        await this.loadOffices();
-        if (office.id) {
-          const savedOffice = this.offices.find((o) => o.id === office.id);
-          if (savedOffice) {
-            this.selectOffice(savedOffice);
+          await this.loadOffices();
+          if (office.id) {
+            const savedOffice = this.offices.find((o) => o.id === office.id);
+            if (savedOffice) {
+              this.selectOffice(savedOffice);
+            } else {
+              this.selectOffice(null);
+            }
           } else {
             this.selectOffice(null);
           }
-        } else {
-          this.selectOffice(null);
+          return;
         }
-        return;
       }
-    }
 
       alert('事業所マスタを保存しました');
       await this.loadOffices();
@@ -1051,7 +1074,10 @@ export class SettingsPageComponent {
       this.prefectureRates = {};
       for (const pref of this.prefectureList) {
         try {
-          const data = await this.settingsService.getRates(this.year, pref.code);
+          const data = await this.settingsService.getRates(
+            this.year,
+            pref.code
+          );
           if (data) {
             this.prefectureRates[pref.code] = {
               health_employee: this.decimalToPercent(data.health_employee || 0),
@@ -1074,15 +1100,22 @@ export class SettingsPageComponent {
 
       // 介護保険と厚生年金は最初の都道府県（または東京）から取得（全国一律のため、小数→パーセント変換）
       try {
-        const careData = await this.settingsService.getRates(this.year, 'tokyo');
+        const careData = await this.settingsService.getRates(
+          this.year,
+          'tokyo'
+        );
         if (careData) {
           this.careRates = {
             care_employee: this.decimalToPercent(careData.care_employee || 0),
             care_employer: this.decimalToPercent(careData.care_employer || 0),
           };
           this.pensionRates = {
-            pension_employee: this.decimalToPercent(careData.pension_employee || 0),
-            pension_employer: this.decimalToPercent(careData.pension_employer || 0),
+            pension_employee: this.decimalToPercent(
+              careData.pension_employee || 0
+            ),
+            pension_employer: this.decimalToPercent(
+              careData.pension_employer || 0
+            ),
           };
         } else {
           // データが存在しない場合は、既存の値を保持（初期化しない）
@@ -1093,7 +1126,10 @@ export class SettingsPageComponent {
               care_employer: 0,
             };
           }
-          if (!this.pensionRates || Object.keys(this.pensionRates).length === 0) {
+          if (
+            !this.pensionRates ||
+            Object.keys(this.pensionRates).length === 0
+          ) {
             this.pensionRates = {
               pension_employee: 0,
               pension_employer: 0,
@@ -1154,7 +1190,12 @@ export class SettingsPageComponent {
    * 健康保険料率の表示を小数点以下3位までフォーマット
    */
   formatHealthRate(value: number): number {
-    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+    if (
+      value === null ||
+      value === undefined ||
+      isNaN(value) ||
+      !isFinite(value)
+    ) {
       return 0;
     }
     return this.roundHealthRateTo3Decimals(value);
@@ -1245,8 +1286,14 @@ export class SettingsPageComponent {
       roundedHealthEmployer = Math.max(0, Math.min(100, roundedHealthEmployer));
       roundedCareEmployee = Math.max(0, Math.min(100, roundedCareEmployee));
       roundedCareEmployer = Math.max(0, Math.min(100, roundedCareEmployer));
-      roundedPensionEmployee = Math.max(0, Math.min(100, roundedPensionEmployee));
-      roundedPensionEmployer = Math.max(0, Math.min(100, roundedPensionEmployer));
+      roundedPensionEmployee = Math.max(
+        0,
+        Math.min(100, roundedPensionEmployee)
+      );
+      roundedPensionEmployer = Math.max(
+        0,
+        Math.min(100, roundedPensionEmployer)
+      );
 
       // パーセント→小数変換して保存
       await this.settingsService.saveRates(this.year, prefecture, {
@@ -1618,7 +1665,11 @@ export class SettingsPageComponent {
         pension_employer: formData.pension_employer,
       };
 
-      await this.settingsService.saveRates(this.year, prefectureValue, rateData);
+      await this.settingsService.saveRates(
+        this.year,
+        prefectureValue,
+        rateData
+      );
       alert('設定を保存しました');
     } catch (error) {
       alert('設定の保存に失敗しました');
@@ -1668,7 +1719,9 @@ export class SettingsPageComponent {
       const type = item?.type || 'fixed';
 
       // 型のバリデーション
-      const safeType = ['fixed', 'variable', 'deduction'].includes(type) ? type : 'fixed';
+      const safeType = ['fixed', 'variable', 'deduction'].includes(type)
+        ? type
+        : 'fixed';
 
       return this.fb.group({
         id: [id],
@@ -1697,7 +1750,11 @@ export class SettingsPageComponent {
   async loadSalaryItems(): Promise<void> {
     try {
       // 年度のバリデーション
-      if (!this.salaryItemsYear || this.salaryItemsYear < 1900 || this.salaryItemsYear > 2100) {
+      if (
+        !this.salaryItemsYear ||
+        this.salaryItemsYear < 1900 ||
+        this.salaryItemsYear > 2100
+      ) {
         return;
       }
 
@@ -1788,7 +1845,11 @@ export class SettingsPageComponent {
   async saveSalaryItems(): Promise<void> {
     try {
       // 年度のバリデーション
-      if (!this.salaryItemsYear || this.salaryItemsYear < 1900 || this.salaryItemsYear > 2100) {
+      if (
+        !this.salaryItemsYear ||
+        this.salaryItemsYear < 1900 ||
+        this.salaryItemsYear > 2100
+      ) {
         alert('無効な年度が設定されています');
         return;
       }
@@ -1814,7 +1875,11 @@ export class SettingsPageComponent {
 
   async seedStandardTable(): Promise<void> {
     // 年度のバリデーション
-    if (!this.standardTableYear || this.standardTableYear < 1900 || this.standardTableYear > 2100) {
+    if (
+      !this.standardTableYear ||
+      this.standardTableYear < 1900 ||
+      this.standardTableYear > 2100
+    ) {
       alert('無効な年度が設定されています');
       return;
     }

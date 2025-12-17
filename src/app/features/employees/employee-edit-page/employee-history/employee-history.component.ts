@@ -382,6 +382,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
   getFilteredInsuranceHistories(): InsuranceStatusHistory[] {
     // selectedHistoryYearを数値として確実に扱う
+    // 注意: selectedHistoryYearは「年」（1月〜12月）を表す
     const selectedYear =
       typeof this.selectedHistoryYear === 'string'
         ? parseInt(this.selectedHistoryYear, 10)
@@ -401,19 +402,24 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       }
     }
 
-    // 選択年度でフィルタリング
-    const filtered = this.insuranceStatusHistories.filter(
-      (h) => h.year === selectedYear
-    );
+    // 選択年に該当する月のデータをフィルタリング
+    // 注意: insuranceStatusHistoriesのyearフィールドは年度を表す可能性があるため、
+    // 年度と月から実際の年を計算して比較する
+    const filtered = this.insuranceStatusHistories.filter((h) => {
+      // 年度と月から実際の年を計算（3月開始の年度）
+      const historyCalendarYear = h.month >= 3 ? h.year : h.year + 1;
+      return historyCalendarYear === selectedYear;
+    });
 
     // 同じ年月の重複を排除（最新のupdatedAtを持つものを優先、なければcreatedAt）
     const uniqueMap = new Map<string, InsuranceStatusHistory>();
     for (const history of filtered) {
       // 入社月より前の月は除外（入社年のみ）
+      const historyCalendarYear = history.month >= 3 ? history.year : history.year + 1;
       if (
         hasJoinYear &&
         hasJoinMonth &&
-        history.year === (this.joinYear as number) &&
+        historyCalendarYear === (this.joinYear as number) &&
         history.month < (this.joinMonth as number)
       ) {
         continue;
@@ -438,8 +444,11 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
     // Mapから配列に変換してソート（年月で降順）
     return Array.from(uniqueMap.values()).sort((a, b) => {
-      if (a.year !== b.year) {
-        return b.year - a.year;
+      // 年度と月から実際の年を計算して比較
+      const aCalendarYear = a.month >= 3 ? a.year : a.year + 1;
+      const bCalendarYear = b.month >= 3 ? b.year : b.year + 1;
+      if (aCalendarYear !== bCalendarYear) {
+        return bCalendarYear - aCalendarYear;
       }
       return b.month - a.month;
     });
@@ -490,6 +499,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     }
 
     // selectedHistoryYearを数値として確実に扱う
+    // 注意: selectedHistoryYearは「年」（1月〜12月）を表す
     const selectedYear =
       typeof this.selectedHistoryYear === 'string'
         ? parseInt(this.selectedHistoryYear, 10)
@@ -518,7 +528,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       pensionInsurance: string;
     }> = [];
 
-    // 選択年度の12ヶ月分のデータを作成
+    // 選択年の12ヶ月分のデータを作成
     for (let month = 12; month >= 1; month--) {
       // 現在の年月より未来の場合はスキップ
       if (
@@ -542,22 +552,32 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       }
 
       // 社保加入履歴から該当月のデータを取得
-      const insuranceHistory = insuranceHistories.find(
-        (h) => h.year === selectedYear && h.month === month
-      );
+      // 注意: insuranceStatusHistoriesのyearフィールドは年度を表す可能性があるため、
+      // 年度と月から実際の年を計算して比較する必要がある
+      const insuranceHistory = insuranceHistories.find((h) => {
+        // 年度と月から実際の年を計算（3月開始の年度）
+        const historyCalendarYear = h.month >= 3 ? h.year : h.year + 1;
+        return historyCalendarYear === selectedYear && h.month === month;
+      });
 
       // 標準報酬履歴から該当月に適用される履歴を取得
       // 適用開始年月がその月以前で、かつ最も新しいものを取得
       const applicableStandardHistory = this.standardRemunerationHistories
         .filter((h) => {
-          if (h.applyStartYear < selectedYear) return true;
-          if (h.applyStartYear === selectedYear && h.applyStartMonth <= month)
+          // 標準報酬履歴のapplyStartYearは年度を表す可能性があるため、
+          // 年度と月から実際の年を計算して比較
+          const historyCalendarYear = h.applyStartMonth >= 3 ? h.applyStartYear : h.applyStartYear + 1;
+          if (historyCalendarYear < selectedYear) return true;
+          if (historyCalendarYear === selectedYear && h.applyStartMonth <= month)
             return true;
           return false;
         })
         .sort((a, b) => {
-          if (a.applyStartYear !== b.applyStartYear) {
-            return b.applyStartYear - a.applyStartYear;
+          // 年度と月から実際の年を計算して比較
+          const aCalendarYear = a.applyStartMonth >= 3 ? a.applyStartYear : a.applyStartYear + 1;
+          const bCalendarYear = b.applyStartMonth >= 3 ? b.applyStartYear : b.applyStartYear + 1;
+          if (aCalendarYear !== bCalendarYear) {
+            return bCalendarYear - aCalendarYear;
           }
           return b.applyStartMonth - a.applyStartMonth;
         })[0];
@@ -586,8 +606,11 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
         // 決定理由は、標準報酬履歴の適用開始月と一致する場合のみ設定
         // それ以外の月はハイフン（-）を表示
+        const historyCalendarYear = applicableStandardHistory.applyStartMonth >= 3
+          ? applicableStandardHistory.applyStartYear
+          : applicableStandardHistory.applyStartYear + 1;
         if (
-          applicableStandardHistory.applyStartYear === selectedYear &&
+          historyCalendarYear === selectedYear &&
           applicableStandardHistory.applyStartMonth === month
         ) {
           determinationReason = this.getDeterminationReasonLabel(
@@ -600,7 +623,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
       // 標準報酬履歴がない場合のみ、最新の月次給与データから計算
       if (standardMonthlyRemuneration === null && this.employeeId) {
-        // 最新の月次給与データを取得
+        // 最新の月次給与データを取得（選択年を使用）
         const roomId =
           (this.employee as any).roomId || this.roomIdService.requireRoomId();
         const monthSalaryData =
@@ -624,8 +647,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
           // 給与データが存在する場合（0円でない場合）は、その月の給与データから標準報酬月額を計算
           if (totalSalary > 0) {
+            // 標準報酬等級表は年度ベースで取得（3月開始の年度）
+            const fiscalYear = month >= 3 ? selectedYear : selectedYear - 1;
             const gradeTable = await this.settingsService.getStandardTable(
-              selectedYear
+              fiscalYear
             );
             if (gradeTable && gradeTable.length > 0) {
               const result =
@@ -647,7 +672,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       // 標準報酬履歴も最新の月次給与データもない場合
       if (standardMonthlyRemuneration === null) {
         // 標準報酬履歴が見つからない場合、従業員情報から月額賃金を使って計算
-        // 入社年月が選択年度の該当月以前の場合のみ
+        // 入社年月が選択年の該当月以前の場合のみ
         const hasJoinYear =
           this.joinYear !== null && this.joinYear !== undefined;
         const hasJoinMonth =
@@ -671,11 +696,17 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
           // monthlyWageがない場合、標準報酬履歴から入社月の履歴を探す
           if (!wage) {
+            // 入社年月の年度を計算（3月開始の年度）
+            const joinFiscalYear = hasJoinYear && hasJoinMonth
+              ? ((this.joinMonth as number) >= 3 ? (this.joinYear as number) : (this.joinYear as number) - 1)
+              : null;
+            
             const joinMonthHistory = this.standardRemunerationHistories.find(
               (h) =>
                 hasJoinYear &&
                 hasJoinMonth &&
-                h.applyStartYear === (this.joinYear as number) &&
+                joinFiscalYear !== null &&
+                h.applyStartYear === joinFiscalYear &&
                 h.applyStartMonth === (this.joinMonth as number) &&
                 h.determinationReason === 'acquisition'
             );
@@ -691,12 +722,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             }
           } else {
             // monthlyWageから標準報酬月額と等級を計算
-            const yearToUse =
-              hasJoinYear && (this.joinYear as number) <= selectedYear
-                ? (this.joinYear as number)
-                : selectedYear;
+            // 年度ベースで標準報酬等級表を取得（3月開始の年度）
+            const fiscalYear = month >= 3 ? selectedYear : selectedYear - 1;
             const gradeTable = await this.settingsService.getStandardTable(
-              yearToUse
+              fiscalYear
             );
             if (gradeTable && gradeTable.length > 0) {
               const result =
@@ -726,7 +755,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       }
 
       result.push({
-        year: selectedYear,
+        year: selectedYear, // 選択年を表示
         month,
         age,
         grade,
