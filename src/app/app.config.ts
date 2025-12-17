@@ -8,13 +8,13 @@ import { provideAuth, getAuth } from '@angular/fire/auth';
 import { provideFirestore, getFirestore } from '@angular/fire/firestore';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyDLqLcEdEZgD3Q98x1nWH21ib_wO1zN6tI',
-  authDomain: 'si-manager-13eb4.firebaseapp.com',
-  projectId: 'si-manager-13eb4',
-  storageBucket: 'si-manager-13eb4.appspot.com',
-  messagingSenderId: '418747360580',
-  appId: '1:418747360580:web:77028b37a5aba65da72311',
-  measurementId: 'G-D7H9LGEN31',
+  apiKey: 'AIzaSyDV-s3hs85ghafmAGZY4gSVv5aGOo8ItDM',
+  authDomain: 'kensyu10114.firebaseapp.com',
+  projectId: 'kensyu10114',
+  storageBucket: 'kensyu10114.firebasestorage.app',
+  messagingSenderId: '179609855427',
+  appId: '1:179609855427:web:acc450c4e168e6dfcdc976',
+  measurementId: 'G-9LTS9ZXVGS',
 };
 
 export const appConfig: ApplicationConfig = {
