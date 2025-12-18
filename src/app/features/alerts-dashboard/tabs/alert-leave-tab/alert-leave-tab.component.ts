@@ -577,7 +577,7 @@ export class AlertLeaveTabComponent implements OnInit {
       }`
     );
 
-    // 産前産後休業終了予定日
+    // 産前産後休業終了予定日（データがある場合は和暦形式で出力、ない場合は空で行を出力）
     const maternityLeaveEndExpected = (employee as any)
       .maternityLeaveEndExpected;
     csvRows.push(
@@ -598,7 +598,7 @@ export class AlertLeaveTabComponent implements OnInit {
       }`
     );
 
-    // 産前産後休業終了日
+    // 産前産後休業終了日（データがある場合は和暦形式で出力、ない場合は空で行を出力）
     const maternityLeaveEnd = employee.maternityLeaveEnd;
     csvRows.push(
       `産前産後休業終了日,${
@@ -1086,7 +1086,7 @@ export class AlertLeaveTabComponent implements OnInit {
       }`
     );
 
-    // 育児休業等終了予定日（フィールドが存在する場合）
+    // 育児休業等終了予定日（データがある場合は和暦形式で出力、ない場合は空で行を出力）
     const childcareLeaveEndExpected = (employee as any)
       .childcareLeaveEndExpected;
     csvRows.push(
@@ -1097,7 +1097,7 @@ export class AlertLeaveTabComponent implements OnInit {
       }`
     );
 
-    // 育児休業等終了日
+    // 育児休業等終了日（データがある場合は和暦形式で出力、ない場合は空で行を出力）
     const childcareLeaveEnd = employee.childcareLeaveEnd;
     csvRows.push(
       `育児休業等終了日,${
