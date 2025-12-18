@@ -741,95 +741,6 @@ export class StandardRemunerationHistoryService {
         }
       }
 
-      // 随時改定の履歴を生成
-      // 変動月+3か月目が適用開始月（変動月が10月なら、適用開始月は1月）
-      // 注意: allSuijiAlertsは上で既に取得済み
-      const employeeSuijiAlertsForHistory = allSuijiAlerts.filter(
-        (alert) => alert.employeeId === employeeId && alert.isEligible
-      );
-
-      // 既存の随時改定履歴を確認（この年度のもの）
-      const existingHistoriesBefore =
-        await this.getStandardRemunerationHistories(employeeId);
-      const existingSuijiHistoriesForYear = existingHistoriesBefore.filter(
-        (h) =>
-          h.determinationReason === 'suiji' &&
-          (h.applyStartYear === year || h.applyStartYear === year + 1)
-      );
-
-      for (const suijiAlert of employeeSuijiAlertsForHistory) {
-        const changeMonth = suijiAlert.changeMonth;
-        const applyStartMonthRaw = changeMonth + 3;
-        // 適用開始月の年度を計算（変動月+3が12を超える場合は翌年）
-        let applyStartYear = year;
-        let applyStartMonth = applyStartMonthRaw;
-        if (applyStartMonthRaw > 12) {
-          applyStartMonth = applyStartMonthRaw - 12;
-          applyStartYear = year + 1;
-        }
-
-        // 標準報酬等級表から新しい等級に対応する標準報酬月額を取得
-        const applyStartYearGradeTable =
-          await this.settingsService.getStandardTable(applyStartYear);
-        const newGradeRow = applyStartYearGradeTable.find(
-          (r: any) => r.rank === suijiAlert.newGrade
-        );
-
-        if (newGradeRow && newGradeRow.standard) {
-          const suijiStandard = newGradeRow.standard;
-
-          // 既存の履歴を確認
-          const existingHistories = await this.getStandardRemunerationHistories(
-            employeeId
-          );
-
-          // 同じ変動月の既存の随時改定履歴を全て削除（重複を防ぐため）
-          const existingSuijiHistories = existingHistories.filter(
-            (h) =>
-              h.determinationReason === 'suiji' &&
-              (h as any).changeMonth === changeMonth
-          );
-
-          // 既存の履歴を削除
-          for (const existingHistory of existingSuijiHistories) {
-            if (existingHistory.id) {
-              await this.deleteStandardRemunerationHistory(
-                existingHistory.id,
-                employeeId
-              );
-            }
-          }
-
-          const existingSuijiHistory = existingHistories.find(
-            (h) =>
-              h.applyStartYear === applyStartYear &&
-              h.applyStartMonth === applyStartMonth &&
-              h.determinationReason === 'suiji' &&
-              (h as any).changeMonth === changeMonth
-          );
-
-          // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
-          if (
-            !existingSuijiHistory ||
-            existingSuijiHistory.standardMonthlyRemuneration !==
-              suijiStandard ||
-            existingSuijiHistory.grade !== suijiAlert.newGrade
-          ) {
-            await this.saveStandardRemunerationHistory({
-              id: existingSuijiHistory?.id,
-              employeeId,
-              applyStartYear: applyStartYear,
-              applyStartMonth: applyStartMonth,
-              grade: suijiAlert.newGrade,
-              standardMonthlyRemuneration: suijiStandard,
-              determinationReason: 'suiji',
-              memo: `随時改定（変動月: ${year}年${changeMonth}月、適用開始: ${applyStartYear}年${applyStartMonth}月）`,
-              createdAt: existingSuijiHistory?.createdAt,
-            });
-          }
-        }
-      }
-
       // アラートに依存せず、月次給与データから直接随時改定を計算・更新
       // 「更新」ボタン押下時に、最新の月次入力データから随時改定を再計算する
       console.log(
@@ -1164,7 +1075,46 @@ export class StandardRemunerationHistoryService {
           }
         }
 
-        // 2. 後続の随時改定履歴がある場合、前の履歴を削除
+        // 2. 検出された変動月の適用開始年月に含まれていない随時改定履歴を削除
+        // この年度で検出された変動月の適用開始年月以外の履歴を削除
+        if (!shouldDelete && applyStartMonthsForYear.length > 0) {
+          const existingApplyStart = {
+            year: existingSuijiHistory.applyStartYear,
+            month: existingSuijiHistory.applyStartMonth,
+          };
+
+          // 検出された変動月の適用開始年月に含まれているかチェック
+          const isInDetectedApplyStarts = applyStartMonthsForYear.some(
+            (detected) =>
+              detected.year === existingApplyStart.year &&
+              detected.month === existingApplyStart.month
+          );
+
+          // 検出された変動月の適用開始年月に含まれていない場合、削除
+          // ただし、処理対象年度より前の年度の履歴は削除しない（年度をまたいだ削除を防ぐ）
+          if (
+            !isInDetectedApplyStarts &&
+            existingApplyStart.year >= year &&
+            (existingApplyStart.year === year || existingApplyStart.year === year + 1)
+          ) {
+            shouldDelete = true;
+            console.log(
+              `[standard-remuneration-history] ${year}年: 検出された変動月の適用開始年月に含まれていないため、履歴を削除`,
+              {
+                existingHistory: {
+                  applyStartYear: existingApplyStart.year,
+                  applyStartMonth: existingApplyStart.month,
+                  standardMonthlyRemuneration:
+                    existingSuijiHistory.standardMonthlyRemuneration,
+                  changeMonth,
+                },
+                detectedApplyStarts: applyStartMonthsForYear,
+              }
+            );
+          }
+        }
+
+        // 3. 後続の随時改定履歴がある場合、前の履歴を削除
         // この年度で検出された変動月の適用開始年月より前の履歴を全て削除
         // ただし、既存の履歴が処理対象年度より前の年度の場合は削除しない（年度をまたいだ削除を防ぐ）
         if (!shouldDelete && applyStartMonthsForYear.length > 0) {
