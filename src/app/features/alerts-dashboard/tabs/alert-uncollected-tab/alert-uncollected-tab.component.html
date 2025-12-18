@@ -36,7 +36,6 @@
       <tr>
         <th style="width: 80px; text-align: center;">削除対象</th>
         <th>従業員名</th>
-        <th>合計不足額</th>
         <th>対象月</th>
       </tr>
     </thead>
@@ -58,7 +57,6 @@
             </button>
             {{ summary.employeeName }}
           </td>
-          <td class="amount-cell">{{ formatAmount(summary.totalAmount) }}</td>
           <td>{{ formatTargetMonths(summary) }}</td>
         </tr>
         <!-- 月別詳細行 -->
@@ -76,7 +74,6 @@
                 title="削除対象に選択">
             </td>
             <td class="detail-indent">{{ formatMonth(detail.year, detail.month) }}</td>
-            <td class="amount-cell">{{ formatAmount(detail.amount) }}</td>
             <td>{{ detail.reason }}</td>
           </tr>
         </ng-container>

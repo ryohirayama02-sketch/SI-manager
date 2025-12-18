@@ -12,7 +12,6 @@ import { Subscription } from 'rxjs';
 export interface UncollectedPremiumSummary {
   employeeId: string;
   employeeName: string;
-  totalAmount: number;
   monthlyDetails: UncollectedPremium[];
   resolved: boolean;
 }
@@ -84,14 +83,12 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
         summaryMap.set(premium.employeeId, {
           employeeId: premium.employeeId,
           employeeName: employee?.name || premium.employeeId,
-          totalAmount: 0,
           monthlyDetails: [],
           resolved: false,
         });
       }
 
       const summary = summaryMap.get(premium.employeeId)!;
-      summary.totalAmount += premium.amount;
       summary.monthlyDetails.push(premium);
     }
 
@@ -108,9 +105,13 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
       });
     }
 
-    // 合計額の降順でソート
+    // 従業員名の50音順でソート
     this.summaries = Array.from(summaryMap.values()).sort(
-      (a, b) => b.totalAmount - a.totalAmount
+      (a, b) => {
+        const nameA = a.employeeName || '';
+        const nameB = b.employeeName || '';
+        return nameA.localeCompare(nameB, 'ja');
+      }
     );
   }
 
@@ -227,10 +228,6 @@ export class AlertUncollectedTabComponent implements OnInit, OnDestroy {
     }
   }
 
-
-  formatAmount(amount: number): string {
-    return `¥${amount.toLocaleString()}`;
-  }
 
   formatMonth(year: number, month: number): string {
     return `${year}年${month}月`;

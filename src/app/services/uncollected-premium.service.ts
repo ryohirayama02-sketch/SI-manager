@@ -47,6 +47,7 @@ export class UncollectedPremiumService {
     // 徴収不能額を計算
     // 条件：総支給額 < 本人負担保険料
     // 本人負担保険料は、確定した標準報酬月額（定時決定・随時改定・資格取得時決定）に基づいて計算される
+    // 社会保険料計算結果画面の「月合計（本人）」と同じ値を使用
 
     const roomId = this.roomIdService.requireRoomId();
 
@@ -70,7 +71,13 @@ export class UncollectedPremiumService {
         resolved: false,
       };
 
-      await setDoc(ref, data, { merge: true });
+      // mergeではなく完全上書きで、古いデータを確実に更新する
+      await setDoc(ref, data);
+      
+      // デバッグログ（本番環境では削除可）
+      console.log(
+        `[UncollectedPremiumService] 徴収不能額を保存: employeeId=${employeeId}, year=${year}, month=${month}, totalSalary=${totalSalary}, employeeTotalPremium=${employeeTotalPremium}, uncollectedAmount=${uncollectedAmount}`
+      );
     } else {
       // 徴収不能額が0以下の場合は、既存データがあれば削除
       const docId = `${employeeId}_${year}_${month}`;

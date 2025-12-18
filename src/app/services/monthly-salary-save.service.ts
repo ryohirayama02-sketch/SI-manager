@@ -611,26 +611,28 @@ export class MonthlySalarySaveService {
     }
 
     // 保存後に各月の保険料計算を実行して徴収不能アラートをチェック
-    const prefecture = 'tokyo'; // TODO: 設定から取得する場合は差し替え
-    const rates = await this.settingsService.getRates(
-      year.toString(),
-      prefecture
-    );
-
-    if (rates) {
-      for (const emp of employees) {
-        if (!emp || !emp.id) {
-          continue;
+    // 従業員ごとに都道府県を取得して計算する
+    for (const emp of employees) {
+      if (!emp || !emp.id) {
+        continue;
+      }
+      const updatedEmployee = await this.employeeService.getEmployeeById(
+        emp.id
+      );
+      if (updatedEmployee) {
+        // idが確実に含まれるようにする
+        if (!updatedEmployee.id) {
+          updatedEmployee.id = emp.id;
         }
-        const updatedEmployee = await this.employeeService.getEmployeeById(
-          emp.id
-        );
-        if (updatedEmployee) {
-          // idが確実に含まれるようにする
-          if (!updatedEmployee.id) {
-            updatedEmployee.id = emp.id;
-          }
 
+        // 従業員の都道府県を取得（デフォルトは東京）
+        const prefecture = updatedEmployee.prefecture || 'tokyo';
+        const rates = await this.settingsService.getRates(
+          year.toString(),
+          prefecture
+        );
+
+        if (rates) {
           // 保存された給与データを取得
           for (const month of months) {
             if (isNaN(month) || month < 1 || month > 12) {

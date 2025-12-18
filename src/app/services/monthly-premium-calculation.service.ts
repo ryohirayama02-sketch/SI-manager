@@ -270,11 +270,12 @@ export class MonthlyPremiumCalculationService {
         monthSalaryData?.total ??
         fixedSalary + variableSalary;
 
-      // 月次給与の本人負担保険料
+      // 月次給与の本人負担保険料（社会保険料計算結果画面と同じ値を使用）
+      // premiumRowはstoppingルール適用後の値なので、これを使用する
       let employeeTotalPremium =
-        premiumResult.health_employee +
-        premiumResult.care_employee +
-        premiumResult.pension_employee;
+        premiumRow.healthEmployee +
+        premiumRow.careEmployee +
+        premiumRow.pensionEmployee;
 
       // その月の賞与の本人負担保険料を加算（同じ月に複数の賞与がある場合は合算）
       const roomIdForBonus = this.roomIdService.requireRoomId();
@@ -324,6 +325,10 @@ export class MonthlyPremiumCalculationService {
       if (!stopping.isMaternityLeave && !stopping.isChildcareLeave) {
         const employeeId = employeeWithStandard.id || emp.id;
         if (employeeId) {
+          // デバッグログ（本番環境では削除可）
+          console.log(
+            `[MonthlyPremiumCalculationService] 徴収不能額チェック: employeeId=${employeeId}, year=${year}, month=${month}, totalSalary=${totalSalary}, employeeTotalPremium=${employeeTotalPremium}, premiumRow.healthEmployee=${premiumRow.healthEmployee}, premiumRow.careEmployee=${premiumRow.careEmployee}, premiumRow.pensionEmployee=${premiumRow.pensionEmployee}`
+          );
           await this.uncollectedPremiumService.saveUncollectedPremium(
             employeeId,
             year,
@@ -453,11 +458,12 @@ export class MonthlyPremiumCalculationService {
       // 徴収不能額のチェックと保存（給与0円、標準報酬月額が確定していれば保険料が発生する可能性がある）
       const totalSalary = 0;
 
-      // 月次給与の本人負担保険料
+      // 月次給与の本人負担保険料（社会保険料計算結果画面と同じ値を使用）
+      // premiumRowはstoppingルール適用後の値なので、これを使用する
       let employeeTotalPremium =
-        premiumResult.health_employee +
-        premiumResult.care_employee +
-        premiumResult.pension_employee;
+        premiumRow.healthEmployee +
+        premiumRow.careEmployee +
+        premiumRow.pensionEmployee;
 
       // その月の賞与の本人負担保険料を加算
       const roomIdForBonus = this.roomIdService.requireRoomId();
