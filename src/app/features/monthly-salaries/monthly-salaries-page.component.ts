@@ -440,15 +440,21 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
       this.suijiAlerts = suijiAlerts;
       this.saveMessage = '保存しました';
 
-      // 保存後に標準報酬履歴を再生成（月次給与の変更を反映）
-      for (const emp of this.employees) {
-        if (emp && emp.id) {
-          await this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
-            emp.id,
+      // 保存後に標準報酬履歴を再生成（並列実行で高速化）
+      const historyPromises = this.employees
+        .filter(emp => emp && emp.id)
+        .map(emp => 
+          this.standardRemunerationHistoryService.generateStandardRemunerationHistory(
+            emp.id!,
             emp
-          );
-        }
-      }
+          ).catch(error => {
+            console.error(`標準報酬履歴の再生成に失敗しました（${emp.name || emp.id}）:`, error);
+            // エラーが発生しても他の処理は続行
+          })
+        );
+      
+      // 並列実行（従業員数が多い場合でも大幅に高速化）
+      await Promise.all(historyPromises);
 
       // 保存後に画面の状態を再読み込み（データベースから最新データを取得）
       await this.reloadData();
