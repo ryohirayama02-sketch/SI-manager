@@ -163,13 +163,14 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
     this.employees = await this.employeeService.getAllEmployees();
 
-    // 年度選択肢を生成（現在年度から過去5年分）
+    // 年度選択肢を生成（2020-2030年）
     const currentYear = this.getJSTDate().getFullYear();
     this.state.availableYears = [];
-    for (let i = 0; i < 6; i++) {
-      this.state.availableYears.push(currentYear - i);
+    for (let year = 2020; year <= 2030; year++) {
+      this.state.availableYears.push(year);
     }
-    this.state.teijiYear = currentYear;
+    // 現在年度が2020-2030年の範囲内の場合は現在年度を、範囲外の場合は2020年をデフォルトに設定
+    this.state.teijiYear = (currentYear >= 2020 && currentYear <= 2030) ? currentYear : 2020;
 
     // 全年度の給与データを読み込み
     await this.loadAllSalaries();
