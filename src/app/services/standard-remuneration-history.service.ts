@@ -184,15 +184,39 @@ export class StandardRemunerationHistoryService {
     const histories = await this.getStandardRemunerationHistories(employeeId);
 
     // 指定された年月以前で最も新しい履歴を取得
-    // 履歴は降順ソートされているので、最初に見つかったものが該当する
-    for (const history of histories) {
-      const isApplicable =
-        history.applyStartYear < year ||
-        (history.applyStartYear === year && history.applyStartMonth <= month);
+    // 同じ適用開始年月の複数の履歴がある場合、随時改定を優先する
+    const filteredHistories = histories.filter((h) => {
+      // 適用開始年が選択年より前の場合
+      if (h.applyStartYear < year) return true;
+      // 適用開始年が選択年と同じで、適用開始月がその月以前の場合
+      if (h.applyStartYear === year && h.applyStartMonth <= month) return true;
+      return false;
+    });
 
-      if (isApplicable) {
-        return history.standardMonthlyRemuneration;
+    // 優先順位に基づいてソート
+    const sortedHistories = filteredHistories.sort((a, b) => {
+      // 適用開始年で降順ソート（新しい年を優先）
+      if (a.applyStartYear !== b.applyStartYear) {
+        return b.applyStartYear - a.applyStartYear;
       }
+      // 適用開始月で降順ソート（新しい月を優先）
+      if (a.applyStartMonth !== b.applyStartMonth) {
+        return b.applyStartMonth - a.applyStartMonth;
+      }
+      // 同じ適用開始年月の場合、随時改定を優先（'suiji' > 'teiji' > 'acquisition'）
+      const priorityMap: { [key: string]: number } = {
+        suiji: 3,
+        teiji: 2,
+        acquisition: 1,
+      };
+      const aPriority = priorityMap[a.determinationReason] || 0;
+      const bPriority = priorityMap[b.determinationReason] || 0;
+      return bPriority - aPriority;
+    });
+
+    // ソート後の先頭の履歴を返す
+    if (sortedHistories.length > 0) {
+      return sortedHistories[0].standardMonthlyRemuneration;
     }
 
     return null;
