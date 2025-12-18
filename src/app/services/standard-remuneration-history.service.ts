@@ -283,17 +283,16 @@ export class StandardRemunerationHistoryService {
     if (joinDate) {
       const acquisitionYear = joinDate.getFullYear();
       const acquisitionMonth = joinDate.getMonth() + 1;
-      
+
       // 資格取得月の月次給与入力の「総支給額（固定+非固定-欠勤控除）」を優先
       const roomId =
         (employee as any).roomId || this.roomIdService.requireRoomId();
-      const monthSalaryData =
-        await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          employeeId,
-          acquisitionYear,
-          acquisitionMonth
-        );
+      const monthSalaryData = await this.monthlySalaryService.getEmployeeSalary(
+        roomId,
+        employeeId,
+        acquisitionYear,
+        acquisitionMonth
+      );
 
       if (monthSalaryData) {
         const fixedSalary =
@@ -459,26 +458,31 @@ export class StandardRemunerationHistoryService {
           deductionTotal?: number; // 欠勤控除
         };
       } = {};
-      
+
       // 年度をまたぐ固定賃金の変動検出のため、前年度の12月のデータも取得
       let prevYearDecFixed = 0;
       if (year > 1900) {
         const prevYear = year - 1;
-        const prevYearDecData = await this.monthlySalaryService.getEmployeeSalary(
-          roomId,
-          employeeId,
-          prevYear,
-          12
-        );
+        const prevYearDecData =
+          await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            employeeId,
+            prevYear,
+            12
+          );
         if (prevYearDecData) {
           const prevYearDecWorkingDays = prevYearDecData.workingDays;
           // 支払基礎日数が17日未満の場合はスキップ
-          if (prevYearDecWorkingDays === undefined || prevYearDecWorkingDays >= 17) {
-            prevYearDecFixed = prevYearDecData.fixedSalary ?? prevYearDecData.fixed ?? 0;
+          if (
+            prevYearDecWorkingDays === undefined ||
+            prevYearDecWorkingDays >= 17
+          ) {
+            prevYearDecFixed =
+              prevYearDecData.fixedSalary ?? prevYearDecData.fixed ?? 0;
           }
         }
       }
-      
+
       for (let month = 1; month <= 12; month++) {
         const monthKey = month.toString();
         const monthData = salaryData[monthKey];
@@ -503,11 +507,14 @@ export class StandardRemunerationHistoryService {
           };
         }
       }
-      
+
       // 年度をまたぐ固定賃金の変動検出（2024年12月→2025年1月も連続的にチェック）
       // 1月の変動検出時に前年度の12月のデータを使用
       if (prevYearDecFixed > 0) {
-        const janKey = this.salaryCalculationService.getSalaryKey(employeeId, 1);
+        const janKey = this.salaryCalculationService.getSalaryKey(
+          employeeId,
+          1
+        );
         const janData = salaries[janKey];
         if (janData) {
           const janWorkingDays = janData.workingDays;
@@ -764,11 +771,14 @@ export class StandardRemunerationHistoryService {
           employeeId,
           salaries
         );
-      
+
       // 年度をまたぐ固定賃金の変動検出（2024年12月→2025年1月も連続的にチェック）
       // 1月の変動検出時に前年度の12月のデータを使用
       if (prevYearDecFixed > 0) {
-        const janKey = this.salaryCalculationService.getSalaryKey(employeeId, 1);
+        const janKey = this.salaryCalculationService.getSalaryKey(
+          employeeId,
+          1
+        );
         const janData = salaries[janKey];
         if (janData) {
           const janWorkingDays = janData.workingDays;
@@ -786,7 +796,316 @@ export class StandardRemunerationHistoryService {
           }
         }
       }
-      
+
+      // 前年度の変動月で適用開始月が当年度になるものを検出
+      // 例：2024年11月の変動 → 2025年2月に適用開始
+      if (year > 1900) {
+        const prevYear = year - 1;
+        // 前年度の給与データを取得（10月、11月、12月のみ）
+        const prevYearSalariesFormatted: {
+          [key: string]: {
+            total: number;
+            fixed: number;
+            variable: number;
+            workingDays?: number;
+            deductionTotal?: number;
+          };
+        } = {};
+        for (let month = 10; month <= 12; month++) {
+          const monthData = await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            employeeId,
+            prevYear,
+            month
+          );
+          if (monthData) {
+            const key = this.salaryCalculationService.getSalaryKey(
+              employeeId,
+              month
+            );
+            const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+            const variable =
+              monthData.variableSalary ?? monthData.variable ?? 0;
+            const deductionTotal = monthData.deductionTotal ?? 0;
+            const total =
+              (monthData.totalSalary ?? monthData.total ?? fixed + variable) -
+              deductionTotal;
+            prevYearSalariesFormatted[key] = {
+              total: total,
+              fixed: fixed,
+              variable: variable,
+              workingDays: monthData.workingDays,
+              deductionTotal: deductionTotal,
+            };
+          }
+        }
+
+        // 前年度の変動検出のために、9月のデータも取得（10月との比較用）
+        const prevYearSepData =
+          await this.monthlySalaryService.getEmployeeSalary(
+            roomId,
+            employeeId,
+            prevYear,
+            9
+          );
+        if (prevYearSepData) {
+          const sepKey = this.salaryCalculationService.getSalaryKey(
+            employeeId,
+            9
+          );
+          const sepFixed =
+            prevYearSepData.fixedSalary ?? prevYearSepData.fixed ?? 0;
+          const sepVariable =
+            prevYearSepData.variableSalary ?? prevYearSepData.variable ?? 0;
+          const sepDeductionTotal = prevYearSepData.deductionTotal ?? 0;
+          const sepTotal =
+            (prevYearSepData.totalSalary ??
+              prevYearSepData.total ??
+              sepFixed + sepVariable) - sepDeductionTotal;
+          prevYearSalariesFormatted[sepKey] = {
+            total: sepTotal,
+            fixed: sepFixed,
+            variable: sepVariable,
+            workingDays: prevYearSepData.workingDays,
+            deductionTotal: sepDeductionTotal,
+          };
+        }
+
+        if (Object.keys(prevYearSalariesFormatted).length > 0) {
+          // 前年度の変動月を検出（9月→10月、10月→11月、11月→12月の変動を確認）
+          const prevYearLateChangeMonths: number[] = [];
+          let prevFixed = 0;
+
+          // 9月の固定給を基準に設定
+          const sepKey = this.salaryCalculationService.getSalaryKey(
+            employeeId,
+            9
+          );
+          const sepData = prevYearSalariesFormatted[sepKey];
+          if (sepData) {
+            const sepWorkingDays = sepData.workingDays;
+            if (sepWorkingDays === undefined || sepWorkingDays >= 17) {
+              prevFixed = sepData.fixed;
+            }
+          }
+
+          // 10月、11月、12月の変動を検出
+          for (let month = 10; month <= 12; month++) {
+            const key = this.salaryCalculationService.getSalaryKey(
+              employeeId,
+              month
+            );
+            const monthData = prevYearSalariesFormatted[key];
+            if (monthData) {
+              const monthWorkingDays = monthData.workingDays;
+              // 支払基礎日数が17日未満の場合はスキップ
+              if (monthWorkingDays === undefined || monthWorkingDays >= 17) {
+                const currentFixed = monthData.fixed;
+                // 前月と比較して変動があったか判定
+                if (prevFixed > 0 && currentFixed !== prevFixed) {
+                  prevYearLateChangeMonths.push(month);
+                }
+                prevFixed = currentFixed;
+              }
+            }
+          }
+
+          console.log(
+            `[standard-remuneration-history] ${year}年: 前年度${prevYear}年の後期変動月`,
+            prevYearLateChangeMonths
+          );
+
+          // 前年度の変動月で適用開始月が当年度になるものを処理
+          for (const prevChangeMonth of prevYearLateChangeMonths) {
+            const applyStartMonthRaw = prevChangeMonth + 3;
+            let applyStartYear = prevYear;
+            let applyStartMonth = applyStartMonthRaw;
+            if (applyStartMonthRaw > 12) {
+              applyStartMonth = applyStartMonthRaw - 12;
+              applyStartYear = prevYear + 1;
+            }
+
+            // 適用開始年が当年度の場合のみ処理
+            if (applyStartYear === year) {
+              console.log(
+                `[standard-remuneration-history] ${year}年: 前年度${prevYear}年${prevChangeMonth}月の変動で適用開始月が${year}年${applyStartMonth}月になるため処理`
+              );
+
+              // 変動月を含む3ヶ月の給与データを取得（前年度と当年度をまたぐ）
+              const monthsForSuiji = [
+                prevChangeMonth,
+                prevChangeMonth + 1,
+                prevChangeMonth + 2,
+              ];
+              const suijiMonthsData: any = {};
+              const salariesForSuiji: { [key: string]: any } = {
+                ...prevYearSalariesFormatted,
+              };
+
+              // 当年度の1月、2月のデータを取得
+              for (let m = prevChangeMonth + 1; m <= prevChangeMonth + 2; m++) {
+                if (m > 12) {
+                  const nextYearMonth = m - 12;
+                  const nextYearKey =
+                    this.salaryCalculationService.getSalaryKey(
+                      employeeId,
+                      nextYearMonth
+                    );
+                  if (salaries[nextYearKey]) {
+                    salariesForSuiji[nextYearKey] = salaries[nextYearKey];
+                    suijiMonthsData[m] = salaries[nextYearKey];
+                  }
+                }
+              }
+
+              // 前年度の変動月のデータを追加
+              for (const m of monthsForSuiji) {
+                if (m <= 12) {
+                  const key = this.salaryCalculationService.getSalaryKey(
+                    employeeId,
+                    m
+                  );
+                  if (prevYearSalariesFormatted[key]) {
+                    suijiMonthsData[m] = prevYearSalariesFormatted[key];
+                  }
+                }
+              }
+
+              // 変動月の前月に適用されている標準報酬月額を取得
+              let targetYear = prevYear;
+              let targetMonth = prevChangeMonth - 1;
+              if (targetMonth < 1) {
+                targetMonth = 12;
+                targetYear = prevYear - 1;
+              }
+
+              let currentStandard =
+                (await this.getStandardRemunerationForMonth(
+                  employeeId,
+                  targetYear,
+                  targetMonth
+                )) || 0;
+
+              if (currentStandard === 0) {
+                currentStandard =
+                  (employee as any).currentStandardMonthlyRemuneration ||
+                  (employee as any).acquisitionStandard ||
+                  0;
+              }
+
+              if (currentStandard > 0) {
+                const prevYearGradeTable =
+                  await this.settingsService.getStandardTable(prevYear);
+                const result =
+                  this.salaryCalculationService.getStandardMonthlyRemuneration(
+                    currentStandard,
+                    prevYearGradeTable
+                  );
+                const currentGrade = result?.rank || 0;
+
+                if (currentGrade > 0) {
+                  // 随時改定を計算
+                  const suijiResult =
+                    this.salaryCalculationService.calculateFixedSalaryChangeSuiji(
+                      employeeId,
+                      prevChangeMonth,
+                      salariesForSuiji,
+                      prevYearGradeTable,
+                      currentGrade
+                    );
+
+                  console.log(
+                    `[standard-remuneration-history] ${year}年: 前年度${prevYear}年${prevChangeMonth}月の随時改定結果`,
+                    suijiResult
+                  );
+
+                  // 随時改定が適用される場合
+                  if (
+                    suijiResult.willApply &&
+                    suijiResult.applyMonth !== null
+                  ) {
+                    const applyStartYearGradeTable =
+                      await this.settingsService.getStandardTable(
+                        applyStartYear
+                      );
+                    const newGradeRow = applyStartYearGradeTable.find(
+                      (r: any) => r.rank === suijiResult.newGrade
+                    );
+
+                    if (newGradeRow && newGradeRow.standard) {
+                      const suijiStandard = newGradeRow.standard;
+
+                      // 既存の履歴を確認
+                      const existingHistoriesForSuiji =
+                        await this.getStandardRemunerationHistories(employeeId);
+
+                      // 同じ変動月の既存の随時改定履歴を全て削除
+                      const existingSuijiHistories =
+                        existingHistoriesForSuiji.filter(
+                          (h) =>
+                            h.determinationReason === 'suiji' &&
+                            (h as any).changeMonth === prevChangeMonth &&
+                            (h as any).changeYear === prevYear
+                        );
+
+                      for (const existingHistory of existingSuijiHistories) {
+                        if (existingHistory.id) {
+                          await this.deleteStandardRemunerationHistory(
+                            existingHistory.id,
+                            employeeId
+                          );
+                        }
+                      }
+
+                      const existingSuijiHistory =
+                        existingHistoriesForSuiji.find(
+                          (h) =>
+                            h.applyStartYear === applyStartYear &&
+                            h.applyStartMonth === applyStartMonth &&
+                            h.determinationReason === 'suiji' &&
+                            (h as any).changeMonth === prevChangeMonth &&
+                            (h as any).changeYear === prevYear
+                        );
+
+                      // 既存の履歴がない場合、または計算結果が異なる場合は保存/更新
+                      if (
+                        !existingSuijiHistory ||
+                        existingSuijiHistory.standardMonthlyRemuneration !==
+                          suijiStandard ||
+                        existingSuijiHistory.grade !== suijiResult.newGrade
+                      ) {
+                        console.log(
+                          `[standard-remuneration-history] ${year}年: 前年度${prevYear}年${prevChangeMonth}月の随時改定履歴を保存/更新`,
+                          {
+                            applyStartYear,
+                            applyStartMonth,
+                            grade: suijiResult.newGrade,
+                            standardMonthlyRemuneration: suijiStandard,
+                          }
+                        );
+                        await this.saveStandardRemunerationHistory({
+                          id: existingSuijiHistory?.id,
+                          employeeId,
+                          applyStartYear: applyStartYear,
+                          applyStartMonth: applyStartMonth,
+                          grade: suijiResult.newGrade,
+                          standardMonthlyRemuneration: suijiStandard,
+                          determinationReason: 'suiji',
+                          memo: `随時改定（変動月: ${prevYear}年${prevChangeMonth}月、適用開始: ${applyStartYear}年${applyStartMonth}月）`,
+                          createdAt: existingSuijiHistory?.createdAt,
+                          changeMonth: prevChangeMonth, // 変動月を記録
+                          changeYear: prevYear, // 変動年を記録
+                        } as any);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
       console.log(
         `[standard-remuneration-history] ${year}年: 検出された変動月`,
         changeMonths
@@ -863,9 +1182,54 @@ export class StandardRemunerationHistoryService {
         }
 
         // 随時改定を計算
-        // 変動月を含む3か月の給与データを確認
+        // 変動月を含む3か月の給与データを確認（年度を跨ぐ場合も考慮）
         const monthsForSuiji = [changeMonth, changeMonth + 1, changeMonth + 2];
         const suijiMonthsData: any = {};
+        const salariesForSuiji: { [key: string]: any } = { ...salaries };
+
+        // 変動月が11月や12月の場合、翌年度のデータも取得
+        if (changeMonth >= 11) {
+          const nextYear = year + 1;
+          // 翌年度の1月、2月のデータを取得
+          for (let m = changeMonth + 1; m <= changeMonth + 2; m++) {
+            if (m > 12) {
+              const nextYearMonth = m - 12;
+              const nextYearData =
+                await this.monthlySalaryService.getEmployeeSalary(
+                  roomId,
+                  employeeId,
+                  nextYear,
+                  nextYearMonth
+                );
+              if (nextYearData) {
+                const nextYearKey = this.salaryCalculationService.getSalaryKey(
+                  employeeId,
+                  nextYearMonth
+                );
+                const fixed =
+                  nextYearData.fixedSalary ?? nextYearData.fixed ?? 0;
+                const variable =
+                  nextYearData.variableSalary ?? nextYearData.variable ?? 0;
+                const deductionTotal = nextYearData.deductionTotal ?? 0;
+                const total =
+                  (nextYearData.totalSalary ??
+                    nextYearData.total ??
+                    fixed + variable) - deductionTotal;
+                salariesForSuiji[nextYearKey] = {
+                  total: total,
+                  fixed: fixed,
+                  variable: variable,
+                  workingDays: nextYearData.workingDays,
+                  deductionTotal: deductionTotal,
+                };
+                // 変動月+1や変動月+2のデータとしても記録（calculateFixedSalaryChangeSuijiで使用）
+                suijiMonthsData[m] = salariesForSuiji[nextYearKey];
+              }
+            }
+          }
+        }
+
+        // 当年度のデータを取得
         for (const m of monthsForSuiji) {
           if (m <= 12) {
             const key = this.salaryCalculationService.getSalaryKey(
@@ -882,17 +1246,22 @@ export class StandardRemunerationHistoryService {
           {
             currentGrade,
             suijiMonthsData,
-            allSalaries: Object.keys(salaries).reduce((acc: any, key) => {
-              acc[key] = salaries[key];
-              return acc;
-            }, {}),
+            changeMonth,
+            monthsForSuiji,
+            allSalaries: Object.keys(salariesForSuiji).reduce(
+              (acc: any, key) => {
+                acc[key] = salariesForSuiji[key];
+                return acc;
+              },
+              {}
+            ),
           }
         );
         const suijiResult =
           this.salaryCalculationService.calculateFixedSalaryChangeSuiji(
             employeeId,
             changeMonth,
-            salaries,
+            salariesForSuiji,
             gradeTable,
             currentGrade
           );
@@ -1095,7 +1464,8 @@ export class StandardRemunerationHistoryService {
           if (
             !isInDetectedApplyStarts &&
             existingApplyStart.year >= year &&
-            (existingApplyStart.year === year || existingApplyStart.year === year + 1)
+            (existingApplyStart.year === year ||
+              existingApplyStart.year === year + 1)
           ) {
             shouldDelete = true;
             console.log(

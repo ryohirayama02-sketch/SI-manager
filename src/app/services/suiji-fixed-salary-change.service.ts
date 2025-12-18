@@ -60,31 +60,28 @@ export class SuijiFixedSalaryChangeService {
     const reasons: string[] = [];
 
     // 変動月 + 前後3ヶ月（変動月・翌月・翌々月）で平均報酬を取得
+    // 年度を跨ぐ場合も考慮（変動月が11月や12月の場合）
     const targetMonths: number[] = [];
     for (let i = 0; i < 3; i++) {
       const month = changeMonth + i;
-      if (month > 12) {
-        reasons.push(
-          `${changeMonth}月の変動では、3ヶ月分のデータが揃わない（${month}月が存在しない）`
-        );
-        return {
-          changeMonth,
-          averageSalary: 0,
-          currentGrade,
-          newGrade: 0,
-          diff: 0,
-          willApply: false,
-          applyMonth: null,
-          reasons,
-        };
-      }
       targetMonths.push(month);
     }
 
     // 3ヶ月分の給与データを取得（総支給額：固定＋非固定）
     const totalSalaryValues: number[] = [];
-    for (const month of targetMonths) {
-      const key = this.getSalaryKey(employeeId, month);
+    for (let i = 0; i < targetMonths.length; i++) {
+      const month = targetMonths[i];
+      let key: string;
+      
+      // 年度を跨ぐ場合の処理
+      if (month > 12) {
+        // 翌年度の月として取得（例：13月 → 1月、14月 → 2月）
+        const nextYearMonth = month - 12;
+        key = this.getSalaryKey(employeeId, nextYearMonth);
+      } else {
+        key = this.getSalaryKey(employeeId, month);
+      }
+      
       const salaryData = salaries[key];
       const total =
         this.salaryAggregationService.getTotalSalaryPublic(salaryData); // totalSalary を優先（fixed + variable の総額）
