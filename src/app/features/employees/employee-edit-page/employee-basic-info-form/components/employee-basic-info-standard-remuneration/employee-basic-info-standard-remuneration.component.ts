@@ -133,20 +133,15 @@ export class EmployeeBasicInfoStandardRemunerationComponent
     this.isLoading = true;
     try {
       // 標準報酬履歴から最新の履歴を取得
+      // getStandardRemunerationHistories()は既にソート済みの配列を返すため、再ソートは不要
       const histories = await this.standardRemunerationHistoryService.getStandardRemunerationHistories(
         this.employeeId
       );
 
       // 最新の履歴を取得（適用開始年月が最新のもの）
       if (histories && histories.length > 0) {
-        // 適用開始年月で降順ソート（最新が先頭）
-        const sortedHistories = [...histories].sort((a, b) => {
-          if (a.applyStartYear !== b.applyStartYear) {
-            return b.applyStartYear - a.applyStartYear;
-          }
-          return b.applyStartMonth - a.applyStartMonth;
-        });
-        this.latestHistory = sortedHistories[0];
+        // 既にソート済みなので、先頭の要素を取得
+        this.latestHistory = histories[0];
 
         // 最新の履歴をフォームに適用
         if (this.latestHistory) {

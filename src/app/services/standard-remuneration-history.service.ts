@@ -160,17 +160,17 @@ export class StandardRemunerationHistoryService {
   }
 
   /**
-   * 指定された年月に適用される標準報酬月額を取得
+   * 指定された年月に適用される標準報酬履歴オブジェクトを取得
    * @param employeeId 従業員ID
    * @param year 年
    * @param month 月（1-12）
-   * @returns 標準報酬月額（見つからない場合はnull）
+   * @returns 標準報酬履歴オブジェクト（見つからない場合はnull）
    */
-  async getStandardRemunerationForMonth(
+  async getApplicableStandardRemunerationHistory(
     employeeId: string,
     year: number,
     month: number
-  ): Promise<number | null> {
+  ): Promise<StandardRemunerationHistory | null> {
     if (!employeeId) {
       return null;
     }
@@ -215,10 +215,30 @@ export class StandardRemunerationHistoryService {
 
     // ソート後の先頭の履歴を返す
     if (sortedHistories.length > 0) {
-      return sortedHistories[0].standardMonthlyRemuneration;
+      return sortedHistories[0];
     }
 
     return null;
+  }
+
+  /**
+   * 指定された年月に適用される標準報酬月額を取得
+   * @param employeeId 従業員ID
+   * @param year 年
+   * @param month 月（1-12）
+   * @returns 標準報酬月額（見つからない場合はnull）
+   */
+  async getStandardRemunerationForMonth(
+    employeeId: string,
+    year: number,
+    month: number
+  ): Promise<number | null> {
+    const history = await this.getApplicableStandardRemunerationHistory(
+      employeeId,
+      year,
+      month
+    );
+    return history?.standardMonthlyRemuneration ?? null;
   }
 
   /**
@@ -379,6 +399,40 @@ export class StandardRemunerationHistoryService {
           memo: '資格取得時決定（入社時）',
           createdAt: existingAcquisition?.createdAt,
         });
+
+        // 古い入社日の資格取得時決定の履歴を削除
+        // 新しい入社年月と異なる資格取得時決定の履歴を探す
+        const oldAcquisitionHistories = existingHistories.filter(
+          (h) =>
+            h.determinationReason === 'acquisition' &&
+            (h.applyStartYear !== acquisitionYear ||
+              h.applyStartMonth !== acquisitionMonth)
+        );
+        for (const oldHistory of oldAcquisitionHistories) {
+          if (oldHistory.id) {
+            await this.deleteStandardRemunerationHistory(
+              oldHistory.id,
+              employeeId
+            );
+          }
+        }
+      } else {
+        // 既存の資格取得時決定が存在し、値も同じ場合でも、
+        // 古い入社日の資格取得時決定の履歴を削除（入社日が変更された可能性があるため）
+        const oldAcquisitionHistories = existingHistories.filter(
+          (h) =>
+            h.determinationReason === 'acquisition' &&
+            (h.applyStartYear !== acquisitionYear ||
+              h.applyStartMonth !== acquisitionMonth)
+        );
+        for (const oldHistory of oldAcquisitionHistories) {
+          if (oldHistory.id) {
+            await this.deleteStandardRemunerationHistory(
+              oldHistory.id,
+              employeeId
+            );
+          }
+        }
       }
     }
 
