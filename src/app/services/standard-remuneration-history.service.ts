@@ -45,16 +45,33 @@ export class StandardRemunerationHistoryService {
       throw new Error('従業員IDが設定されていません');
     }
 
-    // 同じ適用開始年月・同じ決定理由の既存履歴を削除（重複を防ぐため）
+    // 既存の履歴を取得
     const existingHistories = await this.getStandardRemunerationHistories(
       history.employeeId
     );
+
+    // IDが指定されていない場合、同じ適用開始年月・同じ決定理由の既存履歴のIDを使用
+    let historyId = history.id;
+    if (!historyId) {
+      const existingHistory = existingHistories.find(
+        (h) =>
+          h.applyStartYear === history.applyStartYear &&
+          h.applyStartMonth === history.applyStartMonth &&
+          h.determinationReason === history.determinationReason
+      );
+      if (existingHistory?.id) {
+        historyId = existingHistory.id;
+      }
+    }
+
+    // 同じ適用開始年月・同じ決定理由の既存履歴を削除（重複を防ぐため）
+    // ただし、使用するIDの履歴は除外
     const duplicateHistories = existingHistories.filter(
       (h) =>
         h.applyStartYear === history.applyStartYear &&
         h.applyStartMonth === history.applyStartMonth &&
         h.determinationReason === history.determinationReason &&
-        h.id !== history.id // 更新対象の履歴は除外
+        h.id !== historyId // 使用するIDの履歴は除外
     );
 
     for (const duplicate of duplicateHistories) {
@@ -67,7 +84,7 @@ export class StandardRemunerationHistoryService {
     }
 
     // IDが指定されている場合は既存の履歴を更新、なければ新規作成
-    const docId = history.id || `temp_${Date.now()}`;
+    const docId = historyId || `temp_${Date.now()}`;
     const roomId = this.roomIdService.requireRoomId();
     const ref = doc(
       this.firestore,
@@ -204,6 +221,18 @@ export class StandardRemunerationHistoryService {
     }
     const histories = await this.getStandardRemunerationHistories(employeeId);
 
+    // デバッグログ: 取得した履歴を確認
+    console.log(
+      `[getApplicableStandardRemunerationHistory] employeeId=${employeeId}, year=${year}, month=${month}, histories count=${histories.length}`,
+      histories.map((h) => ({
+        id: h.id,
+        applyStartYear: h.applyStartYear,
+        applyStartMonth: h.applyStartMonth,
+        determinationReason: h.determinationReason,
+        standardMonthlyRemuneration: h.standardMonthlyRemuneration,
+      }))
+    );
+
     // 指定された年月以前で最も新しい履歴を取得
     // 同じ適用開始年月の複数の履歴がある場合、随時改定を優先する
     const filteredHistories = histories.filter((h) => {
@@ -213,6 +242,18 @@ export class StandardRemunerationHistoryService {
       if (h.applyStartYear === year && h.applyStartMonth <= month) return true;
       return false;
     });
+
+    // デバッグログ: フィルタリング後の履歴を確認
+    console.log(
+      `[getApplicableStandardRemunerationHistory] filteredHistories count=${filteredHistories.length}`,
+      filteredHistories.map((h) => ({
+        id: h.id,
+        applyStartYear: h.applyStartYear,
+        applyStartMonth: h.applyStartMonth,
+        determinationReason: h.determinationReason,
+        standardMonthlyRemuneration: h.standardMonthlyRemuneration,
+      }))
+    );
 
     // 優先順位に基づいてソート
     const sortedHistories = filteredHistories.sort((a, b) => {
@@ -237,9 +278,20 @@ export class StandardRemunerationHistoryService {
 
     // ソート後の先頭の履歴を返す
     if (sortedHistories.length > 0) {
-      return sortedHistories[0];
+      const result = sortedHistories[0];
+      console.log(`[getApplicableStandardRemunerationHistory] result:`, {
+        id: result.id,
+        applyStartYear: result.applyStartYear,
+        applyStartMonth: result.applyStartMonth,
+        determinationReason: result.determinationReason,
+        standardMonthlyRemuneration: result.standardMonthlyRemuneration,
+      });
+      return result;
     }
 
+    console.log(
+      `[getApplicableStandardRemunerationHistory] no history found for employeeId=${employeeId}, year=${year}, month=${month}`
+    );
     return null;
   }
 

@@ -335,20 +335,19 @@ export class SalaryCalculationService {
       throw new Error(`無効な標準賞与額が指定されました: ${standardBonus}`);
     }
     const roomId = this.roomIdService.requireRoomId();
-    const monthData =
-      (await this.monthlySalaryService.getEmployeeSalary(
-        roomId,
-        employeeId,
-        year,
-        month
-      )) || {
-        fixedSalary: 0,
-        variableSalary: 0,
-        totalSalary: 0,
-        fixed: 0,
-        variable: 0,
-        total: 0,
-      };
+    const monthData = (await this.monthlySalaryService.getEmployeeSalary(
+      roomId,
+      employeeId,
+      year,
+      month
+    )) || {
+      fixedSalary: 0,
+      variableSalary: 0,
+      totalSalary: 0,
+      fixed: 0,
+      variable: 0,
+      total: 0,
+    };
 
     const currentFixed =
       (monthData as any).fixedSalary ?? (monthData as any).fixed ?? 0;

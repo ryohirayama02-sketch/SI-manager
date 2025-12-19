@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Injector } from '@angular/core';
 import { Employee } from '../models/employee.model';
 import { ExemptionDeterminationService } from './exemption-determination.service';
 import { GradeDeterminationService } from './grade-determination.service';
@@ -10,6 +10,7 @@ import { EmployeeEligibilityService } from './employee-eligibility.service';
 import { EmployeeWorkCategoryService } from './employee-work-category.service';
 import { SuijiService } from './suiji.service';
 import { SuijiKouhoResult } from './salary-calculation.service';
+import { StandardRemunerationHistoryService } from './standard-remuneration-history.service';
 
 export interface MonthlyPremiums {
   health_employee: number;
@@ -22,6 +23,8 @@ export interface MonthlyPremiums {
 
 @Injectable({ providedIn: 'root' })
 export class PremiumCalculationService {
+  private _standardRemunerationHistoryService?: StandardRemunerationHistoryService;
+
   constructor(
     private exemptionDeterminationService: ExemptionDeterminationService,
     private gradeDeterminationService: GradeDeterminationService,
@@ -31,8 +34,18 @@ export class PremiumCalculationService {
     private employeeLifecycleService: EmployeeLifecycleService,
     private employeeEligibilityService: EmployeeEligibilityService,
     private employeeWorkCategoryService: EmployeeWorkCategoryService,
-    private suijiService: SuijiService
+    private suijiService: SuijiService,
+    private injector: Injector
   ) {}
+
+  private get standardRemunerationHistoryService(): StandardRemunerationHistoryService {
+    if (!this._standardRemunerationHistoryService) {
+      this._standardRemunerationHistoryService = this.injector.get(
+        StandardRemunerationHistoryService
+      );
+    }
+    return this._standardRemunerationHistoryService;
+  }
 
   /**
    * 月次給与の保険料を計算（産休・育休免除・年齢到達・標準報酬月額を統合）
@@ -174,13 +187,14 @@ export class PremiumCalculationService {
     // ② 標準報酬月額の取得
     // 優先順位：
     // 1. 随時改定で確定した標準報酬月額（適用開始月以降）
-    // 2. 従業員データの標準報酬月額（定時決定で確定したもの）
-    // 3. 資格取得時決定の標準報酬月額
+    // 2. 標準報酬履歴から取得（資格取得時決定・定時決定・随時改定など）
+    // 3. 従業員データの標準報酬月額（定時決定で確定したもの）
     // 4. その月の給与額から等級を判定（標準報酬月額が確定していない場合のみ）
     //
     // 重要：標準報酬月額が確定している場合（1-3のいずれかで確定）は、
     // その月の給与が0円でも標準報酬月額に基づいて保険料を計算する必要がある。
     // 給与が0円でも保険料は発生する（標準報酬月額に基づく）。
+    // また、過去の月では標準報酬履歴から取得する必要があるため、履歴を優先する。
 
     const totalSalary = fixedSalary + variableSalary;
 
@@ -236,7 +250,38 @@ export class PremiumCalculationService {
       }
     }
 
-    // 2. 随時改定が適用されていない場合、従業員データの標準報酬月額を確認
+    // 2. 標準報酬履歴から取得（資格取得時決定・定時決定・随時改定など）
+    // 過去の月では標準報酬履歴から取得する必要があるため、従業員データより優先する
+    if (!standardMonthlyRemuneration && employee.id) {
+      const historyStandard =
+        await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
+          employee.id,
+          typeof year === 'string' ? parseInt(year, 10) : year,
+          month
+        );
+
+      if (historyStandard && historyStandard > 0) {
+        standardMonthlyRemuneration = historyStandard;
+        // 標準報酬月額から等級を逆引き
+        gradeResult = this.gradeDeterminationService.findGrade(
+          gradeTable,
+          historyStandard
+        );
+        if (gradeResult) {
+          reasons.push(
+            `標準報酬履歴から取得した標準報酬月額（等級${
+              gradeResult.grade
+            }、${historyStandard.toLocaleString()}円）を使用`
+          );
+        } else {
+          reasons.push(
+            `標準報酬履歴から取得した標準報酬月額（${historyStandard.toLocaleString()}円）を使用（等級テーブルに該当なし）`
+          );
+        }
+      }
+    }
+
+    // 3. 標準報酬履歴から取得できない場合、従業員データの標準報酬月額を確認
     if (
       !standardMonthlyRemuneration &&
       employee.currentStandardMonthlyRemuneration &&
@@ -264,7 +309,7 @@ export class PremiumCalculationService {
       }
     }
 
-    // 3. 標準報酬月額が確定していない場合、その月の給与額から等級を判定
+    // 4. 標準報酬月額が確定していない場合、その月の給与額から等級を判定
     // 重要：標準報酬月額は算定基礎届（定時決定）や随時改定で決定されるため、
     // その月の給与から毎月計算するものではありません。
     // しかし、標準報酬月額が確定していない場合（新規入社など）は、
