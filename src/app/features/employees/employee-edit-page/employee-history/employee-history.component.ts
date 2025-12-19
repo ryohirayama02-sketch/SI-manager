@@ -493,7 +493,8 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
     const uniqueMap = new Map<string, InsuranceStatusHistory>();
     for (const history of filtered) {
       // 入社月より前の月は除外（入社年のみ）
-      const historyCalendarYear = history.month >= 3 ? history.year : history.year + 1;
+      const historyCalendarYear =
+        history.month >= 3 ? history.year : history.year + 1;
       if (
         hasJoinYear &&
         hasJoinMonth &&
@@ -625,7 +626,8 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         }
 
         // 入社月より前の月は除外（入社年のみ）
-        const hasJoinYear = this.joinYear !== null && this.joinYear !== undefined;
+        const hasJoinYear =
+          this.joinYear !== null && this.joinYear !== undefined;
         const hasJoinMonth =
           this.joinMonth !== null && this.joinMonth !== undefined;
         if (
@@ -650,14 +652,16 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         // 適用開始年月がその月以前で、かつ最も新しいものを取得
         // applyStartYearは実際の年として記録されているので、直接比較する
         // 同じ適用開始年月の標準報酬履歴が複数存在する場合、随時改定を優先する
-        const filteredHistories = this.standardRemunerationHistories.filter((h) => {
-          // 適用開始年が選択年より前の場合
-          if (h.applyStartYear < selectedYear) return true;
-          // 適用開始年が選択年と同じで、適用開始月がその月以前の場合
-          if (h.applyStartYear === selectedYear && h.applyStartMonth <= month)
-            return true;
-          return false;
-        });
+        const filteredHistories = this.standardRemunerationHistories.filter(
+          (h) => {
+            // 適用開始年が選択年より前の場合
+            if (h.applyStartYear < selectedYear) return true;
+            // 適用開始年が選択年と同じで、適用開始月がその月以前の場合
+            if (h.applyStartYear === selectedYear && h.applyStartMonth <= month)
+              return true;
+            return false;
+          }
+        );
 
         const sortedHistories = filteredHistories.sort((a, b) => {
           // 適用開始年で降順ソート（新しい年を優先）
@@ -680,59 +684,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         });
 
         // ソート後の先頭の履歴を取得
-        // ただし、2025年10-12月の場合は、2025年8月の履歴が存在する場合はそれを優先する
         let applicableStandardHistory = sortedHistories[0];
-        
-        // 2025年10-12月の場合、2025年8月の履歴を明示的に探す
-        if (selectedYear === 2025 && month >= 10) {
-          const history2025Aug = sortedHistories.find(
-            (h) => h.applyStartYear === 2025 && h.applyStartMonth === 8
-          );
-          if (history2025Aug) {
-            applicableStandardHistory = history2025Aug;
-            console.log(
-              `[employee-history] ${selectedYear}年${month}月: 2025年8月の履歴を明示的に選択`,
-              {
-                applyStartYear: history2025Aug.applyStartYear,
-                applyStartMonth: history2025Aug.applyStartMonth,
-                standardMonthlyRemuneration:
-                  history2025Aug.standardMonthlyRemuneration,
-                determinationReason: history2025Aug.determinationReason,
-                grade: history2025Aug.grade,
-              }
-            );
-          }
-        }
-
-        // デバッグログ（2025年10-12月の場合のみ）
-        if (selectedYear === 2025 && month >= 10 && filteredHistories.length > 0) {
-          const top5Sorted = sortedHistories.slice(0, 5).map((h) => ({
-            applyStartYear: h.applyStartYear,
-            applyStartMonth: h.applyStartMonth,
-            standardMonthlyRemuneration: h.standardMonthlyRemuneration,
-            determinationReason: h.determinationReason,
-            grade: h.grade,
-          }));
-          console.log(
-            `[employee-history] ${selectedYear}年${month}月: 標準報酬履歴の選択`,
-            {
-              filteredCount: filteredHistories.length,
-              sortedCount: sortedHistories.length,
-              top5Sorted: top5Sorted,
-              selected: applicableStandardHistory
-                ? {
-                    applyStartYear: applicableStandardHistory.applyStartYear,
-                    applyStartMonth: applicableStandardHistory.applyStartMonth,
-                    standardMonthlyRemuneration:
-                      applicableStandardHistory.standardMonthlyRemuneration,
-                    determinationReason:
-                      applicableStandardHistory.determinationReason,
-                    grade: applicableStandardHistory.grade,
-                  }
-                : null,
-            }
-          );
-        }
 
         // 年齢を計算
         const age = this.employee.birthDate
@@ -800,10 +752,13 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
             // monthlyWageがない場合、標準報酬履歴から入社月の履歴を探す
             if (!wage) {
               // 入社年月の年度を計算（3月開始の年度）
-              const joinFiscalYear = hasJoinYear && hasJoinMonth
-                ? ((this.joinMonth as number) >= 3 ? (this.joinYear as number) : (this.joinYear as number) - 1)
-                : null;
-              
+              const joinFiscalYear =
+                hasJoinYear && hasJoinMonth
+                  ? (this.joinMonth as number) >= 3
+                    ? (this.joinYear as number)
+                    : (this.joinYear as number) - 1
+                  : null;
+
               const joinMonthHistory = this.standardRemunerationHistories.find(
                 (h) =>
                   hasJoinYear &&
