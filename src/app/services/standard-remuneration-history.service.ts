@@ -44,6 +44,28 @@ export class StandardRemunerationHistoryService {
     if (!history.employeeId) {
       throw new Error('従業員IDが設定されていません');
     }
+
+    // 同じ適用開始年月・同じ決定理由の既存履歴を削除（重複を防ぐため）
+    const existingHistories = await this.getStandardRemunerationHistories(
+      history.employeeId
+    );
+    const duplicateHistories = existingHistories.filter(
+      (h) =>
+        h.applyStartYear === history.applyStartYear &&
+        h.applyStartMonth === history.applyStartMonth &&
+        h.determinationReason === history.determinationReason &&
+        h.id !== history.id // 更新対象の履歴は除外
+    );
+
+    for (const duplicate of duplicateHistories) {
+      if (duplicate.id) {
+        await this.deleteStandardRemunerationHistory(
+          duplicate.id,
+          history.employeeId
+        );
+      }
+    }
+
     // IDが指定されている場合は既存の履歴を更新、なければ新規作成
     const docId = history.id || `temp_${Date.now()}`;
     const roomId = this.roomIdService.requireRoomId();
@@ -686,6 +708,10 @@ export class StandardRemunerationHistoryService {
           h.determinationReason === 'teiji'
       );
 
+      // その年度で生成された履歴の適用開始年月を記録（古い履歴を削除するため）
+      const generatedApplyStartMonths: Array<{ year: number; month: number }> =
+        [];
+
       // 7月、8月、9月に随時改定の適用開始がある場合、定時決定を保存しない（既存の履歴があれば削除）
       if (hasSuijiIn789) {
         if (existingTeijiHistory) {
@@ -718,6 +744,8 @@ export class StandardRemunerationHistoryService {
             createdAt: existingTeijiHistory?.createdAt, // 既存の履歴がある場合は元の作成日時を保持
           });
         }
+        // 生成された定時決定の適用開始年月を記録
+        generatedApplyStartMonths.push({ year: year, month: 9 });
       }
 
       // アラートに依存せず、月次給与データから直接随時改定を計算・更新
@@ -1236,6 +1264,11 @@ export class StandardRemunerationHistoryService {
                 changeMonth: changeMonth, // 変動月を記録
               } as any);
             }
+            // 生成された随時改定の適用開始年月を記録
+            generatedApplyStartMonths.push({
+              year: applyStartYear,
+              month: applyStartMonth,
+            });
           }
         } else {
           // 随時改定が適用されない場合、既存の履歴を削除（条件を満たさなくなった場合）
@@ -1370,6 +1403,53 @@ export class StandardRemunerationHistoryService {
             existingSuijiHistory.id,
             employeeId
           );
+        }
+      }
+
+      // その年度で生成された履歴以外の古い履歴を削除
+      // 各年月は最新の情報1つのみ持つ方針に基づき、処理対象年度の古い履歴を削除
+      const finalExistingHistories =
+        await this.getStandardRemunerationHistories(employeeId);
+
+      // 資格取得時決定の適用開始年月を追加（入社年月がその年度の場合）
+      if (joinDate) {
+        const acquisitionYear = joinDate.getFullYear();
+        const acquisitionMonth = joinDate.getMonth() + 1;
+        // その年度が入社年度の場合のみ追加
+        if (acquisitionYear === year) {
+          generatedApplyStartMonths.push({
+            year: acquisitionYear,
+            month: acquisitionMonth,
+          });
+        }
+      }
+
+      // 処理対象年度の履歴で、生成された適用開始年月に含まれていないものを削除
+      for (const existingHistory of finalExistingHistories) {
+        // 処理対象年度より前の年度の履歴は削除しない
+        if (existingHistory.applyStartYear < year) {
+          continue;
+        }
+
+        // 処理対象年度または翌年度の履歴のみチェック
+        if (
+          existingHistory.applyStartYear === year ||
+          existingHistory.applyStartYear === year + 1
+        ) {
+          // 生成された適用開始年月に含まれているかチェック
+          const isGenerated = generatedApplyStartMonths.some(
+            (generated) =>
+              generated.year === existingHistory.applyStartYear &&
+              generated.month === existingHistory.applyStartMonth
+          );
+
+          // 生成された適用開始年月に含まれていない場合、削除
+          if (!isGenerated && existingHistory.id) {
+            await this.deleteStandardRemunerationHistory(
+              existingHistory.id,
+              employeeId
+            );
+          }
         }
       }
     }
