@@ -9,6 +9,7 @@ import { GradeDeterminationService } from './grade-determination.service';
 import { MonthlySalaryCalculationService } from './monthly-salary-calculation.service';
 import { MonthlyPremiumCalculationService } from './monthly-premium-calculation.service';
 import { SettingsService } from './settings.service';
+import { StandardRemunerationHistoryService } from './standard-remuneration-history.service';
 import { Employee } from '../models/employee.model';
 import { SalaryItem } from '../models/salary-item.model';
 import {
@@ -37,6 +38,7 @@ export class MonthlySalarySaveService {
     private monthlySalaryCalculationService: MonthlySalaryCalculationService,
     private monthlyPremiumCalculationService: MonthlyPremiumCalculationService,
     private settingsService: SettingsService,
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private roomIdService: RoomIdService
   ) {}
 
@@ -1187,6 +1189,27 @@ export class MonthlySalarySaveService {
         }
       }
     }
+
+    // 保存後に標準報酬履歴を再生成（保険料計算で最新の標準報酬月額を使用するため）
+    // エラーが発生しても保険料計算は継続する
+    const historyPromises = employees
+      .filter((emp) => emp && emp.id)
+      .map((emp) =>
+        this.standardRemunerationHistoryService
+          .generateStandardRemunerationHistory(emp.id!, emp)
+          .catch((error) => {
+            console.error(
+              `[monthly-salary-save] 標準報酬履歴の再生成に失敗しました（${
+                emp.name || emp.id
+              }）:`,
+              error
+            );
+            // エラーが発生しても他の処理は続行
+          })
+      );
+
+    // 並列実行（従業員数が多い場合でも大幅に高速化）
+    await Promise.all(historyPromises);
 
     // 保存後に各月の保険料計算を実行して徴収不能アラートをチェック
     // 従業員ごとに都道府県を取得して計算する
