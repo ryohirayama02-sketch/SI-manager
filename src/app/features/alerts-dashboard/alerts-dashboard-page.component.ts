@@ -1109,8 +1109,8 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
 
         if (validSalaries.length === 0) continue;
 
-        // 平均額を計算
-        const averageSalary = Math.round(
+        // 平均額を計算（小数点以下切り捨て）
+        const averageSalary = Math.floor(
           validSalaries.reduce((sum, s) => sum + s, 0) / validSalaries.length
         );
 
