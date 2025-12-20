@@ -119,6 +119,8 @@ export class SuijiService {
    * @param salaryItems 給与項目マスタ
    * @param employeeId 従業員ID
    * @param changeMonth 変動月（1-12）
+   * @param nextYearSalaryData 翌年の給与データ（年度をまたぐ場合に使用、キー形式: employeeId_month）
+   * @param nextYearSalaryItemData 翌年の給与項目データ（年度をまたぐ場合に使用）
    * @returns 3か月平均（M, M+1, M+2の報酬月額平均）、いずれかが存在しない場合はnull
    */
   calculateThreeMonthAverage(
@@ -126,7 +128,9 @@ export class SuijiService {
     employeeId: string,
     changeMonth: number,
     salaryItemData?: { [key: string]: { [itemId: string]: number } },
-    salaryItems?: SalaryItem[]
+    salaryItems?: SalaryItem[],
+    nextYearSalaryData?: { [key: string]: MonthlySalaryData },
+    nextYearSalaryItemData?: { [key: string]: { [itemId: string]: number } }
   ): number | null {
     if (!salaryData || !employeeId) {
       return null;
@@ -139,19 +143,39 @@ export class SuijiService {
     const month2 = changeMonth + 1;
     const month3 = changeMonth + 2;
 
-    // 12月を超える場合はnullを返す
-    if (month3 > 12) {
-      return null;
+    // 年度をまたぐ場合の処理
+    let data1: MonthlySalaryData | undefined;
+    let data2: MonthlySalaryData | undefined;
+    let data3: MonthlySalaryData | undefined;
+    let key1: string;
+    let key2: string;
+    let key3: string;
+
+    // 1ヶ月目（変動月）
+    key1 = `${employeeId}_${month1}`;
+    data1 = salaryData[key1];
+
+    // 2ヶ月目
+    if (month2 > 12) {
+      // 翌年の月として取得
+      const nextYearMonth2 = month2 - 12;
+      key2 = `${employeeId}_${nextYearMonth2}`;
+      data2 = nextYearSalaryData?.[key2];
+    } else {
+      key2 = `${employeeId}_${month2}`;
+      data2 = salaryData[key2];
     }
 
-    // 各月のデータを取得
-    const key1 = `${employeeId}_${month1}`;
-    const key2 = `${employeeId}_${month2}`;
-    const key3 = `${employeeId}_${month3}`;
-
-    const data1 = salaryData[key1];
-    const data2 = salaryData[key2];
-    const data3 = salaryData[key3];
+    // 3ヶ月目
+    if (month3 > 12) {
+      // 翌年の月として取得
+      const nextYearMonth3 = month3 - 12;
+      key3 = `${employeeId}_${nextYearMonth3}`;
+      data3 = nextYearSalaryData?.[key3];
+    } else {
+      key3 = `${employeeId}_${month3}`;
+      data3 = salaryData[key3];
+    }
 
     // いずれかが存在しない場合はnullを返す
     if (!data1 || !data2 || !data3) {
@@ -159,6 +183,11 @@ export class SuijiService {
     }
 
     // 報酬月額を計算（総支給額 - 欠勤控除）
+    // 年度をまたぐ場合、salaryItemDataとnextYearSalaryItemDataを適切に使用
+    const itemData1 = salaryItemData?.[key1];
+    const itemData2 = month2 > 12 ? nextYearSalaryItemData?.[key2] : salaryItemData?.[key2];
+    const itemData3 = month3 > 12 ? nextYearSalaryItemData?.[key3] : salaryItemData?.[key3];
+
     const remuneration1 = this.calculateRemunerationAmount(
       data1,
       key1,
@@ -168,13 +197,13 @@ export class SuijiService {
     const remuneration2 = this.calculateRemunerationAmount(
       data2,
       key2,
-      salaryItemData,
+      month2 > 12 ? nextYearSalaryItemData : salaryItemData,
       salaryItems
     );
     const remuneration3 = this.calculateRemunerationAmount(
       data3,
       key3,
-      salaryItemData,
+      month3 > 12 ? nextYearSalaryItemData : salaryItemData,
       salaryItems
     );
 

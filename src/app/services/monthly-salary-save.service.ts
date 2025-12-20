@@ -335,7 +335,11 @@ export class MonthlySalarySaveService {
             (alert) => alert && alert.employeeId === emp.id
           );
           for (const alert of employeeAlerts) {
-            if (!alert || !alert.employeeId || alert.changeMonth === undefined) {
+            if (
+              !alert ||
+              !alert.employeeId ||
+              alert.changeMonth === undefined
+            ) {
               continue;
             }
             await this.suijiService.deleteAlert(
@@ -475,9 +479,12 @@ export class MonthlySalarySaveService {
             const targetMonths = [month, month + 1, month + 2];
             const hasInvalidWorkingDays = targetMonths.some((targetMonth) => {
               if (targetMonth > 12 || targetMonth < 1) return false; // 12月を超える、または1月未満の場合はスキップ
-              const workingDaysKey = this.state.getWorkingDaysKey(emp.id, targetMonth);
+              const workingDaysKey = this.state.getWorkingDaysKey(
+                emp.id,
+                targetMonth
+              );
               let workingDays = workingDaysData[workingDaysKey];
-              
+
               // workingDaysDataに値がない場合、その月の日数をデフォルトとして使用
               // （saveAllSalariesの80-84行目と同じロジック）
               if (workingDays === undefined || isNaN(workingDays)) {
@@ -486,7 +493,7 @@ export class MonthlySalarySaveService {
               if (isNaN(workingDays) || workingDays < 0 || workingDays > 31) {
                 return true; // 無効な値の場合は無効として扱う
               }
-              
+
               // 支払基礎日数が17日未満（0日を含む）の場合は無効
               return workingDays < 17;
             });
@@ -508,18 +515,25 @@ export class MonthlySalarySaveService {
               }
               const checkMonthKey = `${emp.id}_${checkMonth}`;
               const checkMonthData = salaryDataForDetection[checkMonthKey];
-              
+
               if (!checkMonthData) {
                 continue;
               }
 
               // 支払基礎日数を取得
-              const checkWorkingDaysKey = this.state.getWorkingDaysKey(emp.id, checkMonth);
+              const checkWorkingDaysKey = this.state.getWorkingDaysKey(
+                emp.id,
+                checkMonth
+              );
               let checkWorkingDays = workingDaysData[checkWorkingDaysKey];
               if (checkWorkingDays === undefined || isNaN(checkWorkingDays)) {
                 checkWorkingDays = new Date(year, checkMonth, 0).getDate();
               }
-              if (isNaN(checkWorkingDays) || checkWorkingDays < 0 || checkWorkingDays > 31) {
+              if (
+                isNaN(checkWorkingDays) ||
+                checkWorkingDays < 0 ||
+                checkWorkingDays > 31
+              ) {
                 continue;
               }
 
@@ -557,13 +571,174 @@ export class MonthlySalarySaveService {
               const prevGrade = prevGradeResult.grade;
 
               // 過去3ヶ月の報酬月額平均を計算（変動月を含む3ヶ月）
-              const average = this.suijiService.calculateThreeMonthAverage(
-                salaryDataForDetection,
-                emp.id,
-                month,
-                salaryItemData,
-                salaryItems
-              );
+              // 年度をまたぐ場合の処理（変動月が11-12月の場合、翌年の1-3月のデータが必要）
+              let average: number | null = null;
+              if (month >= 11 && month <= 12) {
+                // 年度をまたぐ場合：当年の給与データと翌年の給与データを組み合わせる
+                // 当年の給与データは既にsalaryDataForDetectionに含まれている
+                // 翌年の1-3月の給与データを取得（変動月が11-12月の場合、翌年の1-3月のデータが必要）
+                const nextYear = year + 1;
+                const nextYearSalaryDataForDetection: {
+                  [key: string]: MonthlySalaryData;
+                } = {};
+                const nextYearSalaryItemData: {
+                  [key: string]: { [itemId: string]: number };
+                } = {};
+
+                // 翌年の1-3月の給与データを取得（既に保存されている場合）
+                for (let nextMonth = 1; nextMonth <= 3; nextMonth++) {
+                  const nextMonthData =
+                    await this.monthlySalaryService.getEmployeeSalary(
+                      roomId,
+                      emp.id,
+                      nextYear,
+                      nextMonth
+                    );
+                  if (nextMonthData) {
+                    const nextMonthKey = `${emp.id}_${nextMonth}`;
+                    const nextItemKey = this.state.getSalaryItemKey(
+                      emp.id,
+                      nextMonth
+                    );
+
+                    // 給与項目別データから報酬月額を計算
+                    if (
+                      nextMonthData.salaryItems &&
+                      Array.isArray(nextMonthData.salaryItems)
+                    ) {
+                      let fixedTotal = 0;
+                      let variableTotal = 0;
+                      nextYearSalaryItemData[nextItemKey] = {};
+
+                      for (const entry of nextMonthData.salaryItems) {
+                        nextYearSalaryItemData[nextItemKey][entry.itemId] =
+                          entry.amount;
+                        const item = salaryItems.find(
+                          (i) => i.id === entry.itemId
+                        );
+                        if (item) {
+                          const isBonus =
+                            item.name === '賞与' ||
+                            item.name.includes('賞与') ||
+                            item.name.includes('ボーナス');
+                          const isDeduction = item.type === 'deduction';
+
+                          if (!isBonus && !isDeduction) {
+                            if (item.type === 'fixed') {
+                              fixedTotal += entry.amount;
+                            } else if (item.type === 'variable') {
+                              variableTotal += entry.amount;
+                            }
+                          }
+                        }
+                      }
+
+                      nextYearSalaryDataForDetection[nextMonthKey] = {
+                        fixedTotal: fixedTotal,
+                        variableTotal: variableTotal,
+                        total: fixedTotal + variableTotal,
+                      };
+                    } else {
+                      // 後方互換性
+                      const fixed =
+                        nextMonthData.fixedSalary ?? nextMonthData.fixed ?? 0;
+                      const variable =
+                        nextMonthData.variableSalary ??
+                        nextMonthData.variable ??
+                        0;
+                      const total =
+                        nextMonthData.totalSalary ??
+                        nextMonthData.total ??
+                        fixed + variable;
+                      nextYearSalaryDataForDetection[nextMonthKey] = {
+                        fixedTotal: fixed,
+                        variableTotal: variable,
+                        total: total,
+                      };
+                    }
+                  } else {
+                    // 翌年のデータがまだ保存されていない場合は、当年の入力データから取得を試みる
+                    const nextMonthKey = `${emp.id}_${nextMonth}`;
+                    const nextItemKey = this.state.getSalaryItemKey(
+                      emp.id,
+                      nextMonth
+                    );
+                    const nextItemData = salaryItemData[nextItemKey];
+
+                    if (nextItemData && salaryItems) {
+                      let fixedTotal = 0;
+                      let variableTotal = 0;
+
+                      for (const item of salaryItems) {
+                        const amount = nextItemData[item.id] || 0;
+                        const isBonus =
+                          item.name === '賞与' ||
+                          item.name.includes('賞与') ||
+                          item.name.includes('ボーナス');
+                        const isDeduction = item.type === 'deduction';
+
+                        if (!isBonus && !isDeduction) {
+                          if (item.type === 'fixed') {
+                            fixedTotal += amount;
+                          } else if (item.type === 'variable') {
+                            variableTotal += amount;
+                          }
+                        }
+                      }
+
+                      nextYearSalaryDataForDetection[nextMonthKey] = {
+                        fixedTotal: fixedTotal,
+                        variableTotal: variableTotal,
+                        total: fixedTotal + variableTotal,
+                      };
+                      nextYearSalaryItemData[nextItemKey] = nextItemData;
+                    } else {
+                      const nextKey = this.state.getSalaryKey(
+                        emp.id,
+                        nextMonth
+                      );
+                      const nextSalaryData = salaries[nextKey];
+                      if (nextSalaryData) {
+                        nextYearSalaryDataForDetection[nextMonthKey] = {
+                          fixedTotal: nextSalaryData.fixed,
+                          variableTotal: nextSalaryData.variable,
+                          total: nextSalaryData.total,
+                        };
+                      }
+                    }
+                  }
+                }
+
+                // 当年と翌年の給与データを統合
+                const combinedSalaryData = {
+                  ...salaryDataForDetection,
+                  ...nextYearSalaryDataForDetection,
+                };
+                const combinedSalaryItemData = {
+                  ...salaryItemData,
+                  ...nextYearSalaryItemData,
+                };
+
+                // 年度をまたぐ場合の3ヶ月平均を計算
+                average = this.suijiService.calculateThreeMonthAverage(
+                  combinedSalaryData,
+                  emp.id,
+                  month,
+                  combinedSalaryItemData,
+                  salaryItems,
+                  nextYearSalaryDataForDetection,
+                  nextYearSalaryItemData
+                );
+              } else {
+                // 年度をまたがない場合（既存の処理）
+                average = this.suijiService.calculateThreeMonthAverage(
+                  salaryDataForDetection,
+                  emp.id,
+                  month,
+                  salaryItemData,
+                  salaryItems
+                );
+              }
 
               // 3ヶ月分のデータが揃わない場合はスキップ（calculateThreeMonthAverageがnullを返す）
               if (average !== null) {
@@ -601,6 +776,409 @@ export class MonthlySalarySaveService {
 
                     await this.suijiService.saveSuijiKouho(year, suijiResult);
                     suijiAlerts.push(suijiResult);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 前年10-12月の変動を検出（当年1-3月に適用開始される随時改定）
+      // 前年の給与データを取得して変動を検出
+      const prevYear = year - 1;
+      if (prevYear >= 1900 && prevYear <= 2100) {
+        const prevYearSalaryDataForDetection: {
+          [key: string]: MonthlySalaryData;
+        } = {};
+        const prevYearSalaryItemData: {
+          [key: string]: { [itemId: string]: number };
+        } = {};
+        const prevYearWorkingDaysData: { [key: string]: number } = {};
+
+        // 前年9月から12月の給与データを取得
+        for (let prevMonth = 9; prevMonth <= 12; prevMonth++) {
+          const prevMonthData =
+            await this.monthlySalaryService.getEmployeeSalary(
+              roomId,
+              emp.id,
+              prevYear,
+              prevMonth
+            );
+          if (prevMonthData) {
+            const prevDetectionKey = `${emp.id}_${prevMonth}`;
+            const prevItemKey = this.state.getSalaryItemKey(emp.id, prevMonth);
+
+            // 給与項目別データから報酬月額を計算
+            if (
+              prevMonthData.salaryItems &&
+              Array.isArray(prevMonthData.salaryItems)
+            ) {
+              let fixedTotal = 0;
+              let variableTotal = 0;
+              prevYearSalaryItemData[prevItemKey] = {};
+
+              for (const entry of prevMonthData.salaryItems) {
+                prevYearSalaryItemData[prevItemKey][entry.itemId] =
+                  entry.amount;
+                const item = salaryItems.find((i) => i.id === entry.itemId);
+                if (item) {
+                  const isBonus =
+                    item.name === '賞与' ||
+                    item.name.includes('賞与') ||
+                    item.name.includes('ボーナス');
+                  const isDeduction = item.type === 'deduction';
+
+                  if (!isBonus && !isDeduction) {
+                    if (item.type === 'fixed') {
+                      fixedTotal += entry.amount;
+                    } else if (item.type === 'variable') {
+                      variableTotal += entry.amount;
+                    }
+                  }
+                }
+              }
+
+              prevYearSalaryDataForDetection[prevDetectionKey] = {
+                fixedTotal: fixedTotal,
+                variableTotal: variableTotal,
+                total: fixedTotal + variableTotal,
+              };
+            } else {
+              // 後方互換性
+              const fixed =
+                prevMonthData.fixedSalary ?? prevMonthData.fixed ?? 0;
+              const variable =
+                prevMonthData.variableSalary ?? prevMonthData.variable ?? 0;
+              const total =
+                prevMonthData.totalSalary ??
+                prevMonthData.total ??
+                fixed + variable;
+              prevYearSalaryDataForDetection[prevDetectionKey] = {
+                fixedTotal: fixed,
+                variableTotal: variable,
+                total: total,
+              };
+            }
+
+            // 支払基礎日数を取得
+            const prevWorkingDaysKey = this.state.getWorkingDaysKey(
+              emp.id,
+              prevMonth
+            );
+            if (prevMonthData.workingDays !== undefined) {
+              prevYearWorkingDaysData[prevWorkingDaysKey] =
+                prevMonthData.workingDays;
+            }
+          }
+        }
+
+        // 前年10-12月の変動を検出
+        if (Object.keys(prevYearSalaryDataForDetection).length > 0) {
+          // 前年9月を基準に前年10-12月の変動を検出
+          const prevYearChangedMonths: number[] = [];
+          let prevYearPrevFixed = 0;
+
+          // 前年9月の固定給を基準に設定
+          const prevYearSepKey = `${emp.id}_9`;
+          const prevYearSepData =
+            prevYearSalaryDataForDetection[prevYearSepKey];
+          if (prevYearSepData) {
+            const prevYearSepWorkingDaysKey = this.state.getWorkingDaysKey(
+              emp.id,
+              9
+            );
+            const prevYearSepWorkingDays =
+              prevYearWorkingDaysData[prevYearSepWorkingDaysKey];
+            if (
+              prevYearSepWorkingDays === undefined ||
+              prevYearSepWorkingDays >= 17
+            ) {
+              prevYearPrevFixed =
+                prevYearSepData.fixedTotal ??
+                prevYearSepData.fixed ??
+                prevYearSepData.fixedSalary ??
+                0;
+            }
+          }
+
+          // 前年10-12月の変動を検出
+          for (let prevMonth = 10; prevMonth <= 12; prevMonth++) {
+            const prevMonthKey = `${emp.id}_${prevMonth}`;
+            const prevMonthData = prevYearSalaryDataForDetection[prevMonthKey];
+
+            if (!prevMonthData) {
+              continue;
+            }
+
+            // 支払基礎日数を取得
+            const prevWorkingDaysKey = this.state.getWorkingDaysKey(
+              emp.id,
+              prevMonth
+            );
+            let prevWorkingDays = prevYearWorkingDaysData[prevWorkingDaysKey];
+            if (prevWorkingDays === undefined || isNaN(prevWorkingDays)) {
+              prevWorkingDays = new Date(prevYear, prevMonth, 0).getDate();
+            }
+            if (
+              isNaN(prevWorkingDays) ||
+              prevWorkingDays < 0 ||
+              prevWorkingDays > 31
+            ) {
+              continue;
+            }
+
+            // 固定費を取得
+            const prevCurrentFixed =
+              prevMonthData.fixedTotal ??
+              prevMonthData.fixed ??
+              prevMonthData.fixedSalary ??
+              0;
+
+            // 支払基礎日数が17日未満の月は固定費のチェックをスキップ
+            if (prevWorkingDays < 17) {
+              continue;
+            }
+
+            // 前月と比較して変動があったか判定
+            if (
+              prevYearPrevFixed > 0 &&
+              prevCurrentFixed !== prevYearPrevFixed
+            ) {
+              prevYearChangedMonths.push(prevMonth);
+            }
+
+            // 基準固定費を更新
+            prevYearPrevFixed = prevCurrentFixed;
+          }
+
+          // 前年10-12月の変動について随時改定を判定
+          for (const prevChangeMonth of prevYearChangedMonths) {
+            // 支払基礎日数17日未満のチェック（変動月を含む3ヶ月）
+            const prevTargetMonths = [
+              prevChangeMonth,
+              prevChangeMonth + 1,
+              prevChangeMonth + 2,
+            ];
+            const prevHasInvalidWorkingDays = prevTargetMonths.some(
+              (targetMonth) => {
+                let checkMonth = targetMonth;
+                let checkYear = prevYear;
+                if (checkMonth > 12) {
+                  checkMonth = checkMonth - 12;
+                  checkYear = prevYear + 1;
+                }
+
+                if (checkYear === prevYear) {
+                  // 前年の月
+                  const prevWorkingDaysKey = this.state.getWorkingDaysKey(
+                    emp.id,
+                    checkMonth
+                  );
+                  let prevWorkingDays =
+                    prevYearWorkingDaysData[prevWorkingDaysKey];
+                  if (prevWorkingDays === undefined || isNaN(prevWorkingDays)) {
+                    prevWorkingDays = new Date(
+                      prevYear,
+                      checkMonth,
+                      0
+                    ).getDate();
+                  }
+                  if (
+                    isNaN(prevWorkingDays) ||
+                    prevWorkingDays < 0 ||
+                    prevWorkingDays > 31
+                  ) {
+                    return true;
+                  }
+                  return prevWorkingDays < 17;
+                } else {
+                  // 当年の月（1-3月）
+                  const workingDaysKey = this.state.getWorkingDaysKey(
+                    emp.id,
+                    checkMonth
+                  );
+                  let workingDays = workingDaysData[workingDaysKey];
+                  if (workingDays === undefined || isNaN(workingDays)) {
+                    workingDays = new Date(year, checkMonth, 0).getDate();
+                  }
+                  if (
+                    isNaN(workingDays) ||
+                    workingDays < 0 ||
+                    workingDays > 31
+                  ) {
+                    return true;
+                  }
+                  return workingDays < 17;
+                }
+              }
+            );
+
+            // 支払基礎日数17日未満の月が1つでもあれば随時改定をスキップ
+            if (prevHasInvalidWorkingDays) {
+              continue;
+            }
+
+            // 変動前の標準報酬を取得（前年9月時点の標準報酬）
+            let prevYearPrevStandard = currentStandard;
+            const prevYearSepKey = `${emp.id}_9`;
+            const prevYearSepData =
+              prevYearSalaryDataForDetection[prevYearSepKey];
+            if (prevYearSepData) {
+              const prevYearSepRemuneration = this.calculateRemunerationAmount(
+                prevYearSepData,
+                prevYearSepKey,
+                prevYearSalaryItemData,
+                salaryItems
+              );
+              if (
+                prevYearSepRemuneration !== null &&
+                prevYearSepRemuneration > 0
+              ) {
+                const prevYearGradeTable =
+                  await this.settingsService.getStandardTable(prevYear);
+                const prevYearSepGradeResult =
+                  this.gradeDeterminationService.findGrade(
+                    prevYearGradeTable,
+                    prevYearSepRemuneration
+                  );
+                if (prevYearSepGradeResult) {
+                  prevYearPrevStandard = prevYearSepGradeResult.remuneration;
+                }
+              }
+            }
+
+            // 変動前の標準報酬から現行等級を取得
+            const prevYearGradeTable =
+              await this.settingsService.getStandardTable(prevYear);
+            const prevYearPrevGradeResult =
+              this.gradeDeterminationService.findGrade(
+                prevYearGradeTable,
+                prevYearPrevStandard
+              );
+            if (prevYearPrevGradeResult) {
+              const prevYearPrevGrade = prevYearPrevGradeResult.grade;
+
+              // 当年1-3月の給与データを取得（年度をまたぐ場合に必要）
+              const nextYearSalaryDataForDetection: {
+                [key: string]: MonthlySalaryData;
+              } = {};
+              const nextYearSalaryItemData: {
+                [key: string]: { [itemId: string]: number };
+              } = {};
+
+              for (let nextMonth = 1; nextMonth <= 3; nextMonth++) {
+                const nextMonthKey = `${emp.id}_${nextMonth}`;
+                const nextItemKey = this.state.getSalaryItemKey(
+                  emp.id,
+                  nextMonth
+                );
+                const nextItemData = salaryItemData[nextItemKey];
+
+                if (nextItemData && salaryItems) {
+                  let fixedTotal = 0;
+                  let variableTotal = 0;
+
+                  for (const item of salaryItems) {
+                    const amount = nextItemData[item.id] || 0;
+                    const isBonus =
+                      item.name === '賞与' ||
+                      item.name.includes('賞与') ||
+                      item.name.includes('ボーナス');
+                    const isDeduction = item.type === 'deduction';
+
+                    if (!isBonus && !isDeduction) {
+                      if (item.type === 'fixed') {
+                        fixedTotal += amount;
+                      } else if (item.type === 'variable') {
+                        variableTotal += amount;
+                      }
+                    }
+                  }
+
+                  nextYearSalaryDataForDetection[nextMonthKey] = {
+                    fixedTotal: fixedTotal,
+                    variableTotal: variableTotal,
+                    total: fixedTotal + variableTotal,
+                  };
+                  nextYearSalaryItemData[nextItemKey] = nextItemData;
+                } else {
+                  const nextKey = this.state.getSalaryKey(emp.id, nextMonth);
+                  const nextSalaryData = salaries[nextKey];
+                  if (nextSalaryData) {
+                    nextYearSalaryDataForDetection[nextMonthKey] = {
+                      fixedTotal: nextSalaryData.fixed,
+                      variableTotal: nextSalaryData.variable,
+                      total: nextSalaryData.total,
+                    };
+                  }
+                }
+              }
+
+              // 前年と当年の給与データを統合
+              const combinedSalaryData = {
+                ...prevYearSalaryDataForDetection,
+                ...nextYearSalaryDataForDetection,
+              };
+              const combinedSalaryItemData = {
+                ...prevYearSalaryItemData,
+                ...nextYearSalaryItemData,
+              };
+
+              // 年度をまたぐ場合の3ヶ月平均を計算
+              const prevYearAverage =
+                this.suijiService.calculateThreeMonthAverage(
+                  combinedSalaryData,
+                  emp.id,
+                  prevChangeMonth,
+                  combinedSalaryItemData,
+                  prevYearGradeTable,
+                  nextYearSalaryDataForDetection,
+                  nextYearSalaryItemData
+                );
+
+              // 3ヶ月分のデータが揃わない場合はスキップ
+              if (prevYearAverage !== null) {
+                // 平均から新等級を求める
+                const prevYearNewGrade = this.suijiService.getGradeFromAverage(
+                  prevYearAverage,
+                  prevYearGradeTable
+                );
+
+                if (prevYearNewGrade !== null) {
+                  // 随時改定の本判定（等級差が2以上かチェック）
+                  const prevYearDiff = Math.abs(
+                    prevYearNewGrade - prevYearPrevGrade
+                  );
+                  const prevYearIsEligible = prevYearDiff >= 2;
+
+                  if (prevYearIsEligible) {
+                    const prevYearApplyStartMonthRaw = prevChangeMonth + 3;
+                    const prevYearApplyStartMonth =
+                      prevYearApplyStartMonthRaw > 12
+                        ? prevYearApplyStartMonthRaw - 12
+                        : prevYearApplyStartMonthRaw;
+                    const prevYearApplyStartYear =
+                      prevYearApplyStartMonthRaw > 12 ? prevYear + 1 : prevYear;
+
+                    const prevYearSuijiResult: SuijiKouhoResult = {
+                      employeeId: emp.id,
+                      changeMonth: prevChangeMonth,
+                      averageSalary: prevYearAverage,
+                      currentGrade: prevYearPrevGrade,
+                      newGrade: prevYearNewGrade,
+                      diff: prevYearDiff,
+                      applyStartMonth: prevYearApplyStartMonth,
+                      reasons: [`等級差${prevYearDiff}で成立`],
+                      isEligible: true,
+                    };
+
+                    // 前年度にアラートを保存（変動月が発生した年度）
+                    await this.suijiService.saveSuijiKouho(
+                      prevYear,
+                      prevYearSuijiResult
+                    );
+                    suijiAlerts.push(prevYearSuijiResult);
                   }
                 }
               }
