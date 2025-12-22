@@ -18,6 +18,7 @@ import { Observable } from 'rxjs';
 import { RoomIdService } from './room-id.service';
 import { EditLogService } from './edit-log.service';
 import { UncollectedPremiumService } from './uncollected-premium.service';
+import { EmployeeChangeHistoryService } from './employee-change-history.service';
 
 @Injectable({ providedIn: 'root' })
 export class EmployeeService {
@@ -25,7 +26,8 @@ export class EmployeeService {
     private firestore: Firestore,
     private roomIdService: RoomIdService,
     private editLogService: EditLogService,
-    private uncollectedPremiumService: UncollectedPremiumService
+    private uncollectedPremiumService: UncollectedPremiumService,
+    private employeeChangeHistoryService: EmployeeChangeHistoryService
   ) {}
 
   async addEmployee(employee: any): Promise<string> {
@@ -241,8 +243,11 @@ export class EmployeeService {
       `従業員「${existingData['name'] || '不明'}」を削除しました`
     );
 
-    // 従業員削除時に紐づく徴収不能アラートも先に削除
+    // 従業員削除時に紐づく関連データを先に削除
+    // 1. 徴収不能アラートを削除
     await this.uncollectedPremiumService.deleteByEmployee(roomId, id);
+    // 2. 従業員変更履歴（資格変更アラートの元データ）を削除
+    await this.employeeChangeHistoryService.deleteByEmployee(roomId, id);
 
     await deleteDoc(ref);
   }

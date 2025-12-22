@@ -9,6 +9,7 @@ import {
   limit,
   doc,
   deleteDoc,
+  where,
 } from '@angular/fire/firestore';
 import { RoomIdService } from './room-id.service';
 import { EmployeeChangeHistory } from '../models/employee-change-history.model';
@@ -128,5 +129,46 @@ export class EmployeeChangeHistoryService {
     return histories.sort(
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
     );
+  }
+
+  /**
+   * 従業員に紐づく変更履歴を全て削除
+   * @param roomId ルームID
+   * @param employeeId 従業員ID
+   */
+  async deleteByEmployee(roomId: string, employeeId: string): Promise<void> {
+    if (!roomId || !employeeId) {
+      throw new Error('roomIdとemployeeIdは必須です');
+    }
+
+    try {
+      // 1. サブコレクション（個別従業員配下）の変更履歴を削除
+      const subCol = collection(
+        this.firestore,
+        `rooms/${roomId}/employees/${employeeId}/employeeChangeHistory`
+      );
+      const subSnapshot = await getDocs(subCol);
+      for (const docSnap of subSnapshot.docs) {
+        await deleteDoc(docSnap.ref);
+      }
+
+      // 2. 集約用コレクションから該当従業員の変更履歴を削除
+      const roomCol = collection(
+        this.firestore,
+        `rooms/${roomId}/employeeChangeHistory`
+      );
+      const roomQuery = query(roomCol, where('employeeId', '==', employeeId));
+      const roomSnapshot = await getDocs(roomQuery);
+      for (const docSnap of roomSnapshot.docs) {
+        await deleteDoc(docSnap.ref);
+      }
+    } catch (error) {
+      console.error(
+        `[EmployeeChangeHistoryService] deleteByEmployeeエラー: roomId=${roomId}, employeeId=${employeeId}`,
+        error
+      );
+      // エラーが発生しても処理を継続（他の削除処理に影響を与えないため）
+      throw error;
+    }
   }
 }
