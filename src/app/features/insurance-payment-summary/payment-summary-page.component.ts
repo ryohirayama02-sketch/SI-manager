@@ -1,12 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { PaymentSummaryStateService } from '../../services/payment-summary-state.service';
 import { PaymentSummaryDataService } from '../../services/payment-summary-data.service';
 import { PaymentSummaryOrchestratorService } from '../../services/payment-summary-orchestrator.service';
 import { PaymentSummaryFormatService } from '../../services/payment-summary-format.service';
 import { NotificationFormatService } from '../../services/notification-format.service';
 import { PaymentSummaryAggregationUiService } from '../../services/payment-summary-aggregation-ui.service';
+import { EmployeeService } from '../../services/employee.service';
 import { RoomIdService } from '../../services/room-id.service';
 import { CompanyMonthlyTotalTableComponent } from './components/company-monthly-total-table/company-monthly-total-table.component';
 import { PaymentSummaryHeaderComponent } from './components/payment-summary-header/payment-summary-header.component';
@@ -35,7 +37,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
   styleUrl: './payment-summary-page.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PaymentSummaryPageComponent implements OnInit {
+export class PaymentSummaryPageComponent implements OnInit, OnDestroy {
   // 状態管理サービスへの参照（テンプレートで使用）
   get state() {
     return this.stateService;
@@ -47,6 +49,7 @@ export class PaymentSummaryPageComponent implements OnInit {
   noticeAmountInputs: { [month: number]: string } = {};
   private readonly numberFormatter = new Intl.NumberFormat('ja-JP');
   isSavingNotice = false;
+  private employeeSubscription: Subscription | null = null;
 
   constructor(
     private stateService: PaymentSummaryStateService,
@@ -55,6 +58,7 @@ export class PaymentSummaryPageComponent implements OnInit {
     private paymentSummaryFormatService: PaymentSummaryFormatService,
     private notificationFormatService: NotificationFormatService,
     private aggregationService: PaymentSummaryAggregationUiService,
+    private employeeService: EmployeeService,
     private cdr: ChangeDetectorRef,
     private roomIdService: RoomIdService
   ) {}
@@ -63,6 +67,31 @@ export class PaymentSummaryPageComponent implements OnInit {
     await this.dataService.loadInitialData();
     this.loadNoticeAmounts(this.state.year);
     this.cdr.markForCheck();
+
+    // 従業員情報の変更を購読（産休・育休解除などに対応）
+    this.employeeSubscription = this.employeeService
+      .observeEmployees()
+      .subscribe(async () => {
+        try {
+          // 賞与の保険料を再計算して保存（内部で従業員情報も最新に更新される）
+          await this.dataService.recalculateAndSaveBonuses();
+          
+          // UIを更新
+          this.cdr.markForCheck();
+        } catch (error) {
+          console.error(
+            '[payment-summary-page] 従業員情報変更時の処理エラー:',
+            error
+          );
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    if (this.employeeSubscription) {
+      this.employeeSubscription.unsubscribe();
+      this.employeeSubscription = null;
+    }
   }
 
   async onYearChange(): Promise<void> {

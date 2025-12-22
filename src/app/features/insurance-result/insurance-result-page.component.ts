@@ -138,11 +138,22 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     // 従業員情報の変更を直接購読（observeEmployeesを使用）
     this.employeeSubscription = this.employeeService
       .observeEmployees()
-      .subscribe(() => {
+      .subscribe(async () => {
         // 従業員情報が変更されたときは、既に表示されているデータがあれば再読み込み
         // loadSelectedEmployeesData内で最新の従業員情報を取得する
         if (this.selectedEmployeeIds.size > 0) {
-          this.loadSelectedEmployeesData();
+          // 賞与の保険料を再計算して保存（産休・育休解除などに対応）
+          try {
+            await this.recalculateAndSaveBonuses();
+          } catch (error) {
+            console.error(
+              '[insurance-result-page] 賞与の再計算・保存エラー:',
+              error
+            );
+            // エラーが発生しても、表示データの再読み込みは続行する
+          }
+          // 表示データを再読み込み
+          await this.loadSelectedEmployeesData();
         }
       });
 
@@ -304,15 +315,16 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
         }
 
         // 各賞与を再計算して保存
+        // 注意：isExemptedの条件を除外している理由：
+        // 産休期間中に保存された賞与（isExempted: true）も、産休解除後に再計算する必要があるため
         for (const bonus of bonuses) {
           if (
             bonus.amount > 0 &&
-            !bonus.isExempted &&
             !bonus.isSalaryInsteadOfBonus &&
             bonus.payDate
           ) {
             try {
-              // 最新の従業員情報で賞与を再計算
+              // 最新の従業員情報で賞与を再計算（産休解除後の状態を反映）
               const calculationResult =
                 await this.bonusCalculationService.calculateBonus(
                   emp,
