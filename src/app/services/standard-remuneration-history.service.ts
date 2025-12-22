@@ -1231,6 +1231,15 @@ export class StandardRemunerationHistoryService {
         (r: any) => r.rank === suijiResult.newGrade
       );
 
+      // デバッグログ: 等級表の検索結果を確認（全ての変動月で出力）
+      console.log(
+        `[STANDARD_REMUNERATION] GRADE_TABLE_SEARCH | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | newGrade=${
+          suijiResult.newGrade
+        } | newGradeRowFound=${!!newGradeRow} | newGradeRowStandard=${
+          newGradeRow?.standard || 'none'
+        } | gradeTableLength=${applyStartYearGradeTable?.length || 0}`
+      );
+
       if (newGradeRow && newGradeRow.standard) {
         const suijiStandard = newGradeRow.standard;
 
@@ -1238,29 +1247,10 @@ export class StandardRemunerationHistoryService {
         const existingHistoriesForSuiji =
           await this.getStandardRemunerationHistories(employeeId);
 
-        // デバッグログ: 既存の履歴確認（7月の変動を重点的に確認）
-        if (changeMonth === 7) {
-          console.log(
-            `[SUIJI_DEBUG] EXISTING_HISTORIES_CHECK | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | existingHistoriesCount=${existingHistoriesForSuiji.length}`
-          );
-          const existingHistoriesDetail = existingHistoriesForSuiji.map(
-            (h) => ({
-              id: h.id,
-              applyStartYear: h.applyStartYear,
-              applyStartMonth: h.applyStartMonth,
-              determinationReason: h.determinationReason,
-              changeMonth: (h as any).changeMonth,
-              changeYear: (h as any).changeYear,
-              grade: h.grade,
-              standardMonthlyRemuneration: h.standardMonthlyRemuneration,
-            })
-          );
-          console.log(
-            `[SUIJI_DEBUG] EXISTING_HISTORIES_DETAIL | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | ${JSON.stringify(
-              existingHistoriesDetail
-            )}`
-          );
-        }
+        // デバッグログ: 既存の履歴確認（全ての変動月で出力）
+        console.log(
+          `[STANDARD_REMUNERATION] EXISTING_HISTORIES_CHECK | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | existingHistoriesCount=${existingHistoriesForSuiji.length}`
+        );
 
         // 同じ変動月の既存の随時改定履歴を全て削除
         const existingSuijiHistories = existingHistoriesForSuiji.filter(
@@ -1316,26 +1306,22 @@ export class StandardRemunerationHistoryService {
           existingSuijiHistory.standardMonthlyRemuneration !== suijiStandard ||
           existingSuijiHistory.grade !== suijiResult.newGrade;
 
-        // デバッグログ: 保存判定（7月の変動を重点的に確認）
-        if (changeMonth === 7) {
-          console.log(
-            `[SUIJI_DEBUG] SAVE_DECISION | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | shouldSave=${shouldSave} | existingSuijiHistory=${
-              existingSuijiHistory ? 'exists' : 'not exists'
-            } | existingStandard=${
-              existingSuijiHistory?.standardMonthlyRemuneration || 'none'
-            } | newStandard=${suijiStandard} | existingGrade=${
-              existingSuijiHistory?.grade || 'none'
-            } | newGrade=${suijiResult.newGrade}`
-          );
-        }
+        // デバッグログ: 保存判定（全ての変動月で出力）
+        console.log(
+          `[STANDARD_REMUNERATION] SAVE_DECISION | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | shouldSave=${shouldSave} | existingSuijiHistory=${
+            existingSuijiHistory ? 'exists' : 'not exists'
+          } | existingStandard=${
+            existingSuijiHistory?.standardMonthlyRemuneration || 'none'
+          } | newStandard=${suijiStandard} | existingGrade=${
+            existingSuijiHistory?.grade || 'none'
+          } | newGrade=${suijiResult.newGrade}`
+        );
 
         if (shouldSave) {
-          // デバッグログ: 保存前（7月の変動を重点的に確認）
-          if (changeMonth === 7) {
-            console.log(
-              `[SUIJI_DEBUG] SAVING_SUIJI_HISTORY | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | grade=${suijiResult.newGrade} | standardMonthlyRemuneration=${suijiStandard}`
-            );
-          }
+          // デバッグログ: 保存前（全ての変動月で出力）
+          console.log(
+            `[STANDARD_REMUNERATION] SAVING_SUIJI_HISTORY | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | grade=${suijiResult.newGrade} | standardMonthlyRemuneration=${suijiStandard}`
+          );
           await this.saveStandardRemunerationHistory({
             id: existingSuijiHistory?.id,
             employeeId,
@@ -1349,30 +1335,31 @@ export class StandardRemunerationHistoryService {
             changeMonth: changeMonth,
             changeYear: changeYear,
           } as any);
-          // デバッグログ: 保存後（7月の変動を重点的に確認）
-          if (changeMonth === 7) {
-            console.log(
-              `[SUIJI_DEBUG] SAVED_SUIJI_HISTORY | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | grade=${suijiResult.newGrade} | standardMonthlyRemuneration=${suijiStandard}`
-            );
-          }
+          // デバッグログ: 保存後（全ての変動月で出力）
+          console.log(
+            `[STANDARD_REMUNERATION] SAVED_SUIJI_HISTORY | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | grade=${suijiResult.newGrade} | standardMonthlyRemuneration=${suijiStandard}`
+          );
         } else {
-          // デバッグログ: 保存スキップ（7月の変動を重点的に確認）
-          if (changeMonth === 7) {
-            console.log(
-              `[SUIJI_DEBUG] SKIPPED_SAVE_SUIJI_HISTORY | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | reason=existing history matches`
-            );
-          }
+          // デバッグログ: 保存スキップ（全ての変動月で出力）
+          console.log(
+            `[STANDARD_REMUNERATION] SKIPPED_SAVE_SUIJI_HISTORY | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | reason=existing history matches`
+          );
         }
         generatedApplyStartMonths.push({
           year: applyStartYear,
           month: applyStartMonth,
         });
-        // デバッグログ: generatedApplyStartMonthsへの追加（7月の変動を重点的に確認）
-        if (changeMonth === 7) {
-          console.log(
-            `[SUIJI_DEBUG] ADDED_TO_GENERATED_MONTHS | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | applyStartMonth=${applyStartMonth} | generatedApplyStartMonthsCount=${generatedApplyStartMonths.length}`
-          );
-        }
+      } else {
+        // デバッグログ: 等級表に該当する等級が見つからない場合（全ての変動月で出力）
+        console.log(
+          `[STANDARD_REMUNERATION] GRADE_NOT_FOUND | employeeId=${employeeId} | changeYear=${changeYear} | changeMonth=${changeMonth} | applyStartYear=${applyStartYear} | newGrade=${
+            suijiResult.newGrade
+          } | gradeTableLength=${
+            applyStartYearGradeTable?.length || 0
+          } | newGradeRowFound=${!!newGradeRow} | newGradeRowStandard=${
+            newGradeRow?.standard || 'none'
+          }`
+        );
       }
     }
   }
