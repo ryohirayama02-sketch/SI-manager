@@ -2,11 +2,13 @@
   <h3>雇用条件</h3>
 
   <div class="form-group">
-    <label for="weeklyWorkHoursCategory">勤務区分</label>
+    <label for="weeklyWorkHoursCategory">勤務区分 <span class="required">*</span></label>
     <select
       id="weeklyWorkHoursCategory"
       formControlName="weeklyWorkHoursCategory"
       class="form-control"
+      required
+      [class.is-invalid]="form.get('weeklyWorkHoursCategory')?.invalid && form.get('weeklyWorkHoursCategory')?.touched"
     >
       <option value="">選択してください</option>
       <option value="30hours-or-more">フルタイム（週30時間以上）</option>
@@ -15,10 +17,16 @@
         社会保険非加入（週20時間未満または要件未達）
       </option>
     </select>
+    <div
+      *ngIf="form.get('weeklyWorkHoursCategory')?.invalid && form.get('weeklyWorkHoursCategory')?.touched"
+      class="invalid-feedback"
+    >
+      勤務区分を選択してください。
+    </div>
   </div>
 
   <div class="form-group">
-    <label for="monthlyWage">月額賃金見込（半角数字）</label>
+    <label for="monthlyWage">月額賃金見込（半角数字） <span class="required">*</span></label>
     <input
       id="monthlyWage"
       type="text"
@@ -27,20 +35,36 @@
       placeholder="円"
       (input)="onMonthlyWageInput($event)"
       (blur)="onMonthlyWageBlur()"
+      required
+      [class.is-invalid]="form.get('monthlyWage')?.invalid && form.get('monthlyWage')?.touched"
     />
+    <div
+      *ngIf="form.get('monthlyWage')?.invalid && form.get('monthlyWage')?.touched"
+      class="invalid-feedback"
+    >
+      月額賃金見込を入力してください。
+    </div>
   </div>
 
   <div class="form-group">
-    <label for="expectedEmploymentMonths">雇用見込期間</label>
+    <label for="expectedEmploymentMonths">雇用見込期間 <span class="required">*</span></label>
     <select
       id="expectedEmploymentMonths"
       formControlName="expectedEmploymentMonths"
       class="form-control"
+      required
+      [class.is-invalid]="form.get('expectedEmploymentMonths')?.invalid && form.get('expectedEmploymentMonths')?.touched"
     >
       <option value="">選択してください</option>
       <option value="within-2months">2か月以内</option>
       <option value="over-2months">2か月を超える見込み</option>
     </select>
+    <div
+      *ngIf="form.get('expectedEmploymentMonths')?.invalid && form.get('expectedEmploymentMonths')?.touched"
+      class="invalid-feedback"
+    >
+      雇用見込期間を選択してください。
+    </div>
   </div>
 
   <div class="form-group">
