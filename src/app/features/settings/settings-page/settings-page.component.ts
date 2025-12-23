@@ -246,10 +246,10 @@ export class SettingsPageComponent {
       officeNumber: [''],
       corporateNumber: [''],
       prefecture: ['tokyo'], // デフォルトは東京都
-      address: [''],
+      address: ['', Validators.required],
       officeName: [''],
       phoneNumber: [''],
-      ownerName: [''],
+      ownerName: ['', Validators.required],
     });
   }
 
@@ -938,6 +938,11 @@ export class SettingsPageComponent {
       // officeFormの存在確認
       if (!this.officeForm || !this.officeForm.value) {
         alert('事業所マスタのデータが存在しません');
+        return;
+      }
+
+      // フォームが無効な場合は保存しない（ボタンが無効化されているため通常は呼ばれないが、念のため）
+      if (!this.officeForm.valid) {
         return;
       }
 

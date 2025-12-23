@@ -34,6 +34,7 @@ import { MonthlySalaryCsvImportUiService } from '../../services/monthly-salary-c
 import { FormsModule } from '@angular/forms';
 import { RoomIdService } from '../../services/room-id.service';
 import { StandardRemunerationHistoryService } from '../../services/standard-remuneration-history.service';
+import { EmployeeLifecycleService } from '../../services/employee-lifecycle.service';
 
 @Component({
   selector: 'app-monthly-salaries-page',
@@ -96,6 +97,10 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   // ルーターイベント購読用
   routerSubscription: Subscription | null = null;
 
+  // 警告メッセージ用のプロパティ
+  hasMissingMonthlySalaries: boolean = false;
+  isCheckingMissingSalaries: boolean = false; // チェック中フラグ
+
   constructor(
     private employeeService: EmployeeService,
     private monthlySalaryService: MonthlySalaryService,
@@ -111,7 +116,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     private csvImportUiService: MonthlySalaryCsvImportUiService,
     private router: Router,
     private roomIdService: RoomIdService,
-    private standardRemunerationHistoryService: StandardRemunerationHistoryService
+    private standardRemunerationHistoryService: StandardRemunerationHistoryService,
+    private employeeLifecycleService: EmployeeLifecycleService
   ) {
     // 年度選択用の年度リストを生成（2020〜2030）
     for (let y = 2020; y <= 2030; y++) {
@@ -162,6 +168,13 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
           await this.reloadData();
         }
       });
+
+    // 警告チェックを非同期で実行（既存処理をブロックしない）
+    this.checkMissingMonthlySalaries().catch(error => {
+      console.warn('月次給与未入力チェックでエラーが発生しました:', error);
+      // エラーが発生しても既存処理には影響しない
+      this.hasMissingMonthlySalaries = false;
+    });
   }
 
   ngOnDestroy(): void {
@@ -233,6 +246,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     this.exemptReasons = result.exemptReasons;
     this.errorMessages = result.errorMessages;
     this.warningMessages = result.warningMessages;
+
+    // 警告チェックを非同期で実行（既存処理をブロックしない）
+    this.checkMissingMonthlySalaries().catch(error => {
+      console.warn('月次給与未入力チェックでエラーが発生しました:', error);
+      this.hasMissingMonthlySalaries = false;
+    });
   }
 
   getSalaryKey(employeeId: string, month: number): string {
@@ -505,6 +524,12 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
     this.errorMessages = state.errorMessages;
     this.warningMessages = state.warningMessages;
     this.infoByEmployee = state.infoByEmployee;
+
+    // 警告チェックを非同期で実行（既存処理をブロックしない）
+    this.checkMissingMonthlySalaries().catch(error => {
+      console.warn('月次給与未入力チェックでエラーが発生しました:', error);
+      this.hasMissingMonthlySalaries = false;
+    });
   }
 
   closeSuijiDialog(): void {
@@ -565,4 +590,148 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   // 保存中フラグ
   isSaving: boolean = false;
   saveMessage: string = '';
+
+  /**
+   * 入社月から現在までで、月次給与が入力されていない月があるかチェック
+   * 既存ロジックに影響を与えないよう、非同期で実行し、エラー時も既存処理を継続
+   */
+  private async checkMissingMonthlySalaries(): Promise<void> {
+    // チェック中フラグを設定（重複実行を防止）
+    if (this.isCheckingMissingSalaries) {
+      return;
+    }
+    this.isCheckingMissingSalaries = true;
+
+    try {
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1; // 1-12
+      const roomId = this.roomIdService.requireRoomId();
+
+      let hasMissing = false;
+
+      for (const employee of this.employees) {
+        if (!employee || !employee.id || !employee.joinDate) {
+          continue;
+        }
+
+        // 入社月を取得
+        const joinDate = new Date(employee.joinDate);
+        if (isNaN(joinDate.getTime())) {
+          continue;
+        }
+
+        const joinYear = joinDate.getFullYear();
+        const joinMonth = joinDate.getMonth() + 1; // 1-12
+
+        // 退職月を取得（退職済みの場合）
+        let retireYear: number | null = null;
+        let retireMonth: number | null = null;
+        if (employee.retireDate) {
+          const retireDate = new Date(employee.retireDate);
+          if (!isNaN(retireDate.getTime())) {
+            retireYear = retireDate.getFullYear();
+            retireMonth = retireDate.getMonth() + 1; // 1-12
+          }
+        }
+
+        // チェック対象の期間を決定（入社月から現在（または退職月）まで）
+        const checkStartYear = joinYear;
+        const checkStartMonth = joinMonth;
+        const checkEndYear = retireYear ? Math.min(retireYear, currentYear) : currentYear;
+        const checkEndMonth = retireYear && retireYear === checkEndYear 
+          ? Math.min(retireMonth!, currentMonth)
+          : currentMonth;
+
+        // 入社月から現在（または退職月）までをチェック
+        for (let year = checkStartYear; year <= checkEndYear; year++) {
+          const startMonth = year === checkStartYear ? checkStartMonth : 1;
+          const endMonth = year === checkEndYear ? checkEndMonth : 12;
+
+          for (let month = startMonth; month <= endMonth; month++) {
+            // 産休・育休中の月は除外
+            const isMaternityLeave = this.employeeLifecycleService.isMaternityLeave(
+              employee,
+              year,
+              month
+            );
+            const isChildcareLeave = this.employeeLifecycleService.isChildcareLeave(
+              employee,
+              year,
+              month
+            );
+
+            if (isMaternityLeave || isChildcareLeave) {
+              continue;
+            }
+
+            // 月次給与データが入力されているかチェック
+            let hasSalaryData = false;
+
+            // 画面に表示されている年度のデータは、メモリ上のデータから取得
+            if (year === this.year) {
+              const salaryKey = this.getSalaryKey(employee.id, month);
+              const salaryItemKey = this.getSalaryItemKey(employee.id, month);
+              
+              hasSalaryData = 
+                (this.salaries[salaryKey] && this.salaries[salaryKey].total > 0) ||
+                (this.salaryItemData[salaryItemKey] && 
+                 Object.keys(this.salaryItemData[salaryItemKey]).length > 0 &&
+                 Object.values(this.salaryItemData[salaryItemKey]).some(v => v > 0));
+            } else {
+              // 過去年度のデータは、データベースから取得
+              try {
+                const monthData = await this.monthlySalaryService.getEmployeeSalary(
+                  roomId,
+                  employee.id,
+                  year,
+                  month
+                );
+
+                if (monthData) {
+                  // 新しい項目別形式をチェック
+                  if (monthData.salaryItems && Array.isArray(monthData.salaryItems)) {
+                    hasSalaryData = monthData.salaryItems.some(
+                      (entry: any) => entry.amount > 0
+                    );
+                  } else {
+                    // 既存形式をチェック
+                    const total = monthData.totalSalary ?? monthData.total ?? 0;
+                    const fixed = monthData.fixedSalary ?? monthData.fixed ?? 0;
+                    const variable = monthData.variableSalary ?? monthData.variable ?? 0;
+                    hasSalaryData = total > 0 || fixed > 0 || variable > 0;
+                  }
+                }
+              } catch (error) {
+                // エラーが発生した場合は、その月はチェックをスキップ（既存処理には影響しない）
+                console.warn(`月次給与データの取得に失敗しました（${employee.id}, ${year}年${month}月）:`, error);
+                continue;
+              }
+            }
+
+            if (!hasSalaryData) {
+              hasMissing = true;
+              break;
+            }
+          }
+
+          if (hasMissing) {
+            break;
+          }
+        }
+
+        if (hasMissing) {
+          break;
+        }
+      }
+
+      this.hasMissingMonthlySalaries = hasMissing;
+    } catch (error) {
+      // エラーが発生しても既存処理には影響しない
+      console.error('月次給与未入力チェックでエラーが発生しました:', error);
+      this.hasMissingMonthlySalaries = false;
+    } finally {
+      this.isCheckingMissingSalaries = false;
+    }
+  }
 }

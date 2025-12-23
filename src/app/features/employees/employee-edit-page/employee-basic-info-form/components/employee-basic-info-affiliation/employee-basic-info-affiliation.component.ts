@@ -121,12 +121,7 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
   }
 
   getOfficeDisplayName(office: Office): string {
-    const code = office.officeCode || '';
-    const number = office.officeNumber || '';
     const address = office.address || '';
-    if (code && number) {
-      return `${code}-${number}${address ? ` (${address})` : ''}`;
-    }
-    return address || '事業所名未設定';
+    return address || '住所未設定';
   }
 }

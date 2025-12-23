@@ -1,5 +1,10 @@
 <h2>月次給与</h2>
 
+<!-- 警告メッセージを追加 -->
+<div *ngIf="hasMissingMonthlySalaries" class="info-label" style="margin-bottom: 1rem; background-color: #fff3cd; border: 1px solid #ffc107; color: #856404;">
+  入社月から現在までで、月次給与が入力されていない月があります。入力を済ませてください。
+</div>
+
 <div class="card" style="max-width: 600px; margin-bottom: 1rem">
   <div class="form-group">
     <label>年度：</label>

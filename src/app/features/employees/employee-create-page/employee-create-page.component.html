@@ -212,8 +212,7 @@
         >
           <option value="">選択してください</option>
           <option *ngFor="let office of offices" [value]="office.officeNumber">
-            {{ office.officeCode || "" }}-{{ office.officeNumber || "" }}
-            {{ office.ownerName || "" }}
+            {{ office.address || "住所未設定" }}
           </option>
         </select>
       </div>
