@@ -1,4 +1,9 @@
 <div class="card">
+  <h3>定時決定（算定基礎届）</h3>
+  <p class="info-text" style="margin-bottom: 1rem">
+    支払基礎日数が17日以上の4〜6月の給与所得と平均額を表示します。<br />
+    支払基礎日数が17日未満の月は除外します。
+  </p>
   <div style="max-width: 400px; margin-bottom: 1rem">
     <div class="form-group">
       <label>年度：</label>
@@ -12,12 +17,6 @@
       </select>
     </div>
   </div>
-
-  <h3>算定基礎届対象者一覧</h3>
-  <p class="info-text" style="margin-bottom: 1rem">
-    支払基礎日数が17日以上の4〜6月の給与所得と平均額を表示します。<br />
-    支払基礎日数が17日未満の月は除外します。
-  </p>
 
   <div
     *ngIf="!isLoadingTeijiKettei && teijiKetteiResults.length > 0"
