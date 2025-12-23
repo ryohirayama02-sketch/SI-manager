@@ -143,6 +143,11 @@
     </button>
   </div>
 
+  <!-- 説明文（届出スケジュールタブが選択されている場合のみ表示） -->
+  <div class="info-label" *ngIf="state.activeTab === 'schedule'">
+    社会保険に関する届出提出期日・従業員への確認期日をカレンダー上に表示します。
+  </div>
+
   <div class="tab-content">
     <!-- 届出スケジュール（マンスリーカレンダー）タブ -->
     <app-alert-schedule-tab
