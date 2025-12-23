@@ -107,12 +107,16 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
         prefecture: selectedOffice.prefecture || 'tokyo',
         officeNumber: selectedOffice.officeNumber || ''
       });
+      // バリデーション状態を更新
+      this.form.get('officeNumber')?.markAsTouched();
     } else {
       // 事業所が選択されていない場合はクリア
       this.form.patchValue({
         prefecture: 'tokyo',
         officeNumber: ''
       });
+      // バリデーション状態を更新
+      this.form.get('officeNumber')?.markAsTouched();
     }
   }
 

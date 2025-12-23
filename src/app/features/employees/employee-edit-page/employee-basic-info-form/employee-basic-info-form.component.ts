@@ -91,7 +91,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       expectedEmploymentMonths: [null],
       isStudent: [false],
       prefecture: ['tokyo'],
-      officeNumber: [''],
+      officeNumber: ['', Validators.required],
       department: [''],
       joinDate: ['', Validators.required],
       retireDate: [''],
@@ -259,9 +259,24 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
   async updateEmployee(): Promise<void> {
     this.validateDates();
+    
+    // フォームの全コントロールをtouched状態にする（バリデーションエラーを表示するため）
+    Object.keys(this.form.controls).forEach(key => {
+      this.form.get(key)?.markAsTouched();
+    });
+    
+    // 事業所が選択されていない場合はエラー
+    const officeNumber = this.form.get('officeNumber')?.value;
+    if (!officeNumber || officeNumber.trim() === '') {
+      this.errorMessages.push('事業所を選択してください。');
+      this.errorMessagesChange.emit(this.errorMessages);
+      return;
+    }
+    
     if (this.errorMessages.length > 0) {
       return;
     }
+    
     if (!this.employeeId || !this.form.valid) return;
 
     const value = this.form.value;
