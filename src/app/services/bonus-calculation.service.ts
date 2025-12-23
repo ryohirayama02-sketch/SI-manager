@@ -221,6 +221,60 @@ export class BonusCalculationService {
     );
     const reason_not_lastday_retired = isRetiredNoLastDay;
 
+    // 入社月より前の月のチェック
+    // 支給月が入社月より前の場合は保険料を0円にする（月次保険料計算と同じロジック）
+    if (employee.joinDate) {
+      const joinDate = new Date(employee.joinDate);
+      if (!isNaN(joinDate.getTime())) {
+        const joinYear = joinDate.getFullYear();
+        const joinMonth = joinDate.getMonth() + 1;
+        // 支給月が入社月より前の場合（支給年 < 入社年、または支給年 = 入社年かつ支給月 < 入社月）
+        if (payYear < joinYear || (payYear === joinYear && payMonth < joinMonth)) {
+          const reasons: string[] = [
+            '支給月が入社月より前のため保険料は0円です',
+          ];
+          return this.resultBuilderService.buildResult(
+            0, // healthEmployee
+            0, // healthEmployer
+            0, // careEmployee
+            0, // careEmployer
+            0, // pensionEmployee
+            0, // pensionEmployer
+            bonusAmount,
+            this.resultBuilderService.calculateDeadline(payDate),
+            0, // standardBonus
+            0, // cappedBonusHealth
+            0, // cappedBonusPension
+            false, // isExempted
+            false, // isRetiredNoLastDay
+            false, // isOverAge70
+            false, // isOverAge75
+            false, // reason_exempt_maternity
+            false, // reason_exempt_childcare
+            false, // reason_not_lastday_retired
+            false, // reason_age70
+            false, // reason_age75
+            false, // reason_bonus_to_salary
+            false, // reason_upper_limit_health
+            false, // reason_upper_limit_pension
+            reasons,
+            false, // requireReport
+            '', // reportReason
+            null, // reportDeadline
+            0, // bonusCountLast12Months
+            false, // isSalaryInsteadOfBonus
+            undefined, // reason_bonus_to_salary_text
+            undefined, // exemptReason
+            [], // exemptReasons
+            [], // salaryInsteadReasons
+            [], // errorMessages
+            [], // warningMessages
+            false // reportRequired
+          );
+        }
+      }
+    }
+
     // 産休・育休チェック
     const maternityChildcareResult =
       this.exemptionCheckService.checkMaternityAndChildcareExemptions(
