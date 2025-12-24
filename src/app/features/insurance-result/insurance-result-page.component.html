@@ -159,7 +159,11 @@
               style="color: #ff6b00; font-weight: bold"
               >{{ getExemptLabel(row.monthlyPremium?.exemptReason) }}</span
             >
-            <span *ngIf="!row.monthlyPremium?.isExempt">
+            <span
+              *ngIf="!row.monthlyPremium?.isExempt"
+              [title]="row.monthlyPremium?.calculationFormula?.health || ''"
+              style="cursor: help;"
+            >
               {{ row.monthlyTotal.healthEmployee | number : "1.0-0" }} /
               {{ row.monthlyTotal.healthEmployer | number : "1.0-0" }}
             </span>
@@ -170,7 +174,11 @@
               style="color: #ff6b00; font-weight: bold"
               >{{ getExemptLabel(row.monthlyPremium?.exemptReason) }}</span
             >
-            <span *ngIf="!row.monthlyPremium?.isExempt">
+            <span
+              *ngIf="!row.monthlyPremium?.isExempt"
+              [title]="row.monthlyPremium?.calculationFormula?.pension || ''"
+              style="cursor: help;"
+            >
               {{ row.monthlyTotal.pensionEmployee | number : "1.0-0" }} /
               {{ row.monthlyTotal.pensionEmployer | number : "1.0-0" }}
             </span>
@@ -182,7 +190,11 @@
                 style="color: #ff6b00; font-weight: bold"
                 >{{ getExemptLabel(row.bonusPremium.exemptReason) }}</span
               >
-              <span *ngIf="!row.bonusPremium.isExempted">
+              <span
+                *ngIf="!row.bonusPremium.isExempted"
+                [title]="row.bonusPremium.calculationFormula?.health || ''"
+                style="cursor: help"
+              >
                 {{ row.bonusTotal?.healthEmployee || 0 | number : "1.0-0" }} /
                 {{ row.bonusTotal?.healthEmployer || 0 | number : "1.0-0" }}
               </span>
@@ -196,7 +208,11 @@
                 style="color: #ff6b00; font-weight: bold"
                 >{{ getExemptLabel(row.bonusPremium.exemptReason) }}</span
               >
-              <span *ngIf="!row.bonusPremium.isExempted">
+              <span
+                *ngIf="!row.bonusPremium.isExempted"
+                [title]="row.bonusPremium.calculationFormula?.pension || ''"
+                style="cursor: help"
+              >
                 {{ row.bonusTotal?.pensionEmployee || 0 | number : "1.0-0" }} /
                 {{ row.bonusTotal?.pensionEmployer || 0 | number : "1.0-0" }}
               </span>
@@ -348,7 +364,11 @@
                       style="color: #ff6b00; font-weight: bold"
                       >{{ getExemptLabel(premium.exemptReason) }}</span
                     >
-                    <span *ngIf="!premium.isExempt">
+                    <span
+                      *ngIf="!premium.isExempt"
+                      [title]="premium.calculationFormula?.health || ''"
+                      style="cursor: help;"
+                    >
                       {{
                         premium.healthEmployee + premium.careEmployee
                           | number : "1.0-0"
@@ -366,7 +386,11 @@
                       style="color: #ff6b00; font-weight: bold"
                       >{{ getExemptLabel(premium.exemptReason) }}</span
                     >
-                    <span *ngIf="!premium.isExempt">
+                    <span
+                      *ngIf="!premium.isExempt"
+                      [title]="premium.calculationFormula?.pension || ''"
+                      style="cursor: help;"
+                    >
                       {{ premium.pensionEmployee | number : "1.0-0" }} /
                       {{ premium.pensionEmployer | number : "1.0-0" }}
                     </span>
@@ -385,6 +409,8 @@
                         *ngIf="
                           !getMonthBonus(emp.id, premium.month)!.isExempted
                         "
+                        [title]="getMonthBonus(emp.id, premium.month)?.calculationFormula?.health || ''"
+                        style="cursor: help"
                       >
                         {{
                           getMonthBonus(emp.id, premium.month)!
@@ -413,6 +439,8 @@
                         *ngIf="
                           !getMonthBonus(emp.id, premium.month)!.isExempted
                         "
+                        [title]="getMonthBonus(emp.id, premium.month)?.calculationFormula?.pension || ''"
+                        style="cursor: help"
                       >
                         {{
                           getMonthBonus(emp.id, premium.month)!

@@ -10,9 +10,11 @@ import { SettingsService } from '../../services/settings.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
 import { StandardRemunerationHistoryService } from '../../services/standard-remuneration-history.service';
 import { BonusCalculationService } from '../../services/bonus-calculation.service';
+import { SuijiService } from '../../services/suiji.service';
 import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { RoomIdService } from '../../services/room-id.service';
+import { SuijiKouhoResult } from '../../services/salary-calculation.service';
 
 interface MonthlyPremiumData {
   month: number;
@@ -28,6 +30,11 @@ interface MonthlyPremiumData {
   isExempt: boolean;
   exemptReason: string;
   reasons: string[];
+  // 計算式情報（ツールチップ表示用、オプショナル）
+  calculationFormula?: {
+    health?: string; // 例: "標準報酬500,000円×4.955%"
+    pension?: string; // 例: "標準報酬500,000円×9.15%"
+  };
 }
 
 interface EmployeeInsuranceData {
@@ -126,7 +133,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private employeeEligibilityService: EmployeeEligibilityService,
     private roomIdService: RoomIdService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
-    private bonusCalculationService: BonusCalculationService
+    private bonusCalculationService: BonusCalculationService,
+    private suijiService: SuijiService
   ) {
     // 年度選択用の年度リストを生成（2020〜2030）
     for (let y = 2020; y <= 2030; y++) {
@@ -438,6 +446,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           await this.settingsService.getStandardTableForMonth(this.year, m);
       }
 
+      // 随時改定アラートを取得
+      const suijiAlerts = await this.suijiService.loadAlerts(this.year);
+
       // 選択された従業員だけを取得（最新の情報を使用）
       const selectedEmployees = this.sortedEmployees.filter((emp) =>
         this.selectedEmployeeIds.has(emp.id)
@@ -454,7 +465,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             return this.processEmployeeInsuranceData(
               emp,
               gradeTableByMonth,
-              monthsToCalc
+              monthsToCalc,
+              suijiAlerts
             );
           })
         );
@@ -624,7 +636,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   private async processEmployeeInsuranceData(
     emp: Employee,
     gradeTableByMonth: { [month: number]: any[] },
-    targetMonths: number[]
+    targetMonths: number[],
+    suijiAlerts: (SuijiKouhoResult & { id: string })[]
   ): Promise<void> {
     try {
       const roomId = this.roomIdService.requireRoomId();
@@ -775,36 +788,94 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               month,
               fixedSalary,
               variableSalary,
-              gradeTable
+              gradeTable,
+              suijiAlerts
             );
 
-          // 標準報酬等級を取得（gradeTableから直接検索）
+          // 標準報酬等級を取得（premium-calculation.service.tsと同じロジックで随時改定を優先）
           const totalSalary = fixedSalary + variableSalary;
           let grade: number | null = null;
           let standardMonthlyRemuneration = 0;
 
-          // 給与がある場合はgradeTableから等級を検索
-          if (totalSalary > 0 && gradeTable) {
+          // 1. 随時改定が適用されている場合は新しい等級を使用
+          let appliedSuiji: SuijiKouhoResult | null = null;
+          if (suijiAlerts && suijiAlerts.length > 0) {
+            const employeeSuiji = suijiAlerts.filter(
+              (alert) => alert.employeeId === emp.id && alert.isEligible
+            );
+            const applicableSuiji = employeeSuiji
+              .filter((alert) => {
+                const applyStartMonth = alert.applyStartMonth;
+                return applyStartMonth <= month;
+              })
+              .sort((a, b) => {
+                return a.applyStartMonth - b.applyStartMonth;
+              });
+
+            if (applicableSuiji.length > 0) {
+              appliedSuiji = applicableSuiji[0];
+            }
+          }
+
+          if (appliedSuiji && gradeTable) {
+            const newGradeRow = gradeTable.find(
+              (r: any) => r.rank === appliedSuiji!.newGrade
+            );
+            if (newGradeRow && newGradeRow.standard) {
+              const suijiStandard = newGradeRow.standard;
+              grade = appliedSuiji.newGrade;
+              standardMonthlyRemuneration = suijiStandard;
+            }
+          }
+
+          // 2. 標準報酬履歴から取得（随時改定が適用されていない場合）
+          if (!standardMonthlyRemuneration && emp.id) {
+            const historyStandard =
+              await this.standardRemunerationHistoryService.getStandardRemunerationForMonth(
+                emp.id,
+                selectedYearNum,
+                month
+              );
+
+            if (historyStandard && historyStandard > 0) {
+              standardMonthlyRemuneration = historyStandard;
+              if (gradeTable) {
+                const gradeRow = gradeTable.find(
+                  (r: any) => r.standard === historyStandard
+                );
+                if (gradeRow) {
+                  grade = gradeRow.rank;
+                }
+              }
+            }
+          }
+
+          // 3. 従業員データの標準報酬月額を確認
+          if (
+            !standardMonthlyRemuneration &&
+            emp.currentStandardMonthlyRemuneration &&
+            emp.currentStandardMonthlyRemuneration > 0
+          ) {
+            const teijiStandard = emp.currentStandardMonthlyRemuneration;
+            standardMonthlyRemuneration = teijiStandard;
+            if (gradeTable) {
+              const gradeRow = gradeTable.find(
+                (r: any) => r.standard === teijiStandard
+              );
+              if (gradeRow) {
+                grade = gradeRow.rank;
+              }
+            }
+          }
+
+          // 4. その月の給与額から等級を判定（標準報酬月額が確定していない場合）
+          if (!standardMonthlyRemuneration && totalSalary > 0 && gradeTable) {
             const gradeRow = gradeTable.find(
               (r: any) => totalSalary >= r.lower && totalSalary < r.upper
             );
             if (gradeRow) {
               grade = gradeRow.rank;
               standardMonthlyRemuneration = gradeRow.standard;
-            }
-          } else if (hasStandardRemuneration && gradeTable) {
-            // 給与が0円でも標準報酬月額が確定している場合は、標準報酬月額から等級を逆引き
-            // effectiveStandardを使用（従業員データと履歴から取得した値）
-            const standard = effectiveStandard || 0;
-            const gradeRow = gradeTable.find(
-              (r: any) => r.standard === standard
-            );
-            if (gradeRow) {
-              grade = gradeRow.rank;
-              standardMonthlyRemuneration = gradeRow.standard;
-            } else {
-              // 等級が見つからない場合は標準報酬月額のみを使用
-              standardMonthlyRemuneration = standard;
             }
           }
 
@@ -830,6 +901,56 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           const pensionEmployee = isExempt ? 0 : premiumResult.pension_employee;
           const pensionEmployer = isExempt ? 0 : premiumResult.pension_employer;
 
+          // 計算式を生成（ツールチップ表示用）
+          let calculationFormula: { health?: string; pension?: string } | undefined;
+          if (!isExempt && standardMonthlyRemuneration > 0) {
+            try {
+              // 料率を取得
+              const prefecture = (emp as any).prefecture || 'tokyo';
+              const rates = await this.settingsService.getRates(
+                this.year.toString(),
+                prefecture,
+                month.toString()
+              );
+
+              if (rates) {
+                // 介護保険の判定
+                const careType = emp.birthDate
+                  ? this.salaryCalculationService.getCareInsuranceType(
+                      emp.birthDate,
+                      selectedYearNum,
+                      month
+                    )
+                  : 'none';
+                const isCareApplicable = careType === 'type2';
+
+                // 健康保険の計算式
+                const healthRateTotal = isCareApplicable
+                  ? rates.health_employee +
+                    rates.health_employer +
+                    rates.care_employee +
+                    rates.care_employer
+                  : rates.health_employee + rates.health_employer;
+                const healthRatePercent = (healthRateTotal * 100).toFixed(3);
+                calculationFormula = {
+                  health: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${healthRatePercent}% /2`,
+                };
+
+                // 厚生年金の計算式
+                const pensionRateTotal =
+                  rates.pension_employee + rates.pension_employer;
+                const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);
+                calculationFormula.pension = `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${pensionRatePercent}% /2`;
+              }
+            } catch (error) {
+              // 計算式の生成に失敗しても既存処理には影響しない
+              console.warn(
+                `計算式の生成に失敗しました（${emp.id}, ${this.year}年${month}月）:`,
+                error
+              );
+            }
+          }
+
           const monthlyPremium: MonthlyPremiumData = {
             month,
             grade,
@@ -850,6 +971,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             isExempt,
             exemptReason,
             reasons: [],
+            calculationFormula,
           };
 
           monthlyPremiums.push(monthlyPremium);
@@ -954,6 +1076,17 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 bonus.careEmployer = calculationResult.careEmployer || 0;
                 bonus.pensionEmployee = calculationResult.pensionEmployee || 0;
                 bonus.pensionEmployer = calculationResult.pensionEmployer || 0;
+                
+                // 計算式生成に必要な情報も保存
+                if (calculationResult.cappedBonusHealth !== undefined) {
+                  bonus.cappedBonusHealth = calculationResult.cappedBonusHealth;
+                }
+                if (calculationResult.cappedBonusPension !== undefined) {
+                  bonus.cappedBonusPension = calculationResult.cappedBonusPension;
+                }
+                if (calculationResult.standardBonus !== undefined) {
+                  bonus.standardBonusAmount = calculationResult.standardBonus;
+                }
               }
             } catch (error) {
               console.error(
@@ -961,6 +1094,114 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 error
               );
               // エラーが発生した場合は、既存の値をそのまま使用
+            }
+          }
+
+          // 計算式を生成（ツールチップ表示用）
+          // 既存の賞与データにも計算式を生成するため、再計算の有無に関わらず実行
+          if (!bonus.isExempted && bonus.payDate) {
+            try {
+              const payDateObj = new Date(bonus.payDate);
+              const payYear = payDateObj.getFullYear();
+              const payMonth = payDateObj.getMonth() + 1;
+              
+              // 標準賞与額を取得（上限適用後の額を優先）
+              // cappedBonusHealth/cappedBonusPensionが存在しない場合は、再計算を試みる
+              let standardBonusHealth = bonus.cappedBonusHealth ?? bonus.standardBonusAmount ?? 0;
+              let standardBonusPension = bonus.cappedBonusPension ?? bonus.standardBonusAmount ?? 0;
+
+              // 標準賞与額が取得できない場合、再計算を試みる
+              if ((standardBonusHealth === 0 && standardBonusPension === 0) && bonus.amount > 0) {
+                try {
+                  const calculationResult =
+                    await this.bonusCalculationService.calculateBonus(
+                      emp,
+                      emp.id,
+                      bonus.amount,
+                      bonus.payDate,
+                      this.year
+                    );
+
+                  if (calculationResult) {
+                    standardBonusHealth = calculationResult.cappedBonusHealth ?? calculationResult.standardBonus ?? 0;
+                    standardBonusPension = calculationResult.cappedBonusPension ?? calculationResult.standardBonus ?? 0;
+                    
+                    // bonusオブジェクトにも保存（次回の表示時に使用）
+                    if (calculationResult.cappedBonusHealth !== undefined) {
+                      bonus.cappedBonusHealth = calculationResult.cappedBonusHealth;
+                    }
+                    if (calculationResult.cappedBonusPension !== undefined) {
+                      bonus.cappedBonusPension = calculationResult.cappedBonusPension;
+                    }
+                    if (calculationResult.standardBonus !== undefined) {
+                      bonus.standardBonusAmount = calculationResult.standardBonus;
+                    }
+                  }
+                } catch (error) {
+                  // 再計算に失敗しても計算式の生成は続行（標準賞与額が0の場合は計算式を生成しない）
+                  console.warn(
+                    `賞与の再計算に失敗しました（${emp.id}, ${bonus.payDate}）:`,
+                    error
+                  );
+                }
+              }
+
+              // 料率を取得して計算式を生成
+              // 健康保険は年間上限オーバー時でも計算式を表示するため、standardBonusHealth >= 0 の条件で生成
+              // 厚生年金は既存ロジックを維持（standardBonusPension > 0）
+              if (standardBonusHealth >= 0 || standardBonusPension > 0) {
+                // 料率を取得
+                const prefecture = (emp as any).prefecture || 'tokyo';
+                const rates = await this.settingsService.getRates(
+                  payYear.toString(),
+                  prefecture,
+                  payMonth.toString()
+                );
+
+                if (rates) {
+                  // 介護保険の判定
+                  const careType = emp.birthDate
+                    ? this.salaryCalculationService.getCareInsuranceType(
+                        emp.birthDate,
+                        payYear,
+                        payMonth
+                      )
+                    : 'none';
+                  const isCareApplicable = careType === 'type2';
+
+                  // 健康保険の計算式
+                  // 年間上限オーバー時（standardBonusHealth = 0）でも計算式を表示
+                  if (standardBonusHealth >= 0) {
+                    const healthRateTotal = isCareApplicable
+                      ? rates.health_employee +
+                        rates.health_employer +
+                        rates.care_employee +
+                        rates.care_employer
+                      : rates.health_employee + rates.health_employer;
+                    const healthRatePercent = (healthRateTotal * 100).toFixed(3);
+                    bonus.calculationFormula = {
+                      health: `標準賞与${standardBonusHealth.toLocaleString()}円×${healthRatePercent}% (50銭ルール適用) /2`,
+                    };
+                  }
+
+                  // 厚生年金の計算式（既存ロジックを維持）
+                  if (standardBonusPension > 0) {
+                    const pensionRateTotal =
+                      rates.pension_employee + rates.pension_employer;
+                    const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);
+                    bonus.calculationFormula = {
+                      ...(bonus.calculationFormula || {}),
+                      pension: `標準賞与${standardBonusPension.toLocaleString()}円×${pensionRatePercent}% (50銭ルール適用) /2`,
+                    };
+                  }
+                }
+              }
+            } catch (error) {
+              // 計算式の生成に失敗しても既存処理には影響しない
+              console.warn(
+                `賞与の計算式の生成に失敗しました（${emp.id}, ${bonus.payDate}）:`,
+                error
+              );
             }
           }
 
