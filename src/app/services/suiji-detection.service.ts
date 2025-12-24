@@ -351,6 +351,49 @@ export class SuijiDetectionService {
     }
     const diff = Math.abs(newGrade - currentGrade);
 
+    // 2等級以上の差がある場合のみ、例外条件をチェック
+    if (diff >= 2) {
+      // 現行標準報酬月額を取得
+      const currentStandardRow = gradeTable.find(
+        (r: any) => r.rank === currentGrade
+      );
+      const currentStandard = currentStandardRow?.standard || 0;
+      
+      // 新標準報酬月額を取得
+      const newStandard = gradeResult.remuneration || 0;
+      
+      // 固定的賃金の変動方向を判定
+      const fixedSalaryDirection = currentFixed > prevFixed ? 'up' : currentFixed < prevFixed ? 'down' : 'same';
+      
+      // 標準報酬月額の変動方向を判定
+      const standardDirection = newStandard > currentStandard ? 'up' : newStandard < currentStandard ? 'down' : 'same';
+      
+      // 方向が逆の場合、随時改定を不成立にする
+      if (
+        fixedSalaryDirection !== 'same' &&
+        standardDirection !== 'same' &&
+        fixedSalaryDirection !== standardDirection &&
+        currentStandard > 0 &&
+        newStandard > 0 &&
+        prevFixed > 0
+      ) {
+        reasons.push(
+          `固定的賃金は${fixedSalaryDirection === 'up' ? '上がった' : '下がった'}が、標準報酬月額は${standardDirection === 'up' ? '上がった' : '下がった'}ため、随時改定対象外`
+        );
+        return {
+          employeeId,
+          changeMonth: month,
+          averageSalary,
+          currentGrade,
+          newGrade,
+          diff,
+          applyStartMonth: 0,
+          reasons,
+          isEligible: false, // 不成立にする
+        };
+      }
+    }
+
     // 2等級以上の差 → 随時改定成立
     const isEligible = diff >= 2;
     if (isEligible) {

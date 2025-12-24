@@ -92,7 +92,9 @@ export class SuijiCalculationService {
     changeMonth: number,
     salaries: { [key: string]: SalaryData },
     gradeTable: any[],
-    currentGrade: number
+    currentGrade: number,
+    prevFixed?: number,
+    currentFixed?: number
   ): FixedSalaryChangeSuijiResult {
     if (!employeeId) {
       throw new Error('従業員IDが指定されていません');
@@ -114,7 +116,9 @@ export class SuijiCalculationService {
       changeMonth,
       salaries,
       gradeTable,
-      currentGrade
+      currentGrade,
+      prevFixed,
+      currentFixed
     );
   }
 

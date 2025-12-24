@@ -753,7 +753,125 @@ export class MonthlySalarySaveService {
                 if (newGrade !== null) {
                   // 随時改定の本判定（等級差が2以上かチェック）
                   const diff = Math.abs(newGrade - prevGrade);
-                  const isEligible = diff >= 2;
+                  let isEligible = diff >= 2;
+
+                  // 2等級以上の差がある場合のみ、例外条件をチェック
+                  if (isEligible) {
+                    // 現行標準報酬月額を取得
+                    const currentStandardRow = gradeTable.find(
+                      (r: any) => r.rank === prevGrade
+                    );
+                    const currentStandard = currentStandardRow?.standard || 0;
+
+                    // 新標準報酬月額を取得
+                    const newStandardRow = gradeTable.find(
+                      (r: any) => r.rank === newGrade
+                    );
+                    const newStandard = newStandardRow?.standard || 0;
+
+                    // 変動月の固定的賃金を取得
+                    const changeMonthKey = `${emp.id}_${month}`;
+                    const changeMonthData =
+                      salaryDataForDetection[changeMonthKey];
+                    const currentFixed =
+                      changeMonthData?.fixedTotal ??
+                      changeMonthData?.fixed ??
+                      changeMonthData?.fixedSalary ??
+                      0;
+
+                    // 変動月の前月から遡って、支払基礎日数17日以上の月の固定的賃金を取得
+                    let prevFixedForMonth = 0;
+                    for (
+                      let checkMonth = month - 1;
+                      checkMonth >= 1;
+                      checkMonth--
+                    ) {
+                      if (
+                        isNaN(checkMonth) ||
+                        checkMonth < 1 ||
+                        checkMonth > 12
+                      ) {
+                        break;
+                      }
+                      const checkMonthKey = `${emp.id}_${checkMonth}`;
+                      const checkMonthData =
+                        salaryDataForDetection[checkMonthKey];
+
+                      if (!checkMonthData) {
+                        continue;
+                      }
+
+                      // 支払基礎日数を取得
+                      const checkWorkingDaysKey = this.state.getWorkingDaysKey(
+                        emp.id,
+                        checkMonth
+                      );
+                      let checkWorkingDays =
+                        workingDaysData[checkWorkingDaysKey];
+                      if (
+                        checkWorkingDays === undefined ||
+                        isNaN(checkWorkingDays)
+                      ) {
+                        checkWorkingDays = new Date(
+                          year,
+                          checkMonth,
+                          0
+                        ).getDate();
+                      }
+                      if (
+                        isNaN(checkWorkingDays) ||
+                        checkWorkingDays < 0 ||
+                        checkWorkingDays > 31
+                      ) {
+                        continue;
+                      }
+
+                      // 支払基礎日数が17日未満の月はスキップ
+                      if (checkWorkingDays < 17) {
+                        continue;
+                      }
+
+                      // 有効な月の固定的賃金を取得
+                      prevFixedForMonth =
+                        checkMonthData.fixedTotal ??
+                        checkMonthData.fixed ??
+                        checkMonthData.fixedSalary ??
+                        0;
+                      if (isNaN(prevFixedForMonth)) {
+                        prevFixedForMonth = 0;
+                      }
+                      break; // 有効な月を見つけたら終了
+                    }
+
+                    // 固定的賃金の変動方向を判定
+                    const fixedSalaryDirection =
+                      currentFixed > prevFixedForMonth
+                        ? 'up'
+                        : currentFixed < prevFixedForMonth
+                        ? 'down'
+                        : 'same';
+
+                    // 標準報酬月額の変動方向を判定
+                    const standardDirection =
+                      newStandard > currentStandard
+                        ? 'up'
+                        : newStandard < currentStandard
+                        ? 'down'
+                        : 'same';
+
+                    // 方向が逆の場合、随時改定を不成立にする
+                    if (
+                      fixedSalaryDirection !== 'same' &&
+                      standardDirection !== 'same' &&
+                      fixedSalaryDirection !== standardDirection &&
+                      currentStandard > 0 &&
+                      newStandard > 0 &&
+                      prevFixedForMonth > 0
+                    ) {
+                      // 例外条件に該当するため、isEligibleをfalseにする
+                      isEligible = false;
+                    }
+                  }
 
                   if (isEligible) {
                     const applyStartMonthRaw = month + 3;
@@ -1152,7 +1270,128 @@ export class MonthlySalarySaveService {
                   const prevYearDiff = Math.abs(
                     prevYearNewGrade - prevYearPrevGrade
                   );
-                  const prevYearIsEligible = prevYearDiff >= 2;
+                  let prevYearIsEligible = prevYearDiff >= 2;
+
+                  // 2等級以上の差がある場合のみ、例外条件をチェック
+                  if (prevYearIsEligible) {
+                    // 現行標準報酬月額を取得
+                    const prevYearCurrentStandardRow = prevYearGradeTable.find(
+                      (r: any) => r.rank === prevYearPrevGrade
+                    );
+                    const prevYearCurrentStandard =
+                      prevYearCurrentStandardRow?.standard || 0;
+
+                    // 新標準報酬月額を取得
+                    const prevYearNewStandardRow = prevYearGradeTable.find(
+                      (r: any) => r.rank === prevYearNewGrade
+                    );
+                    const prevYearNewStandard =
+                      prevYearNewStandardRow?.standard || 0;
+
+                    // 変動月の固定的賃金を取得
+                    const prevChangeMonthKey = `${emp.id}_${prevChangeMonth}`;
+                    const prevChangeMonthData =
+                      prevYearSalaryDataForDetection[prevChangeMonthKey];
+                    const prevCurrentFixed =
+                      prevChangeMonthData?.fixedTotal ??
+                      prevChangeMonthData?.fixed ??
+                      prevChangeMonthData?.fixedSalary ??
+                      0;
+
+                    // 変動月の前月から遡って、支払基礎日数17日以上の月の固定的賃金を取得
+                    let prevYearPrevFixedForMonth = 0;
+                    for (
+                      let checkMonth = prevChangeMonth - 1;
+                      checkMonth >= 1;
+                      checkMonth--
+                    ) {
+                      if (
+                        isNaN(checkMonth) ||
+                        checkMonth < 1 ||
+                        checkMonth > 12
+                      ) {
+                        break;
+                      }
+                      const checkMonthKey = `${emp.id}_${checkMonth}`;
+                      const checkMonthData =
+                        prevYearSalaryDataForDetection[checkMonthKey];
+
+                      if (!checkMonthData) {
+                        continue;
+                      }
+
+                      // 支払基礎日数を取得
+                      const checkWorkingDaysKey = this.state.getWorkingDaysKey(
+                        emp.id,
+                        checkMonth
+                      );
+                      let checkWorkingDays =
+                        prevYearWorkingDaysData[checkWorkingDaysKey];
+                      if (
+                        checkWorkingDays === undefined ||
+                        isNaN(checkWorkingDays)
+                      ) {
+                        checkWorkingDays = new Date(
+                          prevYear,
+                          checkMonth,
+                          0
+                        ).getDate();
+                      }
+                      if (
+                        isNaN(checkWorkingDays) ||
+                        checkWorkingDays < 0 ||
+                        checkWorkingDays > 31
+                      ) {
+                        continue;
+                      }
+
+                      // 支払基礎日数が17日未満の月はスキップ
+                      if (checkWorkingDays < 17) {
+                        continue;
+                      }
+
+                      // 有効な月の固定的賃金を取得
+                      prevYearPrevFixedForMonth =
+                        checkMonthData.fixedTotal ??
+                        checkMonthData.fixed ??
+                        checkMonthData.fixedSalary ??
+                        0;
+                      if (isNaN(prevYearPrevFixedForMonth)) {
+                        prevYearPrevFixedForMonth = 0;
+                      }
+                      break; // 有効な月を見つけたら終了
+                    }
+
+                    // 固定的賃金の変動方向を判定
+                    const prevYearFixedSalaryDirection =
+                      prevCurrentFixed > prevYearPrevFixedForMonth
+                        ? 'up'
+                        : prevCurrentFixed < prevYearPrevFixedForMonth
+                        ? 'down'
+                        : 'same';
+
+                    // 標準報酬月額の変動方向を判定
+                    const prevYearStandardDirection =
+                      prevYearNewStandard > prevYearCurrentStandard
+                        ? 'up'
+                        : prevYearNewStandard < prevYearCurrentStandard
+                        ? 'down'
+                        : 'same';
+
+                    // 方向が逆の場合、随時改定を不成立にする
+                    if (
+                      prevYearFixedSalaryDirection !== 'same' &&
+                      prevYearStandardDirection !== 'same' &&
+                      prevYearFixedSalaryDirection !==
+                        prevYearStandardDirection &&
+                      prevYearCurrentStandard > 0 &&
+                      prevYearNewStandard > 0 &&
+                      prevYearPrevFixedForMonth > 0
+                    ) {
+                      // 例外条件に該当するため、prevYearIsEligibleをfalseにする
+                      prevYearIsEligible = false;
+                    }
+                  }
 
                   if (prevYearIsEligible) {
                     const prevYearApplyStartMonthRaw = prevChangeMonth + 3;

@@ -1098,6 +1098,69 @@ export class StandardRemunerationHistoryService {
       return;
     }
 
+    // 変動月の前月の固定的賃金を取得（例外条件チェック用）
+    let prevFixed = 0;
+    let currentFixed = 0;
+    {
+      const prevMonth = changeMonth > 1 ? changeMonth - 1 : 12;
+      const prevYear = changeMonth > 1 ? changeYear : changeYear - 1;
+
+      // 前月から遡って、支払基礎日数17日以上の月の固定的賃金を基準にする
+      // 最大12ヶ月遡る（年度をまたぐ場合も考慮）
+      for (let i = 0; i < 12; i++) {
+        let checkMonth = prevMonth - i;
+        let checkYear = prevYear;
+
+        // 年度をまたぐ場合の処理
+        if (checkMonth < 1) {
+          checkMonth = checkMonth + 12;
+          checkYear = checkYear - 1;
+        }
+
+        const prevMonthData = await this.monthlySalaryService.getEmployeeSalary(
+          roomId,
+          employeeId,
+          checkYear,
+          checkMonth
+        );
+
+        if (prevMonthData) {
+          const prevWorkingDays = prevMonthData.workingDays;
+          // 支払基礎日数が17日未満の月はスキップ
+          if (
+            prevWorkingDays !== undefined &&
+            !isNaN(prevWorkingDays) &&
+            prevWorkingDays < 17
+          ) {
+            continue;
+          }
+
+          // 有効な月の固定的賃金を基準にする
+          prevFixed = prevMonthData.fixedSalary ?? prevMonthData.fixed ?? 0;
+          if (isNaN(prevFixed)) {
+            prevFixed = 0;
+          }
+          break;
+        }
+      }
+
+      // 変動月の固定的賃金を取得
+      const changeMonthData = await this.monthlySalaryService.getEmployeeSalary(
+        roomId,
+        employeeId,
+        changeYear,
+        changeMonth
+      );
+
+      if (changeMonthData) {
+        currentFixed =
+          changeMonthData.fixedSalary ?? changeMonthData.fixed ?? 0;
+        if (isNaN(currentFixed)) {
+          currentFixed = 0;
+        }
+      }
+    }
+
     // 変動月を含む3ヶ月の給与データを取得
     const salariesForSuiji: {
       [key: string]: {
@@ -1179,7 +1242,9 @@ export class StandardRemunerationHistoryService {
         changeMonth,
         salariesForSuiji,
         gradeTable,
-        currentGrade
+        currentGrade,
+        prevFixed,
+        currentFixed
       );
 
     // デバッグログ: 随時改定の計算結果を確認（7月の変動を重点的に確認）

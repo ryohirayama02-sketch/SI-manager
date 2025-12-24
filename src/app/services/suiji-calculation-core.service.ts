@@ -103,14 +103,18 @@ export class SuijiCalculationCoreService {
     changeMonth: number,
     salaries: { [key: string]: SalaryData },
     gradeTable: any[],
-    currentGrade: number
+    currentGrade: number,
+    prevFixed?: number,
+    currentFixed?: number
   ) {
     return this.suijiFixedSalaryChangeService.calculateFixedSalaryChangeSuiji(
       employeeId,
       changeMonth,
       salaries,
       gradeTable,
-      currentGrade
+      currentGrade,
+      prevFixed,
+      currentFixed
     );
   }
 
