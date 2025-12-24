@@ -1297,8 +1297,7 @@ export class AlertsDashboardPageComponent implements OnInit, OnDestroy {
       await this.loadSupportAlerts();
       this.familyRefreshToken++;
     } else if (tab === 'age') {
-      // 従業員データを最新にしてから年齢・資格変更アラートを再読込
-      this.employees = await this.employeeService.getAllEmployees();
+      // 年齢・資格変更アラートを再読込（従業員データはngOnInitで既に取得済み）
       await this.loadAgeAlerts();
       await this.loadQualificationChangeAlerts();
     }
