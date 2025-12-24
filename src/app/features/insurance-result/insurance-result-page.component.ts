@@ -15,6 +15,8 @@ import { Employee } from '../../models/employee.model';
 import { Bonus } from '../../models/bonus.model';
 import { RoomIdService } from '../../services/room-id.service';
 import { SuijiKouhoResult } from '../../services/salary-calculation.service';
+import { PremiumStoppingRuleService } from '../../services/premium-stopping-rule.service';
+import { EmployeeLifecycleService } from '../../services/employee-lifecycle.service';
 
 interface MonthlyPremiumData {
   month: number;
@@ -134,7 +136,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private roomIdService: RoomIdService,
     private standardRemunerationHistoryService: StandardRemunerationHistoryService,
     private bonusCalculationService: BonusCalculationService,
-    private suijiService: SuijiService
+    private suijiService: SuijiService,
+    private premiumStoppingRuleService: PremiumStoppingRuleService,
+    private employeeLifecycleService: EmployeeLifecycleService
   ) {
     // 年度選択用の年度リストを生成（2020〜2030）
     for (let y = 2020; y <= 2030; y++) {
@@ -905,6 +909,36 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           let calculationFormula: { health?: string; pension?: string } | undefined;
           if (!isExempt && standardMonthlyRemuneration > 0) {
             try {
+              // 年齢による停止を判定
+              let isPensionStopped = false;
+              let isHealthStopped = false;
+              
+              if (emp.birthDate) {
+                try {
+                  const age = this.employeeLifecycleService.getAgeAtMonth(
+                    emp.birthDate,
+                    selectedYearNum,
+                    month
+                  );
+                  
+                  const stoppingFlags = this.premiumStoppingRuleService.getStoppingFlags(
+                    emp,
+                    selectedYearNum,
+                    month,
+                    age
+                  );
+                  
+                  isPensionStopped = stoppingFlags.isPensionStopped;
+                  isHealthStopped = stoppingFlags.isHealthStopped;
+                } catch (ageError) {
+                  // 年齢計算に失敗しても既存処理には影響しない
+                  console.warn(
+                    `年齢計算に失敗しました（${emp.id}, ${this.year}年${month}月）:`,
+                    ageError
+                  );
+                }
+              }
+
               // 料率を取得
               const prefecture = (emp as any).prefecture || 'tokyo';
               const rates = await this.settingsService.getRates(
@@ -924,23 +958,39 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   : 'none';
                 const isCareApplicable = careType === 'type2';
 
-                // 健康保険の計算式
-                const healthRateTotal = isCareApplicable
-                  ? rates.health_employee +
-                    rates.health_employer +
-                    rates.care_employee +
-                    rates.care_employer
-                  : rates.health_employee + rates.health_employer;
-                const healthRatePercent = (healthRateTotal * 100).toFixed(3);
-                calculationFormula = {
-                  health: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${healthRatePercent}% /2`,
-                };
+                // 健康保険の計算式（75歳以上で停止されている場合は「加入対象外」を表示）
+                if (isHealthStopped) {
+                  calculationFormula = {
+                    health: '加入対象外（75歳到達）',
+                  };
+                } else {
+                  const healthRateTotal = isCareApplicable
+                    ? rates.health_employee +
+                      rates.health_employer +
+                      rates.care_employee +
+                      rates.care_employer
+                    : rates.health_employee + rates.health_employer;
+                  const healthRatePercent = (healthRateTotal * 100).toFixed(3);
+                  calculationFormula = {
+                    health: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${healthRatePercent}% /2`,
+                  };
+                }
 
-                // 厚生年金の計算式
-                const pensionRateTotal =
-                  rates.pension_employee + rates.pension_employer;
-                const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);
-                calculationFormula.pension = `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${pensionRatePercent}% /2`;
+                // 厚生年金の計算式（70歳以上で停止されている場合は「加入対象外」を表示）
+                if (isPensionStopped) {
+                  calculationFormula = {
+                    ...calculationFormula,
+                    pension: '加入対象外（70歳到達）',
+                  };
+                } else {
+                  const pensionRateTotal =
+                    rates.pension_employee + rates.pension_employer;
+                  const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);
+                  calculationFormula = {
+                    ...calculationFormula,
+                    pension: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${pensionRatePercent}% /2`,
+                  };
+                }
               }
             } catch (error) {
               // 計算式の生成に失敗しても既存処理には影響しない
@@ -1146,6 +1196,36 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 }
               }
 
+              // 年齢による停止を判定
+              let isPensionStopped = false;
+              let isHealthStopped = false;
+              
+              if (emp.birthDate) {
+                try {
+                  const age = this.employeeLifecycleService.getAgeAtMonth(
+                    emp.birthDate,
+                    payYear,
+                    payMonth
+                  );
+                  
+                  const stoppingFlags = this.premiumStoppingRuleService.getStoppingFlags(
+                    emp,
+                    payYear,
+                    payMonth,
+                    age
+                  );
+                  
+                  isPensionStopped = stoppingFlags.isPensionStopped;
+                  isHealthStopped = stoppingFlags.isHealthStopped;
+                } catch (ageError) {
+                  // 年齢計算に失敗しても既存処理には影響しない
+                  console.warn(
+                    `賞与の年齢計算に失敗しました（${emp.id}, ${bonus.payDate}）:`,
+                    ageError
+                  );
+                }
+              }
+
               // 料率を取得して計算式を生成
               // 健康保険は年間上限オーバー時でも計算式を表示するため、standardBonusHealth >= 0 の条件で生成
               // 厚生年金は既存ロジックを維持（standardBonusPension > 0）
@@ -1170,8 +1250,13 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   const isCareApplicable = careType === 'type2';
 
                   // 健康保険の計算式
-                  // 年間上限オーバー時（standardBonusHealth = 0）でも計算式を表示
-                  if (standardBonusHealth >= 0) {
+                  // 75歳以上で停止されている場合は「加入対象外」を表示
+                  if (isHealthStopped) {
+                    bonus.calculationFormula = {
+                      health: '加入対象外（75歳到達）',
+                    };
+                  } else if (standardBonusHealth >= 0) {
+                    // 年間上限オーバー時（standardBonusHealth = 0）でも計算式を表示
                     const healthRateTotal = isCareApplicable
                       ? rates.health_employee +
                         rates.health_employer +
@@ -1184,8 +1269,14 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                     };
                   }
 
-                  // 厚生年金の計算式（既存ロジックを維持）
-                  if (standardBonusPension > 0) {
+                  // 厚生年金の計算式
+                  // 70歳以上で停止されている場合は「加入対象外」を表示
+                  if (isPensionStopped) {
+                    bonus.calculationFormula = {
+                      ...(bonus.calculationFormula || {}),
+                      pension: '加入対象外（70歳到達）',
+                    };
+                  } else if (standardBonusPension > 0) {
                     const pensionRateTotal =
                       rates.pension_employee + rates.pension_employer;
                     const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);

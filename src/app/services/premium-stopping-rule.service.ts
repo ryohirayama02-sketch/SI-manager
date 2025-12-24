@@ -109,8 +109,79 @@ export class PremiumStoppingRuleService {
 
     const maternityLeave = this.lifecycle.isMaternityLeave(emp, year, month);
     const childcareLeave = this.lifecycle.isChildcareLeave(emp, year, month);
-    const pensionStopped = age >= 70;
-    const healthStopped = age >= 75;
+    
+    // 70歳到達月の判定（誕生日の前日が属する月から）
+    // 3/1生まれ → 70歳の誕生日は3/1、前日は2/28 → 2月から終了
+    // 3/2生まれ → 70歳の誕生日は3/2、前日は3/1 → 3月から終了
+    let pensionStopped = age >= 70;
+    if (emp.birthDate && age === 69) {
+      // 69歳の場合、70歳到達月かどうかを判定
+      try {
+        const birthDate = new Date(emp.birthDate);
+        if (!isNaN(birthDate.getTime())) {
+          const birthYear = birthDate.getFullYear();
+          const birthMonth = birthDate.getMonth() + 1;
+          const birthDay = birthDate.getDate();
+
+          let isAge70Month: boolean;
+          if (birthDay === 1) {
+            // 誕生日が月の1日の場合、前月から終了
+            if (birthMonth === 1) {
+              // 1月1日生まれの場合、前年12月から終了
+              isAge70Month =
+                (year === birthYear + 69 && month === 12) ||
+                (year === birthYear + 70 && month >= birthMonth);
+            } else {
+              // 2月以降の場合、前月から終了
+              isAge70Month = year === birthYear + 70 && month >= birthMonth - 1;
+            }
+          } else {
+            // 誕生日が月の2日以降の場合、誕生月から終了
+            isAge70Month = year === birthYear + 70 && month >= birthMonth;
+          }
+
+          if (isAge70Month) {
+            pensionStopped = true;
+          }
+        }
+      } catch (error) {
+        // 誕生日の解析に失敗した場合は、既存のロジック（age >= 70）を使用
+        console.warn(
+          `[premium-stopping-rule] 誕生日の解析に失敗しました（${emp.id}）:`,
+          error
+        );
+      }
+    }
+
+    // 75歳到達月の判定（誕生日が属する月から）
+    // 3/1に75歳になる → 3月から健康保険ゼロ。2月は健康保険あり
+    // 3/2に75歳になる → 3月から健康保険ゼロ。2月は健康保険あり
+    let healthStopped = age >= 75;
+    if (emp.birthDate && age === 74) {
+      // 74歳の場合、75歳到達月かどうかを判定
+      try {
+        const birthDate = new Date(emp.birthDate);
+        if (!isNaN(birthDate.getTime())) {
+          const birthYear = birthDate.getFullYear();
+          const birthMonth = birthDate.getMonth() + 1;
+
+          // 誕生日が属する月から健康保険ゼロ（誕生日の日付に関係なく、誕生月から）
+          const isAge75Month =
+            (year === birthYear + 75 && month >= birthMonth) ||
+            year > birthYear + 75;
+
+          if (isAge75Month) {
+            healthStopped = true;
+          }
+        }
+      } catch (error) {
+        // 誕生日の解析に失敗した場合は、既存のロジック（age >= 75）を使用
+        console.warn(
+          `[premium-stopping-rule] 誕生日の解析に失敗しました（${emp.id}）:`,
+          error
+        );
+      }
+    }
 
     return {
       isRetired: retired,
