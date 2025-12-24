@@ -100,6 +100,8 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   // 警告メッセージ用のプロパティ
   hasMissingMonthlySalaries: boolean = false;
   isCheckingMissingSalaries: boolean = false; // チェック中フラグ
+  // データ読み込み中フラグ（年度変更の競合状態を防ぐため）
+  isLoadingData: boolean = false;
 
   constructor(
     private employeeService: EmployeeService,
@@ -126,55 +128,60 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
   }
 
   async ngOnInit(): Promise<void> {
-    const roomId = this.roomIdService.requireRoomId();
+    this.isLoadingData = true;
+    try {
+      const roomId = this.roomIdService.requireRoomId();
 
-    const state = await this.monthlySalaryUIService.loadAllData(
-      roomId,
-      this.year,
-      this.months
-    );
+      const state = await this.monthlySalaryUIService.loadAllData(
+        roomId,
+        this.year,
+        this.months
+      );
 
-    // 結果をstateに反映
-    this.employees = state.employees;
-    this.salaryItems = state.salaryItems;
-    this.salaryItemData = state.salaryItemData;
-    this.workingDaysData = state.workingDaysData;
-    this.salaries = state.salaries;
-    this.rates = state.rates;
-    this.gradeTable = state.gradeTable;
-    this.results = state.results;
-    this.exemptMonths = state.exemptMonths;
-    this.exemptReasons = state.exemptReasons;
-    this.errorMessages = state.errorMessages;
-    this.warningMessages = state.warningMessages;
-    this.infoByEmployee = state.infoByEmployee;
+      // 結果をstateに反映
+      this.employees = state.employees;
+      this.salaryItems = state.salaryItems;
+      this.salaryItemData = state.salaryItemData;
+      this.workingDaysData = state.workingDaysData;
+      this.salaries = state.salaries;
+      this.rates = state.rates;
+      this.gradeTable = state.gradeTable;
+      this.results = state.results;
+      this.exemptMonths = state.exemptMonths;
+      this.exemptReasons = state.exemptReasons;
+      this.errorMessages = state.errorMessages;
+      this.warningMessages = state.warningMessages;
+      this.infoByEmployee = state.infoByEmployee;
 
-    // 加入区分の変更を購読
-    this.eligibilitySubscription = this.employeeEligibilityService
-      .observeEligibility()
-      .subscribe(() => {
-        this.reloadEligibility();
+      // 加入区分の変更を購読
+      this.eligibilitySubscription = this.employeeEligibilityService
+        .observeEligibility()
+        .subscribe(() => {
+          this.reloadEligibility();
+        });
+
+      // ルーターイベントを購読（画面遷移後に再読み込み）
+      this.routerSubscription = this.router.events
+        .pipe(filter((event) => event instanceof NavigationEnd))
+        .subscribe(async (event: any) => {
+          // 月次給与画面に戻ってきた場合、データを再読み込み
+          if (
+            event.url === '/monthly-salaries' ||
+            event.urlAfterRedirects === '/monthly-salaries'
+          ) {
+            await this.reloadData();
+          }
+        });
+
+      // 警告チェックを非同期で実行（既存処理をブロックしない）
+      this.checkMissingMonthlySalaries().catch(error => {
+        console.warn('月次給与未入力チェックでエラーが発生しました:', error);
+        // エラーが発生しても既存処理には影響しない
+        this.hasMissingMonthlySalaries = false;
       });
-
-    // ルーターイベントを購読（画面遷移後に再読み込み）
-    this.routerSubscription = this.router.events
-      .pipe(filter((event) => event instanceof NavigationEnd))
-      .subscribe(async (event: any) => {
-        // 月次給与画面に戻ってきた場合、データを再読み込み
-        if (
-          event.url === '/monthly-salaries' ||
-          event.urlAfterRedirects === '/monthly-salaries'
-        ) {
-          await this.reloadData();
-        }
-      });
-
-    // 警告チェックを非同期で実行（既存処理をブロックしない）
-    this.checkMissingMonthlySalaries().catch(error => {
-      console.warn('月次給与未入力チェックでエラーが発生しました:', error);
-      // エラーが発生しても既存処理には影響しない
-      this.hasMissingMonthlySalaries = false;
-    });
+    } finally {
+      this.isLoadingData = false;
+    }
   }
 
   ngOnDestroy(): void {
@@ -502,34 +509,39 @@ export class MonthlySalariesPageComponent implements OnInit, OnDestroy {
    * 画面の状態を再読み込み
    */
   async reloadData(): Promise<void> {
-    const roomId = this.roomIdService.requireRoomId();
-    // サービスに全データロードを委譲
-    const state = await this.monthlySalaryUIService.loadAllData(
-      roomId,
-      this.year,
-      this.months
-    );
+    this.isLoadingData = true;
+    try {
+      const roomId = this.roomIdService.requireRoomId();
+      // サービスに全データロードを委譲
+      const state = await this.monthlySalaryUIService.loadAllData(
+        roomId,
+        this.year,
+        this.months
+      );
 
-    // 結果をstateに反映
-    this.employees = state.employees;
-    this.salaryItems = state.salaryItems;
-    this.salaryItemData = state.salaryItemData;
-    this.workingDaysData = state.workingDaysData;
-    this.salaries = state.salaries;
-    this.rates = state.rates;
-    this.gradeTable = state.gradeTable;
-    this.results = state.results;
-    this.exemptMonths = state.exemptMonths;
-    this.exemptReasons = state.exemptReasons;
-    this.errorMessages = state.errorMessages;
-    this.warningMessages = state.warningMessages;
-    this.infoByEmployee = state.infoByEmployee;
+      // 結果をstateに反映
+      this.employees = state.employees;
+      this.salaryItems = state.salaryItems;
+      this.salaryItemData = state.salaryItemData;
+      this.workingDaysData = state.workingDaysData;
+      this.salaries = state.salaries;
+      this.rates = state.rates;
+      this.gradeTable = state.gradeTable;
+      this.results = state.results;
+      this.exemptMonths = state.exemptMonths;
+      this.exemptReasons = state.exemptReasons;
+      this.errorMessages = state.errorMessages;
+      this.warningMessages = state.warningMessages;
+      this.infoByEmployee = state.infoByEmployee;
 
-    // 警告チェックを非同期で実行（既存処理をブロックしない）
-    this.checkMissingMonthlySalaries().catch(error => {
-      console.warn('月次給与未入力チェックでエラーが発生しました:', error);
-      this.hasMissingMonthlySalaries = false;
-    });
+      // 警告チェックを非同期で実行（既存処理をブロックしない）
+      this.checkMissingMonthlySalaries().catch(error => {
+        console.warn('月次給与未入力チェックでエラーが発生しました:', error);
+        this.hasMissingMonthlySalaries = false;
+      });
+    } finally {
+      this.isLoadingData = false;
+    }
   }
 
   closeSuijiDialog(): void {
