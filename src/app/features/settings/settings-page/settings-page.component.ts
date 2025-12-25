@@ -1563,21 +1563,58 @@ export class SettingsPageComponent {
       if (errorCount === 0) {
         // Firestoreに保存（現在選択されている年度に対して）
         try {
-          for (const [prefectureCode, rates] of ratesToAdd) {
-            await this.savePrefectureRate(prefectureCode);
-          }
+          // 都道府県ごとの保存処理を並列実行（高速化）
+          // 各都道府県のデータは独立しているため、並列実行でも競合は発生しない
+          const savePromises = Array.from(ratesToAdd.keys()).map(
+            async (prefectureCode) => {
+              try {
+                await this.savePrefectureRate(prefectureCode);
+                return { prefectureCode, success: true };
+              } catch (error) {
+                // 個別のエラーをログに記録（ユーザーには後でまとめて報告）
+                console.error(
+                  `都道府県「${prefectureCode}」の保存に失敗:`,
+                  error
+                );
+                return { prefectureCode, success: false, error };
+              }
+            }
+          );
+
+          const saveResults = await Promise.all(savePromises);
+          const failedResults = saveResults.filter((r) => !r.success);
+          const succeededCount = saveResults.filter((r) => r.success).length;
 
           // 画面表示を更新するためにloadAllRates()を呼び出す
           await this.loadAllRates();
           this.cdr.detectChanges();
 
-          this.importResult = {
-            type: 'success',
-            message: `${successCount}件の料率をインポートしました`,
-          };
-          this.showImportDialog = false;
-          this.csvImportText = '';
+          if (failedResults.length > 0) {
+            // 一部の都道府県の保存に失敗した場合
+            const failedPrefectures = failedResults
+              .map((r) => {
+                // 都道府県コードを日本語名に変換
+                const pref = this.prefectureList.find(
+                  (p) => p.code === r.prefectureCode
+                );
+                return pref ? pref.name : r.prefectureCode;
+              })
+              .join('、');
+            this.importResult = {
+              type: 'error',
+              message: `${succeededCount}件の料率をインポートしましたが、${failedResults.length}件の保存に失敗しました（${failedPrefectures}）`,
+            };
+          } else {
+            // すべて成功した場合
+            this.importResult = {
+              type: 'success',
+              message: `${successCount}件の料率をインポートしました`,
+            };
+            this.showImportDialog = false;
+            this.csvImportText = '';
+          }
         } catch (saveError) {
+          // 予期しないエラーが発生した場合
           this.importResult = {
             type: 'error',
             message: `インポートは成功しましたが、保存に失敗しました`,
