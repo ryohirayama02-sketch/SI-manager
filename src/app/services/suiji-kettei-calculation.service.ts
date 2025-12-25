@@ -15,7 +15,7 @@ import { SalaryAggregationService } from './salary-aggregation.service';
  * SuijiKetteiCalculationService
  *
  * 随時改定のメイン処理を担当するサービス
- * 資格取得後3ヶ月以内の除外判定、固定給取得、除外月判定、平均計算、等級比較を統合
+ * 固定給取得、除外月判定、平均計算、等級比較を統合
  */
 @Injectable({ providedIn: 'root' })
 export class SuijiKetteiCalculationService {
@@ -61,27 +61,6 @@ export class SuijiKetteiCalculationService {
     }
     if (!currentResults || typeof currentResults !== 'object') {
       return { candidate: null, excludedReason: null };
-    }
-    // 追加：資格取得時決定 資格取得直後なら除外
-    // ⑥ 資格取得月〜その後3ヶ月間は随時改定判定の対象外
-    if (
-      this.suijiDetectionService.isWithin3MonthsAfterJoin(
-        employeeId,
-        changedMonth,
-        employees,
-        year
-      )
-    ) {
-      const emp = employees.find((e) => e && e.id === employeeId);
-      const name = emp?.name || '';
-      return {
-        candidate: null,
-        excludedReason: {
-          employeeId,
-          name,
-          reason: '資格取得後3か月以内',
-        },
-      };
     }
 
     // ② 変動月を含む3ヶ月の総支給（欠勤控除差引後）を取得

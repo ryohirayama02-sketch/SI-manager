@@ -123,30 +123,6 @@ export class SuijiCalculationService {
   }
 
   /**
-   * 資格取得後3ヶ月以内かどうかを判定する
-   */
-  isWithin3MonthsAfterJoin(
-    employeeId: string,
-    changedMonth: number,
-    employees: Employee[],
-    year: string
-  ): boolean {
-    if (!employeeId) {
-      return false;
-    }
-    if (isNaN(changedMonth) || changedMonth < 1 || changedMonth > 12) {
-      return false;
-    }
-    if (!employees || !Array.isArray(employees)) {
-      return false;
-    }
-    if (!year) {
-      return false;
-    }
-    return this.suijiDetectionService.isWithin3MonthsAfterJoin(employeeId, changedMonth, employees, year);
-  }
-
-  /**
    * 随時改定のメイン処理
    */
   calculateSuijiKetteiCore(

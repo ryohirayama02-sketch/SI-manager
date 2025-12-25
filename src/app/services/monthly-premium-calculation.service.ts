@@ -606,7 +606,7 @@ export class MonthlyPremiumCalculationService {
         acquisitionRow.isAcquisitionMonth = true;
         acquisitionRow.acquisitionGrade = acquisitionGrade;
         acquisitionRow.acquisitionStandard = acquisitionStandard;
-        acquisitionRow.acquisitionReason = `標準報酬月額：${acquisitionStandard.toLocaleString()}円（1,000円単位に四捨五入済み）\n標準報酬等級：${acquisitionGrade}等級\n資格取得月のため、随時改定対象外`;
+        acquisitionRow.acquisitionReason = `標準報酬月額：${acquisitionStandard.toLocaleString()}円（1,000円単位に四捨五入済み）\n標準報酬等級：${acquisitionGrade}等級`;
 
         // 資格取得届の要否判定
         const shikakuDecision =

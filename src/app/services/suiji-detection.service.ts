@@ -82,49 +82,6 @@ export class SuijiDetectionService {
   }
 
   /**
-   * 資格取得後3ヶ月以内かどうかを判定する
-   */
-  isWithin3MonthsAfterJoin(
-    employeeId: string,
-    changedMonth: number,
-    employees: Employee[],
-    year: string
-  ): boolean {
-    if (!employeeId) {
-      return false;
-    }
-    if (isNaN(changedMonth) || changedMonth < 1 || changedMonth > 12) {
-      return false;
-    }
-    if (!employees || !Array.isArray(employees)) {
-      return false;
-    }
-    if (!year) {
-      return false;
-    }
-    const emp = employees.find((e) => e && e.id === employeeId);
-    if (!emp || !emp.joinDate) return false;
-
-    const joinDate = new Date(emp.joinDate);
-    if (isNaN(joinDate.getTime())) {
-      return false;
-    }
-    const joinYear = this.monthHelper.getPayYear(joinDate);
-    const joinMonth = this.monthHelper.getPayMonth(joinDate);
-
-    // 追加：資格取得時決定 資格取得月〜その後3ヶ月間は随時改定対象外
-    // 変動月が入社年と同じ場合のみ判定
-    const yearNum = parseInt(year, 10);
-    if (!isNaN(yearNum) && yearNum === joinYear) {
-      const monthsDiff = changedMonth - joinMonth;
-      // 資格取得月（monthsDiff === 0）から3ヶ月後（monthsDiff === 3）まで除外
-      return monthsDiff >= 0 && monthsDiff <= 3;
-    }
-
-    return false;
-  }
-
-  /**
    * 特定の月における固定的賃金の変動を検出し、随時改定候補を判定する
    */
   checkFixedSalaryChangeForMonth(
@@ -158,23 +115,6 @@ export class SuijiDetectionService {
       return null;
     }
     const reasons: string[] = [];
-
-    // 追加：資格取得時決定 資格取得直後なら除外
-    // 資格取得月〜その後3ヶ月間は随時改定判定の対象外
-    if (this.isWithin3MonthsAfterJoin(employeeId, month, employees, year)) {
-      reasons.push('資格取得後3か月以内のため随時改定不可');
-      return {
-        employeeId,
-        changeMonth: month,
-        averageSalary: 0,
-        currentGrade: 0,
-        newGrade: 0,
-        diff: 0,
-        applyStartMonth: 0,
-        reasons,
-        isEligible: false,
-      };
-    }
 
     // 前月の固定的賃金を取得（支払基礎日数17日未満の月はスキップして、その前の有効な月を基準にする）
     const prevMonth = month > 1 ? month - 1 : null;
