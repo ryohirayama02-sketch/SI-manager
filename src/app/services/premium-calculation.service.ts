@@ -371,8 +371,10 @@ export class PremiumCalculationService {
     // yearを数値に変換（文字列の場合があるため）
     const yearNumForAcquisition =
       typeof year === 'string' ? parseInt(year, 10) : year;
-    if (employee.joinDate) {
-      const joinDate = new Date(employee.joinDate);
+    // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+    const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+    if (insuranceJoinDate) {
+      const joinDate = new Date(insuranceJoinDate);
       const joinYear = this.monthHelper.getPayYear(joinDate);
       const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
@@ -572,19 +574,23 @@ export class PremiumCalculationService {
     if (!isLastDayEligible) {
       // 月末在籍がない場合は0円
       healthBase = 0;
-    } else if (employee.joinDate) {
-      const joinDate = new Date(employee.joinDate);
-      joinYear = this.monthHelper.getPayYear(joinDate);
-      joinMonth = this.monthHelper.getPayMonth(joinDate);
-      // yearを数値に変換（文字列の場合があるため）
-      const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
-      // 資格取得月以降の場合のみ標準報酬月額を使用
-      if (joinYear < yearNum || (joinYear === yearNum && joinMonth <= month)) {
+    } else {
+      // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      if (insuranceJoinDate) {
+        const joinDate = new Date(insuranceJoinDate);
+        joinYear = this.monthHelper.getPayYear(joinDate);
+        joinMonth = this.monthHelper.getPayMonth(joinDate);
+        // yearを数値に変換（文字列の場合があるため）
+        const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+        // 資格取得月以降の場合のみ標準報酬月額を使用
+        if (joinYear !== null && joinMonth !== null && (joinYear < yearNum || (joinYear === yearNum && joinMonth <= month))) {
+          healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
+        }
+      } else {
+        // 保険加入日・入社日が未設定の場合は通常通り計算
         healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
       }
-    } else {
-      // 入社日が未設定の場合は通常通り計算
-      healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
     }
     // 介護保険（Service統一ロジックを使用）
     // careTypeは既に1330行目で宣言済み
@@ -596,8 +602,10 @@ export class PremiumCalculationService {
       // 月末在籍がない場合は0円
       careBase = 0;
     } else if (isCareApplicable) {
-      if (employee.joinDate) {
-        const joinDate = new Date(employee.joinDate);
+      // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      if (insuranceJoinDate) {
+        const joinDate = new Date(insuranceJoinDate);
         const joinYear = this.monthHelper.getPayYear(joinDate);
         const joinMonth = this.monthHelper.getPayMonth(joinDate);
         // 資格取得月以降の場合のみ標準報酬月額を使用
@@ -608,7 +616,7 @@ export class PremiumCalculationService {
           careBase = standardMonthlyRemuneration;
         }
       } else {
-        // 入社日が未設定の場合は通常通り計算
+        // 保険加入日・入社日が未設定の場合は通常通り計算
         careBase = standardMonthlyRemuneration;
       }
     }
@@ -645,16 +653,32 @@ export class PremiumCalculationService {
     if (!isLastDayEligible) {
       // 月末在籍なし → 厚生年金も0円
       pensionBase = 0;
-    } else if (employee.joinDate) {
-      const joinDate = new Date(employee.joinDate);
-      const joinYear = this.monthHelper.getPayYear(joinDate);
-      const joinMonth = this.monthHelper.getPayMonth(joinDate);
+    } else {
+      // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      if (insuranceJoinDate) {
+        const joinDate = new Date(insuranceJoinDate);
+        const joinYear = this.monthHelper.getPayYear(joinDate);
+        const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
-      // 資格取得月以降（同月得喪も含む）であれば発生させる
-      if (
-        joinYear < yearNumForPension ||
-        (joinYear === yearNumForPension && joinMonth <= month)
-      ) {
+        // 資格取得月以降（同月得喪も含む）であれば発生させる
+        if (
+          joinYear < yearNumForPension ||
+          (joinYear === yearNumForPension && joinMonth <= month)
+        ) {
+          if (ageFlags.isNoPension) {
+            pensionBase = 0;
+          } else {
+            pensionBase = this.adjustPensionStandardMonthlyRemuneration(
+              standardMonthlyRemuneration
+            );
+          }
+        } else {
+          // 資格取得月より前
+          pensionBase = 0;
+        }
+      } else {
+        // 保険加入日・入社日が未設定の場合は通常通り計算
         if (ageFlags.isNoPension) {
           pensionBase = 0;
         } else {
@@ -662,18 +686,6 @@ export class PremiumCalculationService {
             standardMonthlyRemuneration
           );
         }
-      } else {
-        // 資格取得月より前
-        pensionBase = 0;
-      }
-    } else {
-      // 入社日が未設定の場合は通常通り計算
-      if (ageFlags.isNoPension) {
-        pensionBase = 0;
-      } else {
-        pensionBase = this.adjustPensionStandardMonthlyRemuneration(
-          standardMonthlyRemuneration
-        );
       }
     }
     // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分

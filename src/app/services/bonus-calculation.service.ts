@@ -221,17 +221,19 @@ export class BonusCalculationService {
     );
     const reason_not_lastday_retired = isRetiredNoLastDay;
 
-    // 入社月より前の月のチェック
-    // 支給月が入社月より前の場合は保険料を0円にする（月次保険料計算と同じロジック）
-    if (employee.joinDate) {
-      const joinDate = new Date(employee.joinDate);
+    // 保険加入月より前の月のチェック
+    // 支給月が保険加入月より前の場合は保険料を0円にする（月次保険料計算と同じロジック）
+    // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+    const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+    if (insuranceJoinDate) {
+      const joinDate = new Date(insuranceJoinDate);
       if (!isNaN(joinDate.getTime())) {
         const joinYear = joinDate.getFullYear();
         const joinMonth = joinDate.getMonth() + 1;
-        // 支給月が入社月より前の場合（支給年 < 入社年、または支給年 = 入社年かつ支給月 < 入社月）
+        // 支給月が保険加入月より前の場合（支給年 < 保険加入年、または支給年 = 保険加入年かつ支給月 < 保険加入月）
         if (payYear < joinYear || (payYear === joinYear && payMonth < joinMonth)) {
           const reasons: string[] = [
-            '支給月が入社月より前のため保険料は0円です',
+            '支給月が保険加入月より前のため保険料は0円です',
           ];
           return this.resultBuilderService.buildResult(
             0, // healthEmployee

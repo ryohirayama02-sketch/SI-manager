@@ -70,4 +70,20 @@
   <div class="form-group">
     <label> <input type="checkbox" formControlName="isStudent" /> 学生 </label>
   </div>
+
+  <div class="form-group">
+    <label for="insuranceJoinDate">保険加入日</label>
+    <input
+      id="insuranceJoinDate"
+      type="date"
+      formControlName="insuranceJoinDate"
+      class="form-control"
+      max="9999-12-31"
+      (change)="onDateChange()"
+    />
+    <small class="form-text text-muted">
+      入社時は保険非加入で、途中から保険加入する場合に入力してください。
+      未入力の場合は入社日が保険加入日として使用されます。
+    </small>
+  </div>
 </div>

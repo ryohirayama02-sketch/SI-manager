@@ -175,7 +175,9 @@ export class TeijiCalculationService {
     }
     // 入退社日による定時決定対象外判定（算定基礎）
     if (employee) {
-      const joinDate = employee.joinDate ? new Date(employee.joinDate) : null;
+      // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      const joinDate = insuranceJoinDate ? new Date(insuranceJoinDate) : null;
       const retireDate = employee.retireDate
         ? new Date(employee.retireDate)
         : null;
@@ -185,7 +187,7 @@ export class TeijiCalculationService {
 
       if (joinDate && !isNaN(joinDate.getTime()) && joinDate >= june1 && joinDate.getFullYear() === year) {
         reasons.push(
-          '6/1以降に資格取得（入社/加入）のため算定基礎の定時決定対象外'
+          '6/1以降に資格取得（加入）のため算定基礎の定時決定対象外'
         );
       }
       if (

@@ -31,6 +31,7 @@ export interface Employee {
 
   // --- 入退社 ---
   joinDate: string;
+  insuranceJoinDate?: string | null; // 保険加入日（入社時非加入の場合に使用）
   retireDate?: string | null;
 
   // --- 標準報酬（月額） ---

@@ -230,8 +230,10 @@ export class NotificationDecisionService {
     emp: Employee,
     shikakuResult: ShikakuShutokuResult | null
   ): { required: boolean; deadline: string; reason: string } | null {
-    // 入社日が存在しない場合は判定不可
-    if (!emp.joinDate) {
+    // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+    const insuranceJoinDate = emp.insuranceJoinDate || emp.joinDate;
+    // 保険加入日が存在しない場合は判定不可
+    if (!insuranceJoinDate) {
       return null;
     }
 
@@ -249,8 +251,8 @@ export class NotificationDecisionService {
       return null;
     }
 
-    // 提出期限 = joinDate の翌日から 5 日以内
-    const joinDate = new Date(emp.joinDate);
+    // 提出期限 = 保険加入日 の翌日から 5 日以内
+    const joinDate = new Date(insuranceJoinDate);
     const nextDay = new Date(joinDate);
     nextDay.setDate(nextDay.getDate() + 1);
 

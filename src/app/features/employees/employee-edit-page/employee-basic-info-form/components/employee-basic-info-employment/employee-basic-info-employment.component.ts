@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, Input } from '@angular/core';
+import { Component, OnInit, AfterViewInit, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup } from '@angular/forms';
 
@@ -14,6 +14,7 @@ export class EmployeeBasicInfoEmploymentComponent
 {
   @Input() form!: FormGroup;
   @Input() employeeId: string | null = null;
+  @Output() validateDates = new EventEmitter<void>();
 
   constructor() {}
 
@@ -89,5 +90,12 @@ export class EmployeeBasicInfoEmploymentComponent
     const numValue = value.replace(/,/g, '');
     if (numValue === '') return '';
     return parseInt(numValue, 10).toLocaleString('ja-JP');
+  }
+
+  /**
+   * 日付変更時の処理（バリデーション実行）
+   */
+  onDateChange(): void {
+    this.validateDates.emit();
   }
 }

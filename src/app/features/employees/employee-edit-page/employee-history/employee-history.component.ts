@@ -119,7 +119,9 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       );
       if (!employee) return;
       this.employee = employee;
-      this.joinDate = employee.joinDate;
+      // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      this.joinDate = insuranceJoinDate;
       if (this.joinDate) {
         const joinDateObj = new Date(this.joinDate);
         if (!isNaN(joinDateObj.getTime())) {
@@ -173,7 +175,9 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       );
       if (!employee) return;
       this.employee = employee;
-      this.joinDate = employee.joinDate;
+      // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      this.joinDate = insuranceJoinDate;
       if (this.joinDate) {
         const joinDateObj = new Date(this.joinDate);
         if (!isNaN(joinDateObj.getTime())) {
@@ -288,15 +292,16 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         return;
       }
 
-      // 入社日を確認
-      if (!employee.joinDate) {
-        alert('入社日が設定されていません');
+      // 保険加入日を確認（保険加入日が未設定の場合は入社日をフォールバックとして使用）
+      const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+      if (!insuranceJoinDate) {
+        alert('保険加入日が設定されていません');
         return;
       }
 
-      const joinDate = new Date(employee.joinDate);
+      const joinDate = new Date(insuranceJoinDate);
       if (isNaN(joinDate.getTime())) {
-        alert('入社日が無効です');
+        alert('保険加入日が無効です');
         return;
       }
 
@@ -308,7 +313,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       const currentYear: number = currentDate.getFullYear();
       const currentMonth: number = currentDate.getMonth() + 1;
 
-      // 入社年から現在年まで処理（入社日から現在までの最新の月次入力情報を確認）
+      // 保険加入年から現在年まで処理（保険加入日から現在までの最新の月次入力情報を確認）
       // オプショナルパラメータを明示的に渡す
       const fromYear: number = joinYear;
       const toYear: number = currentYear;
@@ -417,7 +422,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
       if (employee) {
         // 従業員情報を更新（最新の情報を取得）
         this.employee = employee;
-        this.joinDate = employee.joinDate;
+        // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+        const insuranceJoinDate =
+          employee.insuranceJoinDate || employee.joinDate;
+        this.joinDate = insuranceJoinDate;
         if (this.joinDate) {
           const joinDateObj = new Date(this.joinDate);
           if (!isNaN(joinDateObj.getTime())) {
@@ -569,6 +577,17 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * 入社日から入社年を取得（保険加入日ではなく入社日ベース）
+   * HTMLテンプレートで「入社前です。」の判定に使用
+   */
+  get joinYearFromJoinDate(): number | null {
+    if (!this.employee?.joinDate) return null;
+    const joinDate = new Date(this.employee.joinDate);
+    if (isNaN(joinDate.getTime())) return null;
+    return joinDate.getFullYear();
+  }
+
+  /**
    * 統合された履歴データを更新
    */
   private async updateMergedHistories(): Promise<void> {
@@ -671,8 +690,14 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
         let standardMonthlyRemuneration: number | null = null;
         let determinationReason: string | null = null;
 
+        // 保険非加入期間の場合は標準報酬履歴を表示しない
+        // insuranceHistoryのhealthInsuranceStatusが'lost'の場合、標準報酬履歴をnullにする
+        const isNonInsuredPeriod =
+          insuranceHistory && insuranceHistory.healthInsuranceStatus === 'lost';
+
         // 標準報酬履歴を優先表示（その年月に適用されていた標準報酬月額）
-        if (applicableStandardHistory) {
+        // ただし、保険非加入期間の場合は表示しない
+        if (applicableStandardHistory && !isNonInsuredPeriod) {
           const key = this.getHistoryKey(applicableStandardHistory);
           grade =
             this.computedGrades[key] ?? applicableStandardHistory.grade ?? null;
@@ -696,9 +721,10 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
 
         // 標準報酬履歴がない場合のみ、従業員情報から月額賃金を使って計算
         // 注意：標準報酬履歴が正しく生成されていれば、この処理は実行されない
-        if (standardMonthlyRemuneration === null) {
+        // 保険非加入期間の場合は計算しない
+        if (standardMonthlyRemuneration === null && !isNonInsuredPeriod) {
           // 標準報酬履歴が見つからない場合、従業員情報から月額賃金を使って計算
-          // 入社年月が選択年の該当月以前の場合のみ
+          // 保険加入年月が選択年の該当月以前の場合のみ
           const hasJoinYear =
             this.joinYear !== null && this.joinYear !== undefined;
           const hasJoinMonth =
@@ -720,9 +746,9 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
               }
             }
 
-            // monthlyWageがない場合、標準報酬履歴から入社月の履歴を探す
+            // monthlyWageがない場合、標準報酬履歴から保険加入月の履歴を探す
             if (!wage) {
-              // 入社年月の年度を計算（3月開始の年度）
+              // 保険加入年月の年度を計算（3月開始の年度）
               const joinFiscalYear =
                 hasJoinYear && hasJoinMonth
                   ? (this.joinMonth as number) >= 3
@@ -730,14 +756,36 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
                     : (this.joinYear as number) - 1
                   : null;
 
+              // 既存履歴との互換性を考慮：保険加入年月と入社年月の両方を検索
+              // 既存の入社年月も取得（既存履歴との互換性のため）
+              let joinYearFromJoinDate: number | null = null;
+              let joinMonthFromJoinDate: number | null = null;
+              let joinFiscalYearFromJoinDate: number | null = null;
+              if (this.employee.joinDate) {
+                const joinDateFromJoinDate = new Date(this.employee.joinDate);
+                if (!isNaN(joinDateFromJoinDate.getTime())) {
+                  joinYearFromJoinDate = joinDateFromJoinDate.getFullYear();
+                  joinMonthFromJoinDate = joinDateFromJoinDate.getMonth() + 1;
+                  joinFiscalYearFromJoinDate =
+                    joinMonthFromJoinDate >= 3
+                      ? joinYearFromJoinDate
+                      : joinYearFromJoinDate - 1;
+                }
+              }
+
               const joinMonthHistory = this.standardRemunerationHistories.find(
                 (h) =>
-                  hasJoinYear &&
-                  hasJoinMonth &&
-                  joinFiscalYear !== null &&
-                  h.applyStartYear === joinFiscalYear &&
-                  h.applyStartMonth === (this.joinMonth as number) &&
-                  h.determinationReason === 'acquisition'
+                  h.determinationReason === 'acquisition' &&
+                  ((hasJoinYear &&
+                    hasJoinMonth &&
+                    joinFiscalYear !== null &&
+                    h.applyStartYear === joinFiscalYear &&
+                    h.applyStartMonth === (this.joinMonth as number)) ||
+                    (joinYearFromJoinDate !== null &&
+                      joinMonthFromJoinDate !== null &&
+                      joinFiscalYearFromJoinDate !== null &&
+                      h.applyStartYear === joinFiscalYearFromJoinDate &&
+                      h.applyStartMonth === joinMonthFromJoinDate))
               );
               if (joinMonthHistory) {
                 const key = this.getHistoryKey(joinMonthHistory);
@@ -765,7 +813,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
                 if (result) {
                   standardMonthlyRemuneration = result.standard;
                   grade = result.rank || null;
-                  // 入社年月と一致する場合は資格取得時決定
+                  // 保険加入年月と一致する場合は資格取得時決定
                   if (
                     hasJoinYear &&
                     hasJoinMonth &&
@@ -774,7 +822,7 @@ export class EmployeeHistoryComponent implements OnInit, OnDestroy {
                   ) {
                     determinationReason = '資格取得時決定';
                   } else {
-                    // 入社月以外の場合は決定理由を設定しない（ハイフンを表示）
+                    // 保険加入月以外の場合は決定理由を設定しない（ハイフンを表示）
                     determinationReason = null;
                   }
                 }

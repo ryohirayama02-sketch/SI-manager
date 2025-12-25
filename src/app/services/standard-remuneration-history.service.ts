@@ -450,12 +450,23 @@ export class StandardRemunerationHistoryService {
       }
     }
 
-    // 資格取得時決定（入社時）の履歴を先に登録
-    let joinDate: Date | null = employee.joinDate
-      ? new Date(employee.joinDate)
+    // 資格取得時決定（保険加入時）の履歴を先に登録
+    // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+    const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+    let joinDate: Date | null = insuranceJoinDate
+      ? new Date(insuranceJoinDate)
       : null;
     if (joinDate && isNaN(joinDate.getTime())) {
       // 無効な日付の場合はnullに設定
+      joinDate = null;
+    }
+
+    // 保険非加入者の場合は資格取得時決定の履歴を生成しない
+    // 保険加入日が未設定で、かつ勤務区分が非加入の場合はスキップ
+    const isNonInsured =
+      this.employeeWorkCategoryService.isNonInsured(employee);
+    if (!employee.insuranceJoinDate && isNonInsured) {
+      // 保険加入日が未設定で、かつ勤務区分が非加入の場合はスキップ
       joinDate = null;
     }
 
@@ -562,7 +573,7 @@ export class StandardRemunerationHistoryService {
           grade: grade,
           standardMonthlyRemuneration: effectiveAcquisitionStandard,
           determinationReason: 'acquisition',
-          memo: '資格取得時決定（入社時）',
+          memo: '資格取得時決定（保険加入時）',
           createdAt: existingAcquisition?.createdAt,
         });
 
@@ -609,20 +620,24 @@ export class StandardRemunerationHistoryService {
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth() + 1;
 
-    // 処理開始年月を決定（入社月または処理範囲の開始年1月）
+    // 処理終了年月を決定
+    const endProcessYear = toYear !== undefined ? toYear : currentYear;
+    const endProcessMonth = toYear !== undefined ? 12 : currentMonth;
+
+    // 処理開始年月を決定（保険加入月または処理範囲の開始年1月）
+    // joinDateは既にinsuranceJoinDate || joinDateで設定済み
+    // 保険非加入者の場合は、保険加入日が設定されている場合のみ処理開始
     let processYear: number;
     let processMonth: number;
     if (joinDate) {
       processYear = joinDate.getFullYear();
       processMonth = joinDate.getMonth() + 1;
     } else {
-      processYear = startYear;
+      // joinDateがnullの場合は、保険非加入者のため処理をスキップ
+      // 処理範囲を空にして、ループを実行しないようにする
+      processYear = endProcessYear + 1;
       processMonth = 1;
     }
-
-    // 処理終了年月を決定
-    const endProcessYear = toYear !== undefined ? toYear : currentYear;
-    const endProcessMonth = toYear !== undefined ? 12 : currentMonth;
 
     // デバッグログ: 処理範囲を確認
     console.log(
@@ -635,11 +650,46 @@ export class StandardRemunerationHistoryService {
     const generatedApplyStartMonths: Array<{ year: number; month: number }> =
       []; // 生成された履歴の適用開始年月
 
+    // 保険加入日を取得（保険加入日より前の期間はスキップするため）
+    const insuranceJoinDateForProcess =
+      employee.insuranceJoinDate || employee.joinDate;
+    let insuranceJoinDateObj: Date | null = insuranceJoinDateForProcess
+      ? new Date(insuranceJoinDateForProcess)
+      : null;
+    if (insuranceJoinDateObj && isNaN(insuranceJoinDateObj.getTime())) {
+      insuranceJoinDateObj = null;
+    }
+
     // 入社月から現在まで連続的にループ
     while (
       processYear < endProcessYear ||
       (processYear === endProcessYear && processMonth <= endProcessMonth)
     ) {
+      // 保険加入日より前の期間はスキップ（保険加入日が設定されている場合のみ）
+      if (insuranceJoinDateObj) {
+        const insuranceJoinYear = insuranceJoinDateObj.getFullYear();
+        const insuranceJoinMonth = insuranceJoinDateObj.getMonth() + 1;
+        // 保険加入月より前の場合はスキップ
+        if (
+          processYear < insuranceJoinYear ||
+          (processYear === insuranceJoinYear &&
+            processMonth < insuranceJoinMonth)
+        ) {
+          // 保険加入日より前の期間をスキップする際は、prevFixedを0にリセット
+          // これにより、保険加入月の最初の月でprevFixedが0になり、
+          // その月の固定給がprevFixedに設定され、次の月から正常に変動検出が可能になる
+          prevFixed = 0;
+
+          // 次の月へ
+          processMonth++;
+          if (processMonth > 12) {
+            processMonth = 1;
+            processYear++;
+          }
+          continue;
+        }
+      }
+
       // 該当月の給与データを取得
       const monthData = await this.monthlySalaryService.getEmployeeSalary(
         roomId,

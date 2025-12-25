@@ -534,7 +534,9 @@ export class MonthlyPremiumCalculationService {
     if (!emp.id) {
       return;
     }
-    if (!emp.joinDate || !salaryData) {
+    // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+    const insuranceJoinDate = emp.insuranceJoinDate || emp.joinDate;
+    if (!insuranceJoinDate || !salaryData) {
       return;
     }
     if (isNaN(year) || year < 1900 || year > 2100) {
@@ -544,7 +546,7 @@ export class MonthlyPremiumCalculationService {
       return;
     }
 
-    const joinDate = new Date(emp.joinDate);
+    const joinDate = new Date(insuranceJoinDate);
     if (isNaN(joinDate.getTime())) {
       return;
     }

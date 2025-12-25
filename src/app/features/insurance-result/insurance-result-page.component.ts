@@ -706,13 +706,26 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               emp.id
             );
 
-          // 資格取得時決定の履歴を探す（入社年月以前で最も新しいもの）
-          if (emp.joinDate) {
-            const joinDate = new Date(emp.joinDate);
+          // 資格取得時決定の履歴を探す（保険加入年月以前で最も新しいもの）
+          // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+          const insuranceJoinDate = emp.insuranceJoinDate || emp.joinDate;
+          if (insuranceJoinDate) {
+            const joinDate = new Date(insuranceJoinDate);
             const joinYear = joinDate.getFullYear();
             const joinMonth = joinDate.getMonth() + 1;
 
-            // 選択年度が入社年以降の場合、資格取得時決定の履歴を使用
+            // 既存の入社日も取得（既存履歴との互換性のため）
+            let joinYearFromJoinDate: number | null = null;
+            let joinMonthFromJoinDate: number | null = null;
+            if (emp.joinDate) {
+              const joinDateFromJoinDate = new Date(emp.joinDate);
+              if (!isNaN(joinDateFromJoinDate.getTime())) {
+                joinYearFromJoinDate = joinDateFromJoinDate.getFullYear();
+                joinMonthFromJoinDate = joinDateFromJoinDate.getMonth() + 1;
+              }
+            }
+
+            // 選択年度が保険加入年以降の場合、資格取得時決定の履歴を使用
             // this.yearを数値に変換（文字列の場合に備えて）
             const selectedYearNum =
               typeof this.year === 'string'
@@ -720,15 +733,20 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 : this.year;
 
             if (selectedYearNum >= joinYear) {
+              // 既存履歴との互換性を考慮：保険加入年月と入社年月の両方を検索
               const acquisitionHistory = allHistories.find(
                 (h) =>
                   h.determinationReason === 'acquisition' &&
-                  h.applyStartYear === joinYear &&
-                  h.applyStartMonth === joinMonth
+                  ((h.applyStartYear === joinYear &&
+                    h.applyStartMonth === joinMonth) ||
+                    (joinYearFromJoinDate !== null &&
+                      joinMonthFromJoinDate !== null &&
+                      h.applyStartYear === joinYearFromJoinDate &&
+                      h.applyStartMonth === joinMonthFromJoinDate))
               );
 
               if (acquisitionHistory) {
-                // 選択年度の該当月が入社月以降の場合、資格取得時決定の標準報酬月額を使用
+                // 選択年度の該当月が保険加入月以降の場合、資格取得時決定の標準報酬月額を使用
                 const isAfterJoinMonth =
                   selectedYearNum > joinYear ||
                   (selectedYearNum === joinYear && month >= joinMonth);
@@ -741,7 +759,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 // 資格取得時決定の履歴が見つからない場合、月額賃金から直接計算
                 const monthlyWage = (emp as any).monthlyWage;
                 if (monthlyWage && monthlyWage > 0) {
-                  // 入社年の標準報酬等級表を取得
+                  // 保険加入年の標準報酬等級表を取得
                   const gradeTable =
                     await this.settingsService.getStandardTable(joinYear);
                   if (gradeTable && gradeTable.length > 0) {

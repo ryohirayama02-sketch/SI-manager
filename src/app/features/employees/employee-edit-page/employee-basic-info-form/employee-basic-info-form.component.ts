@@ -94,6 +94,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       officeNumber: ['', Validators.required],
       department: [''],
       joinDate: ['', Validators.required],
+      insuranceJoinDate: [''], // 保険加入日（任意）
       retireDate: [''],
       currentStandardMonthlyRemuneration: [null],
       determinationReason: [''],
@@ -170,6 +171,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         officeNumber: officeNumber,
         department: (data as any).department || '',
         joinDate: data.joinDate || (data as any).hireDate || '',
+        insuranceJoinDate: data.insuranceJoinDate || '',
         retireDate: data.retireDate || '',
         currentStandardMonthlyRemuneration:
           (data as any).currentStandardMonthlyRemuneration ||
@@ -253,6 +255,19 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     this.errorMessages = validationResult.errors;
     this.warningMessages = validationResult.warnings;
+
+    // 保険加入日のバリデーション（入社日より前でないかチェック）
+    if (value.insuranceJoinDate && value.joinDate) {
+      const insuranceJoinDate = new Date(value.insuranceJoinDate);
+      const joinDate = new Date(value.joinDate);
+      if (insuranceJoinDate < joinDate) {
+        this.errorMessages.push('保険加入日は入社日以降である必要があります。');
+        this.form.get('insuranceJoinDate')?.setErrors({ beforeJoinDate: true });
+      } else {
+        this.form.get('insuranceJoinDate')?.setErrors(null);
+      }
+    }
+
     this.errorMessagesChange.emit(this.errorMessages);
     this.warningMessagesChange.emit(this.warningMessages);
   }
@@ -326,6 +341,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       updateData.insuredNumber = value.insuredNumber || '';
     // 事業所情報は上記のupdateDataで既に設定済み（必ず保存される）
     // 日付フィールド（空の場合はnullを保存）
+    if (value.insuranceJoinDate !== undefined)
+      updateData.insuranceJoinDate = value.insuranceJoinDate || null;
     if (value.retireDate !== undefined)
       updateData.retireDate = value.retireDate || null;
     if (value.determinationReason !== undefined)

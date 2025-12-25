@@ -67,9 +67,10 @@ export class ShikakuCalculationService {
     }
     const reasons: string[] = [];
 
-    // 入社日の取得
-    if (!employee.joinDate) {
-      reasons.push('入社日が設定されていないため資格取得時決定不可');
+    // 保険加入日の取得（保険加入日が未設定の場合は入社日をフォールバックとして使用）
+    const insuranceJoinDate = employee.insuranceJoinDate || employee.joinDate;
+    if (!insuranceJoinDate) {
+      reasons.push('保険加入日が設定されていないため資格取得時決定不可');
       return {
         baseSalary: 0,
         grade: 0,
@@ -79,9 +80,9 @@ export class ShikakuCalculationService {
       };
     }
 
-    const joinDate = new Date(employee.joinDate);
+    const joinDate = new Date(insuranceJoinDate);
     if (isNaN(joinDate.getTime())) {
-      reasons.push('入社日が無効な日付のため資格取得時決定不可');
+      reasons.push('保険加入日が無効な日付のため資格取得時決定不可');
       return {
         baseSalary: 0,
         grade: 0,
@@ -93,10 +94,10 @@ export class ShikakuCalculationService {
     const joinYear = this.monthHelper.getPayYear(joinDate);
     const joinMonth = this.monthHelper.getPayMonth(joinDate);
 
-    // 入社年が対象年と異なる場合はスキップ
+    // 保険加入年が対象年と異なる場合はスキップ
     if (joinYear !== year) {
       reasons.push(
-        `入社年（${joinYear}年）が対象年（${year}年）と異なるため資格取得時決定不可`
+        `保険加入年（${joinYear}年）が対象年（${year}年）と異なるため資格取得時決定不可`
       );
       return null;
     }

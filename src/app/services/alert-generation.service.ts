@@ -85,7 +85,10 @@ export class AlertGenerationService {
         employees.filter((e) => e && e.id).map((e) => e.id)
       );
       return loadedAlerts
-        .filter((alert: any) => alert && alert.employeeId && validEmployeeIds.has(alert.employeeId))
+        .filter(
+          (alert: any) =>
+            alert && alert.employeeId && validEmployeeIds.has(alert.employeeId)
+        )
         .map((alert: any) => {
           try {
             return {
@@ -100,7 +103,11 @@ export class AlertGenerationService {
                 alert.currentStandard ?? alert.currentRemuneration ?? null,
             };
           } catch (error) {
-            console.error('[alert-generation] generateSuijiAlerts マッピングエラー:', error, alert);
+            console.error(
+              '[alert-generation] generateSuijiAlerts マッピングエラー:',
+              error,
+              alert
+            );
             return null;
           }
         })
@@ -306,12 +313,18 @@ export class AlertGenerationService {
         );
 
         const employee = employees.find((emp) => emp.id === history.employeeId);
-        const employeeName = employee?.name || '不明';
+        // 現在のルームの従業員に存在しない場合はスキップ（別のルームの従業員のアラートを表示しない）
+        if (!employee) {
+          console.log(
+            `[alerts-dashboard] 現在のルームに存在しない従業員のためスキップ: ${alertId}, 従業員ID=${history.employeeId}`
+          );
+          continue;
+        }
+        const employeeName = employee.name;
 
         // 資格取得の変更履歴で、社会保険非加入（weeklyWorkHoursCategoryが'less-than-20hours'）の場合はアラートを出さない
         if (
           history.changeType === '資格取得' &&
-          employee &&
           employee.weeklyWorkHoursCategory === 'less-than-20hours'
         ) {
           console.log(
@@ -394,16 +407,34 @@ export class AlertGenerationService {
     try {
       const today = normalizeDate(getJSTDate());
       for (const emp of employees) {
-        if (!emp.joinDate) continue;
-        const joinDate = normalizeDate(new Date(emp.joinDate));
+        // 保険加入日が未設定の場合は入社日をフォールバックとして使用
+        const insuranceJoinDate = emp.insuranceJoinDate || emp.joinDate;
+        if (!insuranceJoinDate) continue;
+        const joinDate = normalizeDate(new Date(insuranceJoinDate));
         const diffMs = today.getTime() - joinDate.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-        // 入社日から5日以内のみ対象（過去分は表示しない設計に合わせる）
-        if (diffDays < 0 || diffDays > 5) continue;
+        // 保険加入日が未来の場合はスキップ（過去の保険加入日はすべて表示）
+        if (diffDays < 0) continue;
         // 社会保険非加入（weeklyWorkHoursCategoryが'less-than-20hours'）の場合は資格取得アラートを出さない
         if (emp.weeklyWorkHoursCategory === 'less-than-20hours') continue;
 
-        const alertId = `acquisition_${emp.id}_${emp.joinDate}`;
+        // 変更履歴から既に生成されたアラートをチェック
+        // 同じ従業員ID、同じ変更種別（'資格取得'）、同じ変更日のアラートが既に存在する場合はスキップ
+        const existingAlertFromHistory = qualificationChangeAlerts.find(
+          (a) =>
+            a.employeeId === emp.id &&
+            a.changeType === '資格取得' &&
+            a.changeDate.getTime() === joinDate.getTime()
+        );
+
+        if (existingAlertFromHistory) {
+          console.log(
+            `[alerts-dashboard] 変更履歴から既に生成されたアラートのためスキップ: 従業員ID=${emp.id}, 変更日=${insuranceJoinDate}`
+          );
+          continue;
+        }
+
+        const alertId = `acquisition_${emp.id}_${insuranceJoinDate}`;
         if (
           qualificationChangeAlerts.find((a) => a.id === alertId) ||
           deletedAlertIds.has(alertId)
@@ -426,7 +457,7 @@ export class AlertGenerationService {
           changeDate: joinDate,
           submitDeadline: submitDeadline,
           daysUntilDeadline: daysUntilDeadline,
-          details: `入社日: ${emp.joinDate}`,
+          details: `保険加入日: ${insuranceJoinDate}`,
         });
       }
 
@@ -516,14 +547,20 @@ export class AlertGenerationService {
           // 2. fixedTotal + variableTotal を計算
           // 3. fixedSalary + variableSalary を計算
           // 4. fixed + variable を計算
-          const fixedTotal = monthData.fixedTotal ?? monthData.fixedSalary ?? monthData.fixed ?? 0;
-          const variableTotal = monthData.variableTotal ?? monthData.variableSalary ?? monthData.variable ?? 0;
+          const fixedTotal =
+            monthData.fixedTotal ??
+            monthData.fixedSalary ??
+            monthData.fixed ??
+            0;
+          const variableTotal =
+            monthData.variableTotal ??
+            monthData.variableSalary ??
+            monthData.variable ??
+            0;
           const calculatedTotal = fixedTotal + variableTotal;
-          
+
           const total =
-            monthData.totalSalary ??
-            monthData.total ??
-            calculatedTotal;
+            monthData.totalSalary ?? monthData.total ?? calculatedTotal;
 
           if (total <= 88000) {
             continue;
@@ -621,7 +658,10 @@ export class AlertGenerationService {
               details: `産休開始日: ${formatDate(startDate)}`,
             });
           } catch (error) {
-            console.error(`[alert-generation] 産前産後休業アラート生成エラー: 従業員ID=${emp.id}`, error);
+            console.error(
+              `[alert-generation] 産前産後休業アラート生成エラー: 従業員ID=${emp.id}`,
+              error
+            );
             continue;
           }
         }
@@ -658,7 +698,10 @@ export class AlertGenerationService {
               details: `育休開始日: ${formatDate(startDate)}`,
             });
           } catch (error) {
-            console.error(`[alert-generation] 育児休業等取得者申出書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            console.error(
+              `[alert-generation] 育児休業等取得者申出書アラート生成エラー: 従業員ID=${emp.id}`,
+              error
+            );
             continue;
           }
         }
@@ -674,7 +717,8 @@ export class AlertGenerationService {
             // 開始日から終了日までの日数を計算（開始日と終了日を含む）
             const daysDiff =
               Math.floor(
-                (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+                (endDate.getTime() - startDate.getTime()) /
+                  (1000 * 60 * 60 * 24)
               ) + 1;
 
             if (daysDiff < 14 && daysDiff > 0) {
@@ -703,7 +747,10 @@ export class AlertGenerationService {
               });
             }
           } catch (error) {
-            console.error(`[alert-generation] 育休期間確認アラート生成エラー: 従業員ID=${emp.id}`, error);
+            console.error(
+              `[alert-generation] 育休期間確認アラート生成エラー: 従業員ID=${emp.id}`,
+              error
+            );
             continue;
           }
         }
@@ -746,7 +793,10 @@ export class AlertGenerationService {
               details: '傷病手当金支給申請書の記入依頼あり',
             });
           } catch (error) {
-            console.error(`[alert-generation] 傷病手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            console.error(
+              `[alert-generation] 傷病手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`,
+              error
+            );
             continue;
           }
         }
@@ -787,7 +837,10 @@ export class AlertGenerationService {
               details: '育児休業関係の事業主証明書の記入依頼あり',
             });
           } catch (error) {
-            console.error(`[alert-generation] 育児休業関係の事業主証明書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            console.error(
+              `[alert-generation] 育児休業関係の事業主証明書アラート生成エラー: 従業員ID=${emp.id}`,
+              error
+            );
             continue;
           }
         }
@@ -828,7 +881,10 @@ export class AlertGenerationService {
               details: '出産手当金支給申請書の記入依頼あり',
             });
           } catch (error) {
-            console.error(`[alert-generation] 出産手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`, error);
+            console.error(
+              `[alert-generation] 出産手当金支給申請書アラート生成エラー: 従業員ID=${emp.id}`,
+              error
+            );
             continue;
           }
         }
@@ -896,7 +952,9 @@ export class AlertGenerationService {
               }
             } catch (error) {
               console.error(
-                `[alert-generation] 賞与取得エラー: 従業員ID=${emp?.id || '不明'}, 年度=${year}`,
+                `[alert-generation] 賞与取得エラー: 従業員ID=${
+                  emp?.id || '不明'
+                }, 年度=${year}`,
                 error
               );
               // エラーが発生しても処理を継続
@@ -909,7 +967,12 @@ export class AlertGenerationService {
             }
 
             // bonus.amountのバリデーション
-            if (bonus.amount === null || bonus.amount === undefined || bonus.amount === 0 || isNaN(bonus.amount)) {
+            if (
+              bonus.amount === null ||
+              bonus.amount === undefined ||
+              bonus.amount === 0 ||
+              isNaN(bonus.amount)
+            ) {
               continue;
             }
 
@@ -947,7 +1010,9 @@ export class AlertGenerationService {
               });
             } catch (error) {
               console.error(
-                `[alert-generation] 賞与アラート生成エラー: 従業員ID=${bonus?.employeeId || emp?.id || '不明'}, 支給日=${bonus?.payDate || '不明'}`,
+                `[alert-generation] 賞与アラート生成エラー: 従業員ID=${
+                  bonus?.employeeId || emp?.id || '不明'
+                }, 支給日=${bonus?.payDate || '不明'}`,
                 error
               );
               // エラーが発生しても処理を継続
@@ -955,14 +1020,19 @@ export class AlertGenerationService {
           }
         } catch (error) {
           console.error(
-            `[alert-generation] 従業員処理エラー: ID=${emp?.id || '不明'}, 名前=${emp?.name || '不明'}`,
+            `[alert-generation] 従業員処理エラー: ID=${
+              emp?.id || '不明'
+            }, 名前=${emp?.name || '不明'}`,
             error
           );
           // エラーが発生しても処理を継続
         }
       }
     } catch (error) {
-      console.error('[alert-generation] generateBonusReportAlertsエラー:', error);
+      console.error(
+        '[alert-generation] generateBonusReportAlertsエラー:',
+        error
+      );
       // エラーが発生しても空配列を返す
     }
 
