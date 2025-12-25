@@ -924,13 +924,15 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
           const pensionEmployer = isExempt ? 0 : premiumResult.pension_employer;
 
           // 計算式を生成（ツールチップ表示用）
-          let calculationFormula: { health?: string; pension?: string } | undefined;
+          let calculationFormula:
+            | { health?: string; pension?: string }
+            | undefined;
           if (!isExempt && standardMonthlyRemuneration > 0) {
             try {
               // 年齢による停止を判定
               let isPensionStopped = false;
               let isHealthStopped = false;
-              
+
               if (emp.birthDate) {
                 try {
                   const age = this.employeeLifecycleService.getAgeAtMonth(
@@ -938,14 +940,15 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                     selectedYearNum,
                     month
                   );
-                  
-                  const stoppingFlags = this.premiumStoppingRuleService.getStoppingFlags(
-                    emp,
-                    selectedYearNum,
-                    month,
-                    age
-                  );
-                  
+
+                  const stoppingFlags =
+                    this.premiumStoppingRuleService.getStoppingFlags(
+                      emp,
+                      selectedYearNum,
+                      month,
+                      age
+                    );
+
                   isPensionStopped = stoppingFlags.isPensionStopped;
                   isHealthStopped = stoppingFlags.isHealthStopped;
                 } catch (ageError) {
@@ -1003,7 +1006,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 } else {
                   const pensionRateTotal =
                     rates.pension_employee + rates.pension_employer;
-                  const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);
+                  const pensionRatePercent = (pensionRateTotal * 100).toFixed(
+                    2
+                  );
                   calculationFormula = {
                     ...calculationFormula,
                     pension: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${pensionRatePercent}% /2`,
@@ -1144,13 +1149,14 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 bonus.careEmployer = calculationResult.careEmployer || 0;
                 bonus.pensionEmployee = calculationResult.pensionEmployee || 0;
                 bonus.pensionEmployer = calculationResult.pensionEmployer || 0;
-                
+
                 // 計算式生成に必要な情報も保存
                 if (calculationResult.cappedBonusHealth !== undefined) {
                   bonus.cappedBonusHealth = calculationResult.cappedBonusHealth;
                 }
                 if (calculationResult.cappedBonusPension !== undefined) {
-                  bonus.cappedBonusPension = calculationResult.cappedBonusPension;
+                  bonus.cappedBonusPension =
+                    calculationResult.cappedBonusPension;
                 }
                 if (calculationResult.standardBonus !== undefined) {
                   bonus.standardBonusAmount = calculationResult.standardBonus;
@@ -1172,14 +1178,20 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               const payDateObj = new Date(bonus.payDate);
               const payYear = payDateObj.getFullYear();
               const payMonth = payDateObj.getMonth() + 1;
-              
+
               // 標準賞与額を取得（上限適用後の額を優先）
               // cappedBonusHealth/cappedBonusPensionが存在しない場合は、再計算を試みる
-              let standardBonusHealth = bonus.cappedBonusHealth ?? bonus.standardBonusAmount ?? 0;
-              let standardBonusPension = bonus.cappedBonusPension ?? bonus.standardBonusAmount ?? 0;
+              let standardBonusHealth =
+                bonus.cappedBonusHealth ?? bonus.standardBonusAmount ?? 0;
+              let standardBonusPension =
+                bonus.cappedBonusPension ?? bonus.standardBonusAmount ?? 0;
 
               // 標準賞与額が取得できない場合、再計算を試みる
-              if ((standardBonusHealth === 0 && standardBonusPension === 0) && bonus.amount > 0) {
+              if (
+                standardBonusHealth === 0 &&
+                standardBonusPension === 0 &&
+                bonus.amount > 0
+              ) {
                 try {
                   const calculationResult =
                     await this.bonusCalculationService.calculateBonus(
@@ -1191,18 +1203,27 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                     );
 
                   if (calculationResult) {
-                    standardBonusHealth = calculationResult.cappedBonusHealth ?? calculationResult.standardBonus ?? 0;
-                    standardBonusPension = calculationResult.cappedBonusPension ?? calculationResult.standardBonus ?? 0;
-                    
+                    standardBonusHealth =
+                      calculationResult.cappedBonusHealth ??
+                      calculationResult.standardBonus ??
+                      0;
+                    standardBonusPension =
+                      calculationResult.cappedBonusPension ??
+                      calculationResult.standardBonus ??
+                      0;
+
                     // bonusオブジェクトにも保存（次回の表示時に使用）
                     if (calculationResult.cappedBonusHealth !== undefined) {
-                      bonus.cappedBonusHealth = calculationResult.cappedBonusHealth;
+                      bonus.cappedBonusHealth =
+                        calculationResult.cappedBonusHealth;
                     }
                     if (calculationResult.cappedBonusPension !== undefined) {
-                      bonus.cappedBonusPension = calculationResult.cappedBonusPension;
+                      bonus.cappedBonusPension =
+                        calculationResult.cappedBonusPension;
                     }
                     if (calculationResult.standardBonus !== undefined) {
-                      bonus.standardBonusAmount = calculationResult.standardBonus;
+                      bonus.standardBonusAmount =
+                        calculationResult.standardBonus;
                     }
                   }
                 } catch (error) {
@@ -1217,7 +1238,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               // 年齢による停止を判定
               let isPensionStopped = false;
               let isHealthStopped = false;
-              
+
               if (emp.birthDate) {
                 try {
                   const age = this.employeeLifecycleService.getAgeAtMonth(
@@ -1225,14 +1246,15 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                     payYear,
                     payMonth
                   );
-                  
-                  const stoppingFlags = this.premiumStoppingRuleService.getStoppingFlags(
-                    emp,
-                    payYear,
-                    payMonth,
-                    age
-                  );
-                  
+
+                  const stoppingFlags =
+                    this.premiumStoppingRuleService.getStoppingFlags(
+                      emp,
+                      payYear,
+                      payMonth,
+                      age
+                    );
+
                   isPensionStopped = stoppingFlags.isPensionStopped;
                   isHealthStopped = stoppingFlags.isHealthStopped;
                 } catch (ageError) {
@@ -1281,7 +1303,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                         rates.care_employee +
                         rates.care_employer
                       : rates.health_employee + rates.health_employer;
-                    const healthRatePercent = (healthRateTotal * 100).toFixed(3);
+                    const healthRatePercent = (healthRateTotal * 100).toFixed(
+                      3
+                    );
                     bonus.calculationFormula = {
                       health: `標準賞与${standardBonusHealth.toLocaleString()}円×${healthRatePercent}% (50銭ルール適用) /2`,
                     };
@@ -1297,7 +1321,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   } else if (standardBonusPension > 0) {
                     const pensionRateTotal =
                       rates.pension_employee + rates.pension_employer;
-                    const pensionRatePercent = (pensionRateTotal * 100).toFixed(2);
+                    const pensionRatePercent = (pensionRateTotal * 100).toFixed(
+                      2
+                    );
                     bonus.calculationFormula = {
                       ...(bonus.calculationFormula || {}),
                       pension: `標準賞与${standardBonusPension.toLocaleString()}円×${pensionRatePercent}% (50銭ルール適用) /2`,
