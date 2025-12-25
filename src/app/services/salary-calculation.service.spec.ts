@@ -163,62 +163,6 @@ describe('SalaryCalculationService', () => {
       );
       expect(result.care_employee).toBe(0);
       expect(result.care_employer).toBe(0);
-
-      expect(result.reasons).toContain(
-        jasmine.stringContaining(
-          '資格取得月のため厚生年金の保険料は発生しません（翌月から発生）'
-        )
-      );
-    });
-
-    it('資格取得月の翌月から厚生年金保険料が発生する', async () => {
-      employeeEligibilityServiceStub.ageFlags = {
-        isNoHealth: false,
-        isNoPension: false,
-        isCare1: false,
-        isCare2: false,
-      };
-      const employee: Employee = {
-        id: 'test-employee-01',
-        name: 'テスト従業員01',
-        birthDate: '1990-05-15',
-        joinDate: '2025-04-10',
-        isShortTime: false,
-        standardMonthlyRemuneration: 300000,
-      };
-
-      const year = 2025;
-      const month = 5;
-      const fixedSalary = 300000;
-      const variableSalary = 50000;
-
-      const result = await service.calculateMonthlyPremiums(
-        employee,
-        year,
-        month,
-        fixedSalary,
-        variableSalary,
-        gradeTable
-      );
-
-      const expectedPensionBase = 109000;
-      expect(result.pension_employee).toBe(
-        Math.floor(expectedPensionBase * getTestRates(year).pension_employee)
-      );
-      expect(result.pension_employer).toBe(
-        Math.floor(expectedPensionBase * getTestRates(year).pension_employer)
-      );
-
-      const joinDate = new Date(employee.joinDate);
-      const joinYear = joinDate.getFullYear();
-      const joinMonth = joinDate.getMonth() + 1;
-      if (joinYear === year && joinMonth === month - 1) {
-        expect(result.reasons).toContain(
-          jasmine.stringContaining(
-            '資格取得月の翌月のため厚生年金の保険料が発生します'
-          )
-        );
-      }
     });
   });
 

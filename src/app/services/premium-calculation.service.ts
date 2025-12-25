@@ -368,7 +368,6 @@ export class PremiumCalculationService {
 
     // ③ 資格取得月の判定（同月得喪）
     let isAcquisitionMonth = false;
-    let isAcquisitionMonthForPension = false;
     // yearを数値に変換（文字列の場合があるため）
     const yearNumForAcquisition =
       typeof year === 'string' ? parseInt(year, 10) : year;
@@ -382,18 +381,6 @@ export class PremiumCalculationService {
         isAcquisitionMonth = true;
         reasons.push(
           `${month}月は資格取得月のため健康保険・介護保険の保険料が発生します`
-        );
-      }
-
-      // 厚生年金：資格取得月の翌月から保険料発生
-      if (joinYear === yearNumForAcquisition && joinMonth === month - 1) {
-        isAcquisitionMonthForPension = true;
-        reasons.push(
-          `${month}月は資格取得月の翌月のため厚生年金の保険料が発生します`
-        );
-      } else if (joinYear === yearNumForAcquisition && joinMonth === month) {
-        reasons.push(
-          `${month}月は資格取得月のため厚生年金の保険料は発生しません（翌月から発生）`
         );
       }
     }
