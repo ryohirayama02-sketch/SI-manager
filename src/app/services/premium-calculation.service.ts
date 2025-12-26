@@ -206,17 +206,17 @@ export class PremiumCalculationService {
         (alert) => alert.employeeId === employee.id && alert.isEligible
       );
 
-      // 適用開始月が現在の月以降のものを検索（最も早い適用開始月）
+      // 適用開始月が現在の月以前のもののうち、最も新しい（現在の月に最も近い）ものを検索
       const applicableSuiji = employeeSuiji
         .filter((alert) => {
           // 適用開始月の判定（変動月+3ヶ月後、変動月が1か月目として4か月目が適用開始）
           const applyStartMonth = alert.applyStartMonth;
-          // 適用開始月が現在の月以降の場合に適用
+          // 適用開始月が現在の月以前の場合に適用
           return applyStartMonth <= month;
         })
         .sort((a, b) => {
-          // 適用開始月が早い順にソート
-          return a.applyStartMonth - b.applyStartMonth;
+          // 降順ソート：適用開始月が大きい（現在の月に近い）ものを優先
+          return b.applyStartMonth - a.applyStartMonth;
         });
 
       if (applicableSuiji.length > 0) {
@@ -584,7 +584,11 @@ export class PremiumCalculationService {
         // yearを数値に変換（文字列の場合があるため）
         const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
         // 資格取得月以降の場合のみ標準報酬月額を使用
-        if (joinYear !== null && joinMonth !== null && (joinYear < yearNum || (joinYear === yearNum && joinMonth <= month))) {
+        if (
+          joinYear !== null &&
+          joinMonth !== null &&
+          (joinYear < yearNum || (joinYear === yearNum && joinMonth <= month))
+        ) {
           healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
         }
       } else {
@@ -669,9 +673,18 @@ export class PremiumCalculationService {
           if (ageFlags.isNoPension) {
             pensionBase = 0;
           } else {
-            pensionBase = this.adjustPensionStandardMonthlyRemuneration(
+            const adjustment = this.adjustPensionStandardMonthlyRemuneration(
               standardMonthlyRemuneration
             );
+            pensionBase = adjustment.adjusted;
+            // 上限・下限に該当する場合は理由を追加
+            if (adjustment.reason) {
+              reasons.push(
+                `厚生年金${
+                  adjustment.reason
+                }適用（標準報酬${standardMonthlyRemuneration.toLocaleString()}円→${adjustment.adjusted.toLocaleString()}円）`
+              );
+            }
           }
         } else {
           // 資格取得月より前
@@ -682,9 +695,18 @@ export class PremiumCalculationService {
         if (ageFlags.isNoPension) {
           pensionBase = 0;
         } else {
-          pensionBase = this.adjustPensionStandardMonthlyRemuneration(
+          const adjustment = this.adjustPensionStandardMonthlyRemuneration(
             standardMonthlyRemuneration
           );
+          pensionBase = adjustment.adjusted;
+          // 上限・下限に該当する場合は理由を追加
+          if (adjustment.reason) {
+            reasons.push(
+              `厚生年金${
+                adjustment.reason
+              }適用（標準報酬${standardMonthlyRemuneration.toLocaleString()}円→${adjustment.adjusted.toLocaleString()}円）`
+            );
+          }
         }
       }
     }
@@ -774,8 +796,8 @@ export class PremiumCalculationService {
     const care_employer_result = 0;
 
     // 厚生年金：標準報酬月額を補正してから計算
-    const adjustedStandard =
-      this.adjustPensionStandardMonthlyRemuneration(standard);
+    const adjustment = this.adjustPensionStandardMonthlyRemuneration(standard);
+    const adjustedStandard = adjustment.adjusted;
     // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
     const pensionTotal =
       adjustedStandard * (pension_employee + pension_employer);
@@ -795,22 +817,22 @@ export class PremiumCalculationService {
 
   /**
    * 厚生年金用の標準報酬月額を補正
-   * - 93,000円未満の場合 → 88,000円
-   * - 635,000円以上の場合 → 650,000円
+   * - 93,000円未満の場合 → 88,000円（下限）
+   * - 635,000円以上の場合 → 650,000円（上限）
    * - それ以外はそのまま
    * @param standardMonthlyRemuneration 標準報酬月額（健康保険・介護保険用）
-   * @returns 補正後の標準報酬月額（厚生年金用）
+   * @returns 補正後の標準報酬月額と補正理由（上限・下限のどちらに該当するか）
    */
-  private adjustPensionStandardMonthlyRemuneration(
+  public adjustPensionStandardMonthlyRemuneration(
     standardMonthlyRemuneration: number
-  ): number {
+  ): { adjusted: number; reason?: '上限' | '下限' } {
     if (standardMonthlyRemuneration < 93000) {
-      return 88000;
+      return { adjusted: 88000, reason: '下限' };
     }
     if (standardMonthlyRemuneration >= 635000) {
-      return 650000;
+      return { adjusted: 650000, reason: '上限' };
     }
-    return standardMonthlyRemuneration;
+    return { adjusted: standardMonthlyRemuneration };
   }
 
   /**

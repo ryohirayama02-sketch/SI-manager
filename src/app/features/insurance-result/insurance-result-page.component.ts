@@ -8,6 +8,7 @@ import { MonthlySalaryService } from '../../services/monthly-salary.service';
 import { SalaryCalculationService } from '../../services/salary-calculation.service';
 import { SettingsService } from '../../services/settings.service';
 import { EmployeeEligibilityService } from '../../services/employee-eligibility.service';
+import { PremiumCalculationService } from '../../services/premium-calculation.service';
 import { StandardRemunerationHistoryService } from '../../services/standard-remuneration-history.service';
 import { BonusCalculationService } from '../../services/bonus-calculation.service';
 import { SuijiService } from '../../services/suiji.service';
@@ -138,7 +139,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     private bonusCalculationService: BonusCalculationService,
     private suijiService: SuijiService,
     private premiumStoppingRuleService: PremiumStoppingRuleService,
-    private employeeLifecycleService: EmployeeLifecycleService
+    private employeeLifecycleService: EmployeeLifecycleService,
+    private premiumCalculationService: PremiumCalculationService
   ) {
     // 年度選択用の年度リストを生成（2020〜2030）
     for (let y = 2020; y <= 2030; y++) {
@@ -831,7 +833,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 return applyStartMonth <= month;
               })
               .sort((a, b) => {
-                return a.applyStartMonth - b.applyStartMonth;
+                // 降順ソート：適用開始月が大きい（現在の月に近い）ものを優先
+                return b.applyStartMonth - a.applyStartMonth;
               });
 
             if (applicableSuiji.length > 0) {
@@ -1004,14 +1007,24 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                     pension: '加入対象外（70歳到達）',
                   };
                 } else {
+                  // 厚生年金用の標準報酬月額を補正（上限・下限の適用）
+                  const adjustment =
+                    this.premiumCalculationService.adjustPensionStandardMonthlyRemuneration(
+                      standardMonthlyRemuneration
+                    );
+                  const adjustedStandard = adjustment.adjusted;
                   const pensionRateTotal =
                     rates.pension_employee + rates.pension_employer;
                   const pensionRatePercent = (pensionRateTotal * 100).toFixed(
                     2
                   );
+                  // 上限・下限に該当する場合は理由を追加
+                  const reasonText = adjustment.reason
+                    ? `（厚生年金${adjustment.reason}）`
+                    : '';
                   calculationFormula = {
                     ...calculationFormula,
-                    pension: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${pensionRatePercent}% /2`,
+                    pension: `標準報酬${adjustedStandard.toLocaleString()}円×${pensionRatePercent}%${reasonText} /2`,
                   };
                 }
               }
