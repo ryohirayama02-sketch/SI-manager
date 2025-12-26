@@ -69,8 +69,14 @@ export class PremiumCalculationService {
   ): Promise<MonthlyPremiums & { reasons: string[] }> {
     const reasons: string[] = [];
 
-    // ① 退職月の次の月以降の判定（最優先）
-    // 退職日が属する月の次の月以降は全保険料を0円にする
+    /**
+     * ① 退職月の次の月以降の判定（最優先）
+     * 退職日が属する月の次の月以降は全保険料を0円にする
+     *
+     * 【保険料0円のケース - 退職後】
+     * - ツールチップ表示: 計算式を表示しない（standardMonthlyRemuneration === 0 のため）
+     * - 理由: 「退職月の次の月以降のため、全保険料は0円です」
+     */
     if (employee.retireDate) {
       const retireDate = new Date(employee.retireDate);
       const retireYear = retireDate.getFullYear();
@@ -102,6 +108,14 @@ export class PremiumCalculationService {
       month
     );
 
+    /**
+     * ② 月末在籍の健保判定
+     *
+     * 【保険料0円のケース - 月末在籍なし】
+     * - ツールチップ表示: 計算式を表示（健康保険・介護保険のみ0円、厚生年金は発生する可能性あり）
+     * - 理由: 「退職月で月末在籍がないため、健康保険・介護保険の保険料は0円です」
+     * - 注意: 厚生年金は月単位加入のため、退職月でも月末在籍がなくても発生する可能性がある
+     */
     if (!isLastDayEligible) {
       // 月末在籍がない場合、健康保険・介護保険の保険料は0円
       reasons.push(
@@ -136,6 +150,14 @@ export class PremiumCalculationService {
     const isChildcareLeave = isChildcareLeavePeriod && isExemptFromPremiums;
     const isExempt = isMaternityLeave || isChildcareLeave;
 
+    /**
+     * ② 産休・育休免除判定（月単位：1日でも含まれれば免除）
+     *
+     * 【保険料0円のケース - 産休・育休免除】
+     * - ツールチップ表示: 計算式を表示しない（isExempt === true のため）
+     * - 理由: 「産前産後休業中（健康保険・厚生年金本人分免除）」または「育児休業中（健康保険・厚生年金本人分免除）」
+     * - 注意: フルタイムのみ産休を取得可能
+     */
     if (isExempt) {
       // 産休・育休中は本人分・事業主負担ともに0円
       const reason = isMaternityLeave
@@ -153,7 +175,10 @@ export class PremiumCalculationService {
       };
     }
 
-    // 保険未加入者の場合、産休・育休期間中でも保険料は0円（免除の概念がない）
+    /**
+     * 保険未加入者の場合、産休・育休期間中でも保険料は0円（免除の概念がない）
+     * このケースは「保険非加入」として扱う（保険非加入の定義1に該当）
+     */
     if (
       (isMaternityLeavePeriod || isChildcareLeavePeriod) &&
       this.employeeWorkCategoryService.isNonInsured(employee)
@@ -170,7 +195,13 @@ export class PremiumCalculationService {
       };
     }
 
-    // 勤務区分が社会保険未加入の場合は全保険料を0円にする
+    /**
+     * 【保険非加入の定義1】勤務区分が社会保険未加入の場合は全保険料を0円にする
+     *
+     * - 判定方法: EmployeeWorkCategoryService.isNonInsured(employee) が true を返す
+     * - ツールチップ表示: 「保険非加入」
+     * - 理由: 「勤務区分が「社会保険未加入」のため保険料は0円」
+     */
     if (isNonInsured) {
       reasons.push('勤務区分が「社会保険未加入」のため保険料は0円');
       return {
@@ -565,9 +596,23 @@ export class PremiumCalculationService {
     }
     const r = ratesResult;
 
-    // 健康保険（75歳以上は0円、資格取得月から発生、月末在籍が必要）
-    // 資格取得月より前の場合は0円、資格取得月以降は標準報酬月額を使用
-    // 月末在籍がない場合は0円
+    /**
+     * 健康保険（75歳以上は0円、資格取得月から発生、月末在籍が必要）
+     * 資格取得月より前の場合は0円、資格取得月以降は標準報酬月額を使用
+     * 月末在籍がない場合は0円
+     *
+     * 【保険料0円のケース - 保険加入月より前の期間】
+     * - このケースは「保険非加入」として扱う（保険非加入の定義2に該当）
+     * - 判定方法:
+     *   - 保険料が0円（healthEmployee === 0 && healthEmployer === 0 && pensionEmployee === 0 && pensionEmployer === 0）
+     *   - かつ、対象年月が保険加入年月より前（selectedYear < joinYear || (selectedYear === joinYear && month < joinMonth)）
+     * - ツールチップ表示: 「保険非加入」
+     * - 理由: reasons には明示的な理由が追加されない（保険加入月より前のため自動的に0円）
+     *
+     * 【保険料0円のケース - 75歳以上】
+     * - ツールチップ表示: 「加入対象外（75歳到達）」
+     * - 理由: 「75歳以上のため健康保険・介護保険は停止」または「75歳到達月のため健康保険・介護保険は停止（到達月から適用）」
+     */
     let healthBase = 0;
     let joinYear: number | null = null;
     let joinMonth: number | null = null;
@@ -584,6 +629,7 @@ export class PremiumCalculationService {
         // yearを数値に変換（文字列の場合があるため）
         const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
         // 資格取得月以降の場合のみ標準報酬月額を使用
+        // 資格取得月より前の場合は healthBase が0のまま（保険非加入の定義2に該当）
         if (
           joinYear !== null &&
           joinMonth !== null &&
@@ -596,8 +642,18 @@ export class PremiumCalculationService {
         healthBase = ageFlags.isNoHealth ? 0 : standardMonthlyRemuneration;
       }
     }
-    // 介護保険（Service統一ロジックを使用）
-    // careTypeは既に1330行目で宣言済み
+    /**
+     * 介護保険（Service統一ロジックを使用）
+     * careTypeは既に1330行目で宣言済み
+     *
+     * 【保険料0円のケース - 65歳以上（第1号被保険者）】
+     * - ツールチップ表示: 計算式を表示（介護保険は健康保険に含まれるため、健康保険の計算式に含まれる）
+     * - 理由: 「65歳以上のため介護保険は第1号被保険者（健保から除外）」または「65歳到達月のため介護保険は第1号被保険者（健保から除外、到達月から適用）」
+     *
+     * 【保険料0円のケース - 保険加入月より前の期間】
+     * - このケースは「保険非加入」として扱う（保険非加入の定義2に該当）
+     * - 健康保険と同様のロジックで、保険加入月より前の期間は careBase が0になる
+     */
     const isCareApplicable = careType === 'type2';
     let careBase = 0;
     // yearを数値に変換（文字列の場合があるため）
@@ -613,6 +669,7 @@ export class PremiumCalculationService {
         const joinYear = this.monthHelper.getPayYear(joinDate);
         const joinMonth = this.monthHelper.getPayMonth(joinDate);
         // 資格取得月以降の場合のみ標準報酬月額を使用
+        // 資格取得月より前の場合は careBase が0のまま（保険非加入の定義2に該当）
         if (
           joinYear < yearNum ||
           (joinYear === yearNum && joinMonth <= month)
@@ -648,8 +705,18 @@ export class PremiumCalculationService {
     const care_employee = 0;
     const care_employer = 0;
 
-    // 厚生年金（70歳以上は0円）も月末在籍ルールに合わせる
-    // 同月得喪でも月末在籍があれば当月発生させる
+    /**
+     * 厚生年金（70歳以上は0円）も月末在籍ルールに合わせる
+     * 同月得喪でも月末在籍があれば当月発生させる
+     *
+     * 【保険料0円のケース - 70歳以上】
+     * - ツールチップ表示: 「加入対象外（70歳到達）」
+     * - 理由: 「70歳以上のため厚生年金は停止」または「70歳到達月のため厚生年金は停止（到達月から適用）」
+     *
+     * 【保険料0円のケース - 保険加入月より前の期間】
+     * - このケースは「保険非加入」として扱う（保険非加入の定義2に該当）
+     * - 健康保険と同様のロジックで、保険加入月より前の期間は pensionBase が0になる
+     */
     let pensionBase = 0;
     const yearNumForPension =
       typeof year === 'string' ? parseInt(year, 10) : year;
@@ -687,7 +754,7 @@ export class PremiumCalculationService {
             }
           }
         } else {
-          // 資格取得月より前
+          // 資格取得月より前（保険非加入の定義2に該当）
           pensionBase = 0;
         }
       } else {
