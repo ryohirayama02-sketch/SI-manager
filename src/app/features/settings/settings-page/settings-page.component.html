@@ -425,7 +425,9 @@
   <!-- 標準報酬月額テーブルタブ -->
   <div *ngIf="activeTab === 'standard'" class="tab-pane">
     <div class="card">
-      <div class="info-label">標準報酬月額の等級表を設定してください。</div>
+      <div class="info-label">
+        対象期間ごとに使用する標準報酬等級表を設定してください。
+      </div>
       <div
         style="
           display: flex;
@@ -829,7 +831,9 @@
             </div>
 
             <div class="form-group">
-              <label for="address">事業所　所在地 <span class="required">*</span></label>
+              <label for="address"
+                >事業所　所在地 <span class="required">*</span></label
+              >
               <textarea
                 id="address"
                 formControlName="address"
@@ -837,10 +841,16 @@
                 rows="3"
                 placeholder="例：〒123-4567 東京都千代田区丸の内1-1-1"
                 required
-                [class.is-invalid]="officeForm.get('address')?.invalid && officeForm.get('address')?.touched"
+                [class.is-invalid]="
+                  officeForm.get('address')?.invalid &&
+                  officeForm.get('address')?.touched
+                "
               ></textarea>
               <div
-                *ngIf="officeForm.get('address')?.invalid && officeForm.get('address')?.touched"
+                *ngIf="
+                  officeForm.get('address')?.invalid &&
+                  officeForm.get('address')?.touched
+                "
                 class="invalid-feedback"
               >
                 事業所　所在地を入力してください。
@@ -859,7 +869,9 @@
             </div>
 
             <div class="form-group">
-              <label for="ownerName">事業主　氏名 <span class="required">*</span></label>
+              <label for="ownerName"
+                >事業主　氏名 <span class="required">*</span></label
+              >
               <input
                 id="ownerName"
                 formControlName="ownerName"
@@ -867,10 +879,16 @@
                 class="form-control"
                 placeholder="例：代表取締役社長　〇〇〇〇"
                 required
-                [class.is-invalid]="officeForm.get('ownerName')?.invalid && officeForm.get('ownerName')?.touched"
+                [class.is-invalid]="
+                  officeForm.get('ownerName')?.invalid &&
+                  officeForm.get('ownerName')?.touched
+                "
               />
               <div
-                *ngIf="officeForm.get('ownerName')?.invalid && officeForm.get('ownerName')?.touched"
+                *ngIf="
+                  officeForm.get('ownerName')?.invalid &&
+                  officeForm.get('ownerName')?.touched
+                "
                 class="invalid-feedback"
               >
                 事業主　氏名を入力してください。
@@ -889,7 +907,12 @@
             </div>
 
             <div style="display: flex; gap: 0.5rem; margin-top: 1rem">
-              <button type="button" (click)="saveOffice()" class="btn-primary" [disabled]="officeForm.invalid">
+              <button
+                type="button"
+                (click)="saveOffice()"
+                class="btn-primary"
+                [disabled]="officeForm.invalid"
+              >
                 保存
               </button>
               <button
