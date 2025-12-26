@@ -249,7 +249,7 @@ export class SettingsPageComponent {
       address: ['', Validators.required],
       officeName: [''],
       phoneNumber: [''],
-      ownerName: ['', Validators.required],
+      ownerName: [''],
     });
   }
 

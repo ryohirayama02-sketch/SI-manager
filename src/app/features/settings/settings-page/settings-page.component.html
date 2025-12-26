@@ -869,30 +869,14 @@
             </div>
 
             <div class="form-group">
-              <label for="ownerName"
-                >事業主　氏名 <span class="required">*</span></label
-              >
+              <label for="ownerName">事業主　氏名</label>
               <input
                 id="ownerName"
                 formControlName="ownerName"
                 type="text"
                 class="form-control"
                 placeholder="例：代表取締役社長　〇〇〇〇"
-                required
-                [class.is-invalid]="
-                  officeForm.get('ownerName')?.invalid &&
-                  officeForm.get('ownerName')?.touched
-                "
               />
-              <div
-                *ngIf="
-                  officeForm.get('ownerName')?.invalid &&
-                  officeForm.get('ownerName')?.touched
-                "
-                class="invalid-feedback"
-              >
-                事業主　氏名を入力してください。
-              </div>
             </div>
 
             <div class="form-group">
