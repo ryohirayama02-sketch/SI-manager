@@ -149,13 +149,7 @@ export class BonusCalculationService {
 
     // 料率を取得
     const rates = await this.preparationService.getRates(employee, year);
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bonus-calculation.service.ts:151',message:'料率取得結果',data:{rates:rates?{health_employee:rates.health_employee,health_employer:rates.health_employer,pension_employee:rates.pension_employee}:null,isNull:rates===null,employeeId:employee.id,year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     if (!rates) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bonus-calculation.service.ts:152',message:'料率未設定のためnullを返す',data:{employeeId:employee.id,year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       return null;
     }
 
@@ -166,11 +160,11 @@ export class BonusCalculationService {
       employeeId,
       payYear
     );
-    
+
     // 同じ月の既存賞与をフィルタリング（今回計算中の賞与より前の日付のみ）
     const currentPayDate = new Date(payDate);
     currentPayDate.setHours(0, 0, 0, 0);
-    
+
     const sameMonthExistingBonuses = sameMonthBonuses.filter((bonus) => {
       if (!bonus || !bonus.payDate) return false;
       const bonusPayDate = new Date(bonus.payDate);
@@ -191,7 +185,12 @@ export class BonusCalculationService {
       (sum, bonus) => {
         if (!bonus) return sum;
         const amount = bonus.amount;
-        if (amount === null || amount === undefined || isNaN(amount) || amount < 0) {
+        if (
+          amount === null ||
+          amount === undefined ||
+          isNaN(amount) ||
+          amount < 0
+        ) {
           return sum;
         }
         return sum + amount;
@@ -237,7 +236,10 @@ export class BonusCalculationService {
         const joinYear = joinDate.getFullYear();
         const joinMonth = joinDate.getMonth() + 1;
         // 支給月が保険加入月より前の場合（支給年 < 保険加入年、または支給年 = 保険加入年かつ支給月 < 保険加入月）
-        if (payYear < joinYear || (payYear === joinYear && payMonth < joinMonth)) {
+        if (
+          payYear < joinYear ||
+          (payYear === joinYear && payMonth < joinMonth)
+        ) {
           const reasons: string[] = [
             '支給月が保険加入月より前のため保険料は0円です',
           ];

@@ -1253,33 +1253,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             pensionEmployer: bonus.pensionEmployer || 0,
           };
 
-          // #region agent log
-          fetch(
-            'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'insurance-result-page.component.ts:1247',
-                message: '賞与データの保険料確認',
-                data: {
-                  bonusId: bonus.id,
-                  payDate: bonus.payDate,
-                  amount: bonus.amount,
-                  healthEmployee: bonus.healthEmployee,
-                  healthEmployer: bonus.healthEmployer,
-                  pensionEmployee: bonus.pensionEmployee,
-                  pensionEmployer: bonus.pensionEmployer,
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'A',
-              }),
-            }
-          ).catch(() => {});
-          // #endregion
-
           // 保険料が保存されていない場合のみ再計算
           const hasStoredPremiums =
             (bonus.healthEmployee !== undefined &&
@@ -1287,54 +1260,50 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             (bonus.pensionEmployee !== undefined &&
               bonus.pensionEmployee !== null);
 
-          // #region agent log
-          fetch(
-            'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'insurance-result-page.component.ts:1257',
-                message: 'hasStoredPremiums判定',
-                data: {
-                  hasStoredPremiums,
-                  healthEmployee: bonus.healthEmployee,
-                  pensionEmployee: bonus.pensionEmployee,
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'B',
-              }),
-            }
-          ).catch(() => {});
-          // #endregion
+          // 保険料率が設定されているかチェック（既存の保険料があっても、保険料率が未設定の場合は再計算を試みる）
+          let shouldRecalculate = !hasStoredPremiums;
+          if (hasStoredPremiums && bonus.payDate) {
+            // 既存の保険料がある場合でも、保険料率が設定されているか確認
+            const payDateObj = new Date(bonus.payDate);
+            const payYear = payDateObj.getFullYear();
+            const payMonth = payDateObj.getMonth() + 1;
+            const prefecture = (emp as any).prefecture || 'tokyo';
+            const rates = await this.settingsService.getRates(
+              payYear.toString(),
+              prefecture,
+              payMonth.toString()
+            );
 
-          if (!hasStoredPremiums && bonus.payDate) {
+            // 保険料率が未設定の場合は、既存の保険料を0にリセットしてエラーメッセージを表示
+            // ratesがnull、またはhealth_employee/pension_employeeが0以下の場合は未設定とみなす
+            const hasValidRates =
+              rates &&
+              rates.health_employee &&
+              rates.health_employee > 0 &&
+              rates.pension_employee &&
+              rates.pension_employee > 0;
+
+            if (!hasValidRates) {
+              recalculatedPremiums = {
+                healthEmployee: 0,
+                healthEmployer: 0,
+                careEmployee: 0,
+                careEmployer: 0,
+                pensionEmployee: 0,
+                pensionEmployer: 0,
+              };
+              // bonusオブジェクトにも0を設定（表示用）
+              bonus.healthEmployee = 0;
+              bonus.healthEmployer = 0;
+              bonus.careEmployee = 0;
+              bonus.careEmployer = 0;
+              bonus.pensionEmployee = 0;
+              bonus.pensionEmployer = 0;
+            }
+          }
+
+          if (shouldRecalculate && bonus.payDate) {
             try {
-              // #region agent log
-              fetch(
-                'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    location: 'insurance-result-page.component.ts:1265',
-                    message: 'calculateBonus呼び出し前',
-                    data: {
-                      employeeId: emp.id,
-                      amount: bonus.amount,
-                      payDate: bonus.payDate,
-                      year: this.year,
-                    },
-                    timestamp: Date.now(),
-                    sessionId: 'debug-session',
-                    runId: 'run1',
-                    hypothesisId: 'C',
-                  }),
-                }
-              ).catch(() => {});
-              // #endregion
               const calculationResult =
                 await this.bonusCalculationService.calculateBonus(
                   emp,
@@ -1343,33 +1312,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   bonus.payDate,
                   this.year
                 );
-
-              // #region agent log
-              fetch(
-                'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
-                {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    location: 'insurance-result-page.component.ts:1274',
-                    message: 'calculateBonus結果',
-                    data: {
-                      calculationResult: calculationResult
-                        ? {
-                            healthEmployee: calculationResult.healthEmployee,
-                            pensionEmployee: calculationResult.pensionEmployee,
-                          }
-                        : null,
-                      isNull: calculationResult === null,
-                    },
-                    timestamp: Date.now(),
-                    sessionId: 'debug-session',
-                    runId: 'run1',
-                    hypothesisId: 'C',
-                  }),
-                }
-              ).catch(() => {});
-              // #endregion
 
               if (calculationResult) {
                 // 再計算した結果を使用
@@ -1410,29 +1352,6 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               // エラーが発生した場合は、既存の値をそのまま使用
             }
           }
-
-          // #region agent log
-          fetch(
-            'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                location: 'insurance-result-page.component.ts:1312',
-                message: '最終的な保険料値',
-                data: {
-                  recalculatedPremiums,
-                  hasStoredPremiums,
-                  usedStored: hasStoredPremiums,
-                },
-                timestamp: Date.now(),
-                sessionId: 'debug-session',
-                runId: 'run1',
-                hypothesisId: 'A',
-              }),
-            }
-          ).catch(() => {});
-          // #endregion
 
           // 計算式を生成（ツールチップ表示用）
           // 既存の賞与データにも計算式を生成するため、再計算の有無に関わらず実行
@@ -1541,34 +1460,21 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   payMonth.toString()
                 );
 
-                // #region agent log
-                fetch(
-                  'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
-                  {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      location: 'insurance-result-page.component.ts:1415',
-                      message: '賞与計算式生成時の料率取得',
-                      data: {
-                        rates: rates
-                          ? { health_employee: rates.health_employee }
-                          : null,
-                        isNull: rates === null,
-                        payYear,
-                        payMonth,
-                        prefecture,
-                      },
-                      timestamp: Date.now(),
-                      sessionId: 'debug-session',
-                      runId: 'run1',
-                      hypothesisId: 'E',
-                    }),
-                  }
-                ).catch(() => {});
-                // #endregion
+                // 保険料率が未設定の場合（ratesがnull、またはhealth_employee/pension_employeeが0以下の場合）
+                const hasValidRatesForFormula =
+                  rates &&
+                  rates.health_employee &&
+                  rates.health_employee > 0 &&
+                  rates.pension_employee &&
+                  rates.pension_employee > 0;
 
-                if (rates) {
+                if (!hasValidRatesForFormula) {
+                  bonus.calculationFormula = {
+                    health: '保険料率が設定されていません',
+                    care: '保険料率が設定されていません',
+                    pension: '保険料率が設定されていません',
+                  };
+                } else if (rates) {
                   // 介護保険の判定
                   const careType = emp.birthDate
                     ? this.salaryCalculationService.getCareInsuranceType(
