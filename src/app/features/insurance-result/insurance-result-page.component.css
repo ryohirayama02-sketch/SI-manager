@@ -240,7 +240,7 @@
 /* 月選択時のテーブルの列幅 */
 .monthly-selection-table th:nth-child(1),
 .monthly-selection-table td:nth-child(1) {
-  width: 12%;
+  width: 10%;
 }
 
 .monthly-selection-table th:nth-child(2),
@@ -249,7 +249,7 @@
 .monthly-selection-table td:nth-child(3),
 .monthly-selection-table th:nth-child(4),
 .monthly-selection-table td:nth-child(4) {
-  width: 22%;
+  width: 13%;
 }
 
 .monthly-selection-table th:nth-child(5),
@@ -258,7 +258,12 @@
 .monthly-selection-table td:nth-child(6),
 .monthly-selection-table th:nth-child(7),
 .monthly-selection-table td:nth-child(7) {
-  width: 22%;
+  width: 13%;
+}
+
+.monthly-selection-table th:nth-child(8),
+.monthly-selection-table td:nth-child(8) {
+  width: 12%;
 }
 
 .premium-table tbody tr:hover {

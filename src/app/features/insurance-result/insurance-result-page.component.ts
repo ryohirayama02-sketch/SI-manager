@@ -993,7 +993,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             }
           }
 
-          if (!isExempt && standardMonthlyRemuneration > 0) {
+          if (!isExempt) {
             // 保険非加入または保険加入月より前の期間の場合は計算式を生成しない
             if (
               isNonInsured ||
@@ -1005,132 +1005,161 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                 pension: '保険非加入',
               };
             } else {
-              try {
-                // 年齢による停止を判定
-                let isPensionStopped = false;
-                let isHealthStopped = false;
+              // premiumResult.reasonsをチェックしてエラーメッセージを検出
+              const hasRateError = premiumResult.reasons?.some((r) =>
+                r.includes('保険料率の取得に失敗しました')
+              );
+              const hasStandardRemunerationError = premiumResult.reasons?.some(
+                (r) => r.includes('標準報酬月額が取得できません')
+              );
 
-                if (emp.birthDate) {
-                  try {
-                    const age = this.employeeLifecycleService.getAgeAtMonth(
-                      emp.birthDate,
-                      selectedYearNum,
-                      month
-                    );
+              // 保険料率未設定の場合
+              if (hasRateError) {
+                calculationFormula = {
+                  health: '保険料率が設定されていません',
+                  care: '保険料率が設定されていません',
+                  pension: '保険料率が設定されていません',
+                };
+              }
+              // 標準報酬月額表未設定の場合
+              else if (hasStandardRemunerationError) {
+                calculationFormula = {
+                  health: '標準報酬月額表が設定されていません',
+                  care: '標準報酬月額表が設定されていません',
+                  pension: '標準報酬月額表が設定されていません',
+                };
+              }
+              // 既存の計算式生成ロジック（standardMonthlyRemuneration > 0 かつ rates が存在する場合）
+              else if (standardMonthlyRemuneration > 0) {
+                try {
+                  // 年齢による停止を判定
+                  let isPensionStopped = false;
+                  let isHealthStopped = false;
 
-                    const stoppingFlags =
-                      this.premiumStoppingRuleService.getStoppingFlags(
-                        emp,
-                        selectedYearNum,
-                        month,
-                        age
-                      );
-
-                    isPensionStopped = stoppingFlags.isPensionStopped;
-                    isHealthStopped = stoppingFlags.isHealthStopped;
-                  } catch (ageError) {
-                    // 年齢計算に失敗しても既存処理には影響しない
-                    console.warn(
-                      `年齢計算に失敗しました（${emp.id}, ${this.year}年${month}月）:`,
-                      ageError
-                    );
-                  }
-                }
-
-                // 料率を取得
-                const prefecture = (emp as any).prefecture || 'tokyo';
-                const rates = await this.settingsService.getRates(
-                  this.year.toString(),
-                  prefecture,
-                  month.toString()
-                );
-
-                if (rates) {
-                  // 介護保険の判定
-                  const careType = emp.birthDate
-                    ? this.salaryCalculationService.getCareInsuranceType(
+                  if (emp.birthDate) {
+                    try {
+                      const age = this.employeeLifecycleService.getAgeAtMonth(
                         emp.birthDate,
                         selectedYearNum,
                         month
-                      )
-                    : 'none';
-                  const isCareApplicable = careType === 'type2';
+                      );
 
-                  // 健康保険の計算式（75歳以上で停止されている場合は「加入対象外」を表示）
-                  if (isHealthStopped) {
-                    calculationFormula = {
-                      health: '加入対象外（75歳到達）',
-                    };
-                  } else {
-                    // 健康保険の計算式（介護保険料率は含めない）
-                    const healthRateTotal =
-                      rates.health_employee + rates.health_employer;
-                    const healthRatePercent = (healthRateTotal * 100).toFixed(
-                      3
-                    );
-                    calculationFormula = {
-                      health: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${healthRatePercent}% /2`,
-                    };
+                      const stoppingFlags =
+                        this.premiumStoppingRuleService.getStoppingFlags(
+                          emp,
+                          selectedYearNum,
+                          month,
+                          age
+                        );
 
-                    // 介護保険の計算式
-                    if (isCareApplicable && standardMonthlyRemuneration > 0) {
-                      // 40歳～64歳の場合：計算式を表示
-                      const careRateTotal =
-                        rates.care_employee + rates.care_employer;
-                      const careRatePercent = (careRateTotal * 100).toFixed(3);
-                      calculationFormula = {
-                        ...calculationFormula,
-                        care: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${careRatePercent}% /2`,
-                      };
-                    } else if (careType === 'none') {
-                      // 40歳未満の場合：対象外を表示
-                      calculationFormula = {
-                        ...calculationFormula,
-                        care: '対象外（40歳未満）',
-                      };
-                    } else if (careType === 'type1') {
-                      // 65歳以上の場合：対象外を表示
-                      calculationFormula = {
-                        ...calculationFormula,
-                        care: '対象外（65歳以上）',
-                      };
+                      isPensionStopped = stoppingFlags.isPensionStopped;
+                      isHealthStopped = stoppingFlags.isHealthStopped;
+                    } catch (ageError) {
+                      // 年齢計算に失敗しても既存処理には影響しない
+                      console.warn(
+                        `年齢計算に失敗しました（${emp.id}, ${this.year}年${month}月）:`,
+                        ageError
+                      );
                     }
                   }
 
-                  // 厚生年金の計算式（70歳以上で停止されている場合は「加入対象外」を表示）
-                  if (isPensionStopped) {
-                    calculationFormula = {
-                      ...calculationFormula,
-                      pension: '加入対象外（70歳到達）',
-                    };
-                  } else {
-                    // 厚生年金用の標準報酬月額を補正（上限・下限の適用）
-                    const adjustment =
-                      this.premiumCalculationService.adjustPensionStandardMonthlyRemuneration(
-                        standardMonthlyRemuneration
+                  // 料率を取得
+                  const prefecture = (emp as any).prefecture || 'tokyo';
+                  const rates = await this.settingsService.getRates(
+                    this.year.toString(),
+                    prefecture,
+                    month.toString()
+                  );
+
+                  if (rates) {
+                    // 介護保険の判定
+                    const careType = emp.birthDate
+                      ? this.salaryCalculationService.getCareInsuranceType(
+                          emp.birthDate,
+                          selectedYearNum,
+                          month
+                        )
+                      : 'none';
+                    const isCareApplicable = careType === 'type2';
+
+                    // 健康保険の計算式（75歳以上で停止されている場合は「加入対象外」を表示）
+                    if (isHealthStopped) {
+                      calculationFormula = {
+                        health: '加入対象外（75歳到達）',
+                      };
+                    } else {
+                      // 健康保険の計算式（介護保険料率は含めない）
+                      const healthRateTotal =
+                        rates.health_employee + rates.health_employer;
+                      const healthRatePercent = (healthRateTotal * 100).toFixed(
+                        3
                       );
-                    const adjustedStandard = adjustment.adjusted;
-                    const pensionRateTotal =
-                      rates.pension_employee + rates.pension_employer;
-                    const pensionRatePercent = (pensionRateTotal * 100).toFixed(
-                      2
-                    );
-                    // 上限・下限に該当する場合は理由を追加
-                    const reasonText = adjustment.reason
-                      ? `（厚生年金${adjustment.reason}）`
-                      : '';
-                    calculationFormula = {
-                      ...calculationFormula,
-                      pension: `標準報酬${adjustedStandard.toLocaleString()}円×${pensionRatePercent}%${reasonText} /2`,
-                    };
+                      calculationFormula = {
+                        health: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${healthRatePercent}% /2`,
+                      };
+
+                      // 介護保険の計算式
+                      if (isCareApplicable && standardMonthlyRemuneration > 0) {
+                        // 40歳～64歳の場合：計算式を表示
+                        const careRateTotal =
+                          rates.care_employee + rates.care_employer;
+                        const careRatePercent = (careRateTotal * 100).toFixed(
+                          3
+                        );
+                        calculationFormula = {
+                          ...calculationFormula,
+                          care: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${careRatePercent}% /2`,
+                        };
+                      } else if (careType === 'none') {
+                        // 40歳未満の場合：対象外を表示
+                        calculationFormula = {
+                          ...calculationFormula,
+                          care: '対象外（40歳未満）',
+                        };
+                      } else if (careType === 'type1') {
+                        // 65歳以上の場合：対象外を表示
+                        calculationFormula = {
+                          ...calculationFormula,
+                          care: '対象外（65歳以上）',
+                        };
+                      }
+                    }
+
+                    // 厚生年金の計算式（70歳以上で停止されている場合は「加入対象外」を表示）
+                    if (isPensionStopped) {
+                      calculationFormula = {
+                        ...calculationFormula,
+                        pension: '加入対象外（70歳到達）',
+                      };
+                    } else {
+                      // 厚生年金用の標準報酬月額を補正（上限・下限の適用）
+                      const adjustment =
+                        this.premiumCalculationService.adjustPensionStandardMonthlyRemuneration(
+                          standardMonthlyRemuneration
+                        );
+                      const adjustedStandard = adjustment.adjusted;
+                      const pensionRateTotal =
+                        rates.pension_employee + rates.pension_employer;
+                      const pensionRatePercent = (
+                        pensionRateTotal * 100
+                      ).toFixed(2);
+                      // 上限・下限に該当する場合は理由を追加
+                      const reasonText = adjustment.reason
+                        ? `（厚生年金${adjustment.reason}）`
+                        : '';
+                      calculationFormula = {
+                        ...calculationFormula,
+                        pension: `標準報酬${adjustedStandard.toLocaleString()}円×${pensionRatePercent}%${reasonText} /2`,
+                      };
+                    }
                   }
+                } catch (error) {
+                  // 計算式の生成に失敗しても既存処理には影響しない
+                  console.warn(
+                    `計算式の生成に失敗しました（${emp.id}, ${this.year}年${month}月）:`,
+                    error
+                  );
                 }
-              } catch (error) {
-                // 計算式の生成に失敗しても既存処理には影響しない
-                console.warn(
-                  `計算式の生成に失敗しました（${emp.id}, ${this.year}年${month}月）:`,
-                  error
-                );
               }
             }
           }
@@ -1224,6 +1253,33 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             pensionEmployer: bonus.pensionEmployer || 0,
           };
 
+          // #region agent log
+          fetch(
+            'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'insurance-result-page.component.ts:1247',
+                message: '賞与データの保険料確認',
+                data: {
+                  bonusId: bonus.id,
+                  payDate: bonus.payDate,
+                  amount: bonus.amount,
+                  healthEmployee: bonus.healthEmployee,
+                  healthEmployer: bonus.healthEmployer,
+                  pensionEmployee: bonus.pensionEmployee,
+                  pensionEmployer: bonus.pensionEmployer,
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'A',
+              }),
+            }
+          ).catch(() => {});
+          // #endregion
+
           // 保険料が保存されていない場合のみ再計算
           const hasStoredPremiums =
             (bonus.healthEmployee !== undefined &&
@@ -1231,8 +1287,54 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
             (bonus.pensionEmployee !== undefined &&
               bonus.pensionEmployee !== null);
 
+          // #region agent log
+          fetch(
+            'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'insurance-result-page.component.ts:1257',
+                message: 'hasStoredPremiums判定',
+                data: {
+                  hasStoredPremiums,
+                  healthEmployee: bonus.healthEmployee,
+                  pensionEmployee: bonus.pensionEmployee,
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'B',
+              }),
+            }
+          ).catch(() => {});
+          // #endregion
+
           if (!hasStoredPremiums && bonus.payDate) {
             try {
+              // #region agent log
+              fetch(
+                'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    location: 'insurance-result-page.component.ts:1265',
+                    message: 'calculateBonus呼び出し前',
+                    data: {
+                      employeeId: emp.id,
+                      amount: bonus.amount,
+                      payDate: bonus.payDate,
+                      year: this.year,
+                    },
+                    timestamp: Date.now(),
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'C',
+                  }),
+                }
+              ).catch(() => {});
+              // #endregion
               const calculationResult =
                 await this.bonusCalculationService.calculateBonus(
                   emp,
@@ -1241,6 +1343,33 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   bonus.payDate,
                   this.year
                 );
+
+              // #region agent log
+              fetch(
+                'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    location: 'insurance-result-page.component.ts:1274',
+                    message: 'calculateBonus結果',
+                    data: {
+                      calculationResult: calculationResult
+                        ? {
+                            healthEmployee: calculationResult.healthEmployee,
+                            pensionEmployee: calculationResult.pensionEmployee,
+                          }
+                        : null,
+                      isNull: calculationResult === null,
+                    },
+                    timestamp: Date.now(),
+                    sessionId: 'debug-session',
+                    runId: 'run1',
+                    hypothesisId: 'C',
+                  }),
+                }
+              ).catch(() => {});
+              // #endregion
 
               if (calculationResult) {
                 // 再計算した結果を使用
@@ -1281,6 +1410,29 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
               // エラーが発生した場合は、既存の値をそのまま使用
             }
           }
+
+          // #region agent log
+          fetch(
+            'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                location: 'insurance-result-page.component.ts:1312',
+                message: '最終的な保険料値',
+                data: {
+                  recalculatedPremiums,
+                  hasStoredPremiums,
+                  usedStored: hasStoredPremiums,
+                },
+                timestamp: Date.now(),
+                sessionId: 'debug-session',
+                runId: 'run1',
+                hypothesisId: 'A',
+              }),
+            }
+          ).catch(() => {});
+          // #endregion
 
           // 計算式を生成（ツールチップ表示用）
           // 既存の賞与データにも計算式を生成するため、再計算の有無に関わらず実行
@@ -1388,6 +1540,33 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                   prefecture,
                   payMonth.toString()
                 );
+
+                // #region agent log
+                fetch(
+                  'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+                  {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      location: 'insurance-result-page.component.ts:1415',
+                      message: '賞与計算式生成時の料率取得',
+                      data: {
+                        rates: rates
+                          ? { health_employee: rates.health_employee }
+                          : null,
+                        isNull: rates === null,
+                        payYear,
+                        payMonth,
+                        prefecture,
+                      },
+                      timestamp: Date.now(),
+                      sessionId: 'debug-session',
+                      runId: 'run1',
+                      hypothesisId: 'E',
+                    }),
+                  }
+                ).catch(() => {});
+                // #endregion
 
                 if (rates) {
                   // 介護保険の判定

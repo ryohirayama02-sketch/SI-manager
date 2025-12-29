@@ -149,7 +149,13 @@ export class BonusCalculationService {
 
     // 料率を取得
     const rates = await this.preparationService.getRates(employee, year);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bonus-calculation.service.ts:151',message:'料率取得結果',data:{rates:rates?{health_employee:rates.health_employee,health_employer:rates.health_employer,pension_employee:rates.pension_employee}:null,isNull:rates===null,employeeId:employee.id,year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (!rates) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'bonus-calculation.service.ts:152',message:'料率未設定のためnullを返す',data:{employeeId:employee.id,year},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       return null;
     }
 
