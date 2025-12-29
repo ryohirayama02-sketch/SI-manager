@@ -266,8 +266,84 @@ export class OfficeService {
     office: Office
   ): Promise<void> {
     const ref = doc(this.firestore, `rooms/${roomId}/offices/${officeId}`);
-    const payload = { ...office, roomId };
-    await updateDoc(ref, payload as any);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'office.service.ts:263',
+        message: 'updateOfficeInRoom開始',
+        data: {
+          roomId,
+          officeId,
+          office: {
+            id: office.id,
+            officeCode: office.officeCode,
+            officeNumber: office.officeNumber,
+            corporateNumber: office.corporateNumber,
+            prefecture: office.prefecture,
+            address: office.address,
+            officeName: office.officeName,
+            phoneNumber: office.phoneNumber,
+            ownerName: office.ownerName,
+          },
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A',
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    // undefinedをnullにサニタイズし、idとcreatedAtを除外
+    const { id, createdAt, ...officeData } = office;
+    const payload = {
+      ...officeData,
+      roomId,
+      updatedAt: new Date(),
+    };
+    const dataToSave = Object.fromEntries(
+      Object.entries(payload).map(([k, v]) => [k, this.sanitize(v)])
+    );
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'office.service.ts:280',
+        message: 'updateOfficeInRoom: 保存データ',
+        data: {
+          dataToSave,
+          hasUndefined: Object.values(dataToSave).some((v) => v === undefined),
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A',
+      }),
+    }).catch(() => {});
+    // #endregion
+
+    await updateDoc(ref, dataToSave as any);
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: 'office.service.ts:295',
+        message: 'updateOfficeInRoom完了',
+        data: { roomId, officeId },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A',
+      }),
+    }).catch(() => {});
+    // #endregion
   }
 
   /**

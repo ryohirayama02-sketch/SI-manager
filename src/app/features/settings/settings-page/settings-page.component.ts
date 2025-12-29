@@ -948,6 +948,30 @@ export class SettingsPageComponent {
 
       const value = this.officeForm.value;
       const roomId = this.roomIdService.requireRoomId();
+
+      // #region agent log
+      fetch(
+        'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'settings-page.component.ts:949',
+            message: 'saveOffice: フォーム値取得',
+            data: {
+              formValue: value,
+              selectedOfficeId: this.selectedOffice?.id,
+              formValid: this.officeForm.valid,
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'A',
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+
       const office: Office = {
         id: this.selectedOffice?.id,
         roomId: roomId,
@@ -961,6 +985,38 @@ export class SettingsPageComponent {
         ownerName: value.ownerName || undefined,
         createdAt: this.selectedOffice?.createdAt || new Date(),
       };
+
+      // #region agent log
+      fetch(
+        'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'settings-page.component.ts:976',
+            message: 'saveOffice: 事業所オブジェクト作成後',
+            data: {
+              office: {
+                id: office.id,
+                officeCode: office.officeCode,
+                officeNumber: office.officeNumber,
+                corporateNumber: office.corporateNumber,
+                prefecture: office.prefecture,
+                address: office.address,
+                officeName: office.officeName,
+                phoneNumber: office.phoneNumber,
+                ownerName: office.ownerName,
+              },
+              isNew: !this.selectedOffice?.id,
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'A',
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
 
       // 既存の事業所の場合、都道府県が変更されたかチェック
       const oldPrefecture = this.selectedOffice?.prefecture;
@@ -980,11 +1036,55 @@ export class SettingsPageComponent {
         );
         office.id = savedId;
       } else {
+        // #region agent log
+        fetch(
+          'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'settings-page.component.ts:983',
+              message: 'saveOffice: updateOfficeInRoom呼び出し前',
+              data: {
+                roomId,
+                officeId: this.selectedOffice.id,
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              runId: 'run1',
+              hypothesisId: 'A',
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
+
         await this.officeService.updateOfficeInRoom(
           roomId,
           this.selectedOffice.id,
           office
         );
+
+        // #region agent log
+        fetch(
+          'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              location: 'settings-page.component.ts:1000',
+              message: 'saveOffice: updateOfficeInRoom呼び出し後',
+              data: {
+                roomId,
+                officeId: this.selectedOffice.id,
+              },
+              timestamp: Date.now(),
+              sessionId: 'debug-session',
+              runId: 'run1',
+              hypothesisId: 'A',
+            }),
+          }
+        ).catch(() => {});
+        // #endregion
       }
 
       // 都道府県が変更された場合、その事業所に紐づく従業員の都道府県も自動更新
@@ -1029,7 +1129,31 @@ export class SettingsPageComponent {
         this.selectOffice(null);
       }
     } catch (error) {
-      alert('事業所マスタの保存に失敗しました');
+      // #region agent log
+      fetch(
+        'http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            location: 'settings-page.component.ts:1031',
+            message: 'saveOffice: エラー発生',
+            data: {
+              error: error instanceof Error ? error.message : String(error),
+              errorStack: error instanceof Error ? error.stack : undefined,
+            },
+            timestamp: Date.now(),
+            sessionId: 'debug-session',
+            runId: 'run1',
+            hypothesisId: 'A',
+          }),
+        }
+      ).catch(() => {});
+      // #endregion
+      alert(
+        '事業所マスタの保存に失敗しました: ' +
+          (error instanceof Error ? error.message : String(error))
+      );
     }
   }
 
