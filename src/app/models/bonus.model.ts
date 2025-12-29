@@ -32,6 +32,7 @@ export interface Bonus {
   // 計算式情報（ツールチップ表示用、オプショナル）
   calculationFormula?: {
     health?: string; // 例: "標準賞与500,000円×4.955% (50銭ルール適用)"
+    care?: string; // 例: "標準賞与500,000円×1.73% (50銭ルール適用)"
     pension?: string; // 例: "標準賞与500,000円×9.15% (50銭ルール適用)"
   };
 }

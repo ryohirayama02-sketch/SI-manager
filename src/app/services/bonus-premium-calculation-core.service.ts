@@ -176,33 +176,10 @@ export class BonusPremiumCalculationCoreService {
 
     // 保険料計算
     // 健康保険の計算方法：
-    // 介護保険に加入していない場合（40歳未満・65歳以上）：標準賞与額×健保保険料率
-    // 介護保険に加入している場合（40歳～64歳）：標準賞与額×（健康保険料率＋介護保険料率）
+    // 健康保険料率のみを使用（介護保険料率は含めない）
     // 50銭未満切り捨て、50銭超切り上げ
-    const healthRateEmployee = isCareEligible
-      ? rates.health_employee + rates.care_employee
-      : rates.health_employee;
-    const healthRateEmployer = isCareEligible
-      ? rates.health_employer + rates.care_employer
-      : rates.health_employer;
-
-    // 検証: 65歳以上（isCare2=false）の場合、健康保険料率に介護保険料率が含まれていないことを確認
-    if (age >= 65 && !ageFlags.isCare2) {
-      if (healthRateEmployee !== rates.health_employee) {
-        console.error(
-          '[BonusPremiumCalculationCoreService] 検証エラー: 65歳以上で健康保険料率に介護保険料率が含まれています',
-          {
-            age,
-            ageFlags,
-            isCare2: ageFlags.isCare2,
-            healthRateEmployee,
-            expectedHealthRate: rates.health_employee,
-            care_employee_rate: rates.care_employee,
-          }
-        );
-        // エラーをログに記録するが、計算は続行（本番環境での影響を最小化）
-      }
-    }
+    const healthRateEmployee = rates.health_employee;
+    const healthRateEmployer = rates.health_employer;
 
     // 健康保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
     const healthTotal =
@@ -211,9 +188,19 @@ export class BonusPremiumCalculationCoreService {
     const healthEmployee = this.roundWith50SenRule(healthHalf);
     const healthEmployer = this.roundWith50SenRule(healthHalf);
 
-    // 介護保険は健康保険に含まれるため、個別の値は0とする（後方互換性のため残す）
-    const careEmployee = 0;
-    const careEmployer = 0;
+    // 介護保険：総額を計算 → 折半 → それぞれ50銭ルールで丸める
+    // 介護保険は40歳～64歳のみ（isCareEligible && actualHealthBase > 0 の場合のみ）
+    let careEmployee = 0;
+    let careEmployer = 0;
+    if (isCareEligible && actualHealthBase > 0) {
+      const careRateEmployee = rates.care_employee;
+      const careRateEmployer = rates.care_employer;
+      const careTotal =
+        actualHealthBase * (careRateEmployee + careRateEmployer);
+      const careHalf = careTotal / 2;
+      careEmployee = this.roundWith50SenRule(careHalf);
+      careEmployer = this.roundWith50SenRule(careHalf);
+    }
 
     // 厚生年金：個人分を計算 → 50銭ルールで丸める → 会社分 = 総額 - 個人分
     const pensionTotal =
@@ -332,7 +319,6 @@ export class BonusPremiumCalculationCoreService {
       reasons.push('75歳到達月のため健保・介保の賞与保険料は停止されます');
     }
 
-
     if (reason_upper_limit_health) {
       reasons.push(
         `健保・介保の年度上限（573万円）を適用しました（標準賞与額: ${standardBonus.toLocaleString()}円 → 上限適用後: ${cappedBonusHealth.toLocaleString()}円）`
@@ -347,5 +333,4 @@ export class BonusPremiumCalculationCoreService {
 
     return reasons;
   }
-
 }

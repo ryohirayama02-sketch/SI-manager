@@ -37,6 +37,7 @@ interface MonthlyPremiumData {
   // 計算式情報（ツールチップ表示用、オプショナル）
   calculationFormula?: {
     health?: string; // 例: "標準報酬500,000円×4.955%"
+    care?: string; // 例: "標準報酬500,000円×1.73%"
     pension?: string; // 例: "標準報酬500,000円×9.15%"
   };
 }
@@ -930,7 +931,7 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
           // 計算式を生成（ツールチップ表示用）
           let calculationFormula:
-            | { health?: string; pension?: string }
+            | { health?: string; care?: string; pension?: string }
             | undefined;
 
           /**
@@ -1061,18 +1062,39 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                       health: '加入対象外（75歳到達）',
                     };
                   } else {
-                    const healthRateTotal = isCareApplicable
-                      ? rates.health_employee +
-                        rates.health_employer +
-                        rates.care_employee +
-                        rates.care_employer
-                      : rates.health_employee + rates.health_employer;
+                    // 健康保険の計算式（介護保険料率は含めない）
+                    const healthRateTotal =
+                      rates.health_employee + rates.health_employer;
                     const healthRatePercent = (healthRateTotal * 100).toFixed(
                       3
                     );
                     calculationFormula = {
                       health: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${healthRatePercent}% /2`,
                     };
+
+                    // 介護保険の計算式
+                    if (isCareApplicable && standardMonthlyRemuneration > 0) {
+                      // 40歳～64歳の場合：計算式を表示
+                      const careRateTotal =
+                        rates.care_employee + rates.care_employer;
+                      const careRatePercent = (careRateTotal * 100).toFixed(3);
+                      calculationFormula = {
+                        ...calculationFormula,
+                        care: `標準報酬${standardMonthlyRemuneration.toLocaleString()}円×${careRatePercent}% /2`,
+                      };
+                    } else if (careType === 'none') {
+                      // 40歳未満の場合：対象外を表示
+                      calculationFormula = {
+                        ...calculationFormula,
+                        care: '対象外（40歳未満）',
+                      };
+                    } else if (careType === 'type1') {
+                      // 65歳以上の場合：対象外を表示
+                      calculationFormula = {
+                        ...calculationFormula,
+                        care: '対象外（65歳以上）',
+                      };
+                    }
                   }
 
                   // 厚生年金の計算式（70歳以上で停止されている場合は「加入対象外」を表示）
@@ -1386,18 +1408,39 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
                     };
                   } else if (standardBonusHealth >= 0) {
                     // 年間上限オーバー時（standardBonusHealth = 0）でも計算式を表示
-                    const healthRateTotal = isCareApplicable
-                      ? rates.health_employee +
-                        rates.health_employer +
-                        rates.care_employee +
-                        rates.care_employer
-                      : rates.health_employee + rates.health_employer;
+                    // 健康保険の計算式（介護保険料率は含めない）
+                    const healthRateTotal =
+                      rates.health_employee + rates.health_employer;
                     const healthRatePercent = (healthRateTotal * 100).toFixed(
                       3
                     );
                     bonus.calculationFormula = {
                       health: `標準賞与${standardBonusHealth.toLocaleString()}円×${healthRatePercent}% (50銭ルール適用) /2`,
                     };
+
+                    // 介護保険の計算式
+                    if (isCareApplicable && standardBonusHealth > 0) {
+                      // 40歳～64歳の場合：計算式を表示
+                      const careRateTotal =
+                        rates.care_employee + rates.care_employer;
+                      const careRatePercent = (careRateTotal * 100).toFixed(3);
+                      bonus.calculationFormula = {
+                        ...bonus.calculationFormula,
+                        care: `標準賞与${standardBonusHealth.toLocaleString()}円×${careRatePercent}% (50銭ルール適用) /2`,
+                      };
+                    } else if (careType === 'none') {
+                      // 40歳未満の場合：対象外を表示
+                      bonus.calculationFormula = {
+                        ...bonus.calculationFormula,
+                        care: '対象外（40歳未満）',
+                      };
+                    } else if (careType === 'type1') {
+                      // 65歳以上の場合：対象外を表示
+                      bonus.calculationFormula = {
+                        ...bonus.calculationFormula,
+                        care: '対象外（65歳以上）',
+                      };
+                    }
                   }
 
                   // 厚生年金の計算式
