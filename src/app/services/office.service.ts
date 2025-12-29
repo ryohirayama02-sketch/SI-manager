@@ -140,6 +140,7 @@ export class OfficeService {
 
     const ref = collection(this.firestore, `rooms/${roomId}/offices`);
     const snapshot = await getDocs(ref);
+
     const offices = snapshot.docs.map((doc) => {
       const data = doc.data();
       let createdAt: Date | undefined;
@@ -167,11 +168,13 @@ export class OfficeService {
       } as Office;
     });
     // クライアント側でソート（officeCode, officeNumberでソート）
-    return offices.sort((a, b) => {
+    const sortedOffices = offices.sort((a, b) => {
       const codeA = (a.officeCode || '') + (a.officeNumber || '');
       const codeB = (b.officeCode || '') + (b.officeNumber || '');
       return codeA.localeCompare(codeB);
     });
+
+    return sortedOffices;
   }
 
   /**

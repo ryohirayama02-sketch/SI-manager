@@ -47,6 +47,17 @@ export class EmployeeService {
       delete normalizedEmployee.shortTimeWorker;
     }
 
+    // officeNumberの正規化: 文字列'null'をnullに変換
+    if (
+      normalizedEmployee.officeNumber === 'null' ||
+      normalizedEmployee.officeNumber === 'undefined'
+    ) {
+      normalizedEmployee.officeNumber = null;
+    }
+    if (normalizedEmployee.officeNumber === '') {
+      normalizedEmployee.officeNumber = null;
+    }
+
     // undefinedの値を除外
     const cleanEmployee: any = {};
     for (const [key, value] of Object.entries(normalizedEmployee)) {
@@ -135,12 +146,29 @@ export class EmployeeService {
       throw new Error('この従業員データにアクセスする権限がありません');
     }
 
+    // officeNumberの正規化: 文字列'null'をnullに変換
+    let normalizedOfficeNumber: string | null | undefined = data.officeNumber;
+    if (
+      normalizedOfficeNumber === 'null' ||
+      normalizedOfficeNumber === 'undefined'
+    ) {
+      normalizedOfficeNumber = null;
+    }
+    if (normalizedOfficeNumber === '') {
+      normalizedOfficeNumber = null;
+    }
+
     // undefinedの値を除外（空文字列やnullは含める）
     const cleanData: any = {};
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
         cleanData[key] = value;
       }
+    }
+
+    // officeNumberを正規化後の値で上書き
+    if (normalizedOfficeNumber !== undefined) {
+      cleanData.officeNumber = normalizedOfficeNumber;
     }
 
     // roomIdは変更不可（セキュリティのため）
@@ -204,7 +232,20 @@ export class EmployeeService {
     employee: Employee
   ): Promise<void> {
     const ref = doc(this.firestore, `rooms/${roomId}/employees/${employeeId}`);
-    const payload = { ...employee, roomId };
+
+    // officeNumberの正規化: 文字列'null'をnullに変換
+    const normalizedEmployee: any = { ...employee };
+    if (
+      normalizedEmployee.officeNumber === 'null' ||
+      normalizedEmployee.officeNumber === 'undefined'
+    ) {
+      normalizedEmployee.officeNumber = null;
+    }
+    if (normalizedEmployee.officeNumber === '') {
+      normalizedEmployee.officeNumber = null;
+    }
+
+    const payload = { ...normalizedEmployee, roomId };
     await updateDoc(ref, payload as any);
   }
 

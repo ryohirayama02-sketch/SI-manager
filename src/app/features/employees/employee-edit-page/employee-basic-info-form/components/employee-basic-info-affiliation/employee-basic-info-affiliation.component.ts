@@ -1,4 +1,13 @@
-import { Component, OnInit, Input, OnChanges, SimpleChanges, AfterViewInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  Input,
+  OnChanges,
+  SimpleChanges,
+  AfterViewInit,
+  OnDestroy,
+  ChangeDetectorRef,
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormsModule, FormGroup } from '@angular/forms';
 import { OfficeService } from '../../../../../../services/office.service';
@@ -10,9 +19,11 @@ import { Subscription } from 'rxjs';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './employee-basic-info-affiliation.component.html',
-  styleUrl: './employee-basic-info-affiliation.component.css'
+  styleUrl: './employee-basic-info-affiliation.component.css',
 })
-export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
+export class EmployeeBasicInfoAffiliationComponent
+  implements OnInit, OnChanges, AfterViewInit, OnDestroy
+{
   @Input() form!: FormGroup;
   @Input() employeeId: string | null = null;
 
@@ -30,10 +41,10 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
     // 事業所一覧を取得
     this.offices = await this.officeService.getAllOffices();
     this.officesLoaded = true;
-    
+
     // フォームの値が既に設定されている場合は事業所を特定
     this.updateSelectedOffice();
-    
+
     // フォームの値の変更を監視
     if (this.form) {
       this.formValueSubscription = this.form.valueChanges.subscribe(() => {
@@ -47,14 +58,14 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
     if (changes['form'] && this.officesLoaded) {
       // 既存のサブスクリプションを解除
       this.formValueSubscription?.unsubscribe();
-      
+
       // 新しいフォームの値変更を監視
       if (this.form) {
         this.formValueSubscription = this.form.valueChanges.subscribe(() => {
           this.updateSelectedOffice();
         });
       }
-      
+
       this.updateSelectedOffice();
     }
   }
@@ -74,15 +85,26 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
 
   private updateSelectedOffice(): void {
     if (!this.form) return;
-    
+
     // 既存の事業所番号と都道府県から事業所を特定
-    const officeNumber = this.form.get('officeNumber')?.value;
+    let officeNumber = this.form.get('officeNumber')?.value;
     const prefecture = this.form.get('prefecture')?.value;
-    
+
+    // officeNumberの正規化: 文字列'null'をnullに変換
+    if (officeNumber === 'null' || officeNumber === 'undefined') {
+      officeNumber = null;
+    }
+    if (officeNumber === '') {
+      officeNumber = null;
+    }
+
     if (officeNumber && prefecture) {
       const matchingOffice = this.offices.find(
-        office => office.officeNumber === officeNumber && office.prefecture === prefecture
+        (office) =>
+          office.officeNumber === officeNumber &&
+          office.prefecture === prefecture
       );
+
       if (matchingOffice?.id) {
         this.selectedOfficeId = matchingOffice.id;
         // 変更検出をトリガー
@@ -99,13 +121,15 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
 
   onOfficeChange(officeId: string): void {
     this.selectedOfficeId = officeId;
-    const selectedOffice = this.offices.find(office => office.id === officeId);
-    
+    const selectedOffice = this.offices.find(
+      (office) => office.id === officeId
+    );
+
     if (selectedOffice) {
       // 事業所を選択したら、都道府県と事業所番号を自動設定
       this.form.patchValue({
         prefecture: selectedOffice.prefecture || 'tokyo',
-        officeNumber: selectedOffice.officeNumber || ''
+        officeNumber: selectedOffice.officeNumber || '',
       });
       // バリデーション状態を更新
       this.form.get('officeNumber')?.markAsTouched();
@@ -113,7 +137,7 @@ export class EmployeeBasicInfoAffiliationComponent implements OnInit, OnChanges,
       // 事業所が選択されていない場合はクリア
       this.form.patchValue({
         prefecture: 'tokyo',
-        officeNumber: ''
+        officeNumber: '',
       });
       // バリデーション状態を更新
       this.form.get('officeNumber')?.markAsTouched();

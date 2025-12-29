@@ -136,19 +136,31 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       this.employeeId
     );
     if (data) {
+      // officeNumberの正規化: 文字列'null'をnullに変換
+      let normalizedOfficeNumber = (data as any).officeNumber;
+      if (
+        normalizedOfficeNumber === 'null' ||
+        normalizedOfficeNumber === 'undefined'
+      ) {
+        normalizedOfficeNumber = null;
+      }
+      if (normalizedOfficeNumber === '') {
+        normalizedOfficeNumber = null;
+      }
+
       this.originalEmployeeData = {
         name: data.name || '',
         nameKana: (data as any).nameKana || '',
         gender: (data as any).gender || '',
         birthDate: data.birthDate || '',
         address: (data as any).address || '',
-        officeNumber: (data as any).officeNumber || '',
+        officeNumber: normalizedOfficeNumber || '',
         prefecture: data.prefecture || 'tokyo',
         isShortTime: data.isShortTime || (data as any).shortTimeWorker || false,
         weeklyWorkHoursCategory: data.weeklyWorkHoursCategory || '',
       };
 
-      const officeNumber = (data as any).officeNumber || '';
+      const officeNumber = normalizedOfficeNumber || '';
       let prefecture = data.prefecture || 'tokyo';
 
       this.form.patchValue({
@@ -274,12 +286,12 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
   async updateEmployee(): Promise<void> {
     this.validateDates();
-    
+
     // フォームの全コントロールをtouched状態にする（バリデーションエラーを表示するため）
-    Object.keys(this.form.controls).forEach(key => {
+    Object.keys(this.form.controls).forEach((key) => {
       this.form.get(key)?.markAsTouched();
     });
-    
+
     // 事業所が選択されていない場合はエラー
     const officeNumber = this.form.get('officeNumber')?.value;
     if (!officeNumber || officeNumber.trim() === '') {
@@ -287,11 +299,11 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       this.errorMessagesChange.emit(this.errorMessages);
       return;
     }
-    
+
     if (this.errorMessages.length > 0) {
       return;
     }
-    
+
     if (!this.employeeId || !this.form.valid) return;
 
     const value = this.form.value;
@@ -527,7 +539,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     // 週所定労働時間カテゴリの変化があれば履歴を残す（勤務区分変更）
     if (oldWeeklyCategory !== newWeeklyCategory) {
-
       await this.employeeChangeHistoryService.saveChangeHistory({
         employeeId: this.employeeId,
         changeType: '適用区分変更',
@@ -606,11 +617,10 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     }
 
     // 月額賃金見込から標準報酬月額を決定
-    const result =
-      this.salaryCalculationService.getStandardMonthlyRemuneration(
-        monthlyWage,
-        gradeTable
-      );
+    const result = this.salaryCalculationService.getStandardMonthlyRemuneration(
+      monthlyWage,
+      gradeTable
+    );
     if (!result) {
       console.warn(
         `[employee-basic-info-form] 標準報酬月額の決定に失敗しました`,
@@ -659,7 +669,6 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
           createdAt: existingAcquisition?.createdAt,
         }
       );
-
     }
   }
 
@@ -721,7 +730,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     }
 
     // 削除確認
-    const employee = await this.employeeService.getEmployeeById(this.employeeId);
+    const employee = await this.employeeService.getEmployeeById(
+      this.employeeId
+    );
     const employeeName = employee?.name || 'この従業員';
     const confirmMessage = `${employeeName}をシステムから削除しますか？\n\nこの操作は取り消せません。\n関連する家族情報も全て削除されます。`;
 
@@ -731,7 +742,9 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
 
     try {
       // 家族情報を先に削除
-      await this.familyMemberService.deleteFamilyMembersByEmployeeId(this.employeeId);
+      await this.familyMemberService.deleteFamilyMembersByEmployeeId(
+        this.employeeId
+      );
 
       // 従業員情報を削除
       await this.employeeService.deleteEmployee(this.employeeId);
