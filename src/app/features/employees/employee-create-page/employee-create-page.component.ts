@@ -58,6 +58,7 @@ export class EmployeeCreatePageComponent implements OnInit {
 
   // 事業所マスタ関連
   offices: Office[] = [];
+  selectedOfficeId: string | null = null;
 
   // 従業員ID（登録後に使用）
   employeeId: string | null = null;
@@ -94,6 +95,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       // 所属
       prefecture: ['tokyo', Validators.required],
       officeNumber: ['', Validators.required],
+      selectedOfficeId: [null], // 事業所ID（officeNumberがnullでも事業所を識別するため）
       department: [''],
       // 入退社
       joinDate: ['', Validators.required],
@@ -146,34 +148,7 @@ export class EmployeeCreatePageComponent implements OnInit {
       }
     }, 0);
 
-    // 事業所選択時に都道府県を自動設定
-    this.form
-      .get('officeNumber')
-      ?.valueChanges.subscribe((officeNumber: string) => {
-        if (officeNumber) {
-          const selectedOffice = this.offices.find(
-            (office) => office.officeNumber === officeNumber
-          );
-          if (selectedOffice) {
-            if (selectedOffice.prefecture) {
-              this.form.patchValue(
-                { prefecture: selectedOffice.prefecture },
-                { emitEvent: false }
-              );
-            } else {
-              console.warn(
-                `事業所 ${officeNumber} の都道府県情報が設定されていません。事業所マスタで都道府県を設定してください。`
-              );
-            }
-          } else {
-            console.warn(
-              `事業所 ${officeNumber} が事業所マスタに見つかりません。`
-            );
-          }
-        } else {
-          this.form.patchValue({ prefecture: 'tokyo' }, { emitEvent: false });
-        }
-      });
+    // 事業所選択時の処理はonOfficeChange()で行う
   }
 
   async ngOnInit(): Promise<void> {
@@ -312,6 +287,67 @@ export class EmployeeCreatePageComponent implements OnInit {
     this.offices = await this.officeService.getAllOffices();
   }
 
+  onOfficeChange(officeId: string | null): void {
+    this.selectedOfficeId = officeId;
+    const selectedOffice = this.offices.find(
+      (office) => office.id === officeId
+    );
+
+    if (selectedOffice) {
+      // 事業所を選択したら、都道府県と事業所番号を自動設定
+      const officeNumberValue = selectedOffice.officeNumber || '';
+
+      // selectedOfficeIdコントロールが存在するか確認してから設定
+      const selectedOfficeIdControl = this.form.get('selectedOfficeId');
+      if (selectedOfficeIdControl) {
+        selectedOfficeIdControl.setValue(officeId);
+      }
+
+      this.form.patchValue({
+        prefecture: selectedOffice.prefecture || 'tokyo',
+        officeNumber: officeNumberValue,
+      });
+
+      // officeNumberが空でも事業所が選択されていればバリデーションエラーをクリア
+      const officeNumberControl = this.form.get('officeNumber');
+      if (officeNumberControl && !officeNumberValue) {
+        // カスタムバリデーターを設定: 事業所が選択されていればofficeNumberが空でも有効
+        officeNumberControl.setValidators([]);
+        officeNumberControl.updateValueAndValidity();
+      }
+      // バリデーション状態を更新
+      this.form.get('officeNumber')?.markAsTouched();
+    } else {
+      // 事業所が選択されていない場合はクリアし、必須バリデーターを復元
+      const officeNumberControl = this.form.get('officeNumber');
+      if (officeNumberControl) {
+        officeNumberControl.setValidators([this.requiredValidator]);
+        officeNumberControl.updateValueAndValidity();
+      }
+      this.form.patchValue({
+        prefecture: 'tokyo',
+        officeNumber: '',
+        selectedOfficeId: null,
+      });
+      // バリデーション状態を更新
+      this.form.get('officeNumber')?.markAsTouched();
+    }
+  }
+
+  getOfficeDisplayName(office: Office): string {
+    const address = office.address || '';
+    return address || '住所未設定';
+  }
+
+  // 必須バリデーター（事業所が選択されていない場合に使用）
+  private requiredValidator(control: any): any {
+    const value = control.value;
+    if (value === null || value === undefined || value === '') {
+      return { required: true };
+    }
+    return null;
+  }
+
   updateAutoDetection(): void {
     const value = this.form.getRawValue();
 
@@ -434,7 +470,24 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (this.errorMessages.length > 0) {
       return;
     }
-    if (!this.form.valid) {
+
+    // 事業所が選択されているかチェック（selectedOfficeIdまたはofficeNumberで判断）
+    const officeNumber = this.form.get('officeNumber')?.value;
+    const selectedOfficeId = this.form.get('selectedOfficeId')?.value;
+    const hasOfficeSelected =
+      (selectedOfficeId !== null &&
+        selectedOfficeId !== undefined &&
+        selectedOfficeId !== '') ||
+      (officeNumber && officeNumber.trim() !== '');
+
+    // 事業所が選択されていない場合はエラー
+    if (!hasOfficeSelected) {
+      this.errorMessages.push('事業所を選択してください。');
+      return;
+    }
+
+    // フォームが有効か、または事業所が選択されている場合は保存可能
+    if (!this.form.valid && !hasOfficeSelected) {
       return;
     }
     this.isSubmitting = true;
@@ -453,6 +506,8 @@ export class EmployeeCreatePageComponent implements OnInit {
       birthDate: value.birthDate,
       joinDate: value.joinDate,
       prefecture: value.prefecture || 'tokyo',
+      officeNumber: value.officeNumber || '', // 事業所情報を必ず保存
+      selectedOfficeId: value.selectedOfficeId || null, // 事業所IDを保存（officeNumberがnullでも事業所を識別するため）
       isStudent: value.isStudent ?? false,
       childcareNotificationSubmitted:
         value.childcareNotificationSubmitted ?? false,
@@ -467,7 +522,6 @@ export class EmployeeCreatePageComponent implements OnInit {
     if (value.basicPensionNumber)
       employee.basicPensionNumber = value.basicPensionNumber;
     if (value.insuredNumber) employee.insuredNumber = value.insuredNumber;
-    if (value.officeNumber) employee.officeNumber = value.officeNumber;
     if (value.department) employee.department = value.department;
     if (value.retireDate) employee.retireDate = value.retireDate;
     if (value.weeklyWorkHoursCategory)
@@ -758,7 +812,9 @@ export class EmployeeCreatePageComponent implements OnInit {
     try {
       // 従業員がまだ登録されていない場合は、配列から削除
       if (!this.employeeId) {
-        this.familyMembers = this.familyMembers.filter((m) => m.id !== memberId);
+        this.familyMembers = this.familyMembers.filter(
+          (m) => m.id !== memberId
+        );
         return;
       }
 

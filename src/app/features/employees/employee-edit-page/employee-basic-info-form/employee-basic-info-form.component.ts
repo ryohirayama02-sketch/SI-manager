@@ -92,6 +92,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       isStudent: [false],
       prefecture: ['tokyo'],
       officeNumber: ['', Validators.required],
+      selectedOfficeId: [null], // 事業所ID（officeNumberがnullでも事業所を識別するため）
       department: [''],
       joinDate: ['', Validators.required],
       insuranceJoinDate: [''], // 保険加入日（任意）
@@ -181,6 +182,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         isStudent: data.isStudent || false,
         prefecture: prefecture,
         officeNumber: officeNumber,
+        selectedOfficeId: (data as any).selectedOfficeId || null, // 事業所IDを読み込み
         department: (data as any).department || '',
         joinDate: data.joinDate || (data as any).hireDate || '',
         insuranceJoinDate: data.insuranceJoinDate || '',
@@ -285,6 +287,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
   }
 
   async updateEmployee(): Promise<void> {
+    // エラーメッセージをクリア
+    this.errorMessages = [];
     this.validateDates();
 
     // フォームの全コントロールをtouched状態にする（バリデーションエラーを表示するため）
@@ -292,9 +296,18 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       this.form.get(key)?.markAsTouched();
     });
 
-    // 事業所が選択されていない場合はエラー
+    // 事業所が選択されているかチェック（selectedOfficeIdまたはofficeNumberで判断）
     const officeNumber = this.form.get('officeNumber')?.value;
-    if (!officeNumber || officeNumber.trim() === '') {
+    const selectedOfficeId = this.form.get('selectedOfficeId')?.value;
+    const prefecture = this.form.get('prefecture')?.value;
+    const hasOfficeSelected =
+      (selectedOfficeId !== null &&
+        selectedOfficeId !== undefined &&
+        selectedOfficeId !== '') ||
+      (officeNumber && officeNumber.trim() !== '');
+
+    // 事業所が選択されていない場合はエラー
+    if (!hasOfficeSelected) {
       this.errorMessages.push('事業所を選択してください。');
       this.errorMessagesChange.emit(this.errorMessages);
       return;
@@ -304,7 +317,8 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       return;
     }
 
-    if (!this.employeeId || !this.form.valid) return;
+    // フォームが有効か、または事業所が選択されている場合は保存可能
+    if (!this.employeeId || (!this.form.valid && !hasOfficeSelected)) return;
 
     const value = this.form.value;
 
@@ -327,6 +341,7 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
       isStudent: value.isStudent ?? false,
       prefecture: value.prefecture || 'tokyo', // 事業所選択時に自動設定される
       officeNumber: value.officeNumber || '', // 事業所情報を必ず保存
+      selectedOfficeId: value.selectedOfficeId || null, // 事業所IDを保存（officeNumberがnullでも事業所を識別するため）
       department: value.department || '', // 部署情報を必ず保存
       joinDate: value.joinDate,
       isShortTime: isShortTime, // weeklyWorkHoursCategoryから自動計算
