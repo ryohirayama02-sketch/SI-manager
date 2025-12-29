@@ -397,4 +397,48 @@ export class EmployeeService {
 
     return updateCount;
   }
+
+  /**
+   * 特定のselectedOfficeIdに紐づく従業員の都道府県を一括更新
+   * @param selectedOfficeId 事業所ID
+   * @param newPrefecture 新しい都道府県コード
+   */
+  async updateEmployeesPrefectureBySelectedOfficeId(
+    selectedOfficeId: string,
+    newPrefecture: string
+  ): Promise<number> {
+    const roomId = this.roomIdService.requireRoomId();
+    const colRef = collection(this.firestore, `rooms/${roomId}/employees`);
+
+    // 特定のselectedOfficeIdに紐づく従業員を検索
+    const q = query(colRef, where('selectedOfficeId', '==', selectedOfficeId));
+    const querySnapshot = await getDocs(q);
+
+    let updateCount = 0;
+    const updatePromises: Promise<void>[] = [];
+
+    querySnapshot.forEach((docSnapshot) => {
+      const employeeData = docSnapshot.data();
+      const employeeId = docSnapshot.id;
+
+      // 既に同じ都道府県の場合はスキップ
+      if (employeeData['prefecture'] === newPrefecture) {
+        return;
+      }
+
+      // 都道府県を更新
+      const updatePromise = updateDoc(docSnapshot.ref, {
+        prefecture: newPrefecture,
+      }).then(() => {
+        updateCount++;
+      });
+
+      updatePromises.push(updatePromise);
+    });
+
+    // すべての更新を実行
+    await Promise.all(updatePromises);
+
+    return updateCount;
+  }
 }
