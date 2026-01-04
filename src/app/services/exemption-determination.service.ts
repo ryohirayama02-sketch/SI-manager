@@ -94,7 +94,9 @@ export class ExemptionDeterminationService {
     if (!birthDate) {
       return 'none';
     }
-    if (isNaN(year) || year < 1900 || year > 2100) {
+    // yearを数値に変換（文字列の場合があるため）
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2100) {
       return 'none';
     }
     if (isNaN(month) || month < 1 || month > 12) {
@@ -109,7 +111,7 @@ export class ExemptionDeterminationService {
     const birthDay = birth.getDate();
 
     // その月の1日時点の年齢を計算
-    const age = this.calculateAgeForMonth(birthDate, year, month);
+    const age = this.calculateAgeForMonth(birthDate, yearNum, month);
     if (age < 0 || age > 150) {
       return 'none';
     }
@@ -123,20 +125,20 @@ export class ExemptionDeterminationService {
       if (birthMonth === 1) {
         // 1月1日生まれの場合、前年12月から発生
         isAge40Month =
-          (year === birthYear + 39 && month === 12) ||
-          (year === birthYear + 40 && month >= birthMonth) ||
-          year > birthYear + 40;
+          (yearNum === birthYear + 39 && month === 12) ||
+          (yearNum === birthYear + 40 && month >= birthMonth) ||
+          yearNum > birthYear + 40;
       } else {
         // 2月以降の場合、前月から発生
         isAge40Month =
-          (year === birthYear + 40 && month >= birthMonth - 1) ||
-          year > birthYear + 40;
+          (yearNum === birthYear + 40 && month >= birthMonth - 1) ||
+          yearNum > birthYear + 40;
       }
     } else {
       // 誕生日が月の2日以降の場合、誕生月から発生
       isAge40Month =
-        (year === birthYear + 40 && month >= birthMonth) ||
-        year > birthYear + 40;
+        (yearNum === birthYear + 40 && month >= birthMonth) ||
+        yearNum > birthYear + 40;
     }
     // 65歳到達月の判定（誕生日の前日が属する月から）
     // 8/1生まれ → 65歳の誕生日は8/1、前日は7/31 → 7月から終了
@@ -147,20 +149,20 @@ export class ExemptionDeterminationService {
       if (birthMonth === 1) {
         // 1月1日生まれの場合、前年12月から終了
         isAge65Month =
-          (year === birthYear + 64 && month === 12) ||
-          (year === birthYear + 65 && month >= birthMonth) ||
-          year > birthYear + 65;
+          (yearNum === birthYear + 64 && month === 12) ||
+          (yearNum === birthYear + 65 && month >= birthMonth) ||
+          yearNum > birthYear + 65;
       } else {
         // 2月以降の場合、前月から終了
         isAge65Month =
-          (year === birthYear + 65 && month >= birthMonth - 1) ||
-          year > birthYear + 65;
+          (yearNum === birthYear + 65 && month >= birthMonth - 1) ||
+          yearNum > birthYear + 65;
       }
     } else {
       // 誕生日が月の2日以降の場合、誕生月から終了
       isAge65Month =
-        (year === birthYear + 65 && month >= birthMonth) ||
-        year > birthYear + 65;
+        (yearNum === birthYear + 65 && month >= birthMonth) ||
+        yearNum > birthYear + 65;
     }
 
     // 75歳以上は健康保険・介護保険停止

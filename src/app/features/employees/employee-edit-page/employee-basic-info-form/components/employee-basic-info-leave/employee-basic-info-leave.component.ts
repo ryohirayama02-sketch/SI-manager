@@ -21,75 +21,7 @@ export class EmployeeBasicInfoLeaveComponent implements OnInit {
   ngOnInit(): void {}
 
   onDateChange(): void {
-    // #region agent log
-    const formControlErrors: any = {};
-    const formControlStates: any = {};
-    if (this.form) {
-      Object.keys(this.form.controls).forEach(key => {
-        const control = this.form.get(key);
-        if (control) {
-          formControlStates[key] = {
-            valid: control.valid,
-            invalid: control.invalid,
-            errors: control.errors,
-            value: control.value
-          };
-          if (control.errors) {
-            formControlErrors[key] = control.errors;
-          }
-        }
-      });
-    }
-    console.log('[DEBUG] onDateChange - Form state:', {
-      formValid: this.form?.valid,
-      formInvalid: this.form?.invalid,
-      formControlErrors: formControlErrors,
-      formControlStates: formControlStates,
-      maternityLeaveStart: this.form?.get('maternityLeaveStart')?.value
-    });
-    console.log('[DEBUG] Form control errors (expanded):', JSON.stringify(formControlErrors, null, 2));
-    const invalidControls = Object.keys(formControlStates).filter(key => formControlStates[key].invalid);
-    console.log('[DEBUG] Invalid form controls:', invalidControls);
-    invalidControls.forEach(key => {
-      console.log(`[DEBUG] ${key}:`, {
-        value: formControlStates[key].value,
-        errors: formControlStates[key].errors,
-        valid: formControlStates[key].valid,
-        invalid: formControlStates[key].invalid
-      });
-    });
-    // 必須フィールドの状態を確認
-    const requiredFields = ['name', 'birthDate', 'weeklyWorkHoursCategory', 'monthlyWage', 'expectedEmploymentMonths', 'officeNumber', 'joinDate'];
-    console.log('[DEBUG] Required fields status:', requiredFields.map(field => ({
-      field,
-      value: formControlStates[field]?.value,
-      valid: formControlStates[field]?.valid,
-      invalid: formControlStates[field]?.invalid,
-      errors: formControlStates[field]?.errors
-    })));
-    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-leave.component.ts:23',message:'onDateChange called',data:{formValid:this.form?.valid,formInvalid:this.form?.invalid,formControlErrors:formControlErrors,formControlStates:formControlStates,maternityLeaveStart:this.form?.get('maternityLeaveStart')?.value},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
     this.validateDates.emit();
-    // #region agent log
-    setTimeout(() => {
-      const formControlErrorsAfter: any = {};
-      if (this.form) {
-        Object.keys(this.form.controls).forEach(key => {
-          const control = this.form.get(key);
-          if (control && control.errors) {
-            formControlErrorsAfter[key] = control.errors;
-          }
-        });
-      }
-      console.log('[DEBUG] onDateChange - Form state after validateDates:', {
-        formValid: this.form?.valid,
-        formInvalid: this.form?.invalid,
-        formControlErrors: formControlErrorsAfter
-      });
-      console.log('[DEBUG] Form control errors after validateDates (expanded):', JSON.stringify(formControlErrorsAfter, null, 2));
-      fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-leave.component.ts:45',message:'onDateChange after validateDates',data:{formValid:this.form?.valid,formInvalid:this.form?.invalid,formControlErrors:formControlErrorsAfter},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'F'})}).catch(()=>{});
-    }, 100);
-    // #endregion
   }
 
   async onCheckboxChange(fieldName: string, event: Event): Promise<void> {
