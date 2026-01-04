@@ -264,14 +264,20 @@ export class EmployeeLifecycleService {
       return true; // 退職日がなければ月末在籍あり
     }
 
+    // yearを数値に変換（文字列の場合があるため）
+    const yearNum = typeof year === 'string' ? parseInt(year, 10) : year;
+    if (isNaN(yearNum)) {
+      return true; // 無効な年の場合は月末在籍ありとして扱う
+    }
+
     const retireDate = new Date(emp.retireDate);
     const retireYear = retireDate.getFullYear();
     const retireMonth = retireDate.getMonth() + 1;
     const retireDay = retireDate.getDate();
-    const lastDayOfMonth = new Date(year, month, 0).getDate();
+    const lastDayOfMonth = new Date(yearNum, month, 0).getDate();
 
     // 退職月でない場合は月末在籍あり
-    if (retireYear !== year || retireMonth !== month) {
+    if (retireYear !== yearNum || retireMonth !== month) {
       return true;
     }
 
