@@ -212,8 +212,8 @@
                 [title]="row.bonusPremium.calculationFormula?.health || ''"
                 style="cursor: help"
               >
-                {{ row.bonusTotal?.healthEmployee || 0 | number : "1.0-0" }} /
-                {{ row.bonusTotal?.healthEmployer || 0 | number : "1.0-0" }}
+                {{ row.bonusTotal.healthEmployee || 0 | number : "1.0-0" }} /
+                {{ row.bonusTotal.healthEmployer || 0 | number : "1.0-0" }}
               </span>
             </span>
             <span *ngIf="!row.bonusPremium">-</span>
@@ -230,8 +230,8 @@
                 [title]="row.bonusPremium.calculationFormula?.care || ''"
                 style="cursor: help"
               >
-                {{ row.bonusTotal?.careEmployee || 0 | number : "1.0-0" }} /
-                {{ row.bonusTotal?.careEmployer || 0 | number : "1.0-0" }}
+                {{ row.bonusTotal.careEmployee || 0 | number : "1.0-0" }} /
+                {{ row.bonusTotal.careEmployer || 0 | number : "1.0-0" }}
               </span>
             </span>
             <span *ngIf="!row.bonusPremium">-</span>
@@ -248,8 +248,8 @@
                 [title]="row.bonusPremium.calculationFormula?.pension || ''"
                 style="cursor: help"
               >
-                {{ row.bonusTotal?.pensionEmployee || 0 | number : "1.0-0" }} /
-                {{ row.bonusTotal?.pensionEmployer || 0 | number : "1.0-0" }}
+                {{ row.bonusTotal.pensionEmployee || 0 | number : "1.0-0" }} /
+                {{ row.bonusTotal.pensionEmployer || 0 | number : "1.0-0" }}
               </span>
             </span>
             <span *ngIf="!row.bonusPremium">-</span>
@@ -279,18 +279,18 @@
                 row.monthlyTotal.healthEmployee +
                   row.monthlyTotal.careEmployee +
                   row.monthlyTotal.pensionEmployee +
-                  (row.bonusTotal?.healthEmployee || 0) +
-                  (row.bonusTotal?.careEmployee || 0) +
-                  (row.bonusTotal?.pensionEmployee || 0) | number : "1.0-0"
+                  (row.bonusTotal.healthEmployee || 0) +
+                  (row.bonusTotal.careEmployee || 0) +
+                  (row.bonusTotal.pensionEmployee || 0) | number : "1.0-0"
               }}
               /
               {{
                 row.monthlyTotal.healthEmployer +
                   row.monthlyTotal.careEmployer +
                   row.monthlyTotal.pensionEmployer +
-                  (row.bonusTotal?.healthEmployer || 0) +
-                  (row.bonusTotal?.careEmployer || 0) +
-                  (row.bonusTotal?.pensionEmployer || 0) | number : "1.0-0"
+                  (row.bonusTotal.healthEmployer || 0) +
+                  (row.bonusTotal.careEmployer || 0) +
+                  (row.bonusTotal.pensionEmployer || 0) | number : "1.0-0"
               }}
             </span>
           </td>
@@ -606,13 +606,13 @@
                     <strong
                       >{{
                         data.monthlyTotal.healthEmployee +
-                          (data.bonusTotal?.healthEmployee || 0)
+                          (data.bonusTotal.healthEmployee || 0)
                           | number : "1.0-0"
                       }}
                       /
                       {{
                         data.monthlyTotal.healthEmployer +
-                          (data.bonusTotal?.healthEmployer || 0)
+                          (data.bonusTotal.healthEmployer || 0)
                           | number : "1.0-0"
                       }}</strong
                     >
@@ -621,14 +621,12 @@
                     <strong
                       >{{
                         data.monthlyTotal.careEmployee +
-                          (data.bonusTotal?.careEmployee || 0)
-                          | number : "1.0-0"
+                          (data.bonusTotal.careEmployee || 0) | number : "1.0-0"
                       }}
                       /
                       {{
                         data.monthlyTotal.careEmployer +
-                          (data.bonusTotal?.careEmployer || 0)
-                          | number : "1.0-0"
+                          (data.bonusTotal.careEmployer || 0) | number : "1.0-0"
                       }}</strong
                     >
                   </td>
@@ -636,13 +634,13 @@
                     <strong
                       >{{
                         data.monthlyTotal.pensionEmployee +
-                          (data.bonusTotal?.pensionEmployee || 0)
+                          (data.bonusTotal.pensionEmployee || 0)
                           | number : "1.0-0"
                       }}
                       /
                       {{
                         data.monthlyTotal.pensionEmployer +
-                          (data.bonusTotal?.pensionEmployer || 0)
+                          (data.bonusTotal.pensionEmployer || 0)
                           | number : "1.0-0"
                       }}</strong
                     >
@@ -650,33 +648,33 @@
                   <td>
                     <strong
                       >{{
-                        data.bonusTotal?.healthEmployee || 0 | number : "1.0-0"
+                        data.bonusTotal.healthEmployee || 0 | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.bonusTotal?.healthEmployer || 0 | number : "1.0-0"
+                        data.bonusTotal.healthEmployer || 0 | number : "1.0-0"
                       }}</strong
                     >
                   </td>
                   <td>
                     <strong
                       >{{
-                        data.bonusTotal?.careEmployee || 0 | number : "1.0-0"
+                        data.bonusTotal.careEmployee || 0 | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.bonusTotal?.careEmployer || 0 | number : "1.0-0"
+                        data.bonusTotal.careEmployer || 0 | number : "1.0-0"
                       }}</strong
                     >
                   </td>
                   <td>
                     <strong
                       >{{
-                        data.bonusTotal?.pensionEmployee || 0 | number : "1.0-0"
+                        data.bonusTotal.pensionEmployee || 0 | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.bonusTotal?.pensionEmployer || 0 | number : "1.0-0"
+                        data.bonusTotal.pensionEmployer || 0 | number : "1.0-0"
                       }}</strong
                     >
                   </td>
@@ -686,9 +684,9 @@
                         data.monthlyTotal.healthEmployee +
                           data.monthlyTotal.careEmployee +
                           data.monthlyTotal.pensionEmployee +
-                          (data.bonusTotal?.healthEmployee || 0) +
-                          (data.bonusTotal?.careEmployee || 0) +
-                          (data.bonusTotal?.pensionEmployee || 0)
+                          (data.bonusTotal.healthEmployee || 0) +
+                          (data.bonusTotal.careEmployee || 0) +
+                          (data.bonusTotal.pensionEmployee || 0)
                           | number : "1.0-0"
                       }}
                       /
@@ -696,9 +694,9 @@
                         data.monthlyTotal.healthEmployer +
                           data.monthlyTotal.careEmployer +
                           data.monthlyTotal.pensionEmployer +
-                          (data.bonusTotal?.healthEmployer || 0) +
-                          (data.bonusTotal?.careEmployer || 0) +
-                          (data.bonusTotal?.pensionEmployer || 0)
+                          (data.bonusTotal.healthEmployer || 0) +
+                          (data.bonusTotal.careEmployer || 0) +
+                          (data.bonusTotal.pensionEmployer || 0)
                           | number : "1.0-0"
                       }}</strong
                     >

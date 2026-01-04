@@ -228,6 +228,17 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         maternityAllowanceApplicationRequestDate:
           (data as any).maternityAllowanceApplicationRequestDate || null,
       });
+
+      // selectedOfficeIdが設定されている場合、officeNumberの必須バリデーションをクリア
+      const selectedOfficeId = (data as any).selectedOfficeId;
+      if (selectedOfficeId !== null && selectedOfficeId !== undefined && selectedOfficeId !== '') {
+        const officeNumberControl = this.form.get('officeNumber');
+        if (officeNumberControl) {
+          // 事業所が選択されていればofficeNumberが空でも有効
+          officeNumberControl.setValidators([]);
+          officeNumberControl.updateValueAndValidity();
+        }
+      }
     }
 
     this.eligibilitySubscription = this.employeeEligibilityService
@@ -237,6 +248,27 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
           this.reloadEligibility();
         }
       });
+
+    // フォーム値変更を追跡
+    this.form.valueChanges.subscribe((value) => {
+      // #region agent log
+      const formControlErrors: any = {};
+      Object.keys(this.form.controls).forEach(key => {
+        const control = this.form.get(key);
+        if (control && control.errors) {
+          formControlErrors[key] = control.errors;
+        }
+      });
+      fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:240',message:'form value changed',data:{formValid:this.form.valid,formInvalid:this.form.invalid,formControlErrors:formControlErrors,maternityLeaveStart:value.maternityLeaveStart},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+      // #endregion
+    });
+
+    // フォーム状態変更を追跡
+    this.form.statusChanges.subscribe((status) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:252',message:'form status changed',data:{status:status,formValid:this.form.valid,formInvalid:this.form.invalid},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+      // #endregion
+    });
   }
 
   ngOnDestroy(): void {
@@ -247,12 +279,83 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
     this.activeTab = tab;
   }
 
+  logFormState(): void {
+    // #region agent log
+    const formControlErrors: any = {};
+    const formControlStates: any = {};
+    Object.keys(this.form.controls).forEach(key => {
+      const control = this.form.get(key);
+      if (control) {
+        formControlStates[key] = {
+          valid: control.valid,
+          invalid: control.invalid,
+          errors: control.errors,
+          value: control.value,
+          touched: control.touched,
+          dirty: control.dirty
+        };
+        if (control.errors) {
+          formControlErrors[key] = control.errors;
+        }
+      }
+    });
+    console.log('[DEBUG] Form state:', {
+      formValid: this.form.valid,
+      formInvalid: this.form.invalid,
+      formErrors: this.form.errors,
+      formControlErrors: formControlErrors,
+      formControlStates: formControlStates,
+      errorMessages: this.errorMessages
+    });
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:250',message:'save button clicked - form state',data:{formValid:this.form.valid,formInvalid:this.form.invalid,formControlErrors:formControlErrors,formControlStates:formControlStates,errorMessages:this.errorMessages},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+    // #endregion
+  }
+
   reloadEligibility(): void {
     // 加入区分変更時の処理（子コンポーネントが自動判定を更新）
   }
 
   validateDates(): void {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:254',message:'validateDates called',data:{formValid:this.form.valid,formInvalid:this.form.invalid,formErrors:this.form.errors},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
+    // 以前の日付バリデーションエラーをクリア
+    const dateFields = [
+      'birthDate',
+      'joinDate',
+      'retireDate',
+      'maternityLeaveStart',
+      'maternityLeaveEnd',
+      'childcareLeaveStart',
+      'childcareLeaveEnd',
+      'returnFromLeaveDate',
+      'leaveOfAbsenceStart',
+      'leaveOfAbsenceEnd',
+      'insuranceJoinDate'
+    ];
+    dateFields.forEach(field => {
+      const control = this.form.get(field);
+      if (control && control.errors) {
+        // 日付バリデーションエラー以外のエラーは保持
+        const errors = control.errors;
+        if (errors['dateValidation'] || errors['beforeJoinDate']) {
+          const newErrors = { ...errors };
+          delete newErrors['dateValidation'];
+          delete newErrors['beforeJoinDate'];
+          if (Object.keys(newErrors).length === 0) {
+            control.setErrors(null);
+          } else {
+            control.setErrors(newErrors);
+          }
+        }
+      }
+    });
+
     const value = this.form.value;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:256',message:'form values before validation',data:{maternityLeaveStart:value.maternityLeaveStart,joinDate:value.joinDate,birthDate:value.birthDate},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const validationResult =
       this.employeeLifecycleService.validateEmployeeDates({
         birthDate: value.birthDate,
@@ -267,8 +370,38 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         childcareLivingTogether: value.childcareLivingTogether,
       });
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:270',message:'validation result',data:{errors:validationResult.errors,warnings:validationResult.warnings},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+
     this.errorMessages = validationResult.errors;
     this.warningMessages = validationResult.warnings;
+
+    // バリデーションエラーをフォームコントロールに設定
+    // エラーメッセージから該当フィールドを特定してエラーを設定
+    // ただし、エラーがない場合はエラーを設定しない（フォームのinvalid状態に影響しない）
+    if (validationResult.errors.length > 0) {
+      validationResult.errors.forEach(error => {
+        if (error.includes('入社日は生年月日より後')) {
+          this.form.get('joinDate')?.setErrors({ dateValidation: true });
+        } else if (error.includes('退職日は入社日より後')) {
+          this.form.get('retireDate')?.setErrors({ dateValidation: true });
+        } else if (error.includes('産休終了日は開始日より後')) {
+          this.form.get('maternityLeaveEnd')?.setErrors({ dateValidation: true });
+        } else if (error.includes('育休終了日は開始日より後')) {
+          this.form.get('childcareLeaveEnd')?.setErrors({ dateValidation: true });
+        } else if (error.includes('産休・育休の設定が矛盾')) {
+          this.form.get('maternityLeaveEnd')?.setErrors({ dateValidation: true });
+          this.form.get('childcareLeaveStart')?.setErrors({ dateValidation: true });
+        } else if (error.includes('復職日は入社日より後')) {
+          this.form.get('returnFromLeaveDate')?.setErrors({ dateValidation: true });
+        } else if (error.includes('復職日は退職日より前')) {
+          this.form.get('returnFromLeaveDate')?.setErrors({ dateValidation: true });
+        } else if (error.includes('休職終了日は開始日より後')) {
+          this.form.get('leaveOfAbsenceEnd')?.setErrors({ dateValidation: true });
+        }
+      });
+    }
 
     // 保険加入日のバリデーション（入社日より前でないかチェック）
     if (value.insuranceJoinDate && value.joinDate) {
@@ -278,9 +411,29 @@ export class EmployeeBasicInfoFormComponent implements OnInit, OnDestroy {
         this.errorMessages.push('保険加入日は入社日以降である必要があります。');
         this.form.get('insuranceJoinDate')?.setErrors({ beforeJoinDate: true });
       } else {
-        this.form.get('insuranceJoinDate')?.setErrors(null);
+        const control = this.form.get('insuranceJoinDate');
+        if (control && control.errors && control.errors['beforeJoinDate']) {
+          const newErrors = { ...control.errors };
+          delete newErrors['beforeJoinDate'];
+          if (Object.keys(newErrors).length === 0) {
+            control.setErrors(null);
+          } else {
+            control.setErrors(newErrors);
+          }
+        }
       }
     }
+
+    // #region agent log
+    const formControlErrors: any = {};
+    Object.keys(this.form.controls).forEach(key => {
+      const control = this.form.get(key);
+      if (control && control.errors) {
+        formControlErrors[key] = control.errors;
+      }
+    });
+    fetch('http://127.0.0.1:7242/ingest/d28aa990-3fcc-448a-9722-b1e7cd6d4406',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'employee-basic-info-form.component.ts:285',message:'form state after validation',data:{formValid:this.form.valid,formInvalid:this.form.invalid,formControlErrors:formControlErrors,errorMessages:this.errorMessages},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
 
     this.errorMessagesChange.emit(this.errorMessages);
     this.warningMessagesChange.emit(this.warningMessages);
