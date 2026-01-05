@@ -324,6 +324,118 @@
   >
     <p>「結果表示」ボタンをクリックしてデータを読み込んでください</p>
   </div>
+
+  <!-- 選択中従業員の合計の年間保険料テーブル（特定月選択時） -->
+  <div
+    *ngIf="
+      !isLoadingInsuranceData &&
+      hasInsuranceData() &&
+      getSelectedEmployees().length > 0 &&
+      selectedMonthTotal
+    "
+    class="card"
+    style="margin-bottom: 1.5rem"
+  >
+    <h3>選択中従業員の合計の月次保険料（{{ year }}年度{{ getMonthLabel() }}）</h3>
+    <div style="overflow-x: auto; margin-top: 1rem">
+      <table
+        class="premium-table monthly-premium-table"
+        style="width: 100%; border-collapse: collapse; min-width: 1200px"
+      >
+        <thead>
+          <tr>
+            <th>月</th>
+            <th>健康保険 従業員/会社</th>
+            <th>介護保険 従業員/会社</th>
+            <th>厚生年金 従業員/会社</th>
+            <th>賞与 健康保険 従業員/会社</th>
+            <th>賞与 介護保険 従業員/会社</th>
+            <th>賞与 厚生年金 従業員/会社</th>
+            <th>月合計 従業員/会社</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 選択した月の行 -->
+          <tr>
+            <td>{{ selectedMonth }}月</td>
+            <td>
+              {{
+                selectedMonthTotal.healthEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.healthEmployer | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                selectedMonthTotal.careEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.careEmployer | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                selectedMonthTotal.pensionEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.pensionEmployer | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                selectedMonthTotal.bonusHealthEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.bonusHealthEmployer | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                selectedMonthTotal.bonusCareEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.bonusCareEmployer | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                selectedMonthTotal.bonusPensionEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.bonusPensionEmployer | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                selectedMonthTotal.totalEmployee | number : "1.0-0"
+              }}
+              /
+              {{
+                selectedMonthTotal.totalEmployer | number : "1.0-0"
+              }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div
+      style="
+        text-align: right;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: #666;
+      "
+    >
+      ※会社負担の保険料は参考値
+    </div>
+  </div>
 </div>
 
 <!-- 全月選択時（1-12）のブロック表示 -->

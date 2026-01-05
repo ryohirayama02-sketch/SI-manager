@@ -138,6 +138,23 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       totalEmployer: number;
     };
   } = {} as any;
+  // 特定月の選択中従業員合計データ
+  selectedMonthTotal: {
+    healthEmployee: number;
+    healthEmployer: number;
+    careEmployee: number;
+    careEmployer: number;
+    pensionEmployee: number;
+    pensionEmployer: number;
+    bonusHealthEmployee: number;
+    bonusHealthEmployer: number;
+    bonusCareEmployee: number;
+    bonusCareEmployer: number;
+    bonusPensionEmployee: number;
+    bonusPensionEmployer: number;
+    totalEmployee: number;
+    totalEmployer: number;
+  } | null = null;
   // キャッシュ用プロパティ
   cachedTableRows: Array<{
     employee: Employee;
@@ -526,6 +543,9 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
       // 会社全体の月次合計を計算（全月選択時のみ）
       if (this.selectedMonth === 'all') {
         this.calculateCompanyMonthlyTotals();
+      } else if (typeof this.selectedMonth === 'number') {
+        // 特定月選択時は選択月の合計を計算
+        this.calculateSelectedMonthTotal(this.selectedMonth);
       }
     } finally {
       this.isLoadingInsuranceData = false;
@@ -605,6 +625,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     this.warningMessages = {};
     // 会社全体の月次合計もクリア
     this.companyMonthlyTotals = {} as any;
+    // 特定月の合計もクリア
+    this.selectedMonthTotal = null;
   }
 
   /**
@@ -1729,6 +1751,81 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     const data = this.getInsuranceData(employeeId);
     if (!data || !data.grandTotal) return 0;
     return data.grandTotal.healthEmployer + data.grandTotal.careEmployer + data.grandTotal.pensionEmployer;
+  }
+
+  /**
+   * 特定月の選択中従業員合計を計算
+   */
+  private calculateSelectedMonthTotal(month: number): void {
+    // 選択された従業員を取得
+    const selectedEmployees = this.getSelectedEmployees();
+    if (selectedEmployees.length === 0) {
+      this.selectedMonthTotal = null;
+      return;
+    }
+
+    const result = {
+      healthEmployee: 0,
+      healthEmployer: 0,
+      careEmployee: 0,
+      careEmployer: 0,
+      pensionEmployee: 0,
+      pensionEmployer: 0,
+      bonusHealthEmployee: 0,
+      bonusHealthEmployer: 0,
+      bonusCareEmployee: 0,
+      bonusCareEmployer: 0,
+      bonusPensionEmployee: 0,
+      bonusPensionEmployer: 0,
+      totalEmployee: 0,
+      totalEmployer: 0,
+    };
+
+    // 各従業員のデータを集計
+    for (const emp of selectedEmployees) {
+      const data = this.getInsuranceData(emp.id);
+      if (!data) continue;
+
+      // 月次保険料を集計（選択した月のみ）
+      const monthlyPremium = data.monthlyPremiums.find(p => p.month === month);
+      if (monthlyPremium) {
+        result.healthEmployee += monthlyPremium.healthEmployee || 0;
+        result.healthEmployer += monthlyPremium.healthEmployer || 0;
+        result.careEmployee += monthlyPremium.careEmployee || 0;
+        result.careEmployer += monthlyPremium.careEmployer || 0;
+        result.pensionEmployee += monthlyPremium.pensionEmployee || 0;
+        result.pensionEmployer += monthlyPremium.pensionEmployer || 0;
+      }
+
+      // 賞与保険料を集計（選択した月のみ）
+      const bonus = this.getMonthBonus(emp.id, month);
+      if (bonus && !bonus.isExempted && bonus.amount > 0) {
+        result.bonusHealthEmployee += bonus.healthEmployee || 0;
+        result.bonusHealthEmployer += bonus.healthEmployer || 0;
+        result.bonusCareEmployee += bonus.careEmployee || 0;
+        result.bonusCareEmployer += bonus.careEmployer || 0;
+        result.bonusPensionEmployee += bonus.pensionEmployee || 0;
+        result.bonusPensionEmployer += bonus.pensionEmployer || 0;
+      }
+    }
+
+    // 合計を計算
+    result.totalEmployee =
+      result.healthEmployee +
+      result.careEmployee +
+      result.pensionEmployee +
+      result.bonusHealthEmployee +
+      result.bonusCareEmployee +
+      result.bonusPensionEmployee;
+    result.totalEmployer =
+      result.healthEmployer +
+      result.careEmployer +
+      result.pensionEmployer +
+      result.bonusHealthEmployer +
+      result.bonusCareEmployer +
+      result.bonusPensionEmployer;
+
+    this.selectedMonthTotal = result;
   }
 
   /**
