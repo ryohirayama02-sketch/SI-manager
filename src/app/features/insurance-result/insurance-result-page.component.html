@@ -605,43 +605,33 @@
                   <td>
                     <strong
                       >{{
-                        data.monthlyTotal.healthEmployee +
-                          (data.bonusTotal.healthEmployee || 0)
-                          | number : "1.0-0"
+                        data.monthlyTotal.healthEmployee | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.monthlyTotal.healthEmployer +
-                          (data.bonusTotal.healthEmployer || 0)
-                          | number : "1.0-0"
+                        data.monthlyTotal.healthEmployer | number : "1.0-0"
                       }}</strong
                     >
                   </td>
                   <td>
                     <strong
                       >{{
-                        data.monthlyTotal.careEmployee +
-                          (data.bonusTotal.careEmployee || 0) | number : "1.0-0"
+                        data.monthlyTotal.careEmployee | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.monthlyTotal.careEmployer +
-                          (data.bonusTotal.careEmployer || 0) | number : "1.0-0"
+                        data.monthlyTotal.careEmployer | number : "1.0-0"
                       }}</strong
                     >
                   </td>
                   <td>
                     <strong
                       >{{
-                        data.monthlyTotal.pensionEmployee +
-                          (data.bonusTotal.pensionEmployee || 0)
-                          | number : "1.0-0"
+                        data.monthlyTotal.pensionEmployee | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.monthlyTotal.pensionEmployer +
-                          (data.bonusTotal.pensionEmployer || 0)
-                          | number : "1.0-0"
+                        data.monthlyTotal.pensionEmployer | number : "1.0-0"
                       }}</strong
                     >
                   </td>
@@ -681,23 +671,11 @@
                   <td>
                     <strong
                       >{{
-                        data.monthlyTotal.healthEmployee +
-                          data.monthlyTotal.careEmployee +
-                          data.monthlyTotal.pensionEmployee +
-                          (data.bonusTotal.healthEmployee || 0) +
-                          (data.bonusTotal.careEmployee || 0) +
-                          (data.bonusTotal.pensionEmployee || 0)
-                          | number : "1.0-0"
+                        getAnnualTotalEmployee(emp.id) | number : "1.0-0"
                       }}
                       /
                       {{
-                        data.monthlyTotal.healthEmployer +
-                          data.monthlyTotal.careEmployer +
-                          data.monthlyTotal.pensionEmployer +
-                          (data.bonusTotal.healthEmployer || 0) +
-                          (data.bonusTotal.careEmployer || 0) +
-                          (data.bonusTotal.pensionEmployer || 0)
-                          | number : "1.0-0"
+                        getAnnualTotalEmployer(emp.id) | number : "1.0-0"
                       }}</strong
                     >
                   </td>
@@ -731,7 +709,7 @@
     class="card"
     style="margin-bottom: 1.5rem"
   >
-    <h3>会社全体の年間保険料（{{ year }}年度）</h3>
+    <h3>選択中従業員の合計の年間保険料（{{ year }}年度）</h3>
     <div style="overflow-x: auto; margin-top: 1rem">
       <table
         class="premium-table monthly-premium-table"

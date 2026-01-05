@@ -1714,6 +1714,24 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * 年間合計の月合計（従業員負担）を取得
+   */
+  getAnnualTotalEmployee(employeeId: string): number {
+    const data = this.getInsuranceData(employeeId);
+    if (!data || !data.grandTotal) return 0;
+    return data.grandTotal.healthEmployee + data.grandTotal.careEmployee + data.grandTotal.pensionEmployee;
+  }
+
+  /**
+   * 年間合計の月合計（会社負担）を取得
+   */
+  getAnnualTotalEmployer(employeeId: string): number {
+    const data = this.getInsuranceData(employeeId);
+    if (!data || !data.grandTotal) return 0;
+    return data.grandTotal.healthEmployer + data.grandTotal.careEmployer + data.grandTotal.pensionEmployer;
+  }
+
+  /**
    * 会社全体の月次合計を計算
    */
   private calculateCompanyMonthlyTotals(): void {
