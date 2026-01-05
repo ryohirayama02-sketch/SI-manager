@@ -720,4 +720,224 @@
       </div>
     </div>
   </div>
+
+  <!-- 会社全体の年間保険料テーブル -->
+  <div
+    *ngIf="
+      !isLoadingInsuranceData &&
+      hasInsuranceData() &&
+      getSelectedEmployees().length > 0
+    "
+    class="card"
+    style="margin-bottom: 1.5rem"
+  >
+    <h3>会社全体の年間保険料（{{ year }}年度）</h3>
+    <div style="overflow-x: auto; margin-top: 1rem">
+      <table
+        class="premium-table monthly-premium-table"
+        style="width: 100%; border-collapse: collapse; min-width: 1200px"
+      >
+        <thead>
+          <tr>
+            <th>月</th>
+            <th>健康保険 従業員/会社</th>
+            <th>介護保険 従業員/会社</th>
+            <th>厚生年金 従業員/会社</th>
+            <th>賞与 健康保険 従業員/会社</th>
+            <th>賞与 介護保険 従業員/会社</th>
+            <th>賞与 厚生年金 従業員/会社</th>
+            <th>月合計 従業員/会社</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 1-12月の行 -->
+          <tr *ngFor="let month of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]">
+            <td>{{ month }}月</td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.healthEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.healthEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.careEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.careEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.pensionEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.pensionEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.bonusHealthEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.bonusHealthEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.bonusCareEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.bonusCareEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.bonusPensionEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.bonusPensionEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+            <td>
+              {{
+                companyMonthlyTotals[month]?.totalEmployee || 0
+                  | number : "1.0-0"
+              }}
+              /
+              {{
+                companyMonthlyTotals[month]?.totalEmployer || 0
+                  | number : "1.0-0"
+              }}
+            </td>
+          </tr>
+          <!-- 年間合計の行 -->
+          <tr class="total-row">
+            <td><strong>年間合計</strong></td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.healthEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.healthEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.careEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.careEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.pensionEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.pensionEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.bonusHealthEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.bonusHealthEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.bonusCareEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.bonusCareEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.bonusPensionEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.bonusPensionEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+            <td>
+              <strong
+                >{{
+                  companyMonthlyTotals.annualTotal?.totalEmployee || 0
+                    | number : "1.0-0"
+                }}
+                /
+                {{
+                  companyMonthlyTotals.annualTotal?.totalEmployer || 0
+                    | number : "1.0-0"
+                }}</strong
+              >
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div
+      style="
+        text-align: right;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+        color: #666;
+      "
+    >
+      ※会社負担の保険料は参考値
+    </div>
+  </div>
 </div>

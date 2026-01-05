@@ -102,6 +102,42 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
   expandedEmployees: { [employeeId: string]: boolean } = {};
   // 読み込み状態
   isLoadingInsuranceData: boolean = false;
+  // 会社全体の月次合計データ（1-12月 + 年間合計）
+  companyMonthlyTotals: {
+    [month: number]: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      bonusHealthEmployee: number;
+      bonusHealthEmployer: number;
+      bonusCareEmployee: number;
+      bonusCareEmployer: number;
+      bonusPensionEmployee: number;
+      bonusPensionEmployer: number;
+      totalEmployee: number;
+      totalEmployer: number;
+    };
+  } & {
+    annualTotal: {
+      healthEmployee: number;
+      healthEmployer: number;
+      careEmployee: number;
+      careEmployer: number;
+      pensionEmployee: number;
+      pensionEmployer: number;
+      bonusHealthEmployee: number;
+      bonusHealthEmployer: number;
+      bonusCareEmployee: number;
+      bonusCareEmployer: number;
+      bonusPensionEmployee: number;
+      bonusPensionEmployer: number;
+      totalEmployee: number;
+      totalEmployer: number;
+    };
+  } = {} as any;
   // キャッシュ用プロパティ
   cachedTableRows: Array<{
     employee: Employee;
@@ -486,6 +522,11 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
       // キャッシュを更新
       this.updateCachedData();
+
+      // 会社全体の月次合計を計算（全月選択時のみ）
+      if (this.selectedMonth === 'all') {
+        this.calculateCompanyMonthlyTotals();
+      }
     } finally {
       this.isLoadingInsuranceData = false;
     }
@@ -562,6 +603,8 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
     this.cachedHasBonus = false;
     this.errorMessages = {};
     this.warningMessages = {};
+    // 会社全体の月次合計もクリア
+    this.companyMonthlyTotals = {} as any;
   }
 
   /**
@@ -1668,6 +1711,147 @@ export class InsuranceResultPageComponent implements OnInit, OnDestroy {
 
   getInsuranceData(employeeId: string): EmployeeInsuranceData | null {
     return this.insuranceData[employeeId] || null;
+  }
+
+  /**
+   * 会社全体の月次合計を計算
+   */
+  private calculateCompanyMonthlyTotals(): void {
+    // 初期化
+    const monthlyTotals: {
+      [month: number]: {
+        healthEmployee: number;
+        healthEmployer: number;
+        careEmployee: number;
+        careEmployer: number;
+        pensionEmployee: number;
+        pensionEmployer: number;
+        bonusHealthEmployee: number;
+        bonusHealthEmployer: number;
+        bonusCareEmployee: number;
+        bonusCareEmployer: number;
+        bonusPensionEmployee: number;
+        bonusPensionEmployer: number;
+        totalEmployee: number;
+        totalEmployer: number;
+      };
+    } = {};
+
+    // 1-12月を初期化
+    for (let month = 1; month <= 12; month++) {
+      monthlyTotals[month] = {
+        healthEmployee: 0,
+        healthEmployer: 0,
+        careEmployee: 0,
+        careEmployer: 0,
+        pensionEmployee: 0,
+        pensionEmployer: 0,
+        bonusHealthEmployee: 0,
+        bonusHealthEmployer: 0,
+        bonusCareEmployee: 0,
+        bonusCareEmployer: 0,
+        bonusPensionEmployee: 0,
+        bonusPensionEmployer: 0,
+        totalEmployee: 0,
+        totalEmployer: 0,
+      };
+    }
+
+    // 選択された従業員を取得
+    const selectedEmployees = this.getSelectedEmployees();
+
+    // 各従業員のデータを集計
+    for (const emp of selectedEmployees) {
+      const data = this.getInsuranceData(emp.id);
+      if (!data) continue;
+
+      // 月次保険料を集計
+      for (const premium of data.monthlyPremiums) {
+        const month = premium.month;
+        if (month >= 1 && month <= 12) {
+          monthlyTotals[month].healthEmployee += premium.healthEmployee || 0;
+          monthlyTotals[month].healthEmployer += premium.healthEmployer || 0;
+          monthlyTotals[month].careEmployee += premium.careEmployee || 0;
+          monthlyTotals[month].careEmployer += premium.careEmployer || 0;
+          monthlyTotals[month].pensionEmployee += premium.pensionEmployee || 0;
+          monthlyTotals[month].pensionEmployer += premium.pensionEmployer || 0;
+        }
+      }
+
+      // 賞与保険料を集計（各月ごと）
+      for (let month = 1; month <= 12; month++) {
+        const bonus = this.getMonthBonus(emp.id, month);
+        if (bonus && !bonus.isExempted && bonus.amount > 0) {
+          monthlyTotals[month].bonusHealthEmployee += bonus.healthEmployee || 0;
+          monthlyTotals[month].bonusHealthEmployer += bonus.healthEmployer || 0;
+          monthlyTotals[month].bonusCareEmployee += bonus.careEmployee || 0;
+          monthlyTotals[month].bonusCareEmployer += bonus.careEmployer || 0;
+          monthlyTotals[month].bonusPensionEmployee += bonus.pensionEmployee || 0;
+          monthlyTotals[month].bonusPensionEmployer += bonus.pensionEmployer || 0;
+        }
+      }
+    }
+
+    // 各月の合計を計算
+    for (let month = 1; month <= 12; month++) {
+      const monthTotal = monthlyTotals[month];
+      monthTotal.totalEmployee =
+        monthTotal.healthEmployee +
+        monthTotal.careEmployee +
+        monthTotal.pensionEmployee +
+        monthTotal.bonusHealthEmployee +
+        monthTotal.bonusCareEmployee +
+        monthTotal.bonusPensionEmployee;
+      monthTotal.totalEmployer =
+        monthTotal.healthEmployer +
+        monthTotal.careEmployer +
+        monthTotal.pensionEmployer +
+        monthTotal.bonusHealthEmployer +
+        monthTotal.bonusCareEmployer +
+        monthTotal.bonusPensionEmployer;
+    }
+
+    // 年間合計を計算
+    const annualTotal = {
+      healthEmployee: 0,
+      healthEmployer: 0,
+      careEmployee: 0,
+      careEmployer: 0,
+      pensionEmployee: 0,
+      pensionEmployer: 0,
+      bonusHealthEmployee: 0,
+      bonusHealthEmployer: 0,
+      bonusCareEmployee: 0,
+      bonusCareEmployer: 0,
+      bonusPensionEmployee: 0,
+      bonusPensionEmployer: 0,
+      totalEmployee: 0,
+      totalEmployer: 0,
+    };
+
+    for (let month = 1; month <= 12; month++) {
+      const monthTotal = monthlyTotals[month];
+      annualTotal.healthEmployee += monthTotal.healthEmployee;
+      annualTotal.healthEmployer += monthTotal.healthEmployer;
+      annualTotal.careEmployee += monthTotal.careEmployee;
+      annualTotal.careEmployer += monthTotal.careEmployer;
+      annualTotal.pensionEmployee += monthTotal.pensionEmployee;
+      annualTotal.pensionEmployer += monthTotal.pensionEmployer;
+      annualTotal.bonusHealthEmployee += monthTotal.bonusHealthEmployee;
+      annualTotal.bonusHealthEmployer += monthTotal.bonusHealthEmployer;
+      annualTotal.bonusCareEmployee += monthTotal.bonusCareEmployee;
+      annualTotal.bonusCareEmployer += monthTotal.bonusCareEmployer;
+      annualTotal.bonusPensionEmployee += monthTotal.bonusPensionEmployee;
+      annualTotal.bonusPensionEmployer += monthTotal.bonusPensionEmployer;
+      annualTotal.totalEmployee += monthTotal.totalEmployee;
+      annualTotal.totalEmployer += monthTotal.totalEmployer;
+    }
+
+    // 結果を格納
+    this.companyMonthlyTotals = {
+      ...monthlyTotals,
+      annualTotal,
+    } as any;
   }
 
   getTableRows(): Array<{
