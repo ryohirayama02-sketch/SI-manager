@@ -415,9 +415,7 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
                 alertDate: age18GraduationDate,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
-                details: `子が18歳に到達します（高校卒業予定: ${age18Year}年3月31日）。進学・就労有無による扶養見直しが必要です（届出不要）。提出期限: ${this.formatDate(
-                  submitDeadline
-                )}。`,
+                details: `子が18歳に到達します（高校卒業予定: ${age18Year}年3月31日）。進学・就労有無による扶養見直しが必要です（届出不要）。`,
               });
             }
 
@@ -447,9 +445,7 @@ export class AlertFamilyTabComponent implements OnInit, OnChanges {
                 alertDate: age22GraduationDate,
                 submitDeadline: submitDeadline,
                 daysUntilDeadline: daysUntilDeadline,
-                details: `子が22歳に到達します（大学卒業予定: ${age22Year}年3月31日）。就職して厚生年金加入する場合、扶養外れるため被扶養者（異動）削除届が必要です（提出期限: ${this.formatDate(
-                  submitDeadline
-                )}）。`,
+                details: `子が22歳に到達します（大学卒業予定: ${age22Year}年3月31日）。就職して厚生年金加入する場合、扶養外れるため被扶養者（異動）削除届が必要です。`,
               });
             }
 
